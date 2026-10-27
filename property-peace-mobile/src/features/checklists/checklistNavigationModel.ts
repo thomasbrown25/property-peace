@@ -44,6 +44,20 @@ export const findPreselectedProperty = <T extends { id?: unknown; Id?: unknown }
   ? properties.find((property) => String(property.id ?? property.Id) === propertyId) ?? null
   : null;
 
+export const buildPropertyChecklistHistoryEntry = (property: PropertyShape) => {
+  const propertyId = property.id ?? property.Id;
+  if (propertyId == null) throw new Error('Property ID is required');
+  return {
+    screen: 'PropertyChecklists' as const,
+    params: {
+      propertyId: String(propertyId),
+      propertyName: text(property.name, property.Name, property.streetAddress, property.StreetAddress) || `Property ${String(propertyId)}`,
+      propertyType: text(property.propertyType, property.PropertyType),
+      propertyWide: true,
+    },
+  };
+};
+
 export const buildPropertyChecklistEntry = (property: PropertyShape) => {
   const propertyId = property.id ?? property.Id;
   if (propertyId == null) throw new Error('Property ID is required');

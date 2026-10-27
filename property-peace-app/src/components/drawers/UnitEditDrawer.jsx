@@ -48,6 +48,7 @@ import axiosServices from 'utils/axios';
 import { selectProperty } from 'store/property/property.selector';
 import { setProperty } from 'store/property/property.action';
 import { setLease } from 'store/lease/lease.action';
+import { rentalMode, modeLabel, targetRentalMode } from 'utils/rentalMode';
 
 // Validation schema
 const UnitSchema = Yup.object().shape({
@@ -81,11 +82,62 @@ const UnitEditDrawer = ({ propertyId, onUpdateSuccess }) => {
   const [linkTenantDialogOpen, setLinkTenantDialogOpen] = useState(false);
   const [selectedTenantToLink, setSelectedTenantToLink] = useState(null);
   const [linkingTenant, setLinkingTenant] = useState(false);
-  
+  const [decision, setDecision] = useState(null);
+  const [modeError, setModeError] = useState('');
+  const [modeBusy, setModeBusy] = useState(false);
+  const [currentMode, setCurrentMode] = useState(null);
+
   // Get unit from drawer context
   const unit = drawer.selectedUnit;
   const lease = unit?.lease || null;
   const currentTenants = lease?.tenants || [];
+
+  useEffect(() => {
+    setCurrentMode(null);
+    setDecision(null);
+    setModeError('');
+    setActiveTab(0);
+  }, [drawer.isOpenUnitEdit, unit?.id]);
+
+  const handleModePreflight = async () => {
+    if (!unit?.id) return;
+    setModeError('');
+    setDecision(null);
+    setModeBusy(true);
+    try {
+      const targetMode = targetRentalMode({ rentalMode: currentMode || rentalMode(unit) });
+      const response = await axiosServices.get(`/api/Unit/${unit.id}/rental-mode/preflight`, { params: { targetMode } });
+      const result = response?.data?.data;
+      if (!result) throw new Error('Preflight unavailable');
+      setDecision(result);
+    } catch (error) {
+      setModeError(error?.response?.data?.message || 'Unable to check this change. Retry before converting.');
+    } finally {
+      setModeBusy(false);
+    }
+  };
+
+  const handleModeChange = async () => {
+    if (!decision?.canChange || modeBusy) return;
+    setModeBusy(true);
+    setModeError('');
+    try {
+      const targetMode = decision.targetMode;
+      const response = await axiosServices.post(`/api/Unit/${unit.id}/rental-mode`, { targetMode, confirmed: true });
+      if (!response?.data?.success) throw new Error('Mode change not confirmed');
+      setActiveTab(0);
+      setCurrentMode(targetMode);
+      setDecision(null);
+      onUpdateSuccess?.();
+      openSnackbar({ open: true, message: 'Unit rental mode changed', variant: 'alert', alert: { color: 'success' } });
+    } catch (error) {
+      // A conflict contains a fresh preflight: show new blockers rather than assuming the old check is still valid.
+      setDecision(error?.response?.data?.data || null);
+      setModeError(error?.response?.data?.message || 'Change failed. Run preflight again.');
+    } finally {
+      setModeBusy(false);
+    }
+  };
   
   // Fetch tenants for linking
   const { tenants: allTenants = [], refetch: refetchTenants } = useFetchTenants();
@@ -321,13 +373,22 @@ const UnitEditDrawer = ({ propertyId, onUpdateSuccess }) => {
             
             <Tabs value={activeTab} onChange={(e, newValue) => setActiveTab(newValue)} sx={{ borderBottom: 1, borderColor: 'divider', px: 2.5 }}>
               <Tab label="Unit Details" />
-              <Tab label="Tenant Management" />
-              <Tab label="Lease Management" />
+              {rentalMode({ rentalMode: currentMode || rentalMode(unit) }) !== 'shortTerm' && <Tab label="Tenant Management" />}
+              {rentalMode({ rentalMode: currentMode || rentalMode(unit) }) !== 'shortTerm' && <Tab label="Lease Management" />}
             </Tabs>
 
             <DialogContent sx={{ p: 2.5, minHeight: 400 }}>
               {/* Unit Details Tab */}
               <TabPanel value={activeTab} index={0}>
+                <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2 }}>
+                  <Chip label={modeLabel({ rentalMode: currentMode || rentalMode(unit) })} />
+                  <Button type="button" variant="outlined" disabled={modeBusy || !unit?.id} onClick={handleModePreflight}>
+                    Change rental mode
+                  </Button>
+                </Stack>
+                {rentalMode({ rentalMode: currentMode || rentalMode(unit) }) === 'shortTerm' && (
+                  <Alert severity="info" sx={{ mb: 2 }}>Short-term unit setup only. Guest bookings and nightly pricing are not available yet.</Alert>
+                )}
                 <Grid container spacing={3}>
                   <Grid size={12}>
                     <FormInput
@@ -375,7 +436,7 @@ const UnitEditDrawer = ({ propertyId, onUpdateSuccess }) => {
               </TabPanel>
 
               {/* Tenant Management Tab */}
-              <TabPanel value={activeTab} index={1}>
+              {rentalMode({ rentalMode: currentMode || rentalMode(unit) }) !== 'shortTerm' && <TabPanel value={activeTab} index={1}>
                 <Stack spacing={3}>
                   <Box>
                     <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
@@ -476,10 +537,10 @@ const UnitEditDrawer = ({ propertyId, onUpdateSuccess }) => {
                     </Box>
                   )}
                 </Stack>
-              </TabPanel>
+              </TabPanel>}
 
               {/* Lease Management Tab */}
-              <TabPanel value={activeTab} index={2}>
+              {rentalMode({ rentalMode: currentMode || rentalMode(unit) }) !== 'shortTerm' && <TabPanel value={activeTab} index={2}>
                 <Stack spacing={3}>
                   {lease ? (
                     <>
@@ -550,7 +611,7 @@ const UnitEditDrawer = ({ propertyId, onUpdateSuccess }) => {
                     </Alert>
                   )}
                 </Stack>
-              </TabPanel>
+              </TabPanel>}
             </DialogContent>
 
             <Divider />
@@ -566,6 +627,29 @@ const UnitEditDrawer = ({ propertyId, onUpdateSuccess }) => {
             </DialogActions>
           </Form>
         </FormikProvider>
+      </Dialog>
+
+      <Dialog open={Boolean(decision) || Boolean(modeError)} onClose={() => { setDecision(null); setModeError(''); }} maxWidth="sm" fullWidth>
+        <DialogTitle>{decision?.canChange ? 'Confirm rental mode change' : 'Rental mode change blocked'}</DialogTitle>
+        <DialogContent>
+          {modeError && <Alert severity="error" sx={{ mb: 2 }}>{modeError}</Alert>}
+          {decision?.canChange ? (
+            <Alert severity="warning">{decision.confirmationMessage}</Alert>
+          ) : decision?.blockers?.length ? (
+            <List>{decision.blockers.map(blocker => (
+              <ListItem key={blocker.code}>
+                <ListItemText primary={blocker.message} secondary={blocker.resolution} />
+              </ListItem>
+            ))}</List>
+          ) : <Typography>Unable to verify this unit. Retry preflight before changing mode.</Typography>}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => { setDecision(null); setModeError(''); }}>Cancel</Button>
+          {!decision?.canChange && <Button disabled={modeBusy} onClick={handleModePreflight}>Retry preflight</Button>}
+          {decision?.canChange && <Button disabled={modeBusy} variant="contained" color="warning" onClick={handleModeChange}>
+            Confirm change to {decision.targetMode === 'shortTerm' ? 'Short-term' : 'Long-term'}
+          </Button>}
+        </DialogActions>
       </Dialog>
 
       {/* Add Tenant Dialog */}

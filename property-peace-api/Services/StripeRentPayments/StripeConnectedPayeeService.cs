@@ -6,6 +6,8 @@ using System.Text.RegularExpressions;
 namespace brownstone_hub_api.Services.StripeRentPayments
 {
     public sealed record ApprovedStripeDestination(long PayeeUserId, string StripeAccountId);
+    // Onboarding capability, never an approved rent destination.
+    public sealed record OwnedStripeAccount(long UserId, string? StripeAccountId);
 
     public interface IStripeConnectedPayeeService
     {
@@ -17,6 +19,7 @@ namespace brownstone_hub_api.Services.StripeRentPayments
         Task<StripeConnectedPayeeReview?> SyncStripeSnapshotAsync(StripeConnectedAccountSnapshot snapshot, string? eventId, CancellationToken cancellationToken = default);
         Task<bool> IsApprovedDestinationAsync(long userId, long organizationId, string stripeAccountId, CancellationToken cancellationToken = default);
         Task<ApprovedStripeDestination?> ResolveApprovedDestinationAsync(long actorUserId, long organizationId, CancellationToken cancellationToken = default);
+        Task<OwnedStripeAccount?> ResolveOwnedAccountForOnboardingAsync(long actorUserId, long organizationId, CancellationToken cancellationToken = default);
     }
 
     public sealed class StripeConnectedPayeeService(DataContext context, TimeProvider timeProvider) : IStripeConnectedPayeeService
@@ -432,6 +435,29 @@ namespace brownstone_hub_api.Services.StripeRentPayments
                 .ToListAsync(cancellationToken);
 
             return destinations.Count == 1 ? destinations[0] : null;
+        }
+
+        public async Task<OwnedStripeAccount?> ResolveOwnedAccountForOnboardingAsync(long actorUserId,
+            long organizationId, CancellationToken cancellationToken = default)
+        {
+            if (actorUserId <= 0 || organizationId <= 0) return null;
+            if (!await context.Organizations.AsNoTracking().AnyAsync(org =>
+                org.Id == organizationId && org.IsActive && !org.IsDeleted, cancellationToken)) return null;
+            var authorized = await context.OrganizationMembers.AsNoTracking().AnyAsync(member =>
+                member.UserId == actorUserId && member.OrganizationId == organizationId && member.IsActive
+                && (member.Role == "Owner" || (member.Role == "Manager" && member.CanManageProperties)), cancellationToken);
+            if (!authorized) return null;
+            var user = await context.Users.AsNoTracking().Where(x => x.Id == actorUserId && !x.IsDeleted && !x.IsDemo && !x.IsSuspended)
+                .Select(x => new { x.StripeAccountId }).SingleOrDefaultAsync(cancellationToken);
+            if (user == null) return null;
+            if (string.IsNullOrWhiteSpace(user.StripeAccountId)) return new OwnedStripeAccount(actorUserId, null);
+            var bindings = await context.StripeConnectedPayeeReviews.AsNoTracking()
+                .Where(review => review.StripeAccountId == user.StripeAccountId)
+                .Select(review => new { review.UserId, review.ApprovedOrganizationId })
+                .Take(2).ToListAsync(cancellationToken);
+            return bindings.Count == 1 && bindings[0].UserId == actorUserId &&
+                (bindings[0].ApprovedOrganizationId == null || bindings[0].ApprovedOrganizationId == organizationId)
+                ? new OwnedStripeAccount(actorUserId, user.StripeAccountId) : null;
         }
 
         private async Task<StripeConnectedPayeeReview> GetRequiredAsync(string stripeAccountId, CancellationToken cancellationToken) =>

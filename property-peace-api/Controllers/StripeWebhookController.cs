@@ -136,6 +136,12 @@ namespace brownstone_hub_api.Controllers
                 _logger.LogInformation("Successfully received Stripe webhook event: {EventType}, ID: {EventId}, Created: {Created}",
                     stripeEvent.Type, stripeEvent.Id, stripeEvent.Created);
 
+                // Rent intents are platform charges. A connected-account direct charge (or an
+                // explicitly short-stay-tagged intent) must never enter the rent inbox/handlers.
+                // Return a retryable rejection until the dedicated short-stay endpoint exists.
+                if (IsNonRentMoneyEvent(stripeEvent))
+                    return StatusCode(StatusCodes.Status409Conflict, new { received = false });
+
                 var dispatchFence = await TryAcquireDispatchFenceAsync(stripeEvent.Id);
                 if (dispatchFence == null)
                 {
@@ -185,6 +191,18 @@ namespace brownstone_hub_api.Controllers
                 return StatusCode(500, ServiceResponse<object>.CreateError(
                     "Error processing webhook", ex.Message, ex.InnerException?.Message, 500));
             }
+        }
+
+        [NonAction]
+        public static bool IsNonRentMoneyEvent(Event stripeEvent)
+        {
+            var moneyEvent = stripeEvent.Type.StartsWith("payment_intent.", StringComparison.Ordinal) ||
+                stripeEvent.Type.StartsWith("charge.", StringComparison.Ordinal) ||
+                stripeEvent.Type.StartsWith("refund.", StringComparison.Ordinal);
+            if (!moneyEvent) return false;
+            if (!string.IsNullOrWhiteSpace(stripeEvent.Account)) return true;
+            return stripeEvent.Data?.Object is PaymentIntent intent &&
+                intent.Metadata?.ContainsKey("reservation_code") == true;
         }
 
         private async Task<IAsyncDisposable?> TryAcquireDispatchFenceAsync(string stripeEventId)

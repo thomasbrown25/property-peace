@@ -5,6 +5,7 @@ using brownstone_hub_api.Services.UserService;
 using brownstone_hub_api.Services.VendorService;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Text.Json;
 
 namespace brownstone_hub_api.Controllers
 {
@@ -92,6 +93,24 @@ namespace brownstone_hub_api.Controllers
                 });
 
             return Ok(response);
+        }
+
+        [HttpPatch("{vendorId}")]
+        public async Task<IActionResult> PatchVendor(long vendorId, [FromBody] JsonElement changes)
+        {
+            var organizationId = this.GetCurrentOrganizationIdOrForbid();
+            if (!organizationId.HasValue) return OrganizationContextRequired();
+            var response = await _vendorService.PatchVendor(vendorId, organizationId.Value, changes);
+            return response.Success ? Ok(response) : StatusCode(response.StatusCode, new { response.Message, response.Errors });
+        }
+
+        [HttpGet("{vendorId}/maintenance")]
+        public async Task<IActionResult> GetVendorMaintenance(long vendorId)
+        {
+            var organizationId = this.GetCurrentOrganizationIdOrForbid();
+            if (!organizationId.HasValue) return OrganizationContextRequired();
+            var response = await _vendorService.GetVendorMaintenance(vendorId, organizationId.Value);
+            return response.Success ? Ok(response) : StatusCode(response.StatusCode, new { response.Message, response.Errors });
         }
 
         [HttpDelete("{vendorId}")]

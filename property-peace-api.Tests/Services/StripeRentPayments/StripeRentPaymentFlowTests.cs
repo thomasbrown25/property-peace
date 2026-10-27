@@ -1,4 +1,5 @@
 using brownstone_hub_api.Data;
+using brownstone_hub_api.Enums;
 using brownstone_hub_api.Models;
 using brownstone_hub_api.Services.StripeRentPayments;
 using brownstone_hub_api.Services.ActivationFunnel;
@@ -13,6 +14,150 @@ namespace brownstone_hub_api.Tests.Services.StripeRentPayments;
 
 public sealed class StripeRentPaymentFlowTests
 {
+    [Fact]
+    public async Task CreateAsync_RejectsLegacyReplayAgainstChargeBoundOperationBeforeStripe()
+    {
+        await using var context = CreateContext();
+        await SeedLeaseAsync(context, 44, 9);
+        context.StripeRentPayments.Add(new StripeRentPayment
+        {
+            OperationId = "op_bound", PaymentIntentId = "pi_bound", LeaseId = 44,
+            OrganizationId = 9, TenantUserId = 7, AmountCents = 5_000, Currency = "usd",
+            DestinationStripeAccountId = "acct_snapshot", ChargeId = "fee:19"
+        });
+        await context.SaveChangesAsync();
+        var gateway = new Mock<IStripeRentGateway>();
+
+        await ((Func<Task>)(() => CreateService(context, gateway.Object, true).CreateAsync(
+            new(44, 9, 7, "op_bound", 5_000, "usd", "acct_snapshot", null))))
+            .Should().ThrowAsync<InvalidOperationException>().WithMessage("*different authorization data*");
+        gateway.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public async Task UpdateAsync_RejectsLegacyRequestAgainstChargeBoundIntentBeforeStripe()
+    {
+        await using var context = CreateContext();
+        await SeedLeaseAsync(context, 1, 2);
+        var payment = NewPayment("pi_bound_update");
+        payment.ChargeId = "fee:19";
+        context.StripeRentPayments.Add(payment);
+        await context.SaveChangesAsync();
+        var gateway = new Mock<IStripeRentGateway>();
+
+        await ((Func<Task>)(() => CreateService(context, gateway.Object, true).UpdateAsync(
+            new(payment.PaymentIntentId, 1, 3, 5_000, null))))
+            .Should().ThrowAsync<InvalidOperationException>().WithMessage("*charge*does not match*");
+        gateway.VerifyNoOtherCalls();
+        payment.AmountCents.Should().Be(10_000);
+    }
+
+    [Fact]
+    public async Task CreateAndUpdate_NullChargeKeepsLegacyRentCompatibility()
+    {
+        await using var context = CreateContext();
+        await SeedLeaseAsync(context, 44, 9);
+        var gateway = IntentGateway("pi_legacy_charge_null");
+        gateway.Setup(x => x.UpdatePaymentIntentAsync("pi_legacy_charge_null",
+                It.IsAny<StripeRentIntentRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new StripeRentIntentResult("pi_legacy_charge_null", "secret"));
+        var service = CreateService(context, gateway.Object, true);
+        var command = new CreateStripeRentPaymentCommand(44, 9, 7, "op_legacy_charge_null", 5_000,
+            "usd", "acct_snapshot", null);
+
+        await service.CreateAsync(command);
+        (await context.StripeRentPayments.SingleAsync()).ChargeId.Should().BeNull();
+        await service.CreateAsync(command);
+        await service.UpdateAsync(new("pi_legacy_charge_null", 44, 7, 4_000, null));
+        (await context.StripeRentPayments.SingleAsync()).ChargeId.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData("rent:44:2026-10-01")]
+    [InlineData("deposit:pooled:44")]
+    [InlineData("")]
+    public async Task CreateAsync_UnsupportedOrUnauthorizedChargeSelectionCannotReachStripe(string chargeId)
+    {
+        await using var context = CreateContext();
+        var gateway = new Mock<IStripeRentGateway>();
+        var command = new CreateStripeRentPaymentCommand(44, 9, 7, "op_charge", 5_000,
+            "usd", "acct_snapshot", null, ChargeId: chargeId);
+
+        await ((Func<Task>)(() => CreateService(context, gateway.Object, true).CreateAsync(command)))
+            .Should().ThrowAsync<InvalidOperationException>().WithMessage(chargeId.StartsWith("rent:")
+                ? "*LongTerm*" : "*charge-specific*unavailable*");
+        gateway.VerifyNoOtherCalls();
+        (await context.StripeRentPayments.CountAsync()).Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData("rent:44:2026-10-01")]
+    [InlineData("deposit:pooled:44")]
+    public async Task UpdateAsync_UnsupportedOrMismatchedChargeCannotMutateExistingRentIntent(string chargeId)
+    {
+        await using var context = CreateContext();
+        var payment = NewPayment("pi_charge_guard");
+        context.StripeRentPayments.Add(payment);
+        await context.SaveChangesAsync();
+        var gateway = new Mock<IStripeRentGateway>();
+
+        await ((Func<Task>)(() => CreateService(context, gateway.Object, true).UpdateAsync(
+            new UpdateStripeRentPaymentCommand(payment.PaymentIntentId, payment.LeaseId,
+                payment.TenantUserId, 5_000, null, ChargeId: chargeId))))
+            .Should().ThrowAsync<InvalidOperationException>().WithMessage(chargeId.StartsWith("rent:")
+                ? "*charge identity does not match*" : "*charge-specific*unavailable*");
+        gateway.VerifyNoOtherCalls();
+        payment.AmountCents.Should().Be(10_000);
+    }
+
+    [Fact]
+    public async Task CreateAsync_ShortTermLeaseDeniesNewIntentAndDurableReplayBeforeStripe()
+    {
+        await using var context = CreateContext();
+        await SeedLeaseAsync(context, 44, 9);
+        await SeedLeaseDestinationAsync(context, 44, 9, "acct_snapshot");
+        var gateway = IntentGateway("pi_mode");
+        var service = CreateService(context, gateway.Object, true);
+        var command = new CreateStripeRentPaymentCommand(44, 9, 7, "op_mode", 5_000, "usd", "acct_snapshot", null);
+        var unit = await context.Units.SingleAsync(u => u.Id == 44);
+        unit.RentalMode = ERentalMode.ShortTerm;
+        await context.SaveChangesAsync();
+
+        await ((Func<Task>)(() => service.CreateAsync(command))).Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*LongTerm*");
+        gateway.VerifyNoOtherCalls();
+        (await context.StripeRentPayments.CountAsync()).Should().Be(0);
+
+        context.StripeRentPayments.Add(new StripeRentPayment
+        {
+            OperationId = command.OperationId, PaymentIntentId = "pi_mode", LeaseId = 44,
+            OrganizationId = 9, TenantUserId = 7, AmountCents = 5_000, Currency = "usd",
+            DestinationStripeAccountId = "acct_snapshot", Status = StripeRentPaymentStatus.Created
+        });
+        await context.SaveChangesAsync();
+        await ((Func<Task>)(() => service.CreateAsync(command))).Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*LongTerm*");
+        gateway.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public async Task UpdateAsync_ShortTermLeaseDeniesExistingIntentBeforeStripe()
+    {
+        await using var context = CreateContext();
+        await SeedLeaseAsync(context, 1, 2);
+        await SeedLeaseDestinationAsync(context, 1, 2, "acct_landlord");
+        var payment = NewPayment("pi_mode_update");
+        context.StripeRentPayments.Add(payment);
+        (await context.Units.SingleAsync()).RentalMode = ERentalMode.ShortTerm;
+        await context.SaveChangesAsync();
+        var gateway = new Mock<IStripeRentGateway>();
+
+        await ((Func<Task>)(() => CreateService(context, gateway.Object, true)
+            .UpdateAsync(new(payment.PaymentIntentId, 1, 3, 5_000, null)))).Should()
+            .ThrowAsync<InvalidOperationException>().WithMessage("*LongTerm*");
+        gateway.VerifyNoOtherCalls();
+        payment.AmountCents.Should().Be(10_000);
+    }
     [Fact]
     public async Task CreateAsync_CreatesPlatformIntentAndPersistsAuthorizedReservation()
     {
@@ -415,6 +560,30 @@ public sealed class StripeRentPaymentFlowTests
     }
 
     [Fact]
+    public async Task MarkSucceededAsync_FeeReceiptDoesNotRecordFirstRentActivation()
+    {
+        await using var context = CreateContext();
+        await SeedLeaseAsync(context, 1, 2);
+        await SeedLeaseDestinationAsync(context, 1, 2, "acct_landlord");
+        var payment = NewPayment("pi_fee_no_rent_activation");
+        payment.ChargeId = "fee:19";
+        context.StripeRentPayments.Add(payment);
+        context.Payments.Add(new Payment { LeaseId = 1, PropertyId = 20_001, OrganizationId = 2,
+            FeeId = 19, Amount = 100m, PaymentDate = DateTime.UtcNow, Status = "Completed",
+            StripePaymentIntentId = payment.PaymentIntentId });
+        await context.SaveChangesAsync();
+        var gateway = new Mock<IStripeRentGateway>();
+        gateway.Setup(x => x.GetPaymentMethodTypeAsync(payment.PaymentIntentId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync("card");
+
+        await CreateService(context, gateway.Object, true).MarkSucceededAsync(new(
+            payment.PaymentIntentId, "ch_fee", "card", DateTimeOffset.UtcNow));
+
+        (await context.StripeRentPayments.SingleAsync()).Status.Should().Be(StripeRentPaymentStatus.Held);
+        (await context.ActivationMilestoneOccurrences.CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
     public async Task CreateAsync_WhenPaymentsSwitchMissing_FailsClosedWithoutCallingStripe()
     {
         await using var context = CreateContext(); var gateway = new Mock<IStripeRentGateway>();
@@ -441,6 +610,8 @@ public sealed class StripeRentPaymentFlowTests
         var lease = new Lease { Id = leaseId, UnitId = leaseId, OrganizationId = organizationId, IsActive = true,
             StartDate = DateTime.Today.AddMonths(-startMonthsAgo), EndDate = DateTime.Today.AddYears(1), RentAmount = rent, RentFrequency = "Monthly" };
         context.Leases.Add(lease);
+        context.Units.Add(new Unit { Id = leaseId, PropertyId = 20_000 + leaseId,
+            OrganizationId = organizationId, RentalMode = ERentalMode.LongTerm });
         foreach (var userId in new long[] { 3, 7 })
         {
             var tenant = new Tenant { Id = leaseId * 100 + userId, UserId = userId, OrganizationId = organizationId,
@@ -467,19 +638,30 @@ public sealed class StripeRentPaymentFlowTests
             Landlord = landlord,
             OrganizationId = organizationId
         };
-        context.Units.Add(new Unit
+        var unit = await context.Units.SingleOrDefaultAsync(u => u.Id == leaseId);
+        if (unit == null)
+            context.Units.Add(new Unit { Id = leaseId, PropertyId = property.Id,
+                Property = property, OrganizationId = organizationId });
+        else
         {
-            Id = leaseId,
-            PropertyId = property.Id,
-            Property = property,
-            OrganizationId = organizationId
-        });
+            context.Properties.Add(property);
+            unit.PropertyId = property.Id;
+            unit.Property = property;
+        }
         await context.SaveChangesAsync();
     }
 
     internal static StripeRentPaymentService CreateService(DataContext context, IStripeRentGateway gateway, bool? paymentsEnabled,
         IStripeRentRiskService? risk = null, bool? transfersEnabled = null, TimeProvider? time = null, Dictionary<string, string?>? extras = null)
     {
+        // Directly constructed legacy transfer aggregates need a LongTerm lease/unit fixture.
+        if (context.StripeRentPayments.Any(p => p.LeaseId == 1) && !context.Units.Any(u => u.Id == 30)
+            && !context.Leases.Any(l => l.Id == 1))
+        {
+            context.Units.Add(new Unit { Id = 30, PropertyId = 20, OrganizationId = 2 });
+            context.Leases.Add(new Lease { Id = 1, UnitId = 30, OrganizationId = 2, IsActive = true });
+            context.SaveChanges();
+        }
         var values = extras ?? new Dictionary<string, string?>();
         if (paymentsEnabled.HasValue) values["Stripe:RentPaymentsEnabled"] = paymentsEnabled.Value.ToString();
         if (transfersEnabled.HasValue) values["Stripe:TransfersEnabled"] = transfersEnabled.Value.ToString();

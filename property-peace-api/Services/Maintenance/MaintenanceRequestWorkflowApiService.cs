@@ -53,6 +53,8 @@ public sealed partial class MaintenanceRequestApiService
         }
 
         var now = timeProvider.GetUtcNow();
+        var previousVendorId = request.VendorId;
+        var previousAssignedAt = request.AssignedAt;
         request.AssignedToType = command.AssignedToType;
         request.AssignedToUserId = assignedUserId;
         request.VendorId = vendorId;
@@ -60,6 +62,13 @@ public sealed partial class MaintenanceRequestApiService
         request.AssignedByUserId = actor.UserId;
         request.AssignedAt = now.UtcDateTime;
         request.Status = command.EstimateRequired ? EMaintenanceStatus.AwaitingApproval : EMaintenanceStatus.Assigned;
+        if (previousVendorId != vendorId)
+        {
+            if (previousVendorId.HasValue && !await db.MaintenanceActivityEvents.AnyAsync(e =>
+                    e.MaintenanceRequestId == id && e.EventType == VendorAssignmentHistory.EventType, cancellationToken))
+                db.MaintenanceActivityEvents.Add(VendorAssignmentHistory.Create(request, actor.UserId, previousVendorId, previousAssignedAt));
+            db.MaintenanceActivityEvents.Add(VendorAssignmentHistory.Create(request, actor.UserId, vendorId));
+        }
         await db.SaveChangesAsync(cancellationToken);
         await RecordActivity(request, actor.UserId, "assignment.changed", "maintenanceRequest", request.Id,
             "Maintenance assignment updated", MaintenanceActivityVisibility.Participants, request.Status.ToString(), cancellationToken: cancellationToken);

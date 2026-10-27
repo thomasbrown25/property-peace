@@ -24,6 +24,23 @@ public sealed class GooglePlacesService(
     private readonly GooglePlacesSettings _settings = settings.Value;
     private readonly ILogger<GooglePlacesService> _logger = logger;
 
+    public async Task<byte[]?> GetStreetViewImageAsync(string address, CancellationToken cancellationToken)
+    {
+        EnsureConfigured();
+        var query = $"location={Uri.EscapeDataString(address)}&key={Uri.EscapeDataString(_settings.ApiKey)}";
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(_settings.TimeoutSeconds));
+        // A successful image HTTP response can still be Google's "no imagery" graphic.
+        using var metadata = await _httpClient.GetAsync($"https://maps.googleapis.com/maps/api/streetview/metadata?{query}", timeout.Token);
+        if (!metadata.IsSuccessStatusCode) return null;
+        using var document = JsonDocument.Parse(await metadata.Content.ReadAsStringAsync(timeout.Token));
+        if (!document.RootElement.TryGetProperty("status", out var status) || status.GetString() != "OK") return null;
+        using var image = await _httpClient.GetAsync($"https://maps.googleapis.com/maps/api/streetview?size=800x600&{query}", HttpCompletionOption.ResponseHeadersRead, timeout.Token);
+        if (!image.IsSuccessStatusCode || image.Content.Headers.ContentType?.MediaType != "image/jpeg" || image.Content.Headers.ContentLength > 3_000_000) return null;
+        var bytes = await image.Content.ReadAsByteArrayAsync(timeout.Token);
+        return bytes.Length is > 0 and <= 3_000_000 ? bytes : null;
+    }
+
     public async Task<IReadOnlyList<GooglePlaceSuggestionDto>> AutocompleteAsync(
         string input, Guid sessionToken, CancellationToken cancellationToken)
     {

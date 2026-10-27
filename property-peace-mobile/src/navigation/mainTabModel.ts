@@ -5,6 +5,8 @@ export type MainTabName =
   | 'Properties'
   | 'Checklists'
   | 'Maintenance'
+  | 'Payments'
+  | 'Marketing'
   | 'Messages'
   | 'Notifications'
   | 'Tenants'
@@ -16,8 +18,13 @@ export type MainTabComponentName =
   | 'PropertiesNavigator'
   | 'ChecklistsNavigator'
   | 'MaintenanceNavigator'
+  | 'MarketingNavigator'
   | 'TenantMaintenanceNavigator'
+  | 'TenantPaymentsScreen'
+  | 'TenantLeasesNavigator'
+  | 'TenantsNavigator'
   | 'MessagesNavigator'
+  | 'NotificationsScreen'
   | 'SettingsScreen';
 
 export type VisibleMainTab = {
@@ -35,10 +42,13 @@ const visibleTabsByAudience: Record<MainAudience, readonly VisibleMainTab[]> = {
   landlord: [
     { name: 'Dashboard', component: 'DashboardScreen', label: 'Home' },
     { name: 'Properties', component: 'PropertiesNavigator' },
-    { name: 'Maintenance', component: 'MaintenanceNavigator' },
-    { name: 'Messages', component: 'MessagesNavigator' },
+    { name: 'Tenants', component: 'TenantsNavigator' },
+    { name: 'Marketing', component: 'MarketingNavigator' },
+    { name: 'Notifications', component: 'NotificationsScreen' },
   ],
   tenant: [
+    { name: 'Payments', component: 'TenantPaymentsScreen' },
+    { name: 'Leases', component: 'TenantLeasesNavigator' },
     { name: 'Maintenance', component: 'TenantMaintenanceNavigator' },
     { name: 'Messages', component: 'MessagesNavigator' },
     { name: 'Settings', component: 'SettingsScreen' },
@@ -51,7 +61,12 @@ const icons: Partial<Record<MainTabName, { active: string; inactive: string }>> 
   Properties: { active: 'business', inactive: 'business-outline' },
   Checklists: { active: 'clipboard', inactive: 'clipboard-outline' },
   Maintenance: { active: 'construct', inactive: 'construct-outline' },
+  Payments: { active: 'card', inactive: 'card-outline' },
+  Leases: { active: 'document-text', inactive: 'document-text-outline' },
+  Marketing: { active: 'megaphone', inactive: 'megaphone-outline' },
+  Tenants: { active: 'people', inactive: 'people-outline' },
   Messages: { active: 'chatbubble-ellipses', inactive: 'chatbubble-ellipses-outline' },
+  Notifications: { active: 'notifications', inactive: 'notifications-outline' },
   Settings: { active: 'settings', inactive: 'settings-outline' },
 };
 

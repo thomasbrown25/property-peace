@@ -116,7 +116,14 @@ const isAuthEndpoint = (url = '') =>
   url.includes('/api/mfa/login/verify') ||
   url.includes('/api/demo-requests') || url.includes('/api/admin/impersonation/refresh');
 
+// Public discovery never refreshes a stale login or sends tenant/organization context.
+const isPublicStayEndpoint = (url = '') => /^\/api\/short-stay\/public\/units\/\d+(?:\/quote)?$/.test(url);
+
 axiosServices.interceptors.request.use(async (config) => {
+  if (isPublicStayEndpoint(config.url)) {
+    removeInheritedAuthContext(config.headers);
+    return config;
+  }
   const state = store.getState();
   let accessToken = getActiveAccessToken();
   const authEndpoint = isAuthEndpoint(config.url);
@@ -155,7 +162,7 @@ export const normalizeAxiosError = (error) => {
 axiosServices.interceptors.response.use((response) => response, async (error) => {
   const authEndpoint = isAuthEndpoint(error.config?.url);
   const isSubscriptionEndpoint = error.config?.url?.includes('/api/subscription');
-  const skipAuthRedirect = error.config?.skipAuthRedirect === true;
+  const skipAuthRedirect = error.config?.skipAuthRedirect === true || isPublicStayEndpoint(error.config?.url);
   const canRefresh = error.response?.status === 401 && !authEndpoint && !isSubscriptionEndpoint && !skipAuthRedirect && !error.config?._retry;
   if (canRefresh) {
     error.config._retry = true;

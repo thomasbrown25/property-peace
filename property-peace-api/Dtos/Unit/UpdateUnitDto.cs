@@ -3,12 +3,15 @@ using brownstone_hub_api.Dtos.IncludedUtility;
 using brownstone_hub_api.Dtos.Lease;
 using brownstone_hub_api.Dtos.MaintenanceRequest;
 using brownstone_hub_api.Dtos.Tenant;
+using brownstone_hub_api.Enums;
 
 namespace brownstone_hub_api.Dtos.Unit
 {
     public class UpdateUnitDto
     {
         public long Id { get; set; }
+        // Optional on legacy updates. Only creation may set mode; mode changes require a separate guarded API.
+        public ERentalMode? RentalMode { get; set; }
         public string Name { get; set; } = "";
         public string Bedrooms { get; set; } = "";
         public string Baths { get; set; } = "";

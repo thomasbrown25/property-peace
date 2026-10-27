@@ -35,6 +35,7 @@ export const addOrUpdateUnit = (unit) => async (dispatch) => {
       type: UNIT_ACTION_TYPES.ADD_UNIT_FAILED,
       payload: error?.response?.data?.errors
     });
+    throw error;
   }
 };
 

@@ -1,5 +1,7 @@
 using brownstone_hub_api.Dtos.Unit;
 using brownstone_hub_api.Services.UnitService;
+using brownstone_hub_api.Enums;
+using brownstone_hub_api.Attributes;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -8,9 +10,25 @@ namespace brownstone_hub_api.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [Authorize(Roles = "Landlord,Admin")]
-    public class UnitController(IUnitService unitService) : ControllerBase
+    public class UnitController(IUnitService unitService, RentalModeService rentalModeService) : ControllerBase
     {
         private readonly IUnitService _unitService = unitService;
+
+        [RequireOrganizationRole("Owner", "Manager")]
+        [HttpGet("{unitId:long}/rental-mode/preflight")]
+        public async Task<IActionResult> RentalModePreflight(long unitId, [FromQuery] ERentalMode targetMode, CancellationToken cancellationToken)
+        {
+            var response = await rentalModeService.Preflight(unitId, targetMode, cancellationToken);
+            return StatusCode(response.StatusCode, response);
+        }
+
+        [RequireOrganizationRole("Owner", "Manager")]
+        [HttpPost("{unitId:long}/rental-mode")]
+        public async Task<IActionResult> ChangeRentalMode(long unitId, [FromBody] ChangeRentalModeRequest request, CancellationToken cancellationToken)
+        {
+            var response = await rentalModeService.Change(unitId, request, cancellationToken);
+            return StatusCode(response.StatusCode, response);
+        }
 
         [Authorize]
         [HttpGet("{propertyId}")]

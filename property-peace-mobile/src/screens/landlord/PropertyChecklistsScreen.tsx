@@ -14,9 +14,10 @@ import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import ChecklistAPI from '../../api/checklistAPI';
 import LeaseAPI, { Lease } from '../../api/leaseAPI';
-import { buildConditionCycles } from '../../features/checklists/checklistModel';
+import { buildConditionCycles, isMoveInChecklist, isMoveOutChecklist } from '../../features/checklists/checklistModel';
 import { activeLeaseScope, buildChecklistOverviewCards, checklistHistoryScope, isChecklistStarted, selectChecklistLease } from '../../features/checklists/checklistOverviewModel';
 import { startChecklistCycle } from '../../features/checklists/checklistWorkflow';
+import { checklistDate, recentPropertyChecklists } from '../../features/checklists/recentPropertyChecklists';
 import type { Checklist, ChecklistCycle } from '../../features/checklists/checklistTypes';
 import { ChecklistsStackParamList } from '../../navigation/checklistsTypes';
 import { useAppTheme } from '../../theme/AppTheme';
@@ -24,6 +25,15 @@ import { useAppTheme } from '../../theme/AppTheme';
 type Props = NativeStackScreenProps<ChecklistsStackParamList, 'PropertyChecklists'>;
 
 const messageOf = (error: any, fallback: string) => error?.message || error?.Message || fallback;
+
+const propertyChecklistLabel = (item: Checklist) => isMoveInChecklist(item)
+  ? 'Move-in checklist'
+  : isMoveOutChecklist(item) ? 'Move-out checklist' : 'Checklist';
+
+const propertyChecklistDate = (item: Checklist) => {
+  const date = checklistDate(item);
+  return date ? new Date(date).toLocaleDateString() : 'Date unavailable';
+};
 
 export default function PropertyChecklistsScreen({ navigation, route }: Props) {
   const { mode, colors } = useAppTheme();
@@ -52,6 +62,7 @@ export default function PropertyChecklistsScreen({ navigation, route }: Props) {
       setRefreshing(false);
     }
 
+    if (home.propertyWide) return;
     try {
       const leaseScope = activeLeaseScope(home);
       const lease = leaseScope.scope === 'unit'
@@ -102,7 +113,7 @@ export default function PropertyChecklistsScreen({ navigation, route }: Props) {
     try {
       const started = await ChecklistAPI.update(checklist.id, {
         ...checklist,
-        inspectionDate: new Date().toISOString(),
+        inspectionDate: checklist.inspectionDate || new Date().toISOString(),
       });
       openEditor(started);
     } catch (startError: any) {
@@ -114,6 +125,46 @@ export default function PropertyChecklistsScreen({ navigation, route }: Props) {
 
   if (loading) return <View style={themed.center}><ActivityIndicator size="large" color={mode === 'dark' ? colors.accent : '#2475cf'} /></View>;
 
+  if (home.propertyWide) {
+    const history = recentPropertyChecklists(checklists, home.propertyId);
+    return (
+      <FlatList
+        style={themed.container}
+        contentContainerStyle={themed.content}
+        data={history}
+        keyExtractor={(item, index) => String(item.id ?? index)}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={mode === 'dark' ? colors.accent : '#2475cf'} />}
+        ListHeaderComponent={<View>
+          <Text style={themed.eyebrow}>PROPERTY CHECKLISTS</Text>
+          <Text style={themed.title}>{home.propertyName}</Text>
+          <Text style={[themed.subtitle, { marginBottom: 18 }]}>All inspections for this property</Text>
+          <TouchableOpacity style={[themed.primaryButton, { marginBottom: 18 }]} onPress={() => navigation.navigate('ChecklistPropertySearch', { preselectedPropertyId: home.propertyId })} accessibilityRole="button">
+            <Ionicons name="add" size={20} color="#fff" />
+            <Text style={themed.primaryText}>Start or continue an inspection</Text>
+          </TouchableOpacity>
+          {!!error && <TouchableOpacity style={themed.errorCard} onPress={load} accessibilityRole="button"><Text style={themed.errorText}>{error} Tap to retry.</Text></TouchableOpacity>}
+        </View>}
+        renderItem={({ item }) => (
+          <TouchableOpacity style={themed.propertyRow} onPress={() => item.id != null && navigation.navigate('ChecklistEditor', {
+            propertyId: home.propertyId,
+            propertyName: home.propertyName,
+            propertyType: home.propertyType,
+            unitId: item.unitId == null ? undefined : String(item.unitId),
+            unitName: item.unitName,
+            checklistId: String(item.id),
+          })} accessibilityRole="button" accessibilityLabel={`${propertyChecklistLabel(item)}, ${propertyChecklistDate(item)}`} disabled={item.id == null}>
+            <View style={themed.flex}>
+              <Text style={themed.sideTitle}>{propertyChecklistLabel(item)}</Text>
+              <Text style={themed.sideMeta}>{propertyChecklistDate(item)}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={mode === 'dark' ? '#b4c3d0' : '#617180'} />
+          </TouchableOpacity>
+        )}
+        ListEmptyComponent={!error ? <Text style={themed.emptyText}>No checklists for this property yet.</Text> : null}
+      />
+    );
+  }
+
   const renderCycle = ({ item, index }: { item: ReturnType<typeof buildChecklistOverviewCards>[number]; index: number }) => {
     const cycle: ChecklistCycle = cycles[index];
     return (
@@ -122,7 +173,7 @@ export default function PropertyChecklistsScreen({ navigation, route }: Props) {
         <ChecklistSide
           side={item.moveIn}
           checklist={cycle.moveIn}
-          accent="#2475cf"
+          kind="move-in"
           starting={startingKey === `${item.id}-in`}
           onOpen={() => cycle.moveIn && openEditor(cycle.moveIn)}
           onStart={() => cycle.moveIn
@@ -133,7 +184,7 @@ export default function PropertyChecklistsScreen({ navigation, route }: Props) {
         <ChecklistSide
           side={item.moveOut}
           checklist={cycle.moveOut}
-          accent="#c17620"
+          kind="move-out"
           starting={startingKey === `${item.id}-out`}
           onOpen={() => cycle.moveOut && openEditor(cycle.moveOut)}
           onStart={() => cycle.moveOut
@@ -162,6 +213,10 @@ export default function PropertyChecklistsScreen({ navigation, route }: Props) {
               <Text style={themed.subtitle}>Start an inspection or continue where you left off.</Text>
             </View>
           </View>
+          {cards.length > 0 && !error && <TouchableOpacity style={[themed.primaryButton, { marginBottom: 18 }]} disabled={Boolean(startingKey)} onPress={() => startMissing(40, null, 'new-in')} accessibilityRole="button">
+            {startingKey === 'new-in' ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="add" size={20} color="#fff" />}
+            <Text style={themed.primaryText}>Add move-in inspection</Text>
+          </TouchableOpacity>}
           {!!error && (
             <TouchableOpacity style={themed.errorCard} onPress={load}>
               <Ionicons name="cloud-offline-outline" size={21} color={mode === 'dark' ? '#f0b669' : '#a45f12'} />
@@ -190,35 +245,37 @@ export default function PropertyChecklistsScreen({ navigation, route }: Props) {
 function ChecklistSide({
   side,
   checklist,
-  accent,
+  kind,
   starting,
   onOpen,
   onStart,
 }: {
   side: ReturnType<typeof buildChecklistOverviewCards>[number]['moveIn'];
   checklist: Checklist | null;
-  accent: string;
+  kind: 'move-in' | 'move-out';
   starting: boolean;
   onOpen: () => void;
   onStart: () => void;
 }) {
   const { mode } = useAppTheme();
   const themed = mode === 'dark' ? darkStyles : styles;
-  const displayAccent = mode === 'dark' ? (accent === '#2475cf' ? '#72b6ff' : '#f0b669') : accent;
+  const displayAccent = mode === 'dark' ? '#72b6ff' : '#2475cf';
+  const completeAccent = mode === 'dark' ? '#86dc9a' : '#2f8f46';
   const started = checklist ? isChecklistStarted(checklist) : false;
   const action = side && started ? onOpen : onStart;
+  const actionAccent = side?.complete && started ? completeAccent : displayAccent;
   return (
     <View style={themed.side}>
-      <View style={[themed.sideIcon, { backgroundColor: `${displayAccent}18` }]}><Ionicons name={side?.complete ? 'checkmark' : 'walk-outline'} size={21} color={displayAccent} /></View>
+      <View style={[themed.sideIcon, { backgroundColor: `${side?.complete ? completeAccent : displayAccent}18` }]}><Ionicons name={side?.complete ? 'checkmark' : 'walk-outline'} size={21} color={side?.complete ? completeAccent : displayAccent} /></View>
       <View style={themed.flex}>
         <View style={themed.sideTop}>
-          <Text style={[themed.sideLabel, { color: displayAccent }]}>{side?.label || (accent === '#2475cf' ? 'Move-in' : 'Move-out')}</Text>
-          {!!side && <Text style={themed.progress}>{side.complete ? 'Complete' : `${side.percent}%`}</Text>}
+          <Text style={[themed.sideLabel, { color: completeAccent }]}>{side?.label || (kind === 'move-in' ? 'Move-in' : 'Move-out')}</Text>
+          {!!side && <Text style={[themed.progress, side.complete && themed.completeProgress]}>{side.complete ? 'Complete' : `${side.percent}%`}</Text>}
         </View>
         <Text style={themed.sideTitle}>{side?.title || 'Not created yet'}</Text>
         {!!side && <Text style={themed.sideMeta}>{side.done} of {side.total} items · {side.tenantName || 'No tenant linked'}</Text>}
-        <TouchableOpacity style={[themed.sideButton, { borderColor: displayAccent }]} onPress={action} disabled={starting}>
-          {starting ? <ActivityIndicator size="small" color={displayAccent} /> : <Text style={[themed.sideButtonText, { color: displayAccent }]}>{side && started ? 'Open checklist' : `Start ${side?.label?.toLowerCase() || (accent === '#2475cf' ? 'move-in' : 'move-out')}`}</Text>}
+        <TouchableOpacity style={[themed.sideButton, { borderColor: actionAccent }]} onPress={action} disabled={starting}>
+          {starting ? <ActivityIndicator size="small" color={actionAccent} /> : <Text style={[themed.sideButtonText, { color: actionAccent }]}>{side && started ? 'Open checklist' : `Start ${side?.label?.toLowerCase() || kind}`}</Text>}
         </TouchableOpacity>
       </View>
     </View>
@@ -226,9 +283,9 @@ function ChecklistSide({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fbf7f4' },
-  content: { padding: 18, paddingBottom: 110 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fbf7f4' },
+  container: { flex: 1, backgroundColor: '#ffffff' },
+  content: { padding: 18, paddingBottom: 28 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff' },
   flex: { flex: 1 },
   hero: { flexDirection: 'row', gap: 14, marginBottom: 28 },
   heroIcon: { width: 54, height: 54, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: '#edf9ef' },
@@ -241,12 +298,14 @@ const styles = StyleSheet.create({
   errorTitle: { color: '#7a480f', fontWeight: '900' },
   errorText: { color: '#8f6b3b', marginTop: 2, fontSize: 12 },
   cycleCard: { borderTopWidth: 1, borderTopColor: '#dce4e8', paddingTop: 18, paddingBottom: 8 },
+  propertyRow: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: 12, borderTopWidth: 1, borderTopColor: '#dce4e8', paddingVertical: 14 },
   cycleEyebrow: { color: '#2f8f46', fontSize: 10, fontWeight: '900', letterSpacing: 1, marginBottom: 18 },
   side: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 4 },
   sideIcon: { width: 43, height: 43, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   sideTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   sideLabel: { fontSize: 11, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.6 },
   progress: { color: '#536575', fontSize: 11, fontWeight: '900', backgroundColor: '#f0f3f5', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 8 },
+  completeProgress: { color: '#2f8f46', backgroundColor: '#edf9ef' },
   sideTitle: { color: '#102d43', fontSize: 16, lineHeight: 21, fontWeight: '900', marginTop: 2 },
   sideMeta: { color: '#697887', fontSize: 12, marginTop: 3 },
   sideButton: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center', borderWidth: 1, borderRadius: 12, paddingHorizontal: 13, marginTop: 10 },
@@ -277,7 +336,9 @@ const darkStyles = StyleSheet.create({
   emptyText: { ...styles.emptyText, color: '#b4c3d0' },
   sideMeta: { ...styles.sideMeta, color: '#b4c3d0' },
   progress: { ...styles.progress, color: '#f2f6fa', backgroundColor: '#25394b' },
+  completeProgress: { ...styles.completeProgress, color: '#86dc9a', backgroundColor: '#1c3a34' },
   cycleCard: { ...styles.cycleCard, borderTopColor: '#35495b' },
+  propertyRow: { ...styles.propertyRow, borderTopColor: '#35495b' },
   emptyCard: { ...styles.emptyCard, borderTopColor: '#35495b' },
   divider: { ...styles.divider, backgroundColor: '#35495b' },
   errorCard: { ...styles.errorCard, borderColor: '#8b6531', backgroundColor: '#382d21' },

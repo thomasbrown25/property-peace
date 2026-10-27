@@ -3,7 +3,9 @@
 using AutoMapper;
 using brownstone_hub_api.Data;
 using brownstone_hub_api.Dtos.Tenant;
+using brownstone_hub_api.Enums;
 using brownstone_hub_api.Models;
+using System.Data;
 using brownstone_hub_api.Utils;
 using Microsoft.EntityFrameworkCore;
 
@@ -14,8 +16,25 @@ namespace brownstone_hub_api.Repositories.Tenants
         private readonly DataContext _context = context;
         private readonly IMapper _mapper = mapper;
 
+        // Coordinate with the mode switch's Unit lock; never trust an already tracked Unit.
+        private async Task ValidateAssignmentMode(long unitId)
+        {
+            if (_context.Database.IsSqlServer())
+                await _context.Database.SqlQueryRaw<long>(
+                    "SELECT Id AS Value FROM [property].[Units] WITH (UPDLOCK, HOLDLOCK) WHERE Id = {0}", unitId)
+                    .SingleOrDefaultAsync();
+            var mode = await _context.Units.AsNoTracking().Where(u => u.Id == unitId)
+                .Select(u => (ERentalMode?)u.RentalMode).SingleOrDefaultAsync();
+            if (mode != ERentalMode.LongTerm)
+                throw new InvalidOperationException("Long-term tenant assignment unavailable: the unit is not in long-term mode.");
+        }
+
         public async Task<LoadTenantDto> AddTenant(AddTenantDto tenant)
         {
+            await using var transaction = tenant.UnitId.HasValue && _context.Database.IsRelational() && _context.Database.CurrentTransaction == null
+                ? await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable) : null;
+            if (tenant.UnitId.HasValue)
+                await ValidateAssignmentMode(tenant.UnitId.Value);
             var newTenant = _mapper.Map<Tenant>(tenant);
 
             // Explicitly ensure OrganizationId is set (in case AutoMapper didn't map it)
@@ -60,11 +79,16 @@ namespace brownstone_hub_api.Repositories.Tenants
                 await _context.SaveChangesAsync();
             }
 
+            if (transaction != null) await transaction.CommitAsync();
             return _mapper.Map<LoadTenantDto>(newTenant);
         }
 
         public async Task<LoadTenantDto> UpdateTenant(long id, AddTenantDto tenant)
         {
+            await using var transaction = tenant.UnitId.HasValue && _context.Database.IsRelational() && _context.Database.CurrentTransaction == null
+                ? await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable) : null;
+            if (tenant.UnitId.HasValue)
+                await ValidateAssignmentMode(tenant.UnitId.Value);
             // Use FirstOrDefaultAsync instead of FindAsync to ensure we get a fresh entity from the database
             // This is important when updating relationships like LeaseId
             var existingTenant = await _context.Tenants.FirstOrDefaultAsync(t => t.Id == id);
@@ -130,6 +154,7 @@ namespace brownstone_hub_api.Repositories.Tenants
 
             _context.Tenants.Update(existingTenant);
             await _context.SaveChangesAsync();
+            if (transaction != null) await transaction.CommitAsync();
 
             return _mapper.Map<LoadTenantDto>(existingTenant);
         }

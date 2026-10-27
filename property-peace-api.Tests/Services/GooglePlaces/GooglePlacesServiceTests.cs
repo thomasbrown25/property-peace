@@ -112,6 +112,29 @@ public class GooglePlacesServiceTests
         thrown.Which.Message.Should().NotContain("secret upstream detail").And.NotContain("test-key");
     }
 
+    [Fact]
+    public async Task StreetView_OnlyDownloadsImageWhenMetadataConfirmsImagery()
+    {
+        var jpeg = new byte[] { 0xff, 0xd8, 0xff, 0xd9 };
+        var handler = new RecordingHandler(request => request.RequestUri!.AbsolutePath.EndsWith("/metadata")
+            ? Json(HttpStatusCode.OK, "{\"status\":\"OK\"}")
+            : new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent(jpeg)
+                {
+                    Headers = { ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("image/jpeg") }
+                }
+            });
+        var result = await CreateService(handler).GetStreetViewImageAsync("123 Main St, Raleigh", CancellationToken.None);
+        result.Should().Equal(jpeg);
+        handler.CallCount.Should().Be(2);
+        handler.Uri.Should().Contain("/maps/api/streetview?size=800x600").And.Contain("location=123 Main St%2C Raleigh");
+
+        var noImage = new RecordingHandler(_ => Json(HttpStatusCode.OK, "{\"status\":\"ZERO_RESULTS\"}"));
+        (await CreateService(noImage).GetStreetViewImageAsync("unknown", CancellationToken.None)).Should().BeNull();
+        noImage.CallCount.Should().Be(1);
+    }
+
     private static GooglePlacesService CreateService(RecordingHandler handler, string apiKey = "test-key") =>
         new(new HttpClient(handler),
             Options.Create(new GooglePlacesSettings { ApiKey = apiKey }),

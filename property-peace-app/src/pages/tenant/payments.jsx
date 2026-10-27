@@ -45,6 +45,9 @@ import FeatureReadinessNotice from 'components/feature-readiness/FeatureReadines
 import useRentPaymentActionReadiness from 'hooks/useRentPaymentActionReadiness';
 import { classifyPaymentStatus, isBalanceCreditingPayment } from 'utils/paymentSafety';
 import { normalizeRentBalance } from 'utils/rentBalance';
+import LeaseChargeList from 'components/payments/LeaseChargeList';
+import { readChargesResponse } from 'utils/leaseCharges';
+import { feeCheckoutSelection } from 'utils/feeCheckout';
 
 // ==============================|| TENANT - PAYMENTS ||============================== //
 
@@ -212,6 +215,11 @@ export default function TenantPayments() {
   const [leases, setLeases] = useState([]);
   const [selectedLeaseId, setSelectedLeaseId] = useState(null);
   const [payments, setPayments] = useState([]);
+  const [charges, setCharges] = useState([]);
+  const [chargeResultLeaseId, setChargeResultLeaseId] = useState(null);
+  const [chargesLoading, setChargesLoading] = useState(false);
+  const [chargesError, setChargesError] = useState('');
+  const [chargeRefresh, setChargeRefresh] = useState(0);
   const [rentCollection, setRentCollection] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadingPayments, setLoadingPayments] = useState(false);
@@ -284,10 +292,28 @@ export default function TenantPayments() {
     if (selectedLeaseId) fetchPaymentData(selectedLeaseId);
   }, [selectedLeaseId, fetchPaymentData]);
 
+  useEffect(() => {
+    if (!selectedLeaseId) return undefined;
+    let active = true;
+    const leaseId = selectedLeaseId;
+    setCharges([]);
+    setChargeResultLeaseId(null);
+    setChargesError('');
+    setChargesLoading(true);
+    axiosServices.get(`/api/payment/${leaseId}/tenant-charges`)
+      .then((response) => { if (active) { setCharges(readChargesResponse(response.data)); setChargeResultLeaseId(leaseId); } })
+      .catch((err) => { if (active) setChargesError(err?.response?.data?.message || 'Charge information is unavailable.'); })
+      .finally(() => { if (active) setChargesLoading(false); });
+    return () => { active = false; };
+  }, [selectedLeaseId, chargeRefresh]);
+
   // Refetch after payment modal closes
   useEffect(() => {
     if (wasModalOpen.current && !modal.openPayment && selectedLeaseId) {
-      const timer = setTimeout(() => fetchPaymentData(selectedLeaseId), 300);
+      const timer = setTimeout(() => {
+        fetchPaymentData(selectedLeaseId);
+        setChargeRefresh((count) => count + 1);
+      }, 300);
       wasModalOpen.current = false;
       return () => clearTimeout(timer);
     }
@@ -368,6 +394,7 @@ export default function TenantPayments() {
           leaseId: selectedLease.id,
           rentAmount: selectedLease.rentAmount || 0,
           overdueAmount: summary.overdueAmount || 0,
+          rentDue: summary.amountDue || 0,
           amountDueNow: summary.amountDue || 0,
           propertyName: propertyDisplay,
           unitName: unitDisplay,
@@ -375,6 +402,24 @@ export default function TenantPayments() {
         };
 
     modal.openPaymentModal(rentForModal);
+  };
+
+  const openPaymentForFee = (charge) => {
+    if (!canInvoke || !selectedLease || chargesLoading || chargesError || chargeResultLeaseId !== selectedLease.id) return;
+    const current = charges.find((row) => row.chargeId === charge.chargeId);
+    const selection = feeCheckoutSelection(current);
+    if (!selection) return; // Invalid fee selectors must never fall back to rent.
+    modal.openPaymentModal({
+      leaseId: selectedLease.id,
+      isFee: true,
+      chargeId: selection.chargeId,
+      feeName: selection.title,
+      remainingCents: selection.remainingCents,
+      rentAmount: selection.remainingCents / 100,
+      propertyName: propertyDisplay,
+      unitName: unitDisplay,
+      propertyType: selectedLease.unit?.property?.propertyType || selectedLease.propertyType
+    });
   };
 
   const panelSx = {
@@ -513,6 +558,15 @@ export default function TenantPayments() {
             </Box>
           ) : (
             <Stack spacing={{ xs: 2, sm: 2.5 }}>
+              <LeaseChargeList
+                charges={chargeResultLeaseId === selectedLeaseId ? charges : []}
+                rentBalance={loadingPayments ? null : summary.amountDue}
+                loading={chargesLoading || (chargeResultLeaseId !== selectedLeaseId && !chargesError)}
+                error={chargeResultLeaseId === selectedLeaseId || !chargesLoading ? chargesError : ''}
+                onRetry={() => setChargeRefresh((count) => count + 1)}
+                onPayFee={openPaymentForFee}
+                canPayFee={canInvoke && !chargesLoading && !chargesError}
+              />
               {/* Property + Stats */}
               <Paper variant="outlined" sx={{ overflow: 'hidden', ...panelSx }}>
                 {/* Panel header — matches maintenance page style */}
@@ -807,6 +861,7 @@ export default function TenantPayments() {
           open={modal.openPayment}
           rent={modal.selectedRent}
           onClose={modal.closePaymentModal}
+          onSuccess={() => { fetchPaymentData(selectedLeaseId); setChargeRefresh((count) => count + 1); }}
           defaultAmount={selectedLease?.rentAmount}
         />
       )}

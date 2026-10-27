@@ -12,14 +12,16 @@ namespace brownstone_hub_api.Services.StripeRentPayments
         long AmountCents,
         string Currency,
         string DestinationStripeAccountId,
-        string? Description);
+        string? Description,
+        string? ChargeId = null);
 
     public sealed record UpdateStripeRentPaymentCommand(
         string PaymentIntentId,
         long LeaseId,
         long TenantUserId,
         long AmountCents,
-        string? Description);
+        string? Description,
+        string? ChargeId = null);
 
     public sealed record StripeRentPaymentSucceeded(
         string PaymentIntentId,

@@ -11,6 +11,7 @@ import {
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
+import { managementPageHeaderDescriptionSx, managementPageHeaderTitleSx } from 'components/headers/managementPageHeaderStyles';
 import TenantEditDrawer from 'components/drawers/TenantEditDrawer';
 import TenantMessageDrawer from 'components/drawers/TenantMessageDrawer';
 import ConfirmationDialog from 'components/dialogs/ConfirmationDialog';
@@ -99,9 +100,9 @@ function ResidencyTrack({ lease, propertyName, unitName }) {
     <Box sx={{ mt: 2.25, p: 1.5, borderRadius: 2, bgcolor: (theme) => alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.12 : 0.045) }}>
       <Typography variant="caption" color="text.secondary" fontWeight={800} sx={{ letterSpacing: 0.65, textTransform: 'uppercase' }}>Residency track</Typography>
       <Stack direction="row" spacing={1.2} sx={{ mt: 1.2 }}>
-        <Stack alignItems="center" sx={{ pt: 0.35 }}><Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: 'success.main' }} /><Box sx={{ width: 2, flex: 1, minHeight: 36, bgcolor: 'divider', my: 0.5 }} /><Box sx={{ width: 10, height: 10, borderRadius: '50%', border: '2px solid', borderColor: 'primary.main' }} /></Stack>
+        <Stack alignItems="center" sx={{ pt: 0.35 }}><Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: lease ? 'success.main' : 'text.disabled' }} /><Box sx={{ width: 2, flex: 1, minHeight: 36, bgcolor: 'divider', my: 0.5 }} /><Box sx={{ width: 10, height: 10, borderRadius: '50%', border: '2px solid', borderColor: lease ? 'primary.main' : 'divider' }} /></Stack>
         <Stack spacing={1.35} minWidth={0}>
-          <Box><Typography fontWeight={750} noWrap>{propertyName || 'No current residence'}</Typography><Typography variant="caption" color="text.secondary">{unitName || (lease ? 'Current home' : 'Assign a lease to begin')}</Typography></Box>
+          <Box><Typography fontWeight={750} sx={{ overflowWrap: 'anywhere' }}>{lease ? propertyName || 'Residence not recorded' : 'No current residence'}</Typography><Typography variant="caption" color="text.secondary">{lease ? unitName || 'Current home' : 'Assign a lease to begin'}</Typography></Box>
           <Box><Typography fontWeight={700}>{endDate ? `Lease ends ${formatDate(endDate)}` : 'No lease milestone'}</Typography><Typography variant="caption" color="text.secondary">{startDate ? `Started ${formatDate(startDate)}` : 'Dates not available'}</Typography></Box>
         </Stack>
       </Stack>
@@ -245,7 +246,7 @@ export default function RenterProfilePage() {
     return `${first} ${last}`.trim() || 'Unnamed renter';
   }, [renter]);
   const initials = useMemo(() => fullName.split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase(), [fullName]);
-  const activeLease = leases.find((lease) => read(lease, 'isDrafted', 'IsDrafted') !== true && read(lease, 'isActive', 'IsActive') !== false) || leases[0] || null;
+  const activeLease = leases.find((lease) => read(lease, 'isDrafted', 'IsDrafted') !== true && read(lease, 'isActive', 'IsActive') !== false) || null;
   const activeLeaseId = recordId(activeLease);
   const application = applications[0] || null;
   const insuranceDocuments = insuranceDocumentsForRenter(documents);
@@ -473,18 +474,25 @@ export default function RenterProfilePage() {
         { label: fullName }
       ]} />
 
-      <Grid container spacing={2.5} sx={{ mt: 1 }} alignItems="flex-start">
+      <Box sx={{ mt: 1, mb: 2.5 }}>
+        <Typography variant="h3" sx={{ ...managementPageHeaderTitleSx, overflowWrap: 'anywhere' }}>{fullName}</Typography>
+        <Typography variant="body1" sx={managementPageHeaderDescriptionSx}>
+          Renter details, lease history, payments, and requests in one place.
+        </Typography>
+      </Box>
+
+      <Grid container spacing={2.5} alignItems="flex-start">
         <Grid size={{ xs: 12, md: 3.25 }}>
           <Paper variant="outlined" sx={{ p: { xs: 2, md: 2.5 }, borderRadius: 3, position: { md: 'sticky' }, top: { md: 88 }, boxShadow: `0 12px 32px ${alpha(theme.palette.common.black, 0.05)}` }}>
             <Stack direction={{ xs: 'row', md: 'column' }} spacing={2} alignItems={{ xs: 'center', md: 'stretch' }}>
               <Avatar src={read(linkedUser, 'profileImageUrl', 'ProfileImageUrl')} sx={{ width: { xs: 64, md: 82 }, height: { xs: 64, md: 82 }, alignSelf: { md: 'center' }, bgcolor: 'primary.main', fontSize: '1.4rem', fontWeight: 750 }}>{initials}</Avatar>
               <Box sx={{ minWidth: 0, textAlign: { md: 'center' }, flex: { xs: 1, md: 'initial' } }}>
-                <Typography variant={isMobile ? 'h4' : 'h3'} fontWeight={800} noWrap>{fullName}</Typography>
+                <Typography variant={isMobile ? 'h5' : 'h4'} fontWeight={750} sx={{ overflowWrap: 'anywhere' }}>{fullName}</Typography>
                 <Chip size="small" label={portalConnected ? 'Portal connected' : renterEmail ? 'Ready to invite' : 'Email needed'} color={portalConnected ? 'success' : renterEmail ? 'warning' : 'default'} variant="outlined" sx={{ mt: 0.75, fontWeight: 700 }} />
               </Box>
             </Stack>
             <Stack spacing={1.15} sx={{ mt: 2.25 }}>
-              {renterEmail && <Stack direction="row" spacing={1} alignItems="center"><MailOutlined /><Typography component="a" href={`mailto:${renterEmail}`} color="primary.main" noWrap>{renterEmail}</Typography></Stack>}
+              {renterEmail && <Stack direction="row" spacing={1} alignItems="center" minWidth={0}><MailOutlined /><Typography component="a" href={`mailto:${renterEmail}`} color="primary.main" sx={{ overflowWrap: 'anywhere', minWidth: 0 }}>{renterEmail}</Typography></Stack>}
               {renterPhone && <Stack direction="row" spacing={1} alignItems="center"><PhoneOutlined /><Typography component="a" href={`tel:${renterPhone}`} color="text.primary">{formatPhoneInput(renterPhone)}</Typography></Stack>}
             </Stack>
             <ResidencyTrack lease={activeLease} propertyName={propertyName} unitName={unitName} />
@@ -494,7 +502,7 @@ export default function RenterProfilePage() {
         <Grid size={{ xs: 12, md: 8.75 }}>
           <Paper variant="outlined" sx={{ borderRadius: 3, overflow: 'hidden', boxShadow: `0 12px 32px ${alpha(theme.palette.common.black, 0.045)}` }}>
             <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ sm: 'center' }} spacing={1.5} sx={{ px: { xs: 2, md: 2.5 }, py: 2 }}>
-              <Box><Typography variant="overline" color="text.secondary" fontWeight={800}>Renter profile</Typography><Typography variant="h4" fontWeight={800}>A complete view of {fullName}</Typography></Box>
+              <Box><Typography variant="overline" color="text.secondary" fontWeight={800}>Renter profile</Typography><Typography variant="h4" fontWeight={750}>Details &amp; activity</Typography></Box>
               <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                 <Button variant="outlined" startIcon={<MessageOutlined />} onClick={() => setMessageOpen(true)}>Message</Button>
                 <Button variant="contained" color="success" startIcon={<DollarOutlined />} disabled={!activeLeaseId} onClick={() => activeLeaseId && navigate(`/landlord/leases/${activeLeaseId}/charges`)}>Add charge</Button>

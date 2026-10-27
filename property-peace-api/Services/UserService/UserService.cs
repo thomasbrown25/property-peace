@@ -142,13 +142,36 @@ namespace brownstone_hub_api.Services.UserService
             try
             {
                 newUser.Email = newUser.Email?.Trim().ToLowerInvariant() ?? string.Empty;
+                // A public GoogleAccessToken is only a credential to verify, never an email claim.
+                // Validate it before either email-proof shortcut or account lookup.
+                GoogleUserInfo? googleUser = null;
+                if (!string.IsNullOrWhiteSpace(newUser.GoogleAccessToken))
+                {
+                    googleUser = await _googleAuthService.VerifyGoogleAccessTokenAsync(newUser.GoogleAccessToken);
+                    if (googleUser == null || !googleUser.EmailVerified ||
+                        string.IsNullOrWhiteSpace(googleUser.Id) || string.IsNullOrWhiteSpace(googleUser.Email) ||
+                        !string.Equals(newUser.Email, googleUser.Email.Trim(), StringComparison.OrdinalIgnoreCase))
+                    {
+                        response.Success = false;
+                        response.StatusCode = StatusCodes.Status403Forbidden;
+                        response.Message = "A verified Google account matching the registration email is required.";
+                        return response;
+                    }
+                }
+                if (string.IsNullOrWhiteSpace(newUser.Password) && googleUser == null && !emailVerifiedByTrustedProvider)
+                {
+                    response.Success = false;
+                    response.StatusCode = StatusCodes.Status403Forbidden;
+                    response.Message = "A password or verified Google account is required.";
+                    return response;
+                }
                 _logger.LogInformation("Register called for email: {Email}, BusinessName: '{BusinessName}', Roles: {Roles}",
                     newUser.Email, newUser.BusinessName ?? "(null)", string.Join(", ", newUser.Roles ?? new List<string>()));
 
                 long? emailVerificationId = null;
                 var hasInviteContext = !string.IsNullOrWhiteSpace(newUser.OrganizationInviteToken) ||
                     !string.IsNullOrWhiteSpace(newUser.InviteToken);
-                if (!emailVerifiedByTrustedProvider && !hasInviteContext)
+                if (!emailVerifiedByTrustedProvider && googleUser == null && !hasInviteContext)
                 {
                     emailVerificationId = await GetValidEmailVerificationIdAsync(
                         newUser.Email,
@@ -252,7 +275,7 @@ namespace brownstone_hub_api.Services.UserService
                     serverAssignedRoles = new List<string> { "Tenant" };
                 }
 
-                if (!emailVerifiedByTrustedProvider && !emailVerificationId.HasValue)
+                if (!emailVerifiedByTrustedProvider && googleUser == null && !emailVerificationId.HasValue)
                 {
                     emailVerificationId = await GetValidEmailVerificationIdAsync(
                         newUser.Email,
@@ -284,19 +307,10 @@ namespace brownstone_hub_api.Services.UserService
                 // Handle Google sign-up
                 string? googleId = null;
                 string? googleProfileImageUrl = null;
-                if (!string.IsNullOrEmpty(newUser.GoogleAccessToken))
+                if (googleUser != null)
                 {
-                    var googleUser = await _googleAuthService.VerifyGoogleAccessTokenAsync(newUser.GoogleAccessToken);
-                    if (googleUser != null)
-                    {
-                        googleId = googleUser.Id;
-                        googleProfileImageUrl = googleUser.Picture;
-                        // Ensure email matches Google email
-                        if (string.IsNullOrEmpty(newUser.Email))
-                        {
-                            newUser.Email = googleUser.Email;
-                        }
-                    }
+                    googleId = googleUser.Id;
+                    googleProfileImageUrl = googleUser.Picture;
                 }
 
                 // Only create password hash if password is provided (not OAuth user)
@@ -1149,8 +1163,8 @@ namespace brownstone_hub_api.Services.UserService
                         dbUser.AuthProvider = (dbUser.PasswordHash != null && dbUser.PasswordHash.Length > 0)
                             ? "Email,Google"
                             : "Google";
-                        // Update profile image when Google sends a new one; otherwise keep what we have in DB
-                        if (!string.IsNullOrEmpty(googleUser.Picture))
+                        // Keep an existing profile photo (including one uploaded in Settings).
+                        if (!string.IsNullOrEmpty(googleUser.Picture) && string.IsNullOrEmpty(dbUser.ProfileImageUrl))
                         {
                             dbUser.ProfileImageUrl = await SaveGoogleProfileImageToStorageAsync(googleUser.Picture, dbUser.Id);
                         }
@@ -1211,8 +1225,8 @@ namespace brownstone_hub_api.Services.UserService
                         dbUser.AuthProvider = (dbUser.PasswordHash != null && dbUser.PasswordHash.Length > 0)
                             ? "Email,Google"
                             : "Google";
-                        // Save Google profile image when linking account; otherwise keep what we have in DB
-                        if (!string.IsNullOrEmpty(googleUser.Picture))
+                        // Only use Google's photo if this account does not already have one.
+                        if (!string.IsNullOrEmpty(googleUser.Picture) && string.IsNullOrEmpty(dbUser.ProfileImageUrl))
                         {
                             dbUser.ProfileImageUrl = await SaveGoogleProfileImageToStorageAsync(googleUser.Picture, dbUser.Id);
                         }

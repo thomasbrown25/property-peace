@@ -365,6 +365,20 @@ namespace brownstone_hub_api.Services.StripeService
                         ? "Current scoped internal approval and current organization authority are required."
                         : null);
                 var isAccountReady = accountReadinessReason == null;
+                string? cardPaymentsCapabilityStatus = null;
+                if (snapshot != null && snapshotMatchesAccount && snapshotIsFresh)
+                {
+                    try
+                    {
+                        var capability = await new Stripe.AccountService().Capabilities.GetAsync(accountId, "card_payments",
+                            null, new RequestOptions { ApiKey = _stripeSecretKey });
+                        cardPaymentsCapabilityStatus = capability.Status;
+                    }
+                    catch (StripeException ex)
+                    {
+                        _logger.LogWarning(ex, "Could not retrieve Stripe card payments capability for {AccountId}", accountId);
+                    }
+                }
                 response.Data = new StripeAccountStatusDto
                 {
                     AccountId = accountId,
@@ -375,6 +389,7 @@ namespace brownstone_hub_api.Services.StripeService
                     IsEnabled = isAccountReady,
                     ChargesEnabled = snapshot?.ChargesEnabled ?? false,
                     PayoutsEnabled = snapshot?.PayoutsEnabled ?? false,
+                    CardPaymentsCapabilityStatus = cardPaymentsCapabilityStatus,
                     DetailsSubmitted = snapshot?.DetailsSubmitted ?? false,
                     InternalReviewStatus = reviewStatus.ToString(),
                     IsInternallyPayoutApproved = internallyApproved,
@@ -605,11 +620,12 @@ namespace brownstone_hub_api.Services.StripeService
             return response;
         }
 
-        public async Task<ServiceResponse<CreatePaymentIntentResponseDto>> CreatePaymentIntentAsync(long leaseId, decimal amount, string operationId, string? description)
+        public async Task<ServiceResponse<CreatePaymentIntentResponseDto>> CreatePaymentIntentAsync(long leaseId, decimal amount, string operationId, string? description, string? chargeId = null)
         {
             var response = new ServiceResponse<CreatePaymentIntentResponseDto>();
             try
             {
+                EnsureSupportedChargeSelector(chargeId, leaseId);
                 var organizationId = GetCurrentOrganizationId();
                 if (!organizationId.HasValue)
                 {
@@ -651,7 +667,7 @@ namespace brownstone_hub_api.Services.StripeService
                 var amountCents = ToRentAmountCents(amount);
                 var paymentIntent = await _stripeRentPaymentService.CreateAsync(new CreateStripeRentPaymentCommand(
                     leaseId, organizationId.Value, tenantUserId.Value, operationId, amountCents, "usd",
-                    destinationStripeAccountId, description));
+                    destinationStripeAccountId, description, chargeId));
                 response.Data = new CreatePaymentIntentResponseDto
                 {
                     ClientSecret = paymentIntent.ClientSecret,
@@ -675,11 +691,12 @@ namespace brownstone_hub_api.Services.StripeService
             return response;
         }
 
-        public async Task<ServiceResponse<CreatePaymentIntentResponseDto>> UpdatePaymentIntentAsync(string paymentIntentId, long leaseId, decimal amount, string? description)
+        public async Task<ServiceResponse<CreatePaymentIntentResponseDto>> UpdatePaymentIntentAsync(string paymentIntentId, long leaseId, decimal amount, string? description, string? chargeId = null)
         {
             var response = new ServiceResponse<CreatePaymentIntentResponseDto>();
             try
             {
+                EnsureSupportedChargeSelector(chargeId, leaseId);
                 var organizationId = GetCurrentOrganizationId();
                 if (!organizationId.HasValue)
                 {
@@ -703,7 +720,7 @@ namespace brownstone_hub_api.Services.StripeService
                     return response;
                 }
                 var paymentIntent = await _stripeRentPaymentService.UpdateAsync(new UpdateStripeRentPaymentCommand(
-                    paymentIntentId, leaseId, tenantUserId.Value, ToRentAmountCents(amount), description));
+                    paymentIntentId, leaseId, tenantUserId.Value, ToRentAmountCents(amount), description, chargeId));
                 response.Data = new CreatePaymentIntentResponseDto
                 {
                     ClientSecret = paymentIntent.ClientSecret,
@@ -1746,6 +1763,13 @@ namespace brownstone_hub_api.Services.StripeService
             }
 
             return response;
+        }
+
+        // The rent service also verifies fee provenance and replay identity under its reservation lock.
+        private static void EnsureSupportedChargeSelector(string? chargeId, long leaseId)
+        {
+            if (!SelectedRentCharge.IsSupportedSelector(chargeId, leaseId))
+                throw new InvalidOperationException("Charge-specific online payments are unavailable.");
         }
 
         private long? GetCurrentOrganizationId()

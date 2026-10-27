@@ -2,11 +2,9 @@ import { useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Box, useMediaQuery } from '@mui/material';
 import { useLocation, useSearchParams } from 'react-router-dom';
-import useAuth from 'hooks/useAuth';
 import CalendarPage from 'pages/landlord/calendar';
 import DashboardOverview from 'pages/landlord/dashboard-overview';
 import TasksPage from 'pages/landlord/tasks';
-import DashboardHeader from 'sections/landlord/dashboard/DashboardHeader';
 import { getDashboardWorkspaceTab } from 'utils/dashboardWorkspace';
 
 const workspaceComponents = {
@@ -16,7 +14,6 @@ const workspaceComponents = {
 };
 
 export default function DashboardWorkspace() {
-  const { user } = useAuth();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const reduceMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
@@ -24,36 +21,23 @@ export default function DashboardWorkspace() {
   const ActiveComponent = workspaceComponents[activeTab] || DashboardOverview;
 
   useEffect(() => {
-    if (searchParams.get('tab') === activeTab) return;
+    const requestedTab = searchParams.get('tab');
+    if (location.pathname === '/landlord/calendar' && requestedTab !== 'calendar') return;
+    if (activeTab === 'overview' ? requestedTab === null : requestedTab === activeTab) return;
 
     const canonicalSearchParams = new URLSearchParams(searchParams);
-    canonicalSearchParams.set('tab', activeTab);
+    if (activeTab === 'overview' || location.pathname === '/landlord/calendar') canonicalSearchParams.delete('tab');
+    else canonicalSearchParams.set('tab', activeTab);
     setSearchParams(canonicalSearchParams, { replace: true });
-  }, [activeTab, searchParams, setSearchParams]);
-
-  const handleTabChange = (nextTab) => {
-    if (nextTab === activeTab) return;
-
-    const nextSearchParams = new URLSearchParams(searchParams);
-    nextSearchParams.set('tab', nextTab);
-    setSearchParams(nextSearchParams);
-  };
+  }, [activeTab, location.pathname, searchParams, setSearchParams]);
 
   return (
-    <Box sx={{ mt: { xs: 2, md: 0 } }}>
-      <DashboardHeader
-        userName={user?.firstname || user?.Firstname}
-        activeTab={activeTab}
-        onTabChange={handleTabChange}
-      />
-
+    <Box>
       <AnimatePresence mode="wait" initial={false}>
         <Box
           key={activeTab}
           component={motion.section}
           id="dashboard-workspace-panel"
-          role="tabpanel"
-          aria-labelledby={`dashboard-${activeTab}-tab`}
           initial={reduceMotion ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           exit={reduceMotion ? { opacity: 1 } : { opacity: 0, y: -6 }}

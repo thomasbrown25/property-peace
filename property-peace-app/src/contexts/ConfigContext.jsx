@@ -15,6 +15,8 @@ const initialState = {
   onChangeDirection: () => {},
   onChangeMiniDrawer: () => {},
   onChangeMenuOrientation: () => {},
+  showDetailedOperations: false,
+  onChangeDetailedOperations: () => {},
   onChangeFontFamily: () => {}
 };
 
@@ -30,6 +32,7 @@ function ConfigProvider({ children }) {
   const config = useMemo(
     () => ({
       ...storedConfig,
+      showDetailedOperations: storedConfig.showDetailedOperations === true,
       i18n: storedConfig.i18n && validLanguages.includes(storedConfig.i18n) ? storedConfig.i18n : 'en'
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -105,6 +108,13 @@ function ConfigProvider({ children }) {
     [setConfig]
   );
 
+  const onChangeDetailedOperations = useCallback(
+    (showDetailedOperations) => {
+      setConfig((prev) => ({ ...prev, showDetailedOperations }));
+    },
+    [setConfig]
+  );
+
   const contextValue = useMemo(
     () => ({
       ...config,
@@ -115,9 +125,10 @@ function ConfigProvider({ children }) {
       onChangeDirection,
       onChangeMiniDrawer,
       onChangeMenuOrientation,
+      onChangeDetailedOperations,
       onChangeFontFamily
     }),
-    [config, onChangeContainer, onChangeLocalization, onChangeMode, onChangePresetColor, onChangeDirection, onChangeMiniDrawer, onChangeMenuOrientation, onChangeFontFamily]
+    [config, onChangeContainer, onChangeLocalization, onChangeMode, onChangePresetColor, onChangeDirection, onChangeMiniDrawer, onChangeMenuOrientation, onChangeDetailedOperations, onChangeFontFamily]
   );
 
   return (

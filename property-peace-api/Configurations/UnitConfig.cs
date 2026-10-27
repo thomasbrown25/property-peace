@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using brownstone_hub_api.Enums;
 
 namespace brownstone_hub_api.Configurations
 {
@@ -7,8 +8,11 @@ namespace brownstone_hub_api.Configurations
     {
         public void Configure(EntityTypeBuilder<Unit> b)
         {
-            b.ToTable("Units", "property");
+            b.ToTable("Units", "property", table =>
+                table.HasCheckConstraint("CK_Units_RentalMode", "[RentalMode] IN ('LongTerm', 'ShortTerm')"));
             b.Property(u => u.Name).HasMaxLength(128);
+            b.Property(u => u.RentalMode).HasConversion<string>().HasMaxLength(32)
+                .HasDefaultValue(ERentalMode.LongTerm).IsRequired();
 
             // helpful in UIs: unique name per property
             b.HasIndex(u => new { u.PropertyId, u.Name }).IsUnique();

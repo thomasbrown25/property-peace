@@ -91,10 +91,8 @@ test('property detail requires unit selection for multi-unit properties', () => 
   });
 });
 
-test('quick action opens dedicated checklist property search', () => {
-  assert.match(
-    quickActionsSource,
-    /navigate\('Checklists',\s*\{\s*screen:\s*'ChecklistPropertySearch'\s*\}\)/,
-  );
+test('More menu opens the dedicated checklist destination', () => {
+  assert.match(quickActionsSource, /label: 'Checklists',[^\n]*route: 'Checklists'/);
+  assert.match(quickActionsSource, /navigation\.navigate\(item\.route as never\)/);
   assert.doesNotMatch(dashboardSource, /navigate\('Checklists',\s*\{\s*screen:\s*'ChecklistPropertySearch'\s*\}\)/);
 });

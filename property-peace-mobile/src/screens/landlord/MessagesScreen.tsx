@@ -1,7 +1,8 @@
+import { useTabScrollReset } from '../../navigation/useTabScrollReset';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSelector } from 'react-redux';
@@ -10,9 +11,10 @@ import ConversationAPI from '../../api/conversationAPI';
 import signalRService from '../../services/signalRService';
 import { advanceMessagingScopeGeneration, buildMessagingScopeKey, canAccessMessages, ConversationFilter, ConversationSummary, filterConversations, formatConversationTime, getConversationPresentation, getMessageCapabilities, getMessagesAudience, isMessagingOperationCurrent, MessagingScopeGeneration } from '../../features/messages/messagesModel';
 import { RootState } from '../../store';
-import GroupConversationDialog from '../../components/messages/GroupConversationDialog';
+import NewMessageDialog from '../../components/messages/NewMessageDialog';
+import LandlordPageHeader from '../../components/LandlordPageHeader';
 import { useAppTheme } from '../../theme/AppTheme';
-import PageBackButton from '../../components/PageBackButton';
+
 
 type Navigation = NativeStackNavigationProp<MessagesStackParamList, 'MessagesList'>;
 const FILTERS: Array<{ key: ConversationFilter; label: string }> = [
@@ -20,8 +22,10 @@ const FILTERS: Array<{ key: ConversationFilter; label: string }> = [
 ];
 
 export default function MessagesScreen() {
+  const scrollRef = useRef<FlatList>(null);
+  useTabScrollReset(scrollRef);
   const navigation = useNavigation<Navigation>();
-  const insets = useSafeAreaInsets();
+
   const { mode, colors } = useAppTheme();
   const dark = mode === 'dark';
   const currentUser = useSelector((state: RootState) => state.user.currentUser);
@@ -31,13 +35,12 @@ export default function MessagesScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [groupDialogVisible, setGroupDialogVisible] = useState(false);
+  const [newMessageVisible, setNewMessageVisible] = useState(false);
   const [loadedScope, setLoadedScope] = useState<string | null>(null);
   const requestSequence = useRef(0);
   const scopeGenerationRef = useRef<MessagingScopeGeneration | undefined>(undefined);
 
   const organizationId = currentUser?.currentOrganizationId ?? currentUser?.CurrentOrganizationId;
-  const currentUserId = currentUser?.id ?? currentUser?.Id;
   const audience = getMessagesAudience(currentUser);
   const dataScope = buildMessagingScopeKey(currentUser, audience);
   const scopeGeneration = advanceMessagingScopeGeneration(scopeGenerationRef.current, dataScope);
@@ -139,40 +142,55 @@ export default function MessagesScreen() {
 
   return (
     <View style={[styles.container, dark && { backgroundColor: colors.background }]}>
-      <View style={{ paddingTop: insets.top + 10, paddingHorizontal: 20 }}><PageBackButton /></View>
-      <View style={[styles.header, { paddingTop: 0 }]}>
-        <View><Text style={[styles.heading, dark && { color: colors.text }]} accessibilityRole="header">Messages</Text><Text style={[styles.headerSub, dark && { color: colors.muted }]}>{scopedConversations.length} conversations{unread ? ` · ${unread} unread` : ''}</Text></View>
-        {capabilities.createGroup && <TouchableOpacity testID="new-group" accessibilityLabel="Create group conversation" style={[styles.newGroup, dark && { backgroundColor: colors.accent }]} onPress={() => setGroupDialogVisible(true)}><Ionicons name="people" size={18} color={dark ? colors.background : '#fff'} /><Text style={[styles.newGroupText, dark && { color: colors.background }]}>New group</Text></TouchableOpacity>}
-      </View>
-      <View style={[styles.search, dark && { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]}>
-        <Ionicons name="search" size={19} color={dark ? colors.muted : '#64748b'} />
-        <TextInput value={query} onChangeText={setQuery} placeholder="Search people, properties, or messages" placeholderTextColor={dark ? colors.muted : '#94a3b8'} style={[styles.searchInput, dark && { color: colors.text }]} returnKeyType="search" />
-        {!!query && <TouchableOpacity accessibilityLabel="Clear search" onPress={() => setQuery('')}><Ionicons name="close-circle" size={19} color={dark ? colors.muted : '#94a3b8'} /></TouchableOpacity>}
-      </View>
-      <View style={[styles.filters, dark && { borderBottomColor: colors.border }]}>
-        {FILTERS.filter((option) => capabilities.archive || option.key !== 'archived').map((option) => {
-          const count = option.key === 'unread' ? scopedConversations.filter((c) => !c.isArchived && (c.unreadCount ?? 0) > 0).length : undefined;
-          return <TouchableOpacity key={option.key} style={[styles.filter, filter === option.key && styles.activeFilter, dark && filter === option.key && { borderBottomColor: colors.accent }]} onPress={() => setFilter(option.key)}>
-            <Text style={[styles.filterText, filter === option.key && styles.activeFilterText, dark && { color: filter === option.key ? colors.text : colors.muted }]}>{option.label}{count ? ` ${count}` : ''}</Text>
-          </TouchableOpacity>;
-        })}
-      </View>
+      <LandlordPageHeader title="Messages" onMessage={audience === 'landlord' ? () => setNewMessageVisible(true) : undefined} />
       {scopedLoading && scopedConversations.length === 0 ? <View style={styles.center}><ActivityIndicator size="large" color={dark ? colors.accent : '#2563eb'} /><Text style={[styles.status, dark && { color: colors.muted }]}>Loading conversations…</Text></View> :
         scopedError && scopedConversations.length === 0 ? <View style={styles.center}><Ionicons name="cloud-offline-outline" size={38} color={dark ? colors.muted : '#94a3b8'} /><Text style={[styles.error, dark && { color: colors.text }]}>{scopedError}</Text><TouchableOpacity style={[styles.retry, dark && { backgroundColor: colors.accent }]} onPress={() => void load()}><Text style={[styles.retryText, dark && { color: colors.background }]}>Try again</Text></TouchableOpacity></View> :
-        <FlatList data={visible} renderItem={renderItem} keyExtractor={(item) => String(item.id)} contentContainerStyle={[styles.list, visible.length === 0 && styles.emptyList]}
+        <FlatList ref={scrollRef} data={visible} renderItem={renderItem} keyExtractor={(item) => String(item.id)} contentContainerStyle={[styles.list, visible.length === 0 && styles.emptyList]}
           ItemSeparatorComponent={() => <View style={[styles.divider, dark && { backgroundColor: colors.border }]} />}
-          ListHeaderComponent={visible.length > 0 ? <Text style={[styles.listLabel, dark && { color: colors.muted }]}>{filter === 'archived' ? 'ARCHIVED' : filter === 'unread' ? 'UNREAD' : 'CONVERSATIONS'}</Text> : null}
+          ListHeaderComponent={<View>
+            <View style={[styles.overview, dark && { borderBottomColor: colors.border }]}>
+              <Text style={[styles.overviewEyebrow, dark && { color: '#75d995' }]}>MESSAGES OVERVIEW</Text>
+              <View style={styles.overviewRow}>
+                <View>
+                  <Text style={[styles.overviewValue, { color: unread > 0 ? (dark ? '#ff8b86' : '#c2413b') : colors.text }]}>{unread}</Text>
+                  <Text style={[styles.overviewLabel, dark && { color: colors.muted }, unread > 0 && { color: dark ? '#ff8b86' : '#c2413b' }]}>Unread messages</Text>
+                </View>
+                {audience === 'landlord' && <TouchableOpacity testID="new-message" accessibilityRole="button" accessibilityLabel="New message" style={[styles.newGroup, { backgroundColor: colors.accent }]} onPress={() => setNewMessageVisible(true)}><Ionicons name="create-outline" size={18} color={dark ? colors.background : '#fff'} /><Text style={[styles.newGroupText, dark && { color: colors.background }]}>New message</Text></TouchableOpacity>}
+              </View>
+            </View>
+            <View style={[styles.search, dark && { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]}>
+              <Ionicons name="search" size={19} color={dark ? colors.muted : '#64748b'} />
+              <TextInput value={query} onChangeText={setQuery} placeholder="Search people, properties, or messages" placeholderTextColor={dark ? colors.muted : '#94a3b8'} style={[styles.searchInput, dark && { color: colors.text }]} returnKeyType="search" accessibilityLabel="Search people, properties, or messages" />
+              {!!query && <TouchableOpacity accessibilityRole="button" accessibilityLabel="Clear search" onPress={() => setQuery('')}><Ionicons name="close-circle" size={19} color={dark ? colors.muted : '#94a3b8'} /></TouchableOpacity>}
+            </View>
+            <View style={[styles.filters, dark && { borderBottomColor: colors.border }]}>
+              {FILTERS.filter((option) => capabilities.archive || option.key !== 'archived').map((option) => {
+                const count = option.key === 'unread' ? scopedConversations.filter((c) => !c.isArchived && (c.unreadCount ?? 0) > 0).length : undefined;
+                return <TouchableOpacity key={option.key} style={[styles.filter, filter === option.key && styles.activeFilter, dark && filter === option.key && { borderBottomColor: colors.accent }]} onPress={() => setFilter(option.key)}>
+                  <Text style={[styles.filterText, filter === option.key && styles.activeFilterText, dark && { color: filter === option.key ? colors.text : colors.muted }]}>{option.label}{count ? ` ${count}` : ''}</Text>
+                </TouchableOpacity>;
+              })}
+            </View>
+            {visible.length > 0 && <Text style={[styles.listLabel, dark && { color: colors.muted }]}>{filter === 'archived' ? 'ARCHIVED' : filter === 'unread' ? 'UNREAD' : 'CONVERSATIONS'}</Text>}
+          </View>}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={dark ? colors.accent : '#2563eb'} />}
           ListEmptyComponent={<View style={styles.center}><Ionicons name="chatbubbles-outline" size={42} color={dark ? colors.muted : '#94a3b8'} /><Text style={[styles.emptyTitle, dark && { color: colors.text }]}>{query ? 'No matching conversations' : filter === 'unread' ? 'You’re all caught up' : filter === 'archived' ? 'No archived conversations' : 'No messages yet'}</Text><Text style={[styles.status, dark && { color: colors.muted }]}>{query ? 'Try another name, property, or keyword.' : 'New conversations will appear here.'}</Text></View>} />}
-      {capabilities.createGroup && <GroupConversationDialog visible={groupDialogVisible && scopeIsCurrent} organizationId={organizationId} currentUserId={currentUserId} onClose={() => { if (scopeGenerationRef.current && isMessagingOperationCurrent(scopeGeneration, scopeGenerationRef.current)) setGroupDialogVisible(false); }} onCreated={(id) => { if (scopeGenerationRef.current && isMessagingOperationCurrent(scopeGeneration, scopeGenerationRef.current)) { setGroupDialogVisible(false); navigation.navigate('ConversationDetail', { conversationId: id }); } }} />}
+      {audience === 'landlord' && newMessageVisible && scopeIsCurrent && <NewMessageDialog key={dataScope} onClose={() => setNewMessageVisible(false)} onOpen={(conversation) => { if (scopeGenerationRef.current && isMessagingOperationCurrent(scopeGeneration, scopeGenerationRef.current)) { setNewMessageVisible(false); navigation.navigate('ConversationDetail', { conversationId: String(conversation.id), selectedConversation: conversation }); } }} />}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' }, header: { paddingHorizontal: 20, paddingTop: 22, paddingBottom: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, heading: { color: '#0f2f47', fontSize: 28, fontWeight: '800' }, headerSub: { color: '#64748b', marginTop: 3, fontSize: 13 }, newGroup: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#2563eb', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10 }, newGroupText: { color: '#fff', fontWeight: '800', fontSize: 12 },
-  search: { marginHorizontal: 20, minHeight: 46, paddingHorizontal: 13, borderRadius: 10, backgroundColor: '#f1f5f9', flexDirection: 'row', alignItems: 'center', gap: 9 }, searchInput: { flex: 1, color: '#0f172a', fontSize: 15, paddingVertical: 10 },
-  filters: { flexDirection: 'row', gap: 24, paddingHorizontal: 20, marginTop: 12, borderBottomWidth: 1, borderBottomColor: '#e2e8f0' }, filter: { paddingVertical: 12, borderBottomWidth: 2, borderBottomColor: 'transparent' }, activeFilter: { borderBottomColor: '#2563eb' }, filterText: { color: '#64748b', fontWeight: '600', fontSize: 13 }, activeFilterText: { color: '#0f2f47', fontWeight: '800' },
-  list: { paddingHorizontal: 20, paddingBottom: 126 }, emptyList: { flexGrow: 1 }, listLabel: { color: '#64748b', fontSize: 11, fontWeight: '800', letterSpacing: 1.2, paddingTop: 23, paddingBottom: 6 }, conversationRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 16 }, divider: { height: 1, backgroundColor: '#e8edf2', marginLeft: 60 }, avatar: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: '#e8f1f1', marginRight: 12 }, unreadAvatar: { backgroundColor: '#dbeafe' }, avatarText: { color: '#087b79', fontWeight: '800', fontSize: 16 }, copy: { flex: 1, minWidth: 0 }, row: { flexDirection: 'row', alignItems: 'center' }, title: { flex: 1, color: '#1e293b', fontWeight: '700', fontSize: 16, marginRight: 8 }, unreadText: { color: '#0f172a', fontWeight: '900' }, time: { color: '#64748b', fontSize: 12 }, subtitle: { color: '#64748b', marginTop: 3, fontSize: 12 }, preview: { flex: 1, color: '#64748b', marginTop: 5, fontSize: 13 }, pin: { marginLeft: 7 }, badge: { minWidth: 21, height: 21, paddingHorizontal: 6, borderRadius: 11, marginLeft: 8, backgroundColor: '#2563eb', alignItems: 'center', justifyContent: 'center' }, badgeText: { color: '#fff', fontSize: 11, fontWeight: '900' },
+  container: { flex: 1, backgroundColor: '#fff' },
+  overview: { marginBottom: 20, paddingTop: 8, paddingBottom: 20, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#dbe2e6' },
+  overviewEyebrow: { color: '#2f8f46', fontSize: 11, fontWeight: '800', letterSpacing: 1.2, marginBottom: 12 },
+  overviewRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 },
+  overviewValue: { color: '#102d43', fontSize: 34, lineHeight: 39, fontWeight: '800' },
+  overviewLabel: { color: '#617180', fontSize: 13, marginTop: 1 },
+  newGroup: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 10, paddingHorizontal: 12 },
+  newGroupText: { color: '#fff', fontWeight: '800', fontSize: 12 },
+  search: { minHeight: 46, paddingHorizontal: 13, borderRadius: 10, backgroundColor: '#f1f5f9', flexDirection: 'row', alignItems: 'center', gap: 9 }, searchInput: { flex: 1, color: '#0f172a', fontSize: 15, paddingVertical: 10 },
+  filters: { flexDirection: 'row', gap: 24, marginTop: 12, borderBottomWidth: 1, borderBottomColor: '#e2e8f0' }, filter: { paddingVertical: 12, borderBottomWidth: 2, borderBottomColor: 'transparent' }, activeFilter: { borderBottomColor: '#2563eb' }, filterText: { color: '#64748b', fontWeight: '600', fontSize: 13 }, activeFilterText: { color: '#0f2f47', fontWeight: '800' },
+  list: { paddingHorizontal: 20, paddingBottom: 28 }, emptyList: { flexGrow: 1 }, listLabel: { color: '#64748b', fontSize: 11, fontWeight: '800', letterSpacing: 1.2, paddingTop: 23, paddingBottom: 6 }, conversationRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 16 }, divider: { height: 1, backgroundColor: '#e8edf2', marginLeft: 60 }, avatar: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: '#e8f1f1', marginRight: 12 }, unreadAvatar: { backgroundColor: '#dbeafe' }, avatarText: { color: '#087b79', fontWeight: '800', fontSize: 16 }, copy: { flex: 1, minWidth: 0 }, row: { flexDirection: 'row', alignItems: 'center' }, title: { flex: 1, color: '#1e293b', fontWeight: '700', fontSize: 16, marginRight: 8 }, unreadText: { color: '#0f172a', fontWeight: '900' }, time: { color: '#64748b', fontSize: 12 }, subtitle: { color: '#64748b', marginTop: 3, fontSize: 12 }, preview: { flex: 1, color: '#64748b', marginTop: 5, fontSize: 13 }, pin: { marginLeft: 7 }, badge: { minWidth: 21, height: 21, paddingHorizontal: 6, borderRadius: 11, marginLeft: 8, backgroundColor: '#2563eb', alignItems: 'center', justifyContent: 'center' }, badgeText: { color: '#fff', fontSize: 11, fontWeight: '900' },
   center: { flex: 1, minHeight: 220, padding: 30, alignItems: 'center', justifyContent: 'center' }, status: { color: '#64748b', textAlign: 'center', marginTop: 9, lineHeight: 20 }, error: { color: '#b42318', textAlign: 'center', marginTop: 10 }, retry: { backgroundColor: '#2563eb', borderRadius: 12, marginTop: 16, paddingHorizontal: 18, paddingVertical: 10 }, retryText: { color: '#fff', fontWeight: '800' }, emptyTitle: { color: '#334155', fontSize: 17, fontWeight: '800', marginTop: 12 },
 });

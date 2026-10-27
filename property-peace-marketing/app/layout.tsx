@@ -61,10 +61,10 @@ export const metadata: Metadata = {
     description: 'Manage rent, tenants, leases, maintenance, expenses, and documents in one calm dashboard built for small landlords with 1–50 units. Start free.',
     images: [
       {
-        url: '/favicon.png',
-        width: 512,
-        height: 512,
-        alt: 'Property Peace - Property Management Software for Landlords',
+        url: '/property-peace-social.png',
+        width: 1200,
+        height: 630,
+        alt: 'Property Peace house and bird logo on a navy background',
       },
     ],
   },
@@ -72,7 +72,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Property Management Software for Landlords | Property Peace',
     description: 'Manage rent, tenants, leases, maintenance, expenses, and documents in one calm dashboard built for small landlords with 1–50 units. Start free.',
-    images: ['/favicon.png'],
+    images: ['/property-peace-social.png'],
   },
   icons: {
     icon: [

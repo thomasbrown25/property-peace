@@ -1,18 +1,20 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useMemo, useState } from 'react';
+import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import TenantAPI, { Tenant } from '../../api/tenantAPI';
 import { useAppTheme } from '../../theme/AppTheme';
-import PageBackButton from '../../components/PageBackButton';
+import LandlordPageHeader from '../../components/LandlordPageHeader';
 
-const tenantName = (tenant: Tenant) => [tenant.firstName || tenant.FirstName, tenant.lastName || tenant.LastName].filter(Boolean).join(' ') || tenant.email || tenant.Email || 'Tenant';
+const tenantName = (tenant: Tenant) => [tenant.firstname || tenant.Firstname || tenant.firstName || tenant.FirstName, tenant.lastname || tenant.Lastname || tenant.lastName || tenant.LastName].filter(Boolean).join(' ') || tenant.email || tenant.Email || 'Tenant';
 
 export default function TenantsScreen() {
   const { mode, colors } = useAppTheme();
   const dark = mode === 'dark';
   const navigation = useNavigation<any>();
+
   const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -28,60 +30,82 @@ export default function TenantsScreen() {
     }
   }, []);
 
-  useEffect(() => { loadTenants(); }, [loadTenants]);
+  useFocusEffect(useCallback(() => { void loadTenants(); }, [loadTenants]));
 
-  if (loading) {
-    return <View style={[styles.centerContainer, dark && { backgroundColor: colors.background }]}><ActivityIndicator size="large" color={dark ? colors.accent : '#1976d2'} /></View>;
-  }
+  const filteredTenants = useMemo(() => {
+    const term = query.trim().toLowerCase();
+    if (!term) return tenants;
+    return tenants.filter(tenant => [tenantName(tenant), tenant.email, tenant.Email, tenant.phoneNumber, tenant.PhoneNumber]
+      .some(value => String(value ?? '').toLowerCase().includes(term)));
+  }, [tenants, query]);
 
   return (
     <View style={[styles.container, dark && { backgroundColor: colors.background }]}>
-      <FlatList
-        data={tenants}
+      <LandlordPageHeader title="Tenants" />
+      <View style={styles.pageHeader}>
+        <View style={styles.titleRow}>
+          <View style={styles.headerCopy}>
+            <Text style={[styles.eyebrow, dark && { color: '#75d995' }]}>YOUR COMMUNITY</Text>
+            <Text style={[styles.pageSubtitle, dark && { color: colors.muted }]}>Your people, all in one place.</Text>
+          </View>
+          <TouchableOpacity style={[styles.addButton, dark && { backgroundColor: colors.accent }]} onPress={() => navigation.navigate('AddTenant')} accessibilityRole="button" accessibilityLabel="Add tenant">
+            <Ionicons name="add" size={20} color={dark ? colors.background : '#fff'} />
+            <Text style={[styles.addButtonText, dark && { color: colors.background }]}>Tenant</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={[styles.search, dark && { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]}>
+          <Ionicons name="search" size={19} color={dark ? colors.muted : '#64748b'} />
+          <TextInput value={query} onChangeText={setQuery} placeholder="Search tenants by name, email, or phone" placeholderTextColor={dark ? colors.muted : '#94a3b8'} style={[styles.searchInput, dark && { color: colors.text }]} accessibilityLabel="Search tenants" returnKeyType="search" />
+          {!!query && <TouchableOpacity accessibilityRole="button" accessibilityLabel="Clear search" onPress={() => setQuery('')}><Ionicons name="close-circle" size={19} color={dark ? colors.muted : '#94a3b8'} /></TouchableOpacity>}
+        </View>
+      </View>
+      {loading ? <View style={[styles.centerContainer, dark && { backgroundColor: colors.background }]}><ActivityIndicator size="large" color={dark ? colors.accent : '#1976d2'} /></View> : <FlatList
+        data={filteredTenants}
         keyExtractor={(item, index) => String(item.id || item.Id || index)}
         contentContainerStyle={styles.listContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadTenants(); }} tintColor={dark ? colors.accent : undefined} />}
         ListHeaderComponent={
           <View>
-            <PageBackButton />
-            <Text style={[styles.eyebrow, dark && { color: colors.accent }]}>YOUR COMMUNITY</Text>
-            <Text style={[styles.pageTitle, dark && { color: colors.text }]} accessibilityRole="header">Tenants</Text>
-            <Text style={[styles.pageSubtitle, dark && { color: colors.muted }]}>People and conversations, all in one place.</Text>
-            <TouchableOpacity style={[styles.addButton, dark && { backgroundColor: colors.accent }]} onPress={() => navigation.navigate('AddTenant')} accessibilityRole="button">
-              <Ionicons name="add" size={20} color={dark ? colors.background : '#fff'} />
-              <Text style={[styles.addButtonText, dark && { color: colors.background }]}>Add tenant</Text>
-            </TouchableOpacity>
             <View style={styles.sectionHeader}>
               <Text style={[styles.sectionTitle, dark && { color: colors.text }]} accessibilityRole="header">All tenants</Text>
               <Text style={[styles.count, dark && { color: colors.muted }]}>{tenants.length}</Text>
             </View>
           </View>
         }
-        ListEmptyComponent={<View style={styles.emptyContainer}><Ionicons name="people-outline" size={30} color={dark ? colors.accent : '#8aa5b8'} /><Text style={[styles.emptyText, dark && { color: colors.text }]}>No tenants yet</Text><Text style={[styles.emptySubtext, dark && { color: colors.muted }]}>Add a tenant to connect them with leases, messages, and portal invites.</Text></View>}
+        ListEmptyComponent={<View style={styles.emptyContainer}><Ionicons name={query.trim() ? 'search-outline' : 'people-outline'} size={30} color={dark ? colors.accent : '#8aa5b8'} /><Text style={[styles.emptyText, dark && { color: colors.text }]}>{query.trim() ? 'No matching tenants' : 'No tenants yet'}</Text><Text style={[styles.emptySubtext, dark && { color: colors.muted }]}>{query.trim() ? 'Try another name, email, or phone number.' : 'Add a tenant to connect them with leases, messages, and portal invites.'}</Text></View>}
         ItemSeparatorComponent={() => <View style={[styles.separator, dark && { backgroundColor: colors.border }]} />}
         renderItem={({ item }) => (
-          <View style={styles.row} accessibilityRole="summary">
+          <TouchableOpacity style={styles.row} accessibilityRole="button" accessibilityLabel={`View ${tenantName(item)} profile`} disabled={!/^[1-9]\d*$/.test(String(item.id ?? item.Id ?? ''))} onPress={() => navigation.navigate('TenantDetail', { tenantId: String(item.id ?? item.Id) })}>
             <View style={[styles.avatar, dark && { backgroundColor: '#233c56' }]}><Text style={[styles.avatarText, dark && { color: colors.accent }]}>{tenantName(item).charAt(0).toUpperCase()}</Text></View>
             <View style={styles.rowCopy}>
               <Text style={[styles.title, dark && { color: colors.text }]}>{tenantName(item)}</Text>
               {!!(item.email || item.Email) && <Text style={[styles.meta, dark && { color: colors.muted }]} numberOfLines={1}>{item.email || item.Email}</Text>}
               {!!(item.phoneNumber || item.PhoneNumber) && <Text style={[styles.meta, dark && { color: colors.muted }]}>{item.phoneNumber || item.PhoneNumber}</Text>}
+              {!!(item.propertyName || item.PropertyName) && <Text style={[styles.meta, dark && { color: colors.muted }]} numberOfLines={1}>{item.propertyName || item.PropertyName}{(item.unitName || item.UnitName) ? ` · ${item.unitName || item.UnitName}` : ''}</Text>}
+              {(item.isActive ?? item.IsActive) === false && <Text style={[styles.meta, dark && { color: colors.muted }]}>Archived</Text>}
             </View>
-          </View>
+            <Ionicons name="chevron-forward" size={18} color={dark ? colors.muted : '#788995'} />
+          </TouchableOpacity>
         )}
-      />
+      />}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fbf7f4' },
-  centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fbf7f4' },
-  listContent: { paddingHorizontal: 22, paddingTop: 28, paddingBottom: 100 },
-  eyebrow: { color: '#2475cf', fontSize: 11, fontWeight: '800', letterSpacing: 1.8, marginBottom: 8 },
-  pageTitle: { color: '#102d43', fontSize: 34, lineHeight: 40, fontWeight: '800', letterSpacing: -1 },
-  pageSubtitle: { color: '#617180', fontSize: 15, lineHeight: 22, marginTop: 6, marginBottom: 26 },
-  addButton: { flexDirection: 'row', gap: 6, backgroundColor: '#2475cf', borderRadius: 10, minHeight: 44, paddingHorizontal: 18, alignSelf: 'flex-start', alignItems: 'center', justifyContent: 'center', marginBottom: 30 },
+  container: { flex: 1, backgroundColor: '#fff' },
+  centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' },
+
+  pageHeader: { paddingHorizontal: 22, paddingTop: 16, paddingBottom: 22 },
+  eyebrow: { color: '#2f8f46', fontSize: 11, fontWeight: '800', letterSpacing: 1.8 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 18 },
+  headerCopy: { flex: 1, minWidth: 0, gap: 4 },
+  listContent: { paddingHorizontal: 22, paddingTop: 8, paddingBottom: 120 },
+
+  pageSubtitle: { color: '#617180', fontSize: 15, lineHeight: 22 },
+  addButton: { flexDirection: 'row', gap: 4, backgroundColor: '#2475cf', borderRadius: 10, minHeight: 44, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center' },
+  search: { minHeight: 46, paddingHorizontal: 13, borderRadius: 10, backgroundColor: '#f1f5f9', flexDirection: 'row', alignItems: 'center', gap: 9 },
+  searchInput: { flex: 1, color: '#0f172a', fontSize: 15, paddingVertical: 10 },
   addButtonText: { color: '#fff', fontSize: 14, fontWeight: '700' },
   sectionHeader: { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginBottom: 10 },
   sectionTitle: { color: '#102d43', fontSize: 20, fontWeight: '800', letterSpacing: -0.4 },

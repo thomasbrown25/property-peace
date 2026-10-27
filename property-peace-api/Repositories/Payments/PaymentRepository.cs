@@ -14,7 +14,10 @@ namespace brownstone_hub_api.Repositories.Payments
         private readonly ILogger<PaymentRepository> _logger = logger;
         private readonly IMapper _mapper = mapper;
 
-        public async Task<List<LoadPaymentDto>> AddPayment(AddPaymentDto newPayment)
+        public async Task<List<LoadPaymentDto>> AddPayment(AddPaymentDto newPayment) =>
+            (await AddPaymentWithIdentity(newPayment)).History;
+
+        public async Task<(LoadPaymentDto Inserted, List<LoadPaymentDto> History)> AddPaymentWithIdentity(AddPaymentDto newPayment)
         {
             var leaseId = newPayment.LeaseId;
             var paymentDate = newPayment.PaymentDate;
@@ -64,7 +67,7 @@ namespace brownstone_hub_api.Repositories.Payments
                 var rentPayments = await GetRentPaymentsByLeaseId(leaseId);
                 await UpdateLeaseOverdueAmount(leaseId, lease, rentPayments);
 
-                return paymentDtos;
+                return (_mapper.Map<LoadPaymentDto>(payment), paymentDtos);
             }
             catch (Exception ex)
             {

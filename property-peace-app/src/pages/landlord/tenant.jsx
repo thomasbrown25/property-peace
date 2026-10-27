@@ -8,6 +8,7 @@ import {
   Card,
   CardContent,
   Button,
+  IconButton,
   Chip,
   alpha,
   CircularProgress,
@@ -510,6 +511,15 @@ export default function TenantPage() {
               <Typography variant={isMobile ? 'h4' : 'h3'} fontWeight={700} sx={{ wordBreak: 'break-word' }}>
                 {fullName}
               </Typography>
+              <IconButton
+                aria-label={`Edit ${fullName}`}
+                title="Edit tenant"
+                onClick={() => drawer.openTenantEditDrawer(tenant)}
+                size="small"
+                sx={{ color: 'text.secondary', flexShrink: 0 }}
+              >
+                <EditOutlined style={{ fontSize: 18 }} />
+              </IconButton>
               <Chip label={accountStatusLabel} color={accountStatusColor} size="small" variant={hasAccount ? 'filled' : 'outlined'} />
             </Stack>
             <Stack direction="row" spacing={1.25} alignItems="center" flexWrap="wrap" useFlexGap>
@@ -548,14 +558,6 @@ export default function TenantPage() {
         </Stack>
 
         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-          <Button
-            variant="outlined"
-            startIcon={<EditOutlined style={{ fontSize: 16 }} />}
-            onClick={() => tenant && drawer.openTenantEditDrawer(tenant)}
-            sx={{ px: 2.5 }}
-          >
-            Edit tenant
-          </Button>
           <Button
             variant="outlined"
             startIcon={<DollarOutlined style={{ fontSize: 16 }} />}

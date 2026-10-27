@@ -79,6 +79,9 @@ namespace brownstone_hub_api.Services.TenantService
                     {
                         return ServiceResponse<LoadTenantDto>.CreateError("Invalid unit ID", "The specified unit does not exist.");
                     }
+                    if (unit.RentalMode != ERentalMode.LongTerm)
+                        return ServiceResponse<LoadTenantDto>.CreateError(
+                            "Long-term tenant assignment unavailable", "Short-term units cannot have directly assigned tenants.", "", 409);
                     if (requestedLeaseId.HasValue && !unit.Leases.Any(l => l.Id == requestedLeaseId.Value && l.UnitId == unit.Id))
                         return ServiceResponse<LoadTenantDto>.CreateError("The selected lease does not belong to the selected unit", statusCode: 400);
                     tenant.LeaseId = requestedLeaseId ?? unit.Lease?.Id;
@@ -141,6 +144,11 @@ namespace brownstone_hub_api.Services.TenantService
                        newTenant,
                        isNewTenant ? "Tenant added successfully" : "Tenant updated successfully"
                    );
+            }
+            catch (InvalidOperationException ex) when (ex.Message.StartsWith("Long-term tenant assignment unavailable", StringComparison.Ordinal))
+            {
+                return ServiceResponse<LoadTenantDto>.CreateError(
+                    "Long-term tenant assignment unavailable", "The unit is no longer in long-term mode.", "", 409);
             }
             catch (Exception ex)
             {

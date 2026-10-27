@@ -446,7 +446,7 @@ const styles = StyleSheet.create({
   },
   skyVeil: {
     backgroundColor: '#020b15',
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute', top: 0, right: 0, bottom: 0, left: 0,
   },
   logoStage: {
     alignItems: 'center',

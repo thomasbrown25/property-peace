@@ -38,6 +38,9 @@ namespace brownstone_hub_api.Models
         public string City { get; set; } = "";
         public string State { get; set; } = "";
         public string ZipCode { get; set; } = "";
+        // IANA zone of the property's local calendar; null for legacy properties until configured.
+        [IanaTimeZone]
+        public string? TimeZoneId { get; set; }
 
         //Property Details
         public int YearBuilt { get; set; } = 0;

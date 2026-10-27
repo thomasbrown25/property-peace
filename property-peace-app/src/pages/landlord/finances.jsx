@@ -365,6 +365,7 @@ export default function FinancesPage() {
               )}
               {activeTab === 'payments' && (
                 <PaymentsTab
+                  properties={properties}
                   propertyId={propertyId}
                   sharedPeriod={period}
                   sharedFrom={scopedQuery.from}

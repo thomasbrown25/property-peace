@@ -4,6 +4,7 @@ using brownstone_hub_api.Dtos.Notification;
 using brownstone_hub_api.Enums;
 using brownstone_hub_api.Repositories.Applications;
 using brownstone_hub_api.Repositories.Listings;
+using brownstone_hub_api.Repositories.Units;
 using brownstone_hub_api.Repositories.Users;
 using brownstone_hub_api.Services.ApplicationPdfService;
 using brownstone_hub_api.Services.NotificationService;
@@ -29,7 +30,8 @@ namespace brownstone_hub_api.Services.ApplicationService
         ILogger<ApplicationService> logger,
         IWorkflowTimelineIntegration workflowTimeline,
         IActivationOccurrenceRecorder? occurrenceRecorder = null,
-        DataContext? dataContext = null) : IApplicationService
+        DataContext? dataContext = null,
+        IUnitRepository? unitRepository = null) : IApplicationService
     {
         private readonly IApplicationRepository _applicationRepository = applicationRepository;
         private readonly IUserRepository _userRepository = userRepository;
@@ -43,6 +45,7 @@ namespace brownstone_hub_api.Services.ApplicationService
         private readonly IWorkflowTimelineIntegration _workflowTimeline = workflowTimeline;
         private readonly IActivationOccurrenceRecorder? _occurrenceRecorder = occurrenceRecorder;
         private readonly DataContext? _dataContext = dataContext;
+        private readonly IUnitRepository? _unitRepository = unitRepository;
 
         private async Task<long?> GetCurrentUserIdAsync()
         {
@@ -59,6 +62,28 @@ namespace brownstone_hub_api.Services.ApplicationService
             return null;
         }
 
+        private async Task<bool> IsLongTermTargetAsync(long propertyId, long? unitId, long? organizationId)
+        {
+            if (unitId.HasValue)
+            {
+                var unit = _unitRepository is not null
+                    ? await _unitRepository.GetUnitById(unitId.Value, organizationId)
+                    : null;
+                if (unit is not null) return unit.PropertyId == propertyId && unit.RentalMode == ERentalMode.LongTerm;
+                if (_unitRepository is not null || _dataContext is null) return false;
+                return await _dataContext.Units.AsNoTracking().AnyAsync(u => u.Id == unitId.Value &&
+                    u.PropertyId == propertyId && (!organizationId.HasValue || u.Property.OrganizationId == organizationId.Value) &&
+                    u.RentalMode == ERentalMode.LongTerm);
+            }
+            if (_unitRepository is not null)
+            {
+                var units = await _unitRepository.GetUnits(propertyId, organizationId);
+                return units is not null && units.All(u => u.RentalMode == ERentalMode.LongTerm);
+            }
+            return _dataContext is not null && !await _dataContext.Units.AsNoTracking()
+                .AnyAsync(u => u.PropertyId == propertyId && u.RentalMode != ERentalMode.LongTerm);
+        }
+
         public async Task<ServiceResponse<LoadRentalApplicationDto>> AddApplication(AddRentalApplicationDto application)
         {
             try
@@ -70,6 +95,9 @@ namespace brownstone_hub_api.Services.ApplicationService
                 }
 
                 var organizationId = GetOrganizationIdFromContext();
+                if (!await IsLongTermTargetAsync(application.PropertyId, application.UnitId, organizationId))
+                    return ServiceResponse<LoadRentalApplicationDto>.CreateError(
+                        "Long-term application unavailable", "This property or unit is not available for long-term applications.", "", 409);
                 await using var activationTransaction = await BeginActivationTransactionAsync();
                 var result = await _applicationRepository.AddApplication(application, landlordId.Value, organizationId);
                 if (result.Status == EApplicationStatus.Submitted)
@@ -97,6 +125,11 @@ namespace brownstone_hub_api.Services.ApplicationService
                     Data = result,
                     Message = "Application created successfully"
                 };
+            }
+            catch (InvalidOperationException ex) when (ex.Message.StartsWith("Long-term application unavailable", StringComparison.Ordinal))
+            {
+                return ServiceResponse<LoadRentalApplicationDto>.CreateError(
+                    "Long-term application unavailable", ex.Message, "", 409);
             }
             catch (Exception ex)
             {
@@ -570,6 +603,10 @@ namespace brownstone_hub_api.Services.ApplicationService
                 if (listing == null)
                     return ServiceResponse<LoadRentalApplicationDto>.CreateError("Listing not found", "", "", 404);
 
+                if (!await IsLongTermTargetAsync(listing.PropertyId, listing.UnitId, listing.OrganizationId))
+                    return ServiceResponse<LoadRentalApplicationDto>.CreateError(
+                        "Long-term application unavailable", "This property or unit is not available for long-term applications.", "", 409);
+
                 if (!listing.AcceptOnlineApplications)
                     return ServiceResponse<LoadRentalApplicationDto>.CreateError("This listing is not accepting online applications", "", "", 400);
 
@@ -608,6 +645,11 @@ namespace brownstone_hub_api.Services.ApplicationService
                     Data = result,
                     Message = "Application submitted successfully"
                 };
+            }
+            catch (InvalidOperationException ex) when (ex.Message.StartsWith("Long-term application unavailable", StringComparison.Ordinal))
+            {
+                return ServiceResponse<LoadRentalApplicationDto>.CreateError(
+                    "Long-term application unavailable", ex.Message, "", 409);
             }
             catch (Exception ex)
             {

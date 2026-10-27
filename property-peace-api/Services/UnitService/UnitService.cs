@@ -90,6 +90,12 @@ namespace brownstone_hub_api.Services.UnitService
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
+                if (updatedUnit is null ||
+                    (updatedUnit.RentalMode.HasValue && !Enum.IsDefined(updatedUnit.RentalMode.Value)))
+                    return ServiceResponse<LoadUnitDto>.CreateError(
+                        "Invalid rental mode", statusCode: StatusCodes.Status400BadRequest,
+                        suppressDetailedErrors: true);
+
                 if (!TryGetTrustedCreationScope(out var userId, out var organizationId))
                 {
                     return Forbidden<LoadUnitDto>();
@@ -172,6 +178,13 @@ namespace brownstone_hub_api.Services.UnitService
                         statusCode: StatusCodes.Status400BadRequest,
                         suppressDetailedErrors: true);
                 }
+
+                // Count is materialized and validated before the policy call; checked conversion
+                if (bulkCreateDto.Units.Any(u => u is null ||
+                    (u.RentalMode.HasValue && !Enum.IsDefined(u.RentalMode.Value))))
+                    return ServiceResponse<List<LoadUnitDto>>.CreateError(
+                        "Invalid rental mode", statusCode: StatusCodes.Status400BadRequest,
+                        suppressDetailedErrors: true);
 
                 // Count is materialized and validated before the policy call; checked conversion
                 // prevents a future non-List DTO implementation from silently overflowing.

@@ -16,6 +16,7 @@ using brownstone_hub_api.Services.ActivationFunnel;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
+using System.Data;
 
 namespace brownstone_hub_api.Services.ListingService
 {
@@ -47,6 +48,31 @@ namespace brownstone_hub_api.Services.ListingService
         private readonly ILogger<ListingService> _logger = logger;
         private readonly IActivationOccurrenceRecorder? _occurrenceRecorder = occurrenceRecorder;
         private readonly DataContext? _dataContext = dataContext;
+
+        private static bool IsModeConflict(Exception ex) =>
+            ex is InvalidOperationException invalid && invalid.Message.StartsWith("Long-term listing unavailable", StringComparison.Ordinal)
+            || ex.InnerException is not null && IsModeConflict(ex.InnerException);
+
+        private static ServiceResponse<LoadListingDto> ModeConflict() =>
+            ServiceResponse<LoadListingDto>.CreateError("Long-term listing unavailable",
+                "This listing requires long-term units only.", "", 409);
+
+        private async Task<ServiceResponse<LoadListingDto>?> RejectShortTermUnitAsync(long propertyId, long? unitId, long organizationId)
+        {
+            if (unitId.HasValue)
+            {
+                var unit = await _unitRepository.GetUnitById(unitId.Value, organizationId);
+                if (unit?.PropertyId == propertyId && unit.RentalMode == ERentalMode.LongTerm) return null;
+            }
+            else
+            {
+                // A property-wide listing is ambiguous if even one unit is short-term.
+                var units = await _unitRepository.GetUnits(propertyId, organizationId);
+                if (units is not null && units.All(u => u.RentalMode == ERentalMode.LongTerm)) return null;
+            }
+            return ServiceResponse<LoadListingDto>.CreateError(
+                "Long-term listing unavailable", "This listing requires long-term units only.", "", 409);
+        }
 
         private long? GetCurrentOrganizationId()
         {
@@ -205,7 +231,13 @@ namespace brownstone_hub_api.Services.ListingService
                             $"Unit with ID {listingDto.UnitId} not found or does not belong to the property."
                         );
                     }
+                    if (unit.RentalMode != ERentalMode.LongTerm)
+                        return ServiceResponse<LoadListingDto>.CreateError(
+                            "Long-term listing unavailable", "Short-term units cannot have long-term listings.", "", 409);
                 }
+
+                var modeError = await RejectShortTermUnitAsync(listingDto.PropertyId, listingDto.UnitId, organizationId.Value);
+                if (modeError != null) return modeError;
 
                 // Create listing
                 var listing = await _listingRepository.CreateListing(listingDto, organizationId.Value, userId.Value);
@@ -223,6 +255,10 @@ namespace brownstone_hub_api.Services.ListingService
                 // Reload listing with images
                 var result = await _listingRepository.GetListingById(listing.Id);
                 return ServiceResponse<LoadListingDto>.CreateSuccess(result ?? listing);
+            }
+            catch (Exception ex) when (IsModeConflict(ex))
+            {
+                return ModeConflict();
             }
             catch (Exception ex)
             {
@@ -255,6 +291,8 @@ namespace brownstone_hub_api.Services.ListingService
                 var existing = await _listingRepository.GetListingById(listingDto.Id);
                 if (existing is null)
                     return ServiceResponse<LoadListingDto>.CreateError("Listing not found", "Listing not found.");
+                var modeError = await RejectShortTermUnitAsync(existing.PropertyId, existing.UnitId, existing.OrganizationId);
+                if (modeError != null) return modeError;
                 await using var activationTransaction = await BeginActivationTransactionAsync();
                 var listing = await _listingRepository.UpdateListing(listingDto);
                 if (listing.Status == EListingStatus.Active)
@@ -262,6 +300,10 @@ namespace brownstone_hub_api.Services.ListingService
                 if (activationTransaction is not null)
                     await activationTransaction.CommitAsync();
                 return ServiceResponse<LoadListingDto>.CreateSuccess(listing);
+            }
+            catch (Exception ex) when (IsModeConflict(ex))
+            {
+                return ModeConflict();
             }
             catch (KeyNotFoundException ex)
             {
@@ -523,6 +565,9 @@ namespace brownstone_hub_api.Services.ListingService
                     );
                 }
 
+                var modeError = await RejectShortTermUnitAsync(existing.PropertyId, existing.UnitId, existing.OrganizationId);
+                if (modeError != null) return modeError;
+
                 var slug = ListingSlugHelper.ToSlug(existing.PropertyAddress, existing.UnitName);
                 if (string.IsNullOrWhiteSpace(slug))
                 {
@@ -547,6 +592,10 @@ namespace brownstone_hub_api.Services.ListingService
                     await activationTransaction.CommitAsync();
                 return ServiceResponse<LoadListingDto>.CreateSuccess(listing);
             }
+            catch (Exception ex) when (IsModeConflict(ex))
+            {
+                return ModeConflict();
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error publishing listing {ListingId}", listingId);
@@ -562,7 +611,7 @@ namespace brownstone_hub_api.Services.ListingService
             if (_dataContext is null || !_dataContext.Database.IsRelational())
                 return null;
 
-            return await _dataContext.Database.BeginTransactionAsync();
+            return await _dataContext.Database.BeginTransactionAsync(IsolationLevel.Serializable);
         }
 
         private async Task TryRecordListingPublishedAsync(LoadListingDto listing)

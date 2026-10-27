@@ -46,6 +46,7 @@ import { useSubscription } from 'hooks/useSubscription';
 import RentEstimateCard from 'components/RentEstimateCard';
 import { deleteUnit } from 'store/unit/unit.action';
 import { openSnackbar } from 'api/snackbar';
+import { rentalMode } from 'utils/rentalMode';
 
 export default function UnitPage() {
   const { unitId } = useParams();
@@ -309,6 +310,7 @@ export default function UnitPage() {
             </Stack>
           </Stack>
           <Stack direction="row" spacing={1}>
+            {rentalMode(unit) === 'shortTerm' && <Button variant="contained" size="small" onClick={() => navigate(`/landlord/property/${property.id}/unit/${unit.id}/short-stay`)}>Short-stay draft & availability</Button>}
             <Button
               size="small"
               variant="text"

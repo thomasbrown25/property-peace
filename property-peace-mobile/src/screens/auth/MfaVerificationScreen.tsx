@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -54,6 +55,15 @@ export default function MfaVerificationScreen({ navigation, route }: Props) {
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="interactive"
         >
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+            disabled={verifying}
+            accessibilityRole="button"
+            accessibilityLabel="Back to login"
+          >
+            <Ionicons name="arrow-back" size={24} color="#bfdbfe" />
+          </TouchableOpacity>
           <View style={styles.badge}>
             <Text style={styles.badgeText}>Secure sign in</Text>
           </View>
@@ -94,15 +104,6 @@ export default function MfaVerificationScreen({ navigation, route }: Props) {
               This request expires at {new Date(challenge.expiresAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.
             </Text>
           ) : null}
-
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-            disabled={verifying}
-            accessibilityRole="button"
-          >
-            <Text style={styles.backText}>Back to login</Text>
-          </TouchableOpacity>
         </ScrollView>
       </AuthMarketingBackground>
     </KeyboardAvoidingView>
@@ -140,6 +141,5 @@ const styles = StyleSheet.create({
   buttonDisabled: { opacity: 0.55 },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   expires: { color: 'rgba(255, 255, 255, 0.56)', textAlign: 'left', fontSize: 12, marginTop: 16 },
-  backButton: { minHeight: 48, alignItems: 'center', justifyContent: 'center', marginTop: 12 },
-  backText: { color: '#bfdbfe', fontSize: 14, fontWeight: '700' },
+  backButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
 });

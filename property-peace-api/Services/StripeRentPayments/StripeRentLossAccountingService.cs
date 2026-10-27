@@ -60,13 +60,7 @@ public sealed class StripeRentLossAccountingService(
             var cumulativeLossCents = Math.Min(aggregate.AmountCents,
                 checked(aggregate.RefundedAmountCents + aggregate.DisputedAmountCents));
 
-            var original = await context.Payments.Where(x =>
-                    x.LeaseId == aggregate.LeaseId
-                    && (x.StripePaymentIntentId == aggregate.PaymentIntentId || x.Reference == aggregate.PaymentIntentId)
-                    && x.Amount > 0 && x.FeeId == null && x.DepositId == null)
-                .OrderByDescending(x => x.Reference == aggregate.PaymentIntentId)
-                .ThenBy(x => x.Id)
-                .FirstOrDefaultAsync(cancellationToken);
+            var original = await FindOriginalAsync(aggregate, cancellationToken);
 
             // A block can arrive before authoritative settlement/allocation. In that case no local
             // obligation was reduced and there is nothing to reverse.
@@ -82,10 +76,11 @@ public sealed class StripeRentLossAccountingService(
                 x.OrganizationId == aggregate.OrganizationId && x.TransactionId == original.Id
                 && x.TransactionType == "Payment", cancellationToken)
                 ?? throw new InvalidOperationException("The original rent-payment ledger entry is missing.");
+            await ValidateFeeLedgerAsync(original, originalLedger, cancellationToken);
 
             var lossReference = $"{aggregate.PaymentIntentId}:loss";
             var previouslyAccountedLossCents = await GetAccountedLossCentsAsync(
-                aggregate.LeaseId, aggregate.PaymentIntentId, cancellationToken);
+                aggregate.LeaseId, aggregate.OrganizationId, original.FeeId, aggregate.PaymentIntentId, cancellationToken);
             if (previouslyAccountedLossCents == 0 && cumulativeLossCents <= 0)
             {
                 if (transaction != null) await transaction.CommitAsync(cancellationToken);
@@ -116,7 +111,7 @@ public sealed class StripeRentLossAccountingService(
                     TransactionType = "PaymentLossReversal",
                     Amount = -(ledgerDeltaCents / 100m),
                     TransactionDate = command.OccurredAt.UtcDateTime,
-                    Description = "Stripe rent loss-accounting delta",
+                    Description = original.FeeId.HasValue ? "Stripe fee loss-accounting delta" : "Stripe rent loss-accounting delta",
                     Reference = $"{lossReference}:{previouslyAccountedLossCents}:{cumulativeLossCents}:{command.OccurredAt.UtcTicks}",
                     CreatedAt = command.OccurredAt.UtcDateTime
                 });
@@ -181,12 +176,7 @@ public sealed class StripeRentLossAccountingService(
             aggregate.NextTransferAttemptAt = null;
             aggregate.UpdatedAt = command.OccurredAt;
 
-            var original = await context.Payments.Where(x =>
-                    x.LeaseId == aggregate.LeaseId
-                    && (x.StripePaymentIntentId == aggregate.PaymentIntentId || x.Reference == aggregate.PaymentIntentId)
-                    && x.Amount > 0 && x.FeeId == null && x.DepositId == null)
-                .OrderByDescending(x => x.Reference == aggregate.PaymentIntentId).ThenBy(x => x.Id)
-                .FirstOrDefaultAsync(cancellationToken);
+            var original = await FindOriginalAsync(aggregate, cancellationToken);
             if (original == null && aggregate.AllocationCompletedAt != null)
                 throw new InvalidOperationException("The allocated rent payment is missing during loss accounting.");
             if (original != null)
@@ -195,11 +185,12 @@ public sealed class StripeRentLossAccountingService(
                     x.OrganizationId == aggregate.OrganizationId && x.TransactionId == original.Id
                     && x.TransactionType == "Payment", cancellationToken)
                     ?? throw new InvalidOperationException("The original rent-payment ledger entry is missing.");
+                await ValidateFeeLedgerAsync(original, originalLedger, cancellationToken);
                 var cumulativeLossCents = Math.Min(aggregate.AmountCents,
                     checked(aggregate.RefundedAmountCents + aggregate.DisputedAmountCents));
                 var lossReference = $"{aggregate.PaymentIntentId}:loss";
                 var previouslyAccountedLossCents = await GetAccountedLossCentsAsync(
-                    aggregate.LeaseId, aggregate.PaymentIntentId, cancellationToken);
+                    aggregate.LeaseId, aggregate.OrganizationId, original.FeeId, aggregate.PaymentIntentId, cancellationToken);
                 var ledgerDeltaCents = checked(cumulativeLossCents - previouslyAccountedLossCents);
                 if (ledgerDeltaCents != 0)
                     AddAdjustmentPayment(original, aggregate, -ledgerDeltaCents, command.OccurredAt,
@@ -219,7 +210,7 @@ public sealed class StripeRentLossAccountingService(
                         OrganizationId = aggregate.OrganizationId, AccountId = originalLedger.AccountId,
                         TransactionId = original.Id, TransactionType = "PaymentLossReversal",
                         Amount = -(ledgerDeltaCents / 100m), TransactionDate = command.OccurredAt.UtcDateTime,
-                        Description = "Stripe rent loss-accounting delta",
+                        Description = original.FeeId.HasValue ? "Stripe fee loss-accounting delta" : "Stripe rent loss-accounting delta",
                         Reference = $"{lossReference}:{previouslyAccountedLossCents}:{cumulativeLossCents}:{command.OccurredAt.UtcTicks}",
                         CreatedAt = command.OccurredAt.UtcDateTime
                     });
@@ -264,18 +255,16 @@ public sealed class StripeRentLossAccountingService(
                 aggregate.ReversalTargetAmountCents);
             if (disputedCents > 0)
             {
-                var original = await context.Payments.SingleOrDefaultAsync(x =>
-                    x.LeaseId == aggregate.LeaseId
-                    && (x.StripePaymentIntentId == aggregate.PaymentIntentId || x.Reference == aggregate.PaymentIntentId)
-                    && x.Amount > 0 && x.FeeId == null && x.DepositId == null, cancellationToken)
+                var original = await FindOriginalAsync(aggregate, cancellationToken)
                     ?? throw new InvalidOperationException("The allocated rent payment is missing during dispute recovery.");
                 var originalLedger = await context.GeneralLedgerEntries.SingleOrDefaultAsync(x =>
                     x.OrganizationId == aggregate.OrganizationId && x.TransactionId == original.Id
                     && x.TransactionType == "Payment", cancellationToken)
                     ?? throw new InvalidOperationException("The original rent-payment ledger entry is missing.");
+                await ValidateFeeLedgerAsync(original, originalLedger, cancellationToken);
                 var lossReference = $"{aggregate.PaymentIntentId}:loss";
                 var previouslyAccountedLossCents = await GetAccountedLossCentsAsync(
-                    aggregate.LeaseId, aggregate.PaymentIntentId, cancellationToken);
+                    aggregate.LeaseId, aggregate.OrganizationId, original.FeeId, aggregate.PaymentIntentId, cancellationToken);
                 if (previouslyAccountedLossCents <= 0)
                     throw new InvalidOperationException("The dispute loss adjustment is missing during recovery.");
                 var remainingLossCents = Math.Min(aggregate.AmountCents, aggregate.RefundedAmountCents);
@@ -338,11 +327,53 @@ public sealed class StripeRentLossAccountingService(
         }
     }
 
-    private async Task<long> GetAccountedLossCentsAsync(long leaseId, string paymentIntentId,
+    private async Task<Payment?> FindOriginalAsync(StripeRentPayment aggregate, CancellationToken cancellationToken)
+    {
+        var originals = await context.Payments.Where(x => x.LeaseId == aggregate.LeaseId
+                && (x.StripePaymentIntentId == aggregate.PaymentIntentId || x.Reference == aggregate.PaymentIntentId)
+                && x.Amount > 0 && x.Method != "Stripe loss adjustment"
+                && x.Method != "Stripe dispute recovery adjustment")
+            .ToListAsync(cancellationToken);
+        if (originals.Count == 0) return null;
+        if (originals.Count != 1 || originals[0].OrganizationId != aggregate.OrganizationId
+            || originals[0].DepositId != null || originals[0].Amount != aggregate.AmountCents / 100m)
+            throw new InvalidOperationException("Stripe loss original payment does not match the durable lease and organization.");
+        var original = originals[0];
+        if (aggregate.ChargeId != null)
+        {
+            if (original.FeeId.HasValue)
+            {
+                if (aggregate.ChargeId != $"fee:{original.FeeId.Value}")
+                    throw new InvalidOperationException("Stripe loss charge identity does not match the original fee payment.");
+            }
+            else if (!SelectedRentCharge.IsRent(aggregate.ChargeId)
+                || !SelectedRentCharge.IsWellFormed(aggregate.ChargeId)
+                || !aggregate.ChargeId.StartsWith($"rent:{aggregate.LeaseId}:", StringComparison.Ordinal))
+                throw new InvalidOperationException("Stripe loss charge identity does not match the original rent payment.");
+        }
+        if (original.FeeId.HasValue && !await context.LeaseFees.AnyAsync(f => f.Id == original.FeeId.Value
+                && f.LeaseId == aggregate.LeaseId && f.OrganizationId == aggregate.OrganizationId,
+                cancellationToken))
+            throw new InvalidOperationException("Stripe loss fee does not belong to the durable lease and organization.");
+        return original;
+    }
+
+    private async Task ValidateFeeLedgerAsync(Payment original, GeneralLedgerEntry ledger,
         CancellationToken cancellationToken)
     {
+        if (!original.FeeId.HasValue) return; // Preserve legacy rent ledger behavior.
+        if (ledger.Amount != original.Amount || !await context.Accounts.AnyAsync(a => a.Id == ledger.AccountId
+            && a.OrganizationId == original.OrganizationId && a.AccountCode == "4400"
+            && a.AccountType == brownstone_hub_api.Enums.EAccountType.Income, cancellationToken))
+            throw new InvalidOperationException("The original fee-payment ledger entry is not in fee income (4400).");
+    }
+
+    private async Task<long> GetAccountedLossCentsAsync(long leaseId, long organizationId, long? feeId,
+        string paymentIntentId, CancellationToken cancellationToken)
+    {
         var amounts = await context.Payments
-            .Where(x => x.LeaseId == leaseId && x.StripePaymentIntentId == paymentIntentId
+            .Where(x => x.LeaseId == leaseId && x.OrganizationId == organizationId && x.FeeId == feeId
+                && x.DepositId == null && x.StripePaymentIntentId == paymentIntentId
                 && (x.Method == "Stripe loss adjustment" || x.Method == "Stripe dispute recovery adjustment"))
             .Select(x => x.Amount)
             .ToListAsync(cancellationToken);
@@ -357,6 +388,7 @@ public sealed class StripeRentLossAccountingService(
             LeaseId = original.LeaseId,
             PropertyId = original.PropertyId,
             OrganizationId = original.OrganizationId,
+            FeeId = original.FeeId,
             Amount = signedDeltaCents / 100m,
             PaymentDate = occurredAt.UtcDateTime,
             Reference = reference,

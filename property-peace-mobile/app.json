@@ -6,11 +6,6 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#082f58"
-    },
     "assetBundlePatterns": [
       "**/*"
     ],
@@ -69,7 +64,10 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "scheme": ["propertypeace", "com.googleusercontent.apps.422382677454-1ttb399tb2vucfo109s3ijvi8bvsahgt"],
+    "scheme": [
+      "propertypeace",
+      "com.googleusercontent.apps.422382677454-1ttb399tb2vucfo109s3ijvi8bvsahgt"
+    ],
     "plugins": [
       [
         "expo-local-authentication",
@@ -88,7 +86,19 @@
         }
       ],
       "expo-font",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "expo-sharing",
+      "expo-notifications",
+      "expo-status-bar",
+      "expo-web-browser",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#082f58"
+        }
+      ]
     ],
     "extra": {
       "eas": {

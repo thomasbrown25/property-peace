@@ -1,4 +1,4 @@
-import { lazy } from 'react';
+import { lazy, Suspense } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 
 // project imports
@@ -8,6 +8,7 @@ import ErrorBoundary from './ErrorBoundary';
 import Loadable from 'components/Loadable';
 
 const MaintenancePage = Loadable(lazy(() => import('pages/maintenance')));
+const MobileSignupChallenge = lazy(() => import('pages/auth/jwt/mobile-signup-challenge'));
 
 // ==============================|| ROUTING RENDER ||============================== //
 
@@ -28,6 +29,11 @@ const router = createBrowserRouter(
     {
       path: '/maintenance',
       element: <MaintenancePage />,
+      errorElement: <ErrorBoundary />
+    },
+    {
+      path: '/mobile-signup-challenge',
+      element: <Suspense fallback={<div>Loading security check…</div>}><MobileSignupChallenge /></Suspense>,
       errorElement: <ErrorBoundary />
     },
     LoginRoutes,

@@ -3,6 +3,7 @@ import {
   AccessibilityInfo,
   ActivityIndicator,
   AppState,
+  Image,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -140,8 +141,12 @@ export default function BiometricUnlockScreen({
       <View style={styles.iconWrap}>
         <Ionicons name="scan-outline" size={44} color="#93c5fd" />
       </View>
-      <Text style={styles.eyebrow}>Property Peace</Text>
-      <Text style={styles.title}>Locked</Text>
+      <Image
+        source={require('../../assets/property-peace-logo.png')}
+        style={styles.logo}
+        resizeMode="contain"
+        accessibilityLabel="Property Peace"
+      />
       <Text accessibilityLiveRegion="polite" style={styles.message}>{message}</Text>
       <TouchableOpacity
         accessibilityRole="button"
@@ -188,19 +193,10 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     width: 84,
   },
-  eyebrow: {
-    color: '#93c5fd',
-    fontSize: 13,
-    fontWeight: '800',
-    letterSpacing: 1.2,
-    marginBottom: 8,
-    textTransform: 'uppercase',
-  },
-  title: {
-    color: '#ffffff',
-    fontSize: 34,
-    fontWeight: '900',
-    marginBottom: 10,
+  logo: {
+    width: 224,
+    height: 66,
+    marginBottom: 16,
   },
   message: {
     color: 'rgba(255, 255, 255, 0.70)',

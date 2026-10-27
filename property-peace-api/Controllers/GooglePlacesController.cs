@@ -16,6 +16,25 @@ public sealed class GooglePlacesController(
     private readonly IGooglePlacesService _service = service;
     private readonly ILogger<GooglePlacesController> _logger = logger;
 
+    [HttpGet("streetview")]
+    public async Task<IActionResult> StreetView([FromQuery] string? address, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(address) || address.Length > 300)
+            return BadRequest(new { message = "Enter a valid property address." });
+        try
+        {
+            var image = await _service.GetStreetViewImageAsync(address.Trim(), cancellationToken);
+            return image is null ? NotFound() : Ok(ServiceResponse<string>.CreateSuccess(Convert.ToBase64String(image)));
+        }
+        catch (GooglePlacesException exception) { return MapFailure<string>(exception); }
+        catch (Exception exception) when (exception is HttpRequestException or OperationCanceledException or System.Text.Json.JsonException)
+        {
+            if (cancellationToken.IsCancellationRequested) throw;
+            _logger.LogWarning("Google Street View lookup failed");
+            return StatusCode(502, new { message = "Property image is unavailable." });
+        }
+    }
+
     public sealed record AutocompleteWireRequest(string? Input, string? SessionToken);
 
     [HttpPost("autocomplete")]

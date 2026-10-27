@@ -1,7 +1,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { User, UserState, UserSettings, NotificationSettings } from '../../types/user';
 import authService, { LoginCredentials, RegisterData } from '../../services/authService';
-import storageService from '../../services/storageService';
+import { getBiometricAccountId } from '../../features/startup/biometricAccountId';
 
 const initialState: UserState = {
   currentUser: null,
@@ -64,15 +64,7 @@ export const logout = createAsyncThunk('user/logout', async () => {
 });
 
 export const initializeAuth = createAsyncThunk('user/initializeAuth', async () => {
-  const token = await storageService.getToken();
-  const isAuthenticated = await authService.isAuthenticated();
-  const user = isAuthenticated ? await authService.getCurrentUser() : null;
-  
-  return {
-    token,
-    isAuthenticated,
-    user,
-  };
+  return authService.restoreSession();
 });
 
 const userSlice = createSlice({
@@ -92,6 +84,18 @@ const userSlice = createSlice({
       if (state.currentUser) {
         state.currentUser.hasSeenTutorial = true;
       }
+    },
+    setProfileImage: (state, action: PayloadAction<{ accountId: string; imageUrl: string }>) => {
+      if (String(state.currentUser?.id ?? state.currentUser?.Id ?? '') !== action.payload.accountId) return;
+      if (state.currentUser) {
+        state.currentUser.ProfileImageUrl = action.payload.imageUrl;
+        state.currentUser.profileImageUrl = action.payload.imageUrl;
+      }
+    },
+    applySavedAccount: (state, action: PayloadAction<{ accountId: string; user: User }>) => {
+      if (!state.currentUser || getBiometricAccountId(state.currentUser) !== action.payload.accountId ||
+          getBiometricAccountId(action.payload.user) !== action.payload.accountId) return;
+      state.currentUser = { ...state.currentUser, ...action.payload.user };
     },
     resetState: () => initialState,
   },
@@ -275,5 +279,5 @@ const userSlice = createSlice({
   },
 });
 
-export const { clearError, updateSettings, setNotificationSettings, updateTutorialStatus, resetState } = userSlice.actions;
+export const { clearError, updateSettings, setNotificationSettings, updateTutorialStatus, setProfileImage, applySavedAccount, resetState } = userSlice.actions;
 export default userSlice.reducer;

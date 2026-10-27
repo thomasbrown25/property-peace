@@ -15,15 +15,24 @@ export default function ChecklistsNavigator() {
     <Stack.Navigator
       screenOptions={{
         headerTintColor: mode === 'dark' ? colors.text : '#0b3558',
+        headerBackTitleVisible: false,
         headerTitleStyle: { fontWeight: '800', color: mode === 'dark' ? colors.text : '#102d43' },
         headerShadowVisible: false,
-        headerStyle: { backgroundColor: mode === 'dark' ? colors.background : '#fbf7f4' },
-        contentStyle: { backgroundColor: mode === 'dark' ? colors.background : '#fbf7f4' },
+        headerStyle: { backgroundColor: colors.background },
+        contentStyle: { backgroundColor: colors.background },
       }}
     >
-      <Stack.Screen name="ChecklistPropertySearch" component={ChecklistPropertySearchScreen} options={{ title: 'Property checklists', headerLeft: () => <PageBackButton /> }} />
-      <Stack.Screen name="PropertyChecklists" component={PropertyChecklistsScreen} options={{ title: 'Checklists' }} />
-      <Stack.Screen name="ChecklistEditor" component={ChecklistEditorScreen} options={{ title: 'Inspection' }} />
+      <Stack.Screen name="ChecklistPropertySearch" component={ChecklistPropertySearchScreen} options={{ title: 'Property checklists', headerBackVisible: false }} />
+      <Stack.Screen name="PropertyChecklists" component={PropertyChecklistsScreen} options={({ navigation }) => ({
+        title: 'Checklists',
+        headerBackVisible: false,
+        headerLeft: () => <PageBackButton inHeader onPress={() => navigation.goBack()} />,
+      })} />
+      <Stack.Screen name="ChecklistEditor" component={ChecklistEditorScreen} options={({ navigation }) => ({
+        title: 'Inspection',
+        headerBackVisible: false,
+        headerLeft: () => <PageBackButton inHeader onPress={() => navigation.goBack()} />,
+      })} />
     </Stack.Navigator>
   );
 }

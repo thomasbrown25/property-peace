@@ -12,6 +12,8 @@ namespace brownstone_hub_api.Services.VendorService
         Task<ServiceResponse<List<LoadVendorDto>>> GetVendorsByOrganizationId(long organizationId, bool includeInactive = false);
         Task<ServiceResponse<LoadVendorDto>> UpdateVendor(UpdateVendorDto vendor);
         Task<ServiceResponse<LoadVendorDto>> UpdateVendor(UpdateVendorDto vendor, long organizationId);
+        Task<ServiceResponse<LoadVendorDto>> PatchVendor(long vendorId, long organizationId, System.Text.Json.JsonElement changes);
+        Task<ServiceResponse<List<VendorMaintenanceDto>>> GetVendorMaintenance(long vendorId, long organizationId);
         Task<ServiceResponse<bool>> DeleteVendor(long vendorId);
         Task<ServiceResponse<bool>> DeleteVendor(long vendorId, long organizationId);
         Task<ServiceResponse<bool>> SoftDeleteVendor(long vendorId);

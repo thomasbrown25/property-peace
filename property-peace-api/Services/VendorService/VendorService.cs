@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace brownstone_hub_api.Services.VendorService
 {
-    public class VendorService(
+    public partial class VendorService(
         IVendorRepository vendorRepository,
         IUserRepository userRepository,
         IHttpContextAccessor httpContextAccessor,

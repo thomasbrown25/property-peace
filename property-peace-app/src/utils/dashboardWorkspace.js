@@ -1,6 +1,6 @@
 export const dashboardWorkspaceTabs = [
-  { key: 'overview', label: 'Overview', path: '/landlord/dashboard?tab=overview', icon: 'overview' },
-  { key: 'calendar', label: 'Calendar', path: '/landlord/dashboard?tab=calendar', icon: 'calendar' },
+  { key: 'overview', label: 'Overview', path: '/landlord/dashboard', icon: 'overview' },
+  { key: 'calendar', label: 'Calendar', path: '/landlord/calendar', icon: 'calendar' },
   { key: 'tasks', label: 'Tasks', path: '/landlord/dashboard?tab=tasks', icon: 'tasks' }
 ];
 

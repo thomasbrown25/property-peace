@@ -8,6 +8,7 @@ import {
   AccordionDetails,
   AccordionSummary,
   Divider,
+  Switch,
   alpha
 } from '@mui/material';
 import Avatar from 'components/@extended/Avatar';
@@ -25,7 +26,7 @@ import DownOutlined from '@ant-design/icons/DownOutlined';
 // ==============================|| APPEARANCE SETTINGS ||============================== //
 
 export default function AppearanceSettings() {
-  const { mode } = useConfig();
+  const { showDetailedOperations, onChangeDetailedOperations } = useConfig();
 
   const themeMode = useMemo(() => <DefaultThemeMode />, []);
   const themeColor = useMemo(() => <ColorScheme />, []);
@@ -119,6 +120,24 @@ export default function AppearanceSettings() {
               </AccordionSummary>
               <AccordionDetails>{themeColor}</AccordionDetails>
             </Accordion>
+
+            <Divider />
+
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, px: 2, py: 2 }}>
+              <Box>
+                <Typography id="detailed-operations-label" variant="subtitle1" fontWeight="medium">
+                  Show detailed operations
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Show the full operations cards on your dashboard
+                </Typography>
+              </Box>
+              <Switch
+                checked={showDetailedOperations}
+                onChange={(event) => onChangeDetailedOperations(event.target.checked)}
+                inputProps={{ 'aria-labelledby': 'detailed-operations-label' }}
+              />
+            </Box>
           </Box>
         </Paper>
       </Stack>

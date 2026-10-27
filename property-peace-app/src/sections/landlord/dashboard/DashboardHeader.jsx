@@ -98,7 +98,7 @@ export function DashboardReminderCard({ reminders = [] }) {
       </Stack>
 
       <Button
-        onClick={() => navigate('/landlord/dashboard?tab=calendar')}
+        onClick={() => navigate('/landlord/calendar')}
         endIcon={<ArrowRightOutlined />}
         aria-label="View calendar"
         sx={{

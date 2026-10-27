@@ -15,7 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { UNSTABLE_usePreventRemove as usePreventRemove, useNavigation } from '@react-navigation/native';
+import { UNSTABLE_usePreventRemove as usePreventRemove, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PropertyAPI, { type Property, type Unit } from '../../api/propertyAPI';
 import expenseAPI from '../../api/expenseAPIRuntime';
@@ -32,6 +32,7 @@ import {
 } from '../../features/expenses/expenseModel';
 import { toLocalExpenseReceipt } from '../../features/expenses/expenseReceiptModel';
 import { createRequestGate } from '../../features/expenses/requestGate';
+import { buildExpenseUpdate, expenseEditForm, type EditableExpenseRecord } from '../../features/expenses/expenseEdit';
 import {
   getExpenseErrorMessage,
   retryExpenseReceipt,
@@ -83,10 +84,15 @@ export default function AddExpenseScreen() {
   const styles = useExpenseStyles();
   const { mode, colors } = useAppTheme();
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
+  const editId = route.params?.expenseId ? Number(route.params.expenseId) : null;
   const insets = useSafeAreaInsets();
   const currentUser = useAppSelector((state) => state.user.currentUser);
   const [step, setStep] = useState<ExpenseStep>('details');
   const [form, setForm] = useState(() => emptyExpenseForm());
+  const [original, setOriginal] = useState<EditableExpenseRecord | null>(null);
+  const [detailLoading, setDetailLoading] = useState(Boolean(editId));
+  const [detailError, setDetailError] = useState<string | null>(null);
   const [properties, setProperties] = useState<Property[]>([]);
   const [propertyLoading, setPropertyLoading] = useState(true);
   const [propertyError, setPropertyError] = useState<string | null>(null);
@@ -111,6 +117,18 @@ export default function AddExpenseScreen() {
   }, []);
 
   useEffect(() => { void loadProperties(); }, [loadProperties]);
+  const loadDetail = useCallback(async () => {
+    if (!editId) return;
+    setDetailLoading(true); setDetailError(null);
+    try {
+      const detail = await expenseAPI.getExpense(editId);
+      setForm(expenseEditForm(detail));
+      setOriginal(detail);
+      navigation.setOptions({ title: 'Edit expense' });
+    } catch (error) { setDetailError(getExpenseErrorMessage(error, 'Expense could not be loaded.')); }
+    finally { setDetailLoading(false); }
+  }, [editId, navigation]);
+  useEffect(() => { void loadDetail(); }, [loadDetail]);
 
   usePreventRemove(submitting, () => {
     Alert.alert('Please wait', 'Your expense is still being saved.');
@@ -158,7 +176,7 @@ export default function AddExpenseScreen() {
     const validation = validateExpenseStep(form, 'review');
     setErrors(validation);
     setSaveError(null);
-    if (!Number.isInteger(landlordId) || landlordId <= 0) {
+    if (!editId && (!Number.isInteger(landlordId) || landlordId <= 0)) {
       setSaveError('Your landlord account could not be identified.');
       return;
     }
@@ -166,11 +184,22 @@ export default function AddExpenseScreen() {
       setSaveError(Object.values(validation)[0]);
       return;
     }
+    if (editId && (!original || detailLoading || detailError)) { setSaveError('Load expense details before saving changes.'); return; }
+    if (form.propertyId !== null && !properties.some(property => propertyId(property) === form.propertyId)) { setSaveError('Selected property is no longer available.'); return; }
+    if (form.unitId !== null && !units.some(unit => unitId(unit) === form.unitId)) { setSaveError('Selected unit is no longer available for this property.'); return; }
     if (!requestGate.tryAcquire()) return;
     setSubmitting(true);
     try {
-      const payload = buildCreateExpensePayload(form, landlordId, new Date().toISOString());
-      setResult(await submitExpense(payload, receipt, expenseAPI));
+      if (editId && original) {
+        const updated = await expenseAPI.updateExpense(editId, buildExpenseUpdate(form, original));
+        if (receipt) {
+          try { await expenseAPI.uploadReceipt(editId, receipt); setResult({ status: 'saved', expense: updated }); }
+          catch (error) { setResult({ status: 'receipt-failed', expense: updated, receipt, message: getExpenseErrorMessage(error, 'Receipt upload failed.') }); }
+        } else setResult({ status: 'saved', expense: updated });
+      } else {
+        const payload = buildCreateExpensePayload(form, landlordId, new Date().toISOString());
+        setResult(await submitExpense(payload, receipt, expenseAPI));
+      }
     } catch (error) {
       setSaveError(getExpenseErrorMessage(error, 'Expense could not be saved.'));
     } finally {
@@ -201,7 +230,7 @@ export default function AddExpenseScreen() {
       <View style={styles.successPage}>
         <View style={styles.successMark}><Ionicons name={receiptFailed ? 'cloud-offline-outline' : 'checkmark'} size={34} color="#fff" /></View>
         <Text style={styles.successTitle}>{receiptFailed ? 'Expense saved' : 'Expense saved'}</Text>
-        <Text style={styles.successCopy}>{receiptFailed ? 'Expense saved; receipt not uploaded' : 'Your paid property expense is recorded.'}</Text>
+        <Text style={styles.successCopy}>{receiptFailed ? 'Expense saved; receipt not uploaded' : editId ? 'Your changes have been saved.' : 'Your paid property expense is recorded.'}</Text>
         <View style={styles.resultSlip}>
           <Text style={styles.resultName}>{result.expense.name}</Text>
           <Text style={styles.resultAmount}>${result.expense.amount.toFixed(2)}</Text>
@@ -216,10 +245,12 @@ export default function AddExpenseScreen() {
     );
   }
 
+  if (editId && (detailLoading || detailError)) return <View style={styles.successPage}>{detailLoading ? <ActivityIndicator /> : <><Text style={styles.inlineError}>{detailError}</Text><ActionButton label="Retry loading expense" onPress={() => void loadDetail()} /></>}</View>;
+
   const meta = stepDetails[step];
   return (
     <KeyboardAvoidingView style={styles.page} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom, 20) + 28 }]} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 36 }]} keyboardShouldPersistTaps="handled">
         <View style={styles.progressHeader}>
           <Text style={styles.progressLabel}>{meta.number} of 3</Text>
           <View style={styles.rail}><View style={[styles.railFill, { width: `${meta.number / 3 * 100}%` }]} /></View>
@@ -242,7 +273,10 @@ export default function AddExpenseScreen() {
 
         {step === 'description' && <>
           <Field label="Description" error={errors.description}><TextInput testID="expense-description" accessibilityLabel="Expense description" value={form.description} onChangeText={(description) => setForm((current) => ({ ...current, description }))} multiline maxLength={200} placeholder="e.g., Repaired the kitchen sink" placeholderTextColor={mode === 'dark' ? colors.muted : '#8a98a6'} style={[styles.input, styles.descriptionInput]} textAlignVertical="top" /><Text style={styles.counter}>{form.description.length}/200</Text></Field>
-          <Field label="Receipt (optional)"><Text style={styles.help}>JPEG, PNG, or WebP up to 10 MB.</Text>{receipt ? <ReceiptPreview receipt={receipt} onRemove={() => !submitting && setReceipt(null)} disabled={submitting} /> : <View style={styles.receiptActions}><ActionButton label="Take photo" onPress={() => void chooseReceipt('camera')} secondary compact /><ActionButton label="Choose photo" onPress={() => void chooseReceipt('library')} secondary compact /></View>}</Field>
+          <Field label="Vendor (optional)" error={errors.vendor}><TextInput accessibilityLabel="Expense vendor" value={form.vendor || ''} onChangeText={vendor => setForm(current => ({ ...current, vendor }))} maxLength={201} style={styles.input} placeholderTextColor={colors.muted} placeholder="Vendor name" /></Field>
+          <Field label="Payment method (optional)" error={errors.paymentMethod}><TextInput accessibilityLabel="Expense payment method" value={form.paymentMethod || ''} onChangeText={paymentMethod => setForm(current => ({ ...current, paymentMethod }))} maxLength={51} style={styles.input} placeholderTextColor={colors.muted} placeholder="e.g., Cash or bank transfer" /></Field>
+          <Field label="Category (optional override)" error={errors.category}><TextInput accessibilityLabel="Expense category" value={form.category || ''} onChangeText={category => setForm(current => ({ ...current, category }))} maxLength={101} style={styles.input} placeholderTextColor={colors.muted} placeholder="Automatic if blank" /></Field>
+          <Field label={editId ? 'Add receipt (existing receipts kept)' : 'Receipt (optional)'}><Text style={styles.help}>JPEG, PNG, or WebP up to 10 MB.</Text>{receipt ? <ReceiptPreview receipt={receipt} onRemove={() => !submitting && setReceipt(null)} disabled={submitting} /> : <View style={styles.receiptActions}><ActionButton label="Take photo" onPress={() => void chooseReceipt('camera')} secondary compact /><ActionButton label="Choose photo" onPress={() => void chooseReceipt('library')} secondary compact /></View>}</Field>
           <View style={styles.actionRow}><ActionButton label="Back" onPress={() => setStep('details')} secondary /><ActionButton label="Continue" onPress={moveForward} /></View>
         </>}
 
@@ -254,11 +288,14 @@ export default function AddExpenseScreen() {
             <ReviewRow label="Property" value={selectedProperty ? label(selectedProperty, 'Property') : 'Not selected'} />
             {selectedUnit && <ReviewRow label="Unit" value={label(selectedUnit, 'Unit')} />}
             <ReviewRow label="Description" value={form.description.trim() || 'Not provided'} />
+            {form.vendor?.trim() && <ReviewRow label="Vendor" value={form.vendor.trim()} />}
+            {form.paymentMethod?.trim() && <ReviewRow label="Payment method" value={form.paymentMethod.trim()} />}
+            <ReviewRow label="Category" value={form.category?.trim() || 'Automatic'} />
             {receipt && <ReceiptPreview receipt={receipt} onRemove={() => !submitting && setReceipt(null)} disabled={submitting} />}
           </View>
-          <View style={styles.autoNote}><Ionicons name="sparkles-outline" size={19} color={mode === 'dark' ? colors.accent : '#2f8f46'} /><Text style={styles.autoNoteText}>Your expense will be categorized automatically after it is saved.</Text></View>
+          <View style={styles.autoNote}><Ionicons name="sparkles-outline" size={19} color={mode === 'dark' ? colors.accent : '#2f8f46'} /><Text style={styles.autoNoteText}>{form.category?.trim() ? 'Your selected category will be saved with this expense.' : editId ? 'The existing category will be kept.' : 'Your expense will be categorized automatically after it is saved.'}</Text></View>
           {saveError && <Text style={styles.inlineError}>{saveError}</Text>}
-          <View style={styles.actionRow}><ActionButton label="Back" onPress={() => setStep('description')} secondary disabled={submitting} /><ActionButton label="Save expense" onPress={() => void save()} loading={submitting} /></View>
+          <View style={styles.actionRow}><ActionButton label="Back" onPress={() => setStep('description')} secondary disabled={submitting} /><ActionButton label={editId ? 'Save changes' : 'Save expense'} onPress={() => void save()} loading={submitting} disabled={propertyLoading || Boolean(propertyError)} /></View>
         </>}
       </ScrollView>
     </KeyboardAvoidingView>
@@ -292,7 +329,7 @@ function ActionButton({ label: buttonLabel, onPress, secondary, compact, disable
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: '#fbf7f4' }, content: { paddingHorizontal: 18, paddingTop: 20 },
+  page: { flex: 1, backgroundColor: '#ffffff' }, content: { paddingHorizontal: 18, paddingTop: 20 },
   progressHeader: { gap: 10, marginBottom: 26 }, progressLabel: { color: '#2f8f46', fontSize: 12, fontWeight: '900', letterSpacing: 1.2, textTransform: 'uppercase' }, rail: { height: 3, backgroundColor: '#e1e8e8', overflow: 'hidden' }, railFill: { height: '100%', backgroundColor: '#2475cf' },
   title: { color: '#082941', fontSize: 30, lineHeight: 37, fontWeight: '900', letterSpacing: -0.8 }, subtitle: { color: '#596b79', fontSize: 16, lineHeight: 23, marginTop: 6, marginBottom: 20 },
   field: { marginBottom: 20 }, fieldLabel: { color: '#0b3558', fontSize: 15, fontWeight: '900', marginBottom: 8 }, input: { minHeight: 50, borderRadius: 13, borderWidth: 1, borderColor: '#dce3e5', backgroundColor: '#fff', color: '#102d43', fontSize: 17, paddingHorizontal: 14 }, descriptionInput: { minHeight: 112, paddingTop: 13 }, counter: { color: '#71808b', fontSize: 12, textAlign: 'right', marginTop: 5 }, fieldError: { color: '#b23d3d', fontSize: 13, lineHeight: 18, marginTop: 6 },
@@ -301,7 +338,7 @@ const styles = StyleSheet.create({
   help: { color: '#697987', fontSize: 13, lineHeight: 18, marginBottom: 10 }, receiptActions: { flexDirection: 'row', gap: 10 }, receiptPreview: { minHeight: 104, flexDirection: 'row', gap: 12, padding: 10, borderRadius: 14, borderWidth: 1, borderColor: '#dce3e5', backgroundColor: '#fff' }, receiptImage: { width: 82, height: 82, borderRadius: 9, backgroundColor: '#e9eef0' }, receiptCopy: { flex: 1, justifyContent: 'center', minWidth: 0 }, receiptName: { color: '#102d43', fontWeight: '900', fontSize: 14 }, removeButton: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' }, removeText: { color: '#b23d3d', fontSize: 13, fontWeight: '900' },
   reviewHeading: { color: '#647888', fontSize: 11, fontWeight: '900', letterSpacing: 1.2, marginBottom: 8 }, reviewSlip: { borderTopWidth: 1, borderTopColor: '#dce3e5', marginBottom: 20 }, reviewRow: { paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#dce3e5', gap: 3 }, reviewLabel: { color: '#70808c', fontSize: 12, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 }, reviewValue: { color: '#102d43', fontSize: 16, lineHeight: 22, fontWeight: '800' }, autoNote: { flexDirection: 'row', gap: 10, alignItems: 'flex-start', backgroundColor: '#edf9ef', borderRadius: 13, padding: 13, marginBottom: 16 }, autoNoteText: { flex: 1, color: '#245e35', fontSize: 13, lineHeight: 19 }, inlineError: { color: '#b23d3d', fontSize: 14, lineHeight: 20, marginBottom: 12 },
   actionRow: { flexDirection: 'row', gap: 10 }, button: { minHeight: 48, borderRadius: 13, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 17, flex: 1 }, buttonPrimary: { backgroundColor: '#2475cf' }, buttonSecondary: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#cfd9de' }, buttonCompact: { minWidth: 0 }, buttonDisabled: { opacity: 0.52 }, buttonText: { fontSize: 16, fontWeight: '900' }, buttonTextPrimary: { color: '#fff' }, buttonTextSecondary: { color: '#0b3558' },
-  successPage: { flex: 1, backgroundColor: '#fbf7f4', paddingHorizontal: 22, justifyContent: 'center' }, successMark: { width: 66, height: 66, borderRadius: 33, alignItems: 'center', justifyContent: 'center', backgroundColor: '#2f8f46', marginBottom: 18 }, successTitle: { color: '#082941', fontSize: 30, fontWeight: '900', letterSpacing: -0.8 }, successCopy: { color: '#596b79', fontSize: 16, lineHeight: 23, marginTop: 6, marginBottom: 22 }, resultSlip: { borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#dce3e5', paddingVertical: 18, marginBottom: 22 }, resultName: { color: '#102d43', fontSize: 17, fontWeight: '900' }, resultAmount: { color: '#0b3558', fontSize: 28, fontWeight: '900', marginTop: 6 }, categoryRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 15 }, categoryText: { color: '#30505f', fontSize: 14, fontWeight: '800' }, successActions: { flexDirection: 'row', gap: 10 },
+  successPage: { flex: 1, backgroundColor: '#ffffff', paddingHorizontal: 22, justifyContent: 'center' }, successMark: { width: 66, height: 66, borderRadius: 33, alignItems: 'center', justifyContent: 'center', backgroundColor: '#2f8f46', marginBottom: 18 }, successTitle: { color: '#082941', fontSize: 30, fontWeight: '900', letterSpacing: -0.8 }, successCopy: { color: '#596b79', fontSize: 16, lineHeight: 23, marginTop: 6, marginBottom: 22 }, resultSlip: { borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#dce3e5', paddingVertical: 18, marginBottom: 22 }, resultName: { color: '#102d43', fontSize: 17, fontWeight: '900' }, resultAmount: { color: '#0b3558', fontSize: 28, fontWeight: '900', marginTop: 6 }, categoryRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 15 }, categoryText: { color: '#30505f', fontSize: 14, fontWeight: '800' }, successActions: { flexDirection: 'row', gap: 10 },
 });
 
 function useExpenseStyles() {

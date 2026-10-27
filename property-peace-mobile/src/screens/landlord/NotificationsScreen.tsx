@@ -1,16 +1,18 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { notificationFeedPage, relativeNotificationTime, isUnreadNotification, NOTIFICATIONS_PAGE_SIZE, type FeedRow } from '../../features/notifications/notificationFeed';
 import NotificationAPI, { AppNotification } from '../../api/notificationAPI';
+import { Notifications } from '../../services/pushNotifications';
 import { useAppTheme } from '../../theme/AppTheme';
-import PageBackButton from '../../components/PageBackButton';
+import LandlordPageHeader from '../../components/LandlordPageHeader';
 
-const isUnread = (item: AppNotification) => item.isRead === false || item.IsRead === false;
+const isUnread = isUnreadNotification;
 
 export default function NotificationsScreen() {
   const { mode, colors } = useAppTheme();
   const styles = mode === 'dark' ? darkStyles : lightStyles;
-  const insets = useSafeAreaInsets();
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -18,12 +20,26 @@ export default function NotificationsScreen() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [markingAll, setMarkingAll] = useState(false);
   const [markingId, setMarkingId] = useState<string | number | null>(null);
+  const [page, setPage] = useState(0);
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
+  const listRef = useRef<FlatList<FeedRow>>(null);
+  const changePage = (nextPage: number) => {
+    setPage(nextPage);
+    listRef.current?.scrollToOffset({ offset: 0, animated: false });
+  };
+  const visible = notificationFeedPage(notifications, page, now);
 
   const loadNotifications = useCallback(async () => {
     setLoadError(false);
     try {
       const data = await NotificationAPI.getNotifications();
       setNotifications(data || []);
+      setNow(new Date());
+      setPage(0);
     } catch (error) {
       console.error('Error loading notifications:', error);
       setLoadError(true);
@@ -33,7 +49,11 @@ export default function NotificationsScreen() {
     }
   }, []);
 
-  useEffect(() => { loadNotifications(); }, [loadNotifications]);
+  useFocusEffect(useCallback(() => {
+    void loadNotifications();
+    const subscription = Notifications.addNotificationReceivedListener(() => { void loadNotifications(); });
+    return () => subscription.remove();
+  }, [loadNotifications]));
 
   const markAllRead = async () => {
     setActionError(null);
@@ -68,8 +88,6 @@ export default function NotificationsScreen() {
     }
   };
 
-  if (loading) return <View style={[styles.centerContainer, { backgroundColor: mode === 'dark' ? colors.background : '#fff' }]}><ActivityIndicator size="large" color={mode === 'dark' ? colors.accent : '#1976d2'} /></View>;
-
   const hasUnread = notifications.some(isUnread);
 
   const errorBanner = (message: string, retry?: () => void) => (
@@ -81,29 +99,21 @@ export default function NotificationsScreen() {
 
   return (
     <View style={styles.container}>
-      <FlatList
-        data={notifications}
-        keyExtractor={(item, index) => String(item.id ?? item.Id ?? index)}
-        contentContainerStyle={[styles.listContent, { paddingTop: insets.top + 28 }]}
+      <LandlordPageHeader title="Notifications" />
+      {loading ? <View style={styles.centerContainer}><ActivityIndicator size="large" color={mode === 'dark' ? colors.accent : '#1976d2'} /></View> : <FlatList
+        ref={listRef}
+        data={visible.rows}
+        keyExtractor={(row, index) => row.kind === 'heading' ? `heading-${index}-${row.title}` : `notification-${row.item.id ?? row.item.Id ?? index}`}
+        contentContainerStyle={styles.listContent}
         ItemSeparatorComponent={() => <View style={styles.divider} />}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadNotifications(); }} tintColor={mode === 'dark' ? colors.accent : undefined} />}
         ListHeaderComponent={(
           <View>
-            <PageBackButton />
-            <View style={styles.headingRow}>
-              <View><Text style={styles.heading}>Notifications</Text><Text style={styles.headingSub}>{notifications.length} updates{hasUnread ? ` · ${notifications.filter(isUnread).length} unread` : ''}</Text></View>
-            </View>
             {loadError && notifications.length > 0 && errorBanner("Couldn't refresh notifications. The list below may be out of date.", loadNotifications)}
             {!!actionError && errorBanner(actionError)}
-            {notifications.length > 0 && <View style={styles.sectionRow}>
-              <Text style={styles.sectionLabel}>RECENT ACTIVITY</Text>
-              {hasUnread && <TouchableOpacity style={styles.markAllButton} onPress={markAllRead} disabled={markingAll || markingId !== null}>
-                <Text style={styles.markAllText}>{markingAll ? 'Marking all…' : 'Mark all read'}</Text>
-              </TouchableOpacity>}
-            </View>}
           </View>
         )}
-        ListEmptyComponent={loadError ? (
+        ListEmptyComponent={loadError && notifications.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>Couldn't load notifications</Text>
             <Text style={styles.emptySubtext}>Check your connection and try again.</Text>
@@ -115,18 +125,35 @@ export default function NotificationsScreen() {
             <Text style={styles.emptySubtext}>Tenant replies, maintenance updates, payments, and Percy follow-ups will show here.</Text>
           </View>
         )}
-        renderItem={({ item }) => {
+        ListFooterComponent={visible.total > 0 ? <View style={styles.pagination}>
+          <Text style={styles.pageText}>Showing {page * NOTIFICATIONS_PAGE_SIZE + 1}–{page * NOTIFICATIONS_PAGE_SIZE + visible.count} of {visible.total}</Text>
+          <View style={styles.pageActions}>
+            {page > 0 && <TouchableOpacity accessibilityRole="button" style={styles.pageButton} onPress={() => changePage(page - 1)}><Text style={styles.clearText}>Newer</Text></TouchableOpacity>}
+            {visible.hasNext && <TouchableOpacity accessibilityRole="button" style={styles.pageButton} onPress={() => changePage(page + 1)}><Text style={styles.clearText}>Older</Text></TouchableOpacity>}
+          </View>
+        </View> : null}
+        renderItem={({ item: row }) => {
+          if (row.kind === 'heading') return <View style={styles.sectionRow}>
+            <Text style={styles.sectionLabel} accessibilityRole="header">{row.title}</Text>
+            {row.title === 'New' && hasUnread && <TouchableOpacity style={styles.markAllButton} onPress={markAllRead} disabled={markingAll || markingId !== null}>
+              <Text style={styles.markAllText}>{markingAll ? 'Marking all…' : 'Mark all read'}</Text>
+            </TouchableOpacity>}
+          </View>;
+          const item = row.item;
           const unread = isUnread(item);
           const id = item.id ?? item.Id;
           const title = item.title || item.Title || 'Notification';
           const markingThis = markingId === id;
+          const relativeTime = relativeNotificationTime(item, now);
           return (
-            <View style={styles.notificationRow}>
-              <View style={[styles.indicator, unread && styles.unreadIndicator]} />
+            <View style={[styles.notificationRow, unread && styles.unreadRow]}>
+              <View style={[styles.notificationIcon, unread && styles.unreadIcon]}>
+                <Ionicons name={String(item.type ?? item.Type ?? '').toLowerCase().includes('payment') ? 'card-outline' : 'notifications-outline'} size={24} color={unread ? '#fff' : colors.accent} />
+              </View>
               <View style={styles.notificationCopy}>
                 <Text style={[styles.title, unread && styles.unreadTitle]}>{title}</Text>
-                {!!(item.message || item.Message) && <Text style={styles.message}>{item.message || item.Message}</Text>}
-                {!!(item.createdAt || item.CreatedAt) && <Text style={styles.date}>{new Date(item.createdAt || item.CreatedAt).toLocaleString()}</Text>}
+                {!!(item.message || item.Message) && <Text style={styles.message} numberOfLines={3}>{item.message || item.Message}</Text>}
+                {relativeTime !== null && <Text style={styles.date}>{relativeTime}</Text>}
                 {unread && id !== undefined && id !== null && (
                   <TouchableOpacity
                     style={styles.markReadButton}
@@ -138,10 +165,11 @@ export default function NotificationsScreen() {
                   </TouchableOpacity>
                 )}
               </View>
+              {unread && <View style={styles.unreadDot} />}
             </View>
           );
         }}
-      />
+      />}
     </View>
   );
 }
@@ -149,24 +177,28 @@ export default function NotificationsScreen() {
 const lightStyles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  listContent: { paddingHorizontal: 20, paddingBottom: 36, flexGrow: 1 },
-  headingRow: { paddingBottom: 20 },
-  heading: { color: '#0f2f47', fontSize: 28, fontWeight: '800' },
-  headingSub: { color: '#64748b', fontSize: 13, marginTop: 4 },
-  sectionRow: { minHeight: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: '#e8edf2' },
-  sectionLabel: { color: '#64748b', fontSize: 11, fontWeight: '800', letterSpacing: 1.2 },
+  listContent: { paddingBottom: 120, flexGrow: 1 },
+  clearText: { color: '#1976d2', fontWeight: '700' },
+  pagination: { alignItems: 'center', paddingVertical: 18, gap: 4 },
+  pageText: { color: '#64748b', fontSize: 13 },
+  pageActions: { flexDirection: 'row', gap: 24 },
+  pageButton: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 12 },
+  sectionRow: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, backgroundColor: '#fff' },
+  sectionLabel: { color: '#102d43', fontSize: 18, fontWeight: '800' },
   errorBanner: { backgroundColor: '#fff8ec', borderLeftWidth: 3, borderLeftColor: '#d99b45', padding: 12, marginBottom: 12 },
   errorText: { color: '#754400', lineHeight: 20 },
   retryButton: { alignSelf: 'flex-start', marginTop: 8, minHeight: 44, justifyContent: 'center' },
   retryText: { color: '#1976d2', fontWeight: '700' },
   markAllButton: { minHeight: 44, justifyContent: 'center' },
   markAllText: { color: '#1976d2', fontWeight: '700' },
-  notificationRow: { flexDirection: 'row', paddingVertical: 18, gap: 12 },
+  notificationRow: { flexDirection: 'row', paddingVertical: 16, paddingHorizontal: 16, gap: 12, alignItems: 'flex-start' },
+  unreadRow: { backgroundColor: '#eaf4ff' },
   notificationCopy: { flex: 1 },
-  indicator: { width: 7, height: 7, borderRadius: 4, marginTop: 7 },
-  unreadIndicator: { backgroundColor: '#1976d2' },
-  divider: { height: 1, backgroundColor: '#e8edf2', marginLeft: 19 },
-  title: { fontSize: 16, fontWeight: '600', color: '#334155', marginBottom: 6 },
+  notificationIcon: { width: 52, height: 52, borderRadius: 26, backgroundColor: '#e8edf2', alignItems: 'center', justifyContent: 'center' },
+  unreadIcon: { backgroundColor: '#2475cf' },
+  unreadDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: '#2475cf', alignSelf: 'center' },
+  divider: { height: 1, backgroundColor: '#e8edf2' },
+  title: { fontSize: 16, fontWeight: '600', color: '#25384b', marginBottom: 3 },
   unreadTitle: { fontWeight: '800', color: '#102d43' },
   message: { color: '#555', lineHeight: 20 },
   date: { marginTop: 8, color: '#888', fontSize: 12 },
@@ -183,15 +215,18 @@ const darkStyles = StyleSheet.create({
   ...lightStyles,
   container: { ...lightStyles.container, backgroundColor: '#101923' },
   centerContainer: { ...lightStyles.centerContainer, backgroundColor: '#101923' },
-  heading: { ...lightStyles.heading, color: '#f2f6fa' },
-  headingSub: { ...lightStyles.headingSub, color: '#b4c3d0' },
-  sectionRow: { ...lightStyles.sectionRow, borderBottomColor: '#35495b' },
-  sectionLabel: { ...lightStyles.sectionLabel, color: '#b4c3d0' },
+  unreadRow: { ...lightStyles.unreadRow, backgroundColor: '#1c3042' },
+  notificationIcon: { ...lightStyles.notificationIcon, backgroundColor: '#30465a' },
+  unreadIcon: { ...lightStyles.unreadIcon, backgroundColor: '#2475cf' },
+  clearText: { ...lightStyles.clearText, color: '#72b6ff' },
+  pageText: { ...lightStyles.pageText, color: '#b4c3d0' },
+  sectionRow: { ...lightStyles.sectionRow, backgroundColor: '#101923' },
+  sectionLabel: { ...lightStyles.sectionLabel, color: '#f2f6fa' },
   errorBanner: { ...lightStyles.errorBanner, backgroundColor: '#493a25', borderLeftColor: '#f5b967' },
   errorText: { ...lightStyles.errorText, color: '#ffe0a6' },
   retryText: { ...lightStyles.retryText, color: '#72b6ff' },
   markAllText: { ...lightStyles.markAllText, color: '#72b6ff' },
-  unreadIndicator: { ...lightStyles.unreadIndicator, backgroundColor: '#72b6ff' },
+  unreadDot: { ...lightStyles.unreadDot, backgroundColor: '#72b6ff' },
   divider: { ...lightStyles.divider, backgroundColor: '#35495b' },
   title: { ...lightStyles.title, color: '#dbe5ee' },
   unreadTitle: { ...lightStyles.unreadTitle, color: '#f2f6fa' },

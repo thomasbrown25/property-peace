@@ -49,7 +49,13 @@ namespace brownstone_hub_api.Repositories.MaintenanceRequests
 
                 await _context.MaintenanceRequests.AddAsync(newRequest);
                 await _context.SaveChangesAsync();
-                
+                if (newRequest.VendorId.HasValue)
+                {
+                    _context.MaintenanceActivityEvents.Add(VendorAssignmentHistory.Create(newRequest,
+                        newRequest.AssignedByUserId ?? 0, newRequest.VendorId, newRequest.AssignedAt));
+                    await _context.SaveChangesAsync();
+                }
+
                 _logger.LogInformation("Maintenance request {RequestId} created with OrganizationId {OrganizationId} and OrderNumber {OrderNumber}", 
                     newRequest.Id, newRequest.OrganizationId, newRequest.OrderNumber);
 
@@ -84,7 +90,18 @@ namespace brownstone_hub_api.Repositories.MaintenanceRequests
                     return null;
                 }
 
+                var previousVendorId = existingRequest.VendorId;
+                var previousAssignedAt = existingRequest.AssignedAt;
                 _mapper.Map(request, existingRequest);
+                if (previousVendorId != existingRequest.VendorId)
+                {
+                    if (previousVendorId.HasValue && !await _context.MaintenanceActivityEvents.AnyAsync(e =>
+                            e.MaintenanceRequestId == existingRequest.Id && e.EventType == VendorAssignmentHistory.EventType))
+                        _context.MaintenanceActivityEvents.Add(VendorAssignmentHistory.Create(existingRequest,
+                            existingRequest.AssignedByUserId ?? 0, previousVendorId, previousAssignedAt));
+                    _context.MaintenanceActivityEvents.Add(VendorAssignmentHistory.Create(existingRequest,
+                        existingRequest.AssignedByUserId ?? 0, existingRequest.VendorId));
+                }
                 await _context.SaveChangesAsync();
 
                 // Reload with includes to ensure we have the latest data
@@ -615,6 +632,8 @@ namespace brownstone_hub_api.Repositories.MaintenanceRequests
                 if (request == null)
                     return null;
 
+                var previousVendorId = request.VendorId;
+                var previousAssignedAt = request.AssignedAt;
                 request.AssignedToType = dto.AssignedToType;
                 request.AssignedAt = dto.AssignedToType == EAssignedToType.Unassigned ? null : DateTime.UtcNow;
                 request.AssignedByUserId = dto.AssignedToType == EAssignedToType.Unassigned ? null : assignedByUserId;
@@ -673,6 +692,13 @@ namespace brownstone_hub_api.Repositories.MaintenanceRequests
                 if (dto.AssignedToType != EAssignedToType.Unassigned && request.Status == EMaintenanceStatus.Reported)
                     request.Status = EMaintenanceStatus.InProgress;
 
+                if (previousVendorId != request.VendorId)
+                {
+                    if (previousVendorId.HasValue && !await _context.MaintenanceActivityEvents.AnyAsync(e =>
+                            e.MaintenanceRequestId == request.Id && e.EventType == VendorAssignmentHistory.EventType))
+                        _context.MaintenanceActivityEvents.Add(VendorAssignmentHistory.Create(request, assignedByUserId, previousVendorId, previousAssignedAt));
+                    _context.MaintenanceActivityEvents.Add(VendorAssignmentHistory.Create(request, assignedByUserId, request.VendorId));
+                }
                 await _context.SaveChangesAsync();
 
                 var updated = await _context.MaintenanceRequests

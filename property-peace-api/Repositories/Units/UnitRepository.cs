@@ -132,6 +132,7 @@ namespace brownstone_hub_api.Repositories.Units
 
                 // No existing unit found, create a new one
                 var unit = _mapper.Map<Unit>(newUnit);
+                unit.RentalMode = newUnit.RentalMode ?? Enums.ERentalMode.LongTerm;
                 unit.Id = 0; // Caller-provided IDs never control creation/update classification.
                 unit.PropertyId = propertyId;
                 unit.IsOccupied = false; // Always start vacant; only lease operations set this to true
@@ -190,6 +191,7 @@ namespace brownstone_hub_api.Repositories.Units
                 foreach (var unitDto in bulkCreateDto.Units)
                 {
                     var unit = _mapper.Map<Unit>(unitDto);
+                    unit.RentalMode = unitDto.RentalMode ?? Enums.ERentalMode.LongTerm;
                     unit.PropertyId = bulkCreateDto.PropertyId;
                     unit.Id = 0; // Ensure new entity
                     unit.OrganizationId = finalOrganizationId; // Set organizationId
@@ -316,7 +318,9 @@ namespace brownstone_hub_api.Repositories.Units
                 unit.Amenities = updatedAmenities;
 
                 var preservedIsOccupied = unit.IsOccupied; // Don't let client overwrite occupancy
+                var preservedRentalMode = unit.RentalMode;
                 _mapper.Map(updateUnitDto, unit);
+                unit.RentalMode = preservedRentalMode;
                 unit.IsOccupied = preservedIsOccupied; // Restore; only lease operations control this
                 _context.Units.Update(unit);
                 await _context.SaveChangesAsync();
@@ -373,7 +377,9 @@ namespace brownstone_hub_api.Repositories.Units
                 unit.Amenities = _mapper.Map<List<Amenity>>(updateUnitDto.Amenities);
                 var preservedPropertyId = unit.PropertyId;
                 var preservedIsOccupied = unit.IsOccupied;
+                var preservedRentalMode = unit.RentalMode;
                 _mapper.Map(updateUnitDto, unit);
+                unit.RentalMode = preservedRentalMode;
                 unit.PropertyId = preservedPropertyId;
                 unit.IsOccupied = preservedIsOccupied;
                 _context.Units.Update(unit);

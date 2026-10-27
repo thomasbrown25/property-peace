@@ -56,7 +56,7 @@ namespace brownstone_hub_api.Services.RentCollectionService
             return settings?.Timezone;
         }
 
-        public async Task<ServiceResponse<RentCollectionResponseDto>> GetRentCollection(long organizationId, long? propertyId = null, long? leaseId = null, bool lifetime = false)
+        public async Task<ServiceResponse<RentCollectionResponseDto>> GetRentCollection(long organizationId, long? propertyId = null, long? leaseId = null, bool lifetime = false, DateTime? month = null)
         {
             try
             {
@@ -65,11 +65,17 @@ namespace brownstone_hub_api.Services.RentCollectionService
                     ? DateTime.Today
                     : TimezoneHelper.GetLocalToday(timezone);
 
-                // Get active leases only for rent collection. Historical/archived leases belong in
-                // reporting/history flows, not the current collection dashboard.
+                var currentMonth = new DateTime(localToday.Year, localToday.Month, 1);
+                var startOfMonth = month ?? currentMonth;
+                if (startOfMonth != new DateTime(startOfMonth.Year, startOfMonth.Month, 1)
+                    || startOfMonth > currentMonth || startOfMonth < currentMonth.AddMonths(-24))
+                    return ServiceResponse<RentCollectionResponseDto>.CreateError("Month must be within the past 24 months", statusCode: 400);
+                var historical = startOfMonth < currentMonth;
+                var endOfMonth = startOfMonth.AddMonths(1);
+                // Historical periods include ended leases; today's collection still excludes them.
                 var leases = propertyId.HasValue
-                    ? await _leaseRepository.GetLeasesByPropertyId(propertyId.Value, true, organizationId)
-                    : await _leaseRepository.GetLeasesByOrganizationId(organizationId, true);
+                    ? await _leaseRepository.GetLeasesByPropertyId(propertyId.Value, !historical, organizationId)
+                    : await _leaseRepository.GetLeasesByOrganizationId(organizationId, !historical);
 
                 // Filter by leaseId if provided
                 if (leaseId.HasValue)
@@ -79,6 +85,16 @@ namespace brownstone_hub_api.Services.RentCollectionService
 
                 // Exclude draft leases from all rent/overdue/outstanding calculations
                 leases = leases.Where(l => l.LeaseAgreement?.IsDrafted != true).ToList();
+                // Include only leases that actually existed in the selected calendar month.
+                leases = leases.Where(l => l.StartDate.HasValue && l.EndDate.HasValue
+                    && l.StartDate.Value.Date < endOfMonth && l.EndDate.Value.Date >= startOfMonth).ToList();
+                if (historical)
+                {
+                    // Calculator gates on present-day IsActive; overlapping ended leases were
+                    // active during this period. These DTOs are scoped to this request only.
+                    foreach (var lease in leases) lease.IsActive = true;
+                    leases = leases.Where(l => RentCalculator.ExpectedForLease(l, startOfMonth, endOfMonth) > 0m).ToList();
+                }
                 var activeLeaseIds = leases.Select(l => l.Id).ToHashSet();
 
                 // Settlement state is separate from rent collection. A completed tenant payment can still
@@ -109,8 +125,6 @@ namespace brownstone_hub_api.Services.RentCollectionService
                 var reviewSettlements = blockedSettlements.Concat(returnedSettlements)
                     .Concat(reconciliationSettlements).Concat(recoveryFailedSettlements).ToList();
 
-                var startOfMonth = new DateTime(localToday.Year, localToday.Month, 1);
-                var endOfMonth = startOfMonth.AddMonths(1);
 
                 // 🔹 Total expected baseline (all leases monthly rent, regardless of payments)
                 var totalMonthlyRent = leases.Where(l => l.RentAmount.HasValue).Sum(l => l.RentAmount!.Value);
@@ -136,7 +150,7 @@ namespace brownstone_hub_api.Services.RentCollectionService
                         lease,
                         paymentsByLease.TryGetValue(lease.Id, out var leasePayments) ? leasePayments : [],
                         timezone,
-                        localToday));
+                        historical ? endOfMonth.AddDays(-1) : localToday));
 
                 var feePayments = await _context.Payments
                     .AsNoTracking()
@@ -184,6 +198,9 @@ namespace brownstone_hub_api.Services.RentCollectionService
                     var leasePaymentList = paymentsByLease.TryGetValue(l.Id, out var lp) ? lp : [];
                     var leaseFeePaymentList = feePaymentsByLease.TryGetValue(l.Id, out var fp) ? fp : [];
                     var rentBalance = rentBalancesByLease[l.Id];
+                    var periodExpected = historical ? RentCalculator.ExpectedForLease(l, startOfMonth, endOfMonth) : 0m;
+                    var periodCollected = historical ? RentCalculator.CollectedForPeriod(l, leasePaymentList, startOfMonth, endOfMonth) : 0m;
+                    var periodRemaining = Math.Max(0m, periodExpected - periodCollected);
 
                     // total finalized payments made for this lease (all payments are rent payments)
                     var leasePayments = leasePaymentList
@@ -215,24 +232,27 @@ namespace brownstone_hub_api.Services.RentCollectionService
                         PropertyId = l.PropertyId,
                         UnitName = l.UnitName,
                         RentAmount = l.RentAmount ?? 0m,
+                        CurrentMonthExpected = RentCalculator.ExpectedForLease(l, startOfMonth, endOfMonth),
+                        CurrentMonthCollected = RentCalculator.CollectedForPeriod(l, leasePaymentList, startOfMonth, endOfMonth),
                         DueDate = l.NextDueDate ?? DateTime.UtcNow,
                         LeaseId = l.Id,
                         OverdueAmount = rentBalance.OverdueAmount,
                         RentDue = rentBalance.RentDue,
                         RentDueIsOverdue = rentBalance.IsOverdue,
-                        CurrentMonthRentDue = rentBalance.CurrentMonthRentDue,
+                        CurrentMonthRentDue = historical ? periodRemaining : rentBalance.CurrentMonthRentDue,
                         CurrentMonthRentDueDate = rentBalance.CurrentMonthRentDueDate,
-                        CurrentMonthRentIsOverdue = rentBalance.OverdueAmount > rentBalance.PriorPeriodOverdueRent,
+                        CurrentMonthRentIsOverdue = !historical && rentBalance.OverdueAmount > rentBalance.PriorPeriodOverdueRent,
+                        PaidLateForMonth = RentCalculator.PaidLateForPeriod(l, leasePaymentList, startOfMonth, endOfMonth, localToday),
                         PriorPeriodOverdueRent = rentBalance.PriorPeriodOverdueRent,
                         UnpaidFees = RentCalculator.GetUnpaidFeeBalances(l, leaseFeePaymentList),
                         AmountDueNow = rentBalance.RentDue,
                         CollectedLifetime = leasePayments, // Total rent payments collected for this lease
                         Outstanding = outstanding, // Total outstanding for entire lease period
-                        Status = RentCalculator.GetStatus(l, leasePaymentList, timezone, localToday),
+                        Status = historical ? (periodRemaining > 0 ? ERentStatus.UpcomingDue : ERentStatus.UpToDate) : RentCalculator.GetStatus(l, leasePaymentList, timezone, localToday),
                         PropertyImageUrl = l.PropertyImageUrl, // Already populated by AutoMapper
                         UpdatedAt = l.UpdatedAt,
-                        PaymentIssueCount = paymentIssueCount,
-                        ProcessingPaymentCount = processingPayments.Count,
+                        PaymentIssueCount = historical ? 0 : paymentIssueCount,
+                        ProcessingPaymentCount = historical ? 0 : processingPayments.Count,
                         OldestProcessingPaymentDate = oldestProcessingPaymentDate,
                         HasLongProcessingPayment = hasLongProcessingPayment,
                         PaymentIssueSummary = paymentIssueSummary
@@ -248,7 +268,7 @@ namespace brownstone_hub_api.Services.RentCollectionService
                         TotalMonthlyRent = totalMonthlyRent,
                         CollectedThisMonth = collectedThisMonth,
                         ExpectedThisMonth = expectedThisMonth,
-                        RemainingThisMonth = remainingThisMonth,
+                        RemainingThisMonth = historical ? Math.Max(0m, expectedThisMonth - collectedThisMonth) : remainingThisMonth,
                         Outstanding = outstanding,
                         Overdue = overdue,
                         CollectedLifetime = collectedLifetime,

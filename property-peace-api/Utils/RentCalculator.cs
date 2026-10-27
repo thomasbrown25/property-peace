@@ -48,10 +48,16 @@ namespace brownstone_hub_api.Utils
 
         public static List<RentFeeBalanceDto> GetUnpaidFeeBalances(LoadLeaseDto lease, IEnumerable<LoadPaymentDto>? payments)
         {
-            var creditedByFee = BalanceCreditingPayments(payments)
-                .Where(p => p.LeaseId == lease.Id && p.FeeId.HasValue)
+            var feeRows = payments?.Where(p => p.LeaseId == lease.Id && p.FeeId.HasValue).ToList() ?? [];
+            var adjustments = feeRows.Where(p => BalanceCreditingStatuses.Contains(p.Status ?? string.Empty)
+                && p.Method is "Stripe loss adjustment" or "Stripe dispute recovery adjustment").ToList();
+            var creditedByFee = feeRows.Where(p => BalanceCreditingStatuses.Contains(p.Status ?? string.Empty)
+                    || (p.Status is "Refunded" or "PartiallyRefunded" or "Disputed"
+                        && p.Amount > 0 && p.StripePaymentIntentId != null
+                        && adjustments.Any(a => a.FeeId == p.FeeId
+                            && a.StripePaymentIntentId == p.StripePaymentIntentId)))
                 .GroupBy(p => p.FeeId!.Value)
-                .ToDictionary(group => group.Key, group => group.Sum(p => p.Amount));
+                .ToDictionary(group => group.Key, group => Math.Max(0m, group.Sum(p => p.Amount)));
 
             return (lease.Fees ?? [])
                 .Select(fee => new RentFeeBalanceDto
@@ -170,6 +176,31 @@ namespace brownstone_hub_api.Utils
                 Math.Min(expectedForPeriod, creditsAvailableForPeriod),
                 2,
                 MidpointRounding.ToEven);
+        }
+
+        /// <summary>Whether a fully settled reporting period was still short at its grace deadline.
+        /// Uses the same oldest-first allocation as CollectedForPeriod and finalized rent only.</summary>
+        public static bool PaidLateForPeriod(LoadLeaseDto lease, IEnumerable<LoadPaymentDto>? payments,
+            DateTime from, DateTime to, DateTime today)
+        {
+            var expected = ExpectedForLease(lease, from, to);
+            if (expected <= 0m || CollectedForPeriod(lease, payments, from, to) < expected)
+                return false;
+
+            var dueDay = GetActualDayOfMonth(lease.RentDueDay, from.Year, from.Month);
+            var dueDate = new DateTime(from.Year, from.Month, dueDay);
+            if (lease.StartDate.HasValue && lease.StartDate.Value.Date > dueDate)
+                dueDate = lease.StartDate.Value.Date;
+            var deadline = dueDate.AddDays(GetGraceDays(lease));
+            if (today.Date <= deadline)
+                return false;
+
+            var requiredThroughPeriod = ExpectedForLease(lease, lease.StartDate!.Value.Date, from) + expected;
+            var creditedByDeadline = RentBalanceCreditingPayments(payments)
+                .Where(payment => payment.LeaseId == lease.Id
+                    && (payment.CompletedAt ?? payment.PaymentDate).Date <= deadline)
+                .Sum(payment => payment.Amount);
+            return creditedByDeadline < requiredThroughPeriod;
         }
 
         // calculate total outstanding (expected - collected)

@@ -8,6 +8,7 @@ using brownstone_hub_api.Repositories.Properties;
 using brownstone_hub_api.Services.LeaseService;
 using brownstone_hub_api.Services.UserContextService;
 using brownstone_hub_api.Dtos.User;
+using brownstone_hub_api.Enums;
 using brownstone_hub_api.Tests.Helpers;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
@@ -92,6 +93,31 @@ namespace brownstone_hub_api.Tests.Services.Leases
         };
 
         // ── AddOrUpdateLease ──────────────────────────────────────────────────────
+
+        [Theory]
+        [InlineData(false, false)]
+        [InlineData(true, false)]
+        [InlineData(false, true)]
+        [InlineData(true, true)]
+        public async Task AddOrUpdateLease_RejectsShortTermUnitBeforeAnyMutation(bool draft, bool update)
+        {
+            SetOrgContext();
+            var property = MakePropertyWithUnit();
+            property.Units.Single().RentalMode = ERentalMode.ShortTerm;
+            _propertyRepo.Setup(r => r.GetPropertyById(1, 10)).ReturnsAsync(property);
+            var request = MakeUpdateLeaseDto();
+            request.IsDrafted = draft;
+            if (update) request.Id = 42;
+
+            var result = await _sut.AddOrUpdateLease(request);
+
+            result.Success.Should().BeFalse();
+            result.StatusCode.Should().Be(400);
+            result.Message.Should().Contain("Short-term");
+            _leaseRepo.Verify(r => r.AddLease(It.IsAny<UpdateLeaseDto>(), It.IsAny<long?>()), Times.Never);
+            _leaseRepo.Verify(r => r.UpdateLease(It.IsAny<UpdateLeaseDto>()), Times.Never);
+            _propertyRepo.Verify(r => r.UpdateProperty(It.IsAny<UpdatePropertyDto>()), Times.Never);
+        }
 
         [Fact]
         public async Task AddOrUpdateLease_FailsClosed_WhenOrganizationContextIsAbsent()
@@ -193,6 +219,7 @@ namespace brownstone_hub_api.Tests.Services.Leases
             _leaseRepo.Setup(r => r.GetLeaseById(5, 10L)).ReturnsAsync(new LoadLeaseDto
             {
                 Id = 5,
+                PropertyId = 1,
                 UnitId = 1,
                 LeaseLength = -1,
                 EndDate = new DateTime(2026, 9, 28),
@@ -438,6 +465,49 @@ namespace brownstone_hub_api.Tests.Services.Leases
 
         // ── ReopenLease ───────────────────────────────────────────────────────────
 
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public async Task ExistingLeaseTransition_RejectsShortTermUnit(bool completeDraft)
+        {
+            SetOrgContext();
+            _leaseRepo.Setup(r => r.GetLeaseById(42, 10)).ReturnsAsync(new LoadLeaseDto
+            {
+                Id = 42, PropertyId = 1, UnitId = 2
+            });
+            var property = MakePropertyWithUnit(1, 2);
+            property.Units.Single().RentalMode = ERentalMode.ShortTerm;
+            _propertyRepo.Setup(r => r.GetPropertyById(1, 10)).ReturnsAsync(property);
+
+            var result = completeDraft ? await _sut.CompleteDraft(42) : await _sut.ReopenLease(42);
+
+            result.Success.Should().BeFalse();
+            result.StatusCode.Should().Be(400);
+            result.Message.Should().Contain("Short-term");
+            _leaseRepo.Verify(r => r.CompleteDraft(It.IsAny<long>(), It.IsAny<long>()), Times.Never);
+            _leaseRepo.Verify(r => r.ReopenLease(It.IsAny<long>()), Times.Never);
+        }
+
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public async Task ExistingLeaseTransition_FailsClosed_WhenUnitCannotBeResolved(bool completeDraft)
+        {
+            SetOrgContext();
+            _leaseRepo.Setup(r => r.GetLeaseById(42, 10)).ReturnsAsync(new LoadLeaseDto
+            {
+                Id = 42, PropertyId = 1, UnitId = 2
+            });
+            _propertyRepo.Setup(r => r.GetPropertyById(1, 10)).ReturnsAsync(MakePropertyWithUnit(1, 3));
+
+            var result = completeDraft ? await _sut.CompleteDraft(42) : await _sut.ReopenLease(42);
+
+            result.Success.Should().BeFalse();
+            result.StatusCode.Should().Be(404);
+            _leaseRepo.Verify(r => r.CompleteDraft(It.IsAny<long>(), It.IsAny<long>()), Times.Never);
+            _leaseRepo.Verify(r => r.ReopenLease(It.IsAny<long>()), Times.Never);
+        }
+
         [Fact]
         public async Task ReopenLease_Returns400_WhenNoOrgContext()
         {
@@ -463,7 +533,8 @@ namespace brownstone_hub_api.Tests.Services.Leases
         public async Task ReopenLease_ReturnsSuccess_WhenLeaseExists()
         {
             SetOrgContext(10);
-            _leaseRepo.Setup(r => r.GetLeaseById(1, 10)).ReturnsAsync(MakeLeaseDto(1));
+            _leaseRepo.Setup(r => r.GetLeaseById(1, 10)).ReturnsAsync(new LoadLeaseDto { Id = 1, PropertyId = 1, UnitId = 1 });
+            _propertyRepo.Setup(r => r.GetPropertyById(1, 10)).ReturnsAsync(MakePropertyWithUnit());
             _leaseRepo.Setup(r => r.ReopenLease(1)).ReturnsAsync(MakeLeaseDto(1));
 
             var result = await _sut.ReopenLease(1);
@@ -500,7 +571,8 @@ namespace brownstone_hub_api.Tests.Services.Leases
         public async Task CompleteDraft_ReturnsSuccess_WhenLeaseExists()
         {
             SetOrgContext(10);
-            _leaseRepo.Setup(r => r.GetLeaseById(1, 10)).ReturnsAsync(MakeLeaseDto(1));
+            _leaseRepo.Setup(r => r.GetLeaseById(1, 10)).ReturnsAsync(new LoadLeaseDto { Id = 1, PropertyId = 1, UnitId = 1 });
+            _propertyRepo.Setup(r => r.GetPropertyById(1, 10)).ReturnsAsync(MakePropertyWithUnit());
             _leaseRepo.Setup(r => r.CompleteDraft(1, 10)).ReturnsAsync(MakeLeaseDto(1));
 
             var result = await _sut.CompleteDraft(1);

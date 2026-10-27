@@ -22,6 +22,7 @@ import Maintenance from 'sections/landlord/dashboard/Maintenance';
 import Applications from 'sections/landlord/dashboard/Applications';
 import FinishSetup from 'sections/landlord/dashboard/FinishSetup';
 import RecentlyViewedProperties from 'sections/landlord/dashboard/RecentlyViewedProperties';
+import OwnerTodayHome from 'sections/landlord/dashboard/OwnerTodayHome';
 
 // drawers
 import LandlordMaintenanceDrawer from 'components/drawers/LandlordMaintenanceDrawer';
@@ -31,6 +32,7 @@ import AddTenantDialog from 'components/dialogs/AddTenantDialog';
 
 // hooks
 import useAuth from 'hooks/useAuth';
+import useConfig from 'hooks/useConfig';
 import { useDrawer } from 'contexts/DrawerContext';
 import { useTriggerSummary } from 'contexts/TriggerSummaryContext';
 import useFetchProperties from 'hooks/useFetchProperties';
@@ -79,6 +81,7 @@ import {
 
 export default function DashboardOverview({ embedded = false }) {
   const { user, updateUser } = useAuth();
+  const { showDetailedOperations } = useConfig();
   const drawer = useDrawer();
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -123,7 +126,7 @@ export default function DashboardOverview({ embedded = false }) {
 
   const dashboardSummaryData = useSelector(selectDashboardSummary);
   const dashboardError = useSelector(selectDashboardError);
-  const [applicationsLoading, setApplicationsLoading] = useState(true);
+  const [applicationsLoading, setApplicationsLoading] = useState(false);
   const todayReminders = useMemo(
     () => buildTodayReminders({ tasks, dashboardSummary: dashboardSummaryData, properties }),
     [tasks, dashboardSummaryData, properties]
@@ -231,7 +234,9 @@ export default function DashboardOverview({ embedded = false }) {
   const setupState = useLandlordSetupSteps(closeSetupTasks);
 
   useEffect(() => {
-    if (setupDrawerRequested) setSetupTasksOpen(true);
+    if (setupDrawerRequested) {
+      setSetupTasksOpen(true);
+    }
   }, [setupDrawerRequested]);
 
   // Add tenant dialog state
@@ -245,6 +250,7 @@ export default function DashboardOverview({ embedded = false }) {
   const [fadeIn, setFadeIn] = useState(false);
 
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
+  const operationsOpen = showDetailedOperations || setupDrawerRequested;
   const [addExpenseDrawerOpen, setAddExpenseDrawerOpen] = useState(false);
 
   // Register with TriggerSummaryContext so bottom nav Plus menu can trigger Generate Summary
@@ -322,7 +328,7 @@ export default function DashboardOverview({ embedded = false }) {
   };
 
   const handleAddProperty = () => {
-    drawer.openPropertyAddWorkflowDrawer();
+    navigate('/landlord/properties/add');
   };
 
   const handleAddExpense = () => {
@@ -457,8 +463,22 @@ export default function DashboardOverview({ embedded = false }) {
               </Grid>
             )}
 
-            {/* Shared row grid keeps neighboring dashboard cards equal-height. */}
             <Grid size={12}>
+              <OwnerTodayHome
+                reminders={todayReminders}
+                properties={properties}
+                propertiesLoading={propertiesLoading}
+                propertiesError={propertiesError}
+                rentRecords={rentRecords}
+                rentLoading={rentLoading}
+                rentError={Boolean(rentCollectionState.error)}
+                rentReady={summary != null}
+              />
+            </Grid>
+
+            {/* Keep the existing dashboard tools available without making them the home page. */}
+            <Grid size={12}>
+              <Collapse in={operationsOpen} unmountOnExit id="owner-operations">
               <Grid
                 container
                 sx={{
@@ -755,6 +775,7 @@ export default function DashboardOverview({ embedded = false }) {
                   </Box>
                 </Box>
               </Grid>
+              </Collapse>
             </Grid>
           </Grid>
         </Box>

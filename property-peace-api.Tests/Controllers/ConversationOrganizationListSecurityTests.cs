@@ -11,6 +11,8 @@ using brownstone_hub_api.Services.ConversationService;
 using brownstone_hub_api.Services.MessageAnalysisService;
 using brownstone_hub_api.Services.Timelines;
 using brownstone_hub_api.Services.UserService;
+using brownstone_hub_api.Middleware;
+using brownstone_hub_api.Models;
 using FluentAssertions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -23,6 +25,77 @@ namespace brownstone_hub_api.Tests.Controllers;
 
 public sealed class ConversationOrganizationListSecurityTests
 {
+    [Theory]
+    [InlineData(nameof(ConversationController.GetTenantConversation))]
+    [InlineData(nameof(ConversationController.GetTenantConversations))]
+    [InlineData(nameof(ConversationController.GetAvailableLandlordsForTenant))]
+    [InlineData(nameof(ConversationController.StartTenantConversation))]
+    [InlineData(nameof(ConversationController.GetConversation))]
+    [InlineData(nameof(ConversationController.GetTimeline))]
+    [InlineData(nameof(ConversationController.SearchTimeline))]
+    [InlineData(nameof(ConversationController.GetUnread))]
+    [InlineData(nameof(ConversationController.MarkRead))]
+    public void TenantConversationEndpoints_UseLeaseScopedOrganizationAuthority(string action)
+    {
+        var method = typeof(ConversationController).GetMethod(action)!;
+        method.GetCustomAttributes(typeof(TenantSelfOrganizationAttribute), true)
+            .Cast<TenantSelfOrganizationAttribute>().Should().ContainSingle()
+            .Which.AllowWithoutOrganization.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(nameof(ConversationController.GetConversations))]
+    [InlineData(nameof(ConversationController.AddConversation))]
+    [InlineData(nameof(ConversationController.UpdateConversation))]
+    [InlineData(nameof(ConversationController.DeleteConversation))]
+    public void LandlordConversationEndpoints_DoNotInheritTenantSelfAuthority(string action) =>
+        typeof(ConversationController).GetMethod(action)!
+            .GetCustomAttributes(typeof(TenantSelfOrganizationAttribute), true).Should().BeEmpty();
+
+    [Fact]
+    public async Task TenantThread_RequiresActiveParticipationEvenWhenInboxContainsTenantId()
+    {
+        var service = new Mock<IConversationService>(MockBehavior.Strict);
+        service.Setup(x => x.GetTenantConversations(7, true)).ReturnsAsync(
+            ServiceResponse<List<LoadConversationDto>>.CreateSuccess([
+                new LoadConversationDto { Id = 22, TenantId = 7, Participants = [] }
+            ]));
+        var controller = Controller(service.Object, Context(7, 100, tenant: true));
+
+        (await controller.GetConversation(22)).Should().BeOfType<NotFoundResult>();
+        service.Verify(x => x.GetConversationById(It.IsAny<long>(), It.IsAny<long>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task TenantThread_ReturnsOnlyParticipatingThreadInSelectedOrganization()
+    {
+        var thread = new LoadConversationDto { Id = 22, Participants = [new() { UserId = 7, IsActive = true }] };
+        var service = new Mock<IConversationService>(MockBehavior.Strict);
+        service.Setup(x => x.GetTenantConversations(7, true)).ReturnsAsync(
+            ServiceResponse<List<LoadConversationDto>>.CreateSuccess([thread]));
+        var controller = Controller(service.Object, Context(7, 100, tenant: true));
+
+        (await controller.GetConversation(22)).Should().BeOfType<OkObjectResult>()
+            .Which.Value.Should().BeOfType<ServiceResponse<LoadConversationDto>>()
+            .Which.Data.Should().BeSameAs(thread);
+    }
+
+    [Fact]
+    public async Task TenantInbox_HidesTenantIdOnlyThreadsWithoutActiveParticipation()
+    {
+        var valid = new LoadConversationDto { Id = 23, Participants = [new() { UserId = 7, IsActive = true }] };
+        var service = new Mock<IConversationService>();
+        service.Setup(x => x.GetTenantConversations(7, false)).ReturnsAsync(
+            ServiceResponse<List<LoadConversationDto>>.CreateSuccess([
+                new LoadConversationDto { Id = 22, TenantId = 7, Participants = [] }, valid
+            ]));
+        var controller = Controller(service.Object, Context(7, 100, tenant: true));
+
+        (await controller.GetTenantConversations()).Should().BeOfType<OkObjectResult>()
+            .Which.Value.Should().BeOfType<ServiceResponse<List<LoadConversationDto>>>()
+            .Which.Data.Should().ContainSingle().Which.Should().BeSameAs(valid);
+    }
+
     [Fact]
     public void TenantRoutes_DoNotInheritOrganizationMemberFilter_AndRemainTenantRoleRestricted()
     {
@@ -60,8 +133,13 @@ public sealed class ConversationOrganizationListSecurityTests
             .ToList();
 
         landlordActions.Should().NotBeEmpty();
-        landlordActions.Should().OnlyContain(method =>
-            method.GetCustomAttributes(typeof(RequireOrganizationRoleAttribute), true).Any());
+        landlordActions.Where(method => method.Name != nameof(ConversationController.GetConversation))
+            .Should().OnlyContain(method =>
+                method.GetCustomAttributes(typeof(RequireOrganizationRoleAttribute), true).Any());
+        // Shared detail performs its staff check inside ConversationService; the
+        // member-only action filter would reject tenant participants first.
+        typeof(ConversationController).GetMethod(nameof(ConversationController.GetConversation))!
+            .GetCustomAttributes(typeof(RequireOrganizationRoleAttribute), true).Should().BeEmpty();
     }
 
     [Fact]
@@ -205,6 +283,22 @@ public sealed class ConversationOrganizationListSecurityTests
     }
 
     [Fact]
+    public async Task LandlordThread_RejectsRevokedMemberWithoutBroadTenantAuthority()
+    {
+        var conversations = new Mock<IConversationRepository>(MockBehavior.Strict);
+        var members = new Mock<IOrganizationMemberRepository>();
+        members.Setup(x => x.GetMemberAsync(100, 7)).ReturnsAsync(new brownstone_hub_api.Models.OrganizationMember
+            { OrganizationId = 100, UserId = 7, IsActive = false, Role = "Owner" });
+        var http = new HttpContextAccessor { HttpContext = Context(7, 100) };
+        var service = new ConversationService(conversations.Object, Mock.Of<IUserRepository>(), null, http, null,
+            NullLogger<ConversationService>.Instance, members.Object);
+
+        (await Controller(service, http.HttpContext!).GetConversation(22)).Should().BeOfType<ObjectResult>()
+            .Which.StatusCode.Should().Be(StatusCodes.Status404NotFound);
+        conversations.VerifyNoOtherCalls();
+    }
+
+    [Fact]
     public async Task DirectRead_ServiceFailsClosedWithoutValidatedOrganizationContext()
     {
         var conversations = new Mock<IConversationRepository>(MockBehavior.Strict);
@@ -270,12 +364,14 @@ public sealed class ConversationOrganizationListSecurityTests
         conversations.VerifyNoOtherCalls();
     }
 
-    private static DefaultHttpContext Context(long userId, long? organizationId = null)
+    private static DefaultHttpContext Context(long userId, long? organizationId = null, bool tenant = false)
     {
         var context = new DefaultHttpContext();
         if (organizationId.HasValue)
             context.Items["OrganizationId"] = organizationId.Value;
-        context.User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, userId.ToString())], "test"));
+        context.User = new ClaimsPrincipal(new ClaimsIdentity([
+            new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
+            new Claim(ClaimTypes.Role, tenant ? "Tenant" : "Landlord")], "test"));
         return context;
     }
 

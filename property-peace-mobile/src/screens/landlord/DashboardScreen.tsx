@@ -1,6 +1,9 @@
+import { useTabScrollReset } from '../../navigation/useTabScrollReset';
+import { useMoreDrawer } from '../../navigation/MoreDrawerContext';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   Image,
   Pressable,
   RefreshControl,
@@ -8,6 +11,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,15 +20,21 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { logout } from '../../store/user/user.slice';
 import PropertyAPI, { Property } from '../../api/propertyAPI';
+import { loadPortfolioRentalMode } from '../../features/properties/portfolioRentalMode';
+import type { PropertyRentalMode } from '../../features/properties/rentalMode';
 import MaintenanceAPI, { MaintenanceRequest } from '../../api/maintenanceAPI';
 import NotificationAPI, { AppNotification } from '../../api/notificationAPI';
 import ConversationAPI from '../../api/conversationAPI';
 import { ConversationSummary } from '../../features/messages/messagesModel';
 import RentCollectionAPI from '../../api/rentCollectionAPI';
+import { propertyOverdueAmounts } from '../../features/rentCollection/propertyOverdue';
 import { displayStatus } from '../../features/maintenance/maintenanceModel';
 import { useAppTheme } from '../../theme/AppTheme';
+import { paymentActivityTone } from '../../features/notifications/paymentActivityTone';
+import GlobalSearchModal from '../../components/GlobalSearchModal';
 
-const logo = require('../../../assets/property-peace-navbar-logo.png');
+const lightLogo = require('../../../assets/property-peace-navbar-logo.png');
+const darkLogo = require('../../../assets/property-peace-logo.png');
 
 type LoadStatus = 'loading' | 'success' | 'error';
 type RentMetrics = {
@@ -51,16 +61,14 @@ const firstNumber = (...values: any[]) => {
 };
 
 const read = (item: any, camel: string, pascal: string) => item?.[camel] ?? item?.[pascal];
-const getUnits = (property: Property) => property.units || property.Units || [];
-const getUnitStatus = (unit: any) => firstString(unit.status, unit.Status).toLowerCase();
-const getLease = (unit: any) => unit.lease || unit.Lease || unit.activeLease || unit.ActiveLease;
 const getPropertyId = (property: Property) => String(property.id ?? property.Id ?? '');
 const getRequestId = (request: MaintenanceRequest) => String(request.id ?? request.Id ?? '');
 
 const formatMoney = (value: number) => new Intl.NumberFormat('en-US', {
   style: 'currency',
   currency: 'USD',
-  maximumFractionDigits: 0,
+  minimumFractionDigits: value % 1 === 0 ? 0 : 2,
+  maximumFractionDigits: 2,
 }).format(value || 0);
 
 const isOpenMaintenance = (request: MaintenanceRequest) => {
@@ -69,7 +77,7 @@ const isOpenMaintenance = (request: MaintenanceRequest) => {
 };
 
 const requestTime = (request: MaintenanceRequest) => {
-  const raw = read(request, 'createdAt', 'CreatedAt') || read(request, 'createdAtUtc', 'CreatedAtUtc');
+  const raw = read(request, 'createdAtUtc', 'CreatedAtUtc') || read(request, 'createdAt', 'CreatedAt');
   const time = raw ? new Date(raw).getTime() : 0;
   return Number.isNaN(time) ? 0 : time;
 };
@@ -96,24 +104,45 @@ const normalizeRentMetrics = (payload: any): RentMetrics => {
 };
 
 export default function DashboardScreen() {
+  const scrollRef = useRef<ScrollView>(null);
+  useTabScrollReset(scrollRef);
   const styles = useScreenStyles();
   const { mode, colors } = useAppTheme();
   const navigation = useNavigation<any>();
+  const moreDrawer = useMoreDrawer();
   const dispatch = useAppDispatch();
   const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
   const { currentUser } = useAppSelector((state) => state.user);
   const [properties, setProperties] = useState<Property[]>([]);
+  const [portfolioMode, setPortfolioMode] = useState<{ organizationId: string; mode: PropertyRentalMode | null } | null>(null);
   const [maintenance, setMaintenance] = useState<MaintenanceRequest[]>([]);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [rentMetrics, setRentMetrics] = useState<RentMetrics>({ expected: 0, collected: 0, remaining: 0, outstanding: 0, overdue: 0 });
+  const [overdueByProperty, setOverdueByProperty] = useState<Map<string, number> | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [propertiesStatus, setPropertiesStatus] = useState<LoadStatus>('loading');
   const [maintenanceStatus, setMaintenanceStatus] = useState<LoadStatus>('loading');
   const [notificationsStatus, setNotificationsStatus] = useState<LoadStatus>('loading');
   const [conversationsStatus, setConversationsStatus] = useState<LoadStatus>('loading');
   const [rentStatus, setRentStatus] = useState<LoadStatus>('loading');
-  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [openMenu, setOpenMenu] = useState<'profile' | 'notifications' | null>(null);
+  const [notificationMenuMounted, setNotificationMenuMounted] = useState(false);
+  const notificationMenuProgress = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (openMenu === 'notifications') setNotificationMenuMounted(true);
+    const animation = Animated.timing(notificationMenuProgress, {
+      toValue: openMenu === 'notifications' ? 1 : 0,
+      duration: openMenu === 'notifications' ? 240 : 180,
+      useNativeDriver: true,
+    });
+    animation.start(({ finished }) => {
+      if (finished && openMenu !== 'notifications') setNotificationMenuMounted(false);
+    });
+    return () => animation.stop();
+  }, [openMenu, notificationMenuProgress]);
   const loadGeneration = useRef(0);
   const organizationId = String(currentUser?.currentOrganizationId ?? currentUser?.CurrentOrganizationId ?? '');
   const currentOrganizationId = useRef(organizationId);
@@ -122,10 +151,12 @@ export default function DashboardScreen() {
 
   const clearDashboard = useCallback(() => {
     setProperties([]);
+    setPortfolioMode(null);
     setMaintenance([]);
     setNotifications([]);
     setConversations([]);
     setRentMetrics({ expected: 0, collected: 0, remaining: 0, outstanding: 0, overdue: 0 });
+    setOverdueByProperty(null);
     setPropertiesStatus('loading');
     setMaintenanceStatus('loading');
     setNotificationsStatus('loading');
@@ -155,7 +186,14 @@ export default function DashboardScreen() {
     if (results[0].status === 'fulfilled') {
       setProperties(results[0].value || []);
       setPropertiesStatus('success');
+      setPortfolioMode(null);
+      void loadPortfolioRentalMode(results[0].value || [], id => PropertyAPI.getUnits(id)).then(mode => {
+        if (generation === loadGeneration.current && capturedOrganizationId === currentOrganizationId.current) {
+          setPortfolioMode({ organizationId: capturedOrganizationId, mode });
+        }
+      });
     } else {
+      setPortfolioMode(null);
       setPropertiesStatus('error');
     }
     if (results[1].status === 'fulfilled') {
@@ -172,8 +210,10 @@ export default function DashboardScreen() {
     }
     if (results[3].status === 'fulfilled') {
       setRentMetrics(normalizeRentMetrics(results[3].value));
+      setOverdueByProperty(propertyOverdueAmounts(results[3].value));
       setRentStatus('success');
     } else {
+      setOverdueByProperty(null);
       setRentStatus('error');
     }
     if (results[4].status === 'fulfilled') {
@@ -194,18 +234,21 @@ export default function DashboardScreen() {
   useFocusEffect(useCallback(() => {
     void loadDashboard();
     return () => {
+      setOpenMenu(null);
       ++loadGeneration.current;
     };
   }, [loadDashboard]));
 
   const dashboardScopeIsCurrent = loadedOrganizationId === organizationId;
   const scopedProperties = dashboardScopeIsCurrent ? properties : [];
+  const scopedPortfolioMode = dashboardScopeIsCurrent && portfolioMode?.organizationId === organizationId ? portfolioMode.mode : null;
   const scopedMaintenance = dashboardScopeIsCurrent ? maintenance : [];
   const scopedNotifications = dashboardScopeIsCurrent ? notifications : [];
   const scopedConversations = dashboardScopeIsCurrent ? conversations : [];
   const scopedRentMetrics = dashboardScopeIsCurrent
     ? rentMetrics
     : { expected: 0, collected: 0, remaining: 0, outstanding: 0, overdue: 0 };
+  const scopedOverdueByProperty = dashboardScopeIsCurrent ? overdueByProperty : null;
   const scopedPropertiesStatus: LoadStatus = dashboardScopeIsCurrent ? propertiesStatus : 'loading';
   const scopedMaintenanceStatus: LoadStatus = dashboardScopeIsCurrent ? maintenanceStatus : 'loading';
   const scopedNotificationsStatus: LoadStatus = dashboardScopeIsCurrent ? notificationsStatus : 'loading';
@@ -230,68 +273,35 @@ export default function DashboardScreen() {
   const profileImageUrl = firstString(currentUser?.ProfileImageUrl, currentUser?.profileImageUrl);
   const avatarLabel = firstName.slice(0, 1).toUpperCase();
 
-  const portfolio = useMemo(() => {
-    const activeProperties = scopedProperties.filter((property: any) => property.isActive !== false && property.IsActive !== false);
-    const units = activeProperties.flatMap(getUnits);
-    const occupied = units.filter((unit: any) => ['occupied', 'overdue'].includes(getUnitStatus(unit))).length;
-    const vacant = Math.max(units.length - occupied, 0);
-    const monthlyRent = units.reduce((total: number, unit: any) => {
-      const lease = getLease(unit);
-      return total + firstNumber(lease?.rentAmount, lease?.RentAmount, unit.rentAmount, unit.RentAmount);
-    }, 0);
-    const attentionPropertyIds = new Set<string>();
-    activeProperties.forEach((property: any) => {
-      if (getUnits(property).some((unit: any) => getUnitStatus(unit) === 'overdue')) attentionPropertyIds.add(getPropertyId(property));
-    });
-    scopedMaintenance.filter(isOpenMaintenance).forEach((request) => {
-      const propertyId = String(read(request, 'propertyId', 'PropertyId') ?? '');
-      if (propertyId) attentionPropertyIds.add(propertyId);
-    });
-    return {
-      properties: activeProperties.length,
-      units: units.length,
-      occupied,
-      vacant,
-      occupancy: units.length ? Math.round((occupied / units.length) * 100) : 0,
-      monthlyRent,
-      needsAttention: attentionPropertyIds.size,
-      openMaintenance: scopedMaintenance.filter(isOpenMaintenance).length,
-      unreadNotifications: scopedNotifications.filter((item: any) => item.isRead === false || item.IsRead === false).length,
-    };
-  }, [scopedMaintenance, scopedNotifications, scopedProperties]);
+  const portfolio = useMemo(() => ({
+    openMaintenance: scopedMaintenance.filter(isOpenMaintenance).length,
+    unreadNotifications: scopedNotifications.filter((item: any) => item.isRead === false || item.IsRead === false).length,
+  }), [scopedMaintenance, scopedNotifications]);
 
   const unreadMessages = scopedConversations.reduce((total, conversation) =>
     total + (conversation.isArchived ? 0 : Math.max(0, Number(conversation.unreadCount) || 0)), 0);
   const attentionProperties = useMemo(() => {
-    if (scopedPropertiesStatus !== 'success' || scopedMaintenanceStatus !== 'success' || scopedConversationsStatus !== 'success') return [];
+    if (scopedPropertiesStatus !== 'success' || scopedMaintenanceStatus !== 'success' || scopedRentStatus !== 'success' || !scopedOverdueByProperty) return [];
     const repairsByProperty = new Map<string, number>();
     scopedMaintenance.filter(isOpenMaintenance).forEach((request) => {
       const id = String(read(request, 'propertyId', 'PropertyId') ?? '');
       if (id) repairsByProperty.set(id, (repairsByProperty.get(id) || 0) + 1);
     });
-    const messagesByProperty = new Map<string, number>();
-    scopedConversations.forEach((conversation) => {
-      if (conversation.isArchived) return;
-      const id = String(conversation.propertyId ?? '');
-      const unread = Math.max(0, Number(conversation.unreadCount) || 0);
-      if (id && unread) messagesByProperty.set(id, (messagesByProperty.get(id) || 0) + unread);
-    });
     return scopedProperties.flatMap((property) => {
       if (property.isActive === false || property.IsActive === false) return [];
       const id = getPropertyId(property);
       if (!id) return [];
-      const overdueUnits = getUnits(property).filter((unit: any) => getUnitStatus(unit) === 'overdue').length;
       const openRepairs = repairsByProperty.get(id) || 0;
-      const unread = messagesByProperty.get(id) || 0;
-      return overdueUnits || openRepairs || unread ? [{
+      const overdueAmount = scopedOverdueByProperty.get(id) || 0;
+      return [{
         property,
         name: firstString(property.name, property.Name, property.streetAddress, property.StreetAddress, 'Unnamed property'),
-        reason: [overdueUnits ? `${overdueUnits} overdue ${overdueUnits === 1 ? 'unit' : 'units'}` : '',
-          `${openRepairs} open ${openRepairs === 1 ? 'repair' : 'repairs'}`,
-          `${unread} unread ${unread === 1 ? 'message' : 'messages'}`].filter(Boolean).join(' · '),
-      }] : [];
+        overdueAmount,
+        openRepairs,
+        reason: `${openRepairs} open ${openRepairs === 1 ? 'repair' : 'repairs'}${scopedPortfolioMode === 'ShortTerm' && overdueAmount === 0 ? '' : ` · ${overdueAmount > 0 ? `${formatMoney(overdueAmount)} overdue rent` : 'Paid'}`}`,
+      }];
     }).slice(0, 5);
-  }, [scopedProperties, scopedMaintenance, scopedConversations, scopedPropertiesStatus, scopedMaintenanceStatus, scopedConversationsStatus]);
+  }, [scopedProperties, scopedMaintenance, scopedOverdueByProperty, scopedPropertiesStatus, scopedMaintenanceStatus, scopedRentStatus, scopedPortfolioMode]);
 
   const collectionPct = scopedRentMetrics.expected > 0
     ? Math.min(Math.max((scopedRentMetrics.collected / scopedRentMetrics.expected) * 100, 0), 100)
@@ -305,42 +315,104 @@ export default function DashboardScreen() {
     () => [...scopedMaintenance].filter(isOpenMaintenance).sort((a, b) => requestTime(b) - requestTime(a)).slice(0, 3),
     [scopedMaintenance],
   );
-  const latestNotifications = useMemo(
-    () => [...scopedNotifications].sort((a, b) => notificationTime(b) - notificationTime(a)).slice(0, 3),
+  const recentNotifications = useMemo(
+    () => [...scopedNotifications].sort((a, b) => notificationTime(b) - notificationTime(a)).slice(0, 5),
     [scopedNotifications],
   );
+  const latestNotifications = recentNotifications.slice(0, 3);
 
   return (
     <View style={styles.container}>
       <View style={[styles.topBar, { paddingTop: Math.max(insets.top + 10, 18) }]}>
-        <TouchableOpacity style={[styles.avatar, profileMenuOpen && styles.avatarActive]} onPress={() => setProfileMenuOpen((open) => !open)} accessibilityRole="button" accessibilityLabel="Open profile menu">
-          {profileImageUrl ? <Image source={{ uri: profileImageUrl }} style={styles.avatarImage} /> : <Text style={styles.avatarText}>{avatarLabel}</Text>}
+        <TouchableOpacity style={styles.headerButton} onPress={moreDrawer.show} accessibilityRole="button" accessibilityLabel="Open more menu" accessibilityState={{ expanded: moreDrawer.open }}>
+          <Ionicons name="menu-outline" size={25} color={mode === 'dark' ? colors.text : '#0b3558'} />
         </TouchableOpacity>
-        <Image source={logo} style={styles.logo} resizeMode="contain" accessibilityLabel="Property Peace" />
-        <TouchableOpacity style={styles.headerButton} onPress={() => navigation.navigate('Notifications')} accessibilityRole="button" accessibilityLabel="Open notifications">
-          <Ionicons name="notifications-outline" size={23} color={mode === 'dark' ? colors.text : '#0b3558'} />
-          {scopedNotificationsStatus === 'success' && portfolio.unreadNotifications > 0 && <View style={styles.unreadDot} />}
-        </TouchableOpacity>
+        <Image source={mode === 'dark' ? darkLogo : lightLogo} style={[styles.logo, screenWidth < 370 && styles.compactLogo]} resizeMode="contain" accessibilityLabel="Property Peace" />
+        <View style={styles.headerActions}>
+          <TouchableOpacity style={styles.headerButton} onPress={() => setSearchOpen(true)} accessibilityRole="button" accessibilityLabel="Search properties, tenants, and leases">
+            <Ionicons name="search-outline" size={25} color={mode === 'dark' ? colors.text : '#0b3558'} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.headerButton}
+            onPress={() => navigation.getParent()?.navigate('Messages', { screen: 'MessagesList' })}
+            accessibilityRole="button"
+            accessibilityLabel={unreadMessages > 0 ? `Messages, ${unreadMessages} unread` : 'Messages'}
+          >
+            <Ionicons name="chatbubble-ellipses-outline" size={25} color={mode === 'dark' ? colors.text : '#0b3558'} />
+            {scopedConversationsStatus === 'success' && unreadMessages > 0 && (
+              <View style={styles.messageBadge}>
+                <Text style={styles.messageBadgeText}>{unreadMessages > 99 ? '99+' : unreadMessages}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {profileMenuOpen && (
+      <GlobalSearchModal visible={searchOpen} onClose={() => setSearchOpen(false)} onSelect={(type, id) => {
+        const tabs = navigation.getParent();
+        if (type === 'property') tabs?.navigate('Properties', { screen: 'PropertyDetail', params: { propertyId: String(id) } });
+        if (type === 'tenant') tabs?.navigate('Tenants', { screen: 'TenantDetail', params: { tenantId: String(id) } });
+        if (type === 'lease') tabs?.navigate('Leases', { screen: 'LeaseDetail', params: { leaseId: String(id), archived: false } });
+      }} />
+
+      {(openMenu || notificationMenuMounted) && (
         <View style={styles.profileMenuLayer} pointerEvents="box-none">
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setProfileMenuOpen(false)} />
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setOpenMenu(null)} accessibilityLabel="Close menu" />
+          {openMenu === 'profile' ? (
           <View style={[styles.profileMenu, { top: Math.max(insets.top + 68, 78) }]}>
             <View style={styles.profileIdentity}>
               <Text style={styles.profileName}>{displayName}</Text>
               <Text style={styles.profileEmail} numberOfLines={1}>{email}</Text>
             </View>
-            <ProfileAction icon="people-outline" label="Tenants" onPress={() => { setProfileMenuOpen(false); navigation.navigate('Tenants'); }} />
-            <ProfileAction icon="document-text-outline" label="Leases" onPress={() => { setProfileMenuOpen(false); navigation.navigate('Leases'); }} />
-            <ProfileAction icon="settings-outline" label="Settings" onPress={() => { setProfileMenuOpen(false); navigation.navigate('Settings'); }} />
-            <ProfileAction icon="log-out-outline" label="Sign out" destructive onPress={async () => { setProfileMenuOpen(false); await dispatch(logout()); }} />
+            <ProfileAction icon="people-outline" label="Tenants" onPress={() => { setOpenMenu(null); navigation.navigate('Tenants'); }} />
+            <ProfileAction icon="document-text-outline" label="Leases" onPress={() => { setOpenMenu(null); navigation.navigate('Leases'); }} />
+            <ProfileAction icon="settings-outline" label="Settings" onPress={() => { setOpenMenu(null); navigation.navigate('Settings'); }} />
+            <ProfileAction icon="log-out-outline" label="Sign out" destructive onPress={async () => { setOpenMenu(null); await dispatch(logout()); }} />
           </View>
+          ) : (
+            <Animated.View style={[styles.notificationsMenu, {
+              top: Math.max(insets.top + 68, 78),
+              opacity: notificationMenuProgress,
+              transform: [{ translateY: notificationMenuProgress.interpolate({ inputRange: [0, 1], outputRange: [-16, 0] }) }],
+            }]}>
+              <Text style={styles.notificationsMenuHeading}>Recent notifications</Text>
+              <ScrollView style={styles.notificationsMenuList} nestedScrollEnabled>
+                {scopedNotificationsStatus === 'loading' ? (
+                  <View style={styles.notificationsMenuState}><ActivityIndicator color={colors.accent} /></View>
+                ) : scopedNotificationsStatus === 'error' ? (
+                  <View style={styles.notificationsMenuState}>
+                    <Text style={styles.notificationsMenuHint}>Couldn't load notifications.</Text>
+                    <TouchableOpacity onPress={loadDashboard} style={styles.notificationsMenuRetry} accessibilityRole="button"><Text style={styles.notificationsMenuLink}>Retry</Text></TouchableOpacity>
+                  </View>
+                ) : recentNotifications.length === 0 ? (
+                  <Text style={styles.notificationsMenuHint}>No recent notifications.</Text>
+                ) : recentNotifications.map((notification, index) => (
+                  <View key={String(notification.id ?? notification.Id ?? index)} style={styles.notificationsMenuRow}>
+                    <View style={[styles.notificationDot,
+                      paymentActivityTone(notification) === 'received' ? styles.notificationDotReceived
+                        : paymentActivityTone(notification) === 'pending' ? styles.notificationDotPending
+                        : paymentActivityTone(notification) === 'failed' ? styles.notificationDotFailed
+                        : (notification.isRead === false || notification.IsRead === false) && styles.notificationDotUnread,
+                    ]} />
+                    <View style={styles.notificationCopy}>
+                      <Text style={styles.notificationTitle} numberOfLines={1}>{notification.title || notification.Title || 'Notification'}</Text>
+                      {!!(notification.message || notification.Message) && <Text style={styles.notificationMessage} numberOfLines={2}>{notification.message || notification.Message}</Text>}
+                    </View>
+                  </View>
+                ))}
+              </ScrollView>
+              <TouchableOpacity style={styles.notificationsMenuFooter} onPress={() => { setOpenMenu(null); navigation.navigate('Notifications'); }} accessibilityRole="button" accessibilityLabel="View all notifications">
+                <Text style={styles.notificationsMenuLink}>View all</Text>
+                <Ionicons name="arrow-forward" size={16} color={mode === 'dark' ? colors.accent : '#2475cf'} />
+              </TouchableOpacity>
+            </Animated.View>
+          )}
         </View>
       )}
 
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingBottom: 126 }]}
+        ref={scrollRef}
+        contentContainerStyle={[styles.content, { paddingBottom: 120 }]}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadDashboard(); }} tintColor={colors.accent} />}
       >
@@ -373,11 +445,12 @@ export default function DashboardScreen() {
                     : 'Nothing urgent across your portfolio.'}
             </Text>
           </View>
-          <TouchableOpacity style={styles.todayArrow} onPress={() => navigation.navigate('Notifications')} accessibilityLabel="View portfolio updates">
+          <TouchableOpacity style={styles.todayArrow} onPress={() => navigation.navigate('Calendar')} accessibilityRole="button" accessibilityLabel="View calendar">
             <Ionicons name="arrow-forward" size={18} color={mode === 'dark' ? colors.text : '#0b3558'} />
           </TouchableOpacity>
         </View>
 
+        {(scopedPortfolioMode !== 'ShortTerm' || scopedRentMetrics.expected > 0 || scopedRentMetrics.collected > 0 || scopedRentMetrics.overdue > 0 || scopedRentMetrics.outstanding > 0) && (
         <DashboardSection borderless>
           <View style={styles.cardHeader}>
             <Text style={[styles.cardTitle, styles.rentProgressHeading]}>{currentDate.toLocaleDateString('en-US', { month: 'long' })} rent</Text>
@@ -411,6 +484,7 @@ export default function DashboardScreen() {
             </View>
           )}
         </DashboardSection>
+        )}
 
         {hasUnavailableData && (
           <TouchableOpacity style={styles.warningCard} onPress={loadDashboard} activeOpacity={0.82} accessibilityLabel="Retry unavailable dashboard information">
@@ -424,23 +498,36 @@ export default function DashboardScreen() {
 
         <DashboardSection borderless>
           <View style={styles.cardHeader}>
-            <Text style={[styles.cardTitle, styles.rentProgressHeading]}>Properties to check</Text>
+            <View style={styles.cardTitleWithIcon}>
+              <Ionicons name="home-outline" size={20} color={mode === 'dark' ? '#72b4ff' : '#2475cf'} />
+              <Text style={styles.cardTitle}>Properties</Text>
+            </View>
             <TouchableOpacity style={styles.cardLink} onPress={() => navigation.navigate('Properties', { screen: 'PropertiesList' })} accessibilityRole="button" accessibilityLabel="View all properties">
               <Text style={styles.cardLinkText}>View all</Text>
               <Ionicons name="arrow-forward" size={14} color={mode === 'dark' ? colors.muted : '#647585'} />
             </TouchableOpacity>
           </View>
-          {scopedPropertiesStatus === 'error' || scopedMaintenanceStatus === 'error' || scopedConversationsStatus === 'error' ? (
-            <SectionError text="Properties to check are unavailable." onRetry={loadDashboard} />
-          ) : scopedPropertiesStatus === 'loading' || scopedMaintenanceStatus === 'loading' || scopedConversationsStatus === 'loading' ? (
+          {scopedPropertiesStatus === 'error' || scopedMaintenanceStatus === 'error' || scopedRentStatus === 'error' || (scopedRentStatus === 'success' && !scopedOverdueByProperty) ? (
+            <SectionError text="Property rent balances are unavailable." onRetry={loadDashboard} />
+          ) : scopedPropertiesStatus === 'loading' || scopedMaintenanceStatus === 'loading' || scopedRentStatus === 'loading' ? (
             <CardLoading />
           ) : attentionProperties.length === 0 ? (
-            <Text style={styles.rentEmpty}>No properties need checking right now.</Text>
+            <Text style={styles.rentEmpty}>No active properties yet.</Text>
           ) : attentionProperties.map((item) => (
             <TouchableOpacity key={getPropertyId(item.property)} style={styles.attentionProperty} onPress={() => navigation.navigate('Properties', { screen: 'PropertyDetail', params: { propertyId: getPropertyId(item.property) } })} accessibilityRole="button" accessibilityLabel={`View ${item.name}, ${item.reason}`}>
               <View style={styles.attentionCopy}>
                 <Text style={styles.attentionName} numberOfLines={1}>{item.name}</Text>
-                <Text style={styles.attentionReason}>{item.reason}</Text>
+                <Text style={styles.attentionReason}>
+                  <Text style={item.openRepairs > 0 ? styles.todayRepairAttention : undefined}>
+                    {item.openRepairs} open {item.openRepairs === 1 ? 'repair' : 'repairs'}
+                  </Text>
+                  {(scopedPortfolioMode !== 'ShortTerm' || item.overdueAmount > 0) && <>
+                    {' · '}
+                    <Text style={item.overdueAmount > 0 ? styles.rentOverdue : styles.propertyPaid}>
+                      {item.overdueAmount > 0 ? `${formatMoney(item.overdueAmount)} overdue rent` : 'Paid'}
+                    </Text>
+                  </>}
+                </Text>
               </View>
               <Ionicons name="arrow-forward" size={19} color={mode === 'dark' ? colors.text : '#0b3558'} />
             </TouchableOpacity>
@@ -479,27 +566,6 @@ export default function DashboardScreen() {
 
         <DashboardSection borderless>
           <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Portfolio</Text>
-            <TouchableOpacity style={styles.cardLink} onPress={() => navigation.navigate('Properties', { screen: 'PropertiesList' })}>
-              <Text style={styles.cardLinkText}>View properties</Text>
-              <Ionicons name="arrow-forward" size={14} color={mode === 'dark' ? colors.muted : '#647585'} />
-            </TouchableOpacity>
-          </View>
-          {scopedPropertiesStatus === 'error' ? (
-            <SectionError text="Portfolio details are unavailable." onRetry={loadDashboard} />
-          ) : scopedPropertiesStatus === 'loading' ? (
-            <CardLoading />
-          ) : (
-            <View style={styles.portfolioList}>
-              <PortfolioMetric icon="home-outline" label="Portfolio occupancy" value={`${portfolio.occupancy}%`} helper={`${portfolio.occupied} of ${portfolio.units} units occupied`} color="#2f8f46" background="#edf8f0" />
-              <PortfolioMetric icon="business-outline" label="Vacant units" value={String(portfolio.vacant)} helper={`Across ${portfolio.properties} active ${portfolio.properties === 1 ? 'property' : 'properties'}`} color="#b76a11" background="#fff7e8" />
-              <PortfolioMetric icon="cash-outline" label="Monthly rent" value={formatMoney(portfolio.monthlyRent)} helper="Scheduled rent, not collections" color="#2475cf" background="#eaf3ff" isLast />
-            </View>
-          )}
-        </DashboardSection>
-
-        <DashboardSection borderless>
-          <View style={styles.cardHeader}>
             <View>
               <Text style={styles.cardEyebrow}>RECENT</Text>
               <Text style={styles.cardTitle}>Activity</Text>
@@ -517,7 +583,12 @@ export default function DashboardScreen() {
             <EmptyState icon="checkmark-circle-outline" title="No recent notifications" text="Portfolio updates will appear here." />
           ) : latestNotifications.map((notification: any, index) => (
             <View key={String(notification.id || notification.Id || index)} style={[styles.notificationRow, index === latestNotifications.length - 1 && styles.lastRow]}>
-              <View style={[styles.notificationDot, (notification.isRead === false || notification.IsRead === false) && styles.notificationDotUnread]} />
+              <View style={[styles.notificationDot,
+                paymentActivityTone(notification) === 'received' ? styles.notificationDotReceived
+                  : paymentActivityTone(notification) === 'pending' ? styles.notificationDotPending
+                  : paymentActivityTone(notification) === 'failed' ? styles.notificationDotFailed
+                  : (notification.isRead === false || notification.IsRead === false) && styles.notificationDotUnread,
+              ]} />
               <View style={styles.notificationCopy}>
                 <Text style={styles.notificationTitle}>{notification.title || notification.Title || 'Notification'}</Text>
                 {!!(notification.message || notification.Message) && <Text style={styles.notificationMessage} numberOfLines={2}>{notification.message || notification.Message}</Text>}
@@ -546,31 +617,17 @@ function ProfileAction({ icon, label, onPress, destructive }: { icon: keyof type
   );
 }
 
-function PortfolioMetric({ icon, label, value, helper, color, background, isLast = false }: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string; helper: string; color: string; background: string; isLast?: boolean }) {
-  const styles = useScreenStyles();
-  const { mode } = useAppTheme();
-  return (
-    <View style={[styles.portfolioMetric, isLast && styles.lastRow]}>
-      <View style={[styles.portfolioIcon, { backgroundColor: mode === 'dark' ? '#294052' : background }]}><Ionicons name={icon} size={18} color={mode === 'dark' ? ({ '#2f8f46': '#75d995', '#b76a11': '#f0ba72', '#2475cf': '#72b6ff', '#c2413b': '#ff8b86' } as Record<string, string>)[color] || color : color} /></View>
-      <View style={styles.portfolioMetricCopy}>
-        <Text style={styles.portfolioLabel}>{label}</Text>
-        <Text style={styles.portfolioHelper}>{helper}</Text>
-      </View>
-      <Text style={styles.portfolioValue}>{value}</Text>
-    </View>
-  );
-}
-
 function MaintenanceRow({ request, isLast, onPress }: { request: MaintenanceRequest; isLast: boolean; onPress: () => void }) {
   const styles = useScreenStyles();
   const title = firstString(request.title, request.Title, 'Maintenance request');
-  const property = firstString(request.propertyName, request.PropertyName, request.location, request.Location, 'Portfolio request');
+  const createdAt = requestTime(request);
+  const createdDate = createdAt ? new Date(createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Date unavailable';
   const status = displayStatus(request.status ?? request.Status);
   return (
     <TouchableOpacity style={[styles.maintenanceRow, isLast && styles.lastRow]} onPress={onPress} accessibilityLabel={`Open maintenance request ${title}`}>
       <View style={styles.maintenanceCopy}>
         <Text style={styles.maintenanceTitle} numberOfLines={1}>{title}</Text>
-        <Text style={styles.maintenanceLocation} numberOfLines={1}>{property}</Text>
+        <Text style={styles.maintenanceLocation} numberOfLines={1}>Created {createdDate}</Text>
       </View>
       <View style={styles.statusChip}><Text style={styles.statusChipText}>{status}</Text></View>
     </TouchableOpacity>
@@ -621,12 +678,19 @@ function useScreenStyles() {
       unreadDot: { ...styles.unreadDot, borderColor: colors.surface },
       avatar: { ...styles.avatar, borderColor: colors.border },
       profileMenu: { ...styles.profileMenu, backgroundColor: colors.surface, borderColor: colors.border },
+      notificationsMenu: { ...styles.notificationsMenu, backgroundColor: colors.surface, borderColor: colors.border },
+      notificationsMenuHeading: { ...styles.notificationsMenuHeading, color: colors.text, borderBottomColor: colors.border },
+      notificationsMenuRow: { ...styles.notificationsMenuRow, borderBottomColor: colors.border },
+      notificationsMenuHint: { ...styles.notificationsMenuHint, color: colors.muted },
+      notificationsMenuFooter: { ...styles.notificationsMenuFooter, borderTopColor: colors.border },
+      notificationsMenuLink: { ...styles.notificationsMenuLink, color: colors.accent },
       profileIdentity: { ...styles.profileIdentity, backgroundColor: colors.background, borderBottomColor: colors.border },
       profileName: { ...styles.profileName, color: colors.text },
       profileEmail: { ...styles.profileEmail, color: colors.muted },
       profileAction: { ...styles.profileAction, borderBottomColor: colors.border },
       profileActionText: { ...styles.profileActionText, color: colors.text },
       destructiveText: { ...styles.destructiveText, color: '#ff8b86' },
+      todayCard: { ...styles.todayCard, borderBottomColor: colors.border },
       dateBlock: { ...styles.dateBlock, borderRightColor: colors.border },
       dateMonth: { ...styles.dateMonth, color: colors.accent },
       dateDay: { ...styles.dateDay, color: colors.text },
@@ -649,7 +713,8 @@ function useScreenStyles() {
       rentDetailLabel: { ...styles.rentDetailLabel, color: colors.muted },
       rentDetailValue: { ...styles.rentDetailValue, color: colors.text },
       rentOverdue: { ...styles.rentOverdue, color: '#ff8b86' },
-      attentionProperty: { ...styles.attentionProperty, borderColor: colors.border, backgroundColor: colors.surface },
+      propertyPaid: { ...styles.propertyPaid, color: '#75d995' },
+      attentionProperty: { ...styles.attentionProperty, borderBottomColor: colors.border },
       attentionName: { ...styles.attentionName, color: colors.text },
       attentionReason: { ...styles.attentionReason, color: colors.muted },
       progressTrack: { ...styles.progressTrack, backgroundColor: colors.border },
@@ -657,10 +722,6 @@ function useScreenStyles() {
       cardEyebrow: { ...styles.cardEyebrow, color: '#75d995' },
       cardTitle: { ...styles.cardTitle, color: colors.text },
       cardLinkText: { ...styles.cardLinkText, color: colors.muted },
-      portfolioMetric: { ...styles.portfolioMetric, borderBottomColor: colors.border },
-      portfolioLabel: { ...styles.portfolioLabel, color: colors.text },
-      portfolioValue: { ...styles.portfolioValue, color: colors.text },
-      portfolioHelper: { ...styles.portfolioHelper, color: colors.muted },
       maintenanceRow: { ...styles.maintenanceRow, borderBottomColor: colors.border },
       maintenanceTitle: { ...styles.maintenanceTitle, color: colors.text },
       maintenanceLocation: { ...styles.maintenanceLocation, color: colors.muted },
@@ -669,6 +730,9 @@ function useScreenStyles() {
       notificationRow: { ...styles.notificationRow, borderBottomColor: colors.border },
       notificationDot: { ...styles.notificationDot, backgroundColor: colors.muted },
       notificationDotUnread: { ...styles.notificationDotUnread, backgroundColor: colors.accent },
+      notificationDotReceived: { ...styles.notificationDotReceived, backgroundColor: '#75d995' },
+      notificationDotPending: { ...styles.notificationDotPending, backgroundColor: '#f0ba72' },
+      notificationDotFailed: { ...styles.notificationDotFailed, backgroundColor: '#ff8b86' },
       notificationTitle: { ...styles.notificationTitle, color: colors.text },
       notificationMessage: { ...styles.notificationMessage, color: colors.muted },
       emptyIcon: { ...styles.emptyIcon, backgroundColor: colors.surface },
@@ -683,16 +747,29 @@ function useScreenStyles() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#ffffff' },
-  topBar: { minHeight: 72, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingBottom: 12, backgroundColor: '#ffffff' },
+  topBar: { minHeight: 72, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingBottom: 12, backgroundColor: '#ffffff' },
   logo: { position: 'absolute', width: 148, height: 42, left: '50%', marginLeft: -74, bottom: 13 },
+  compactLogo: { width: 112, marginLeft: -56 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   headerButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#e1e7eb' },
   unreadDot: { position: 'absolute', top: 10, right: 10, width: 8, height: 8, borderRadius: 4, backgroundColor: '#d94d63', borderWidth: 1.5, borderColor: '#fff' },
+  messageBadge: { position: 'absolute', top: -7, right: -8, minWidth: 21, height: 21, paddingHorizontal: 4, borderRadius: 11, backgroundColor: '#dc2626', alignItems: 'center', justifyContent: 'center' },
+  messageBadgeText: { color: '#fff', fontSize: 12, fontWeight: '800', lineHeight: 16, textAlign: 'center' },
   avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#061e35', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderWidth: 2, borderColor: '#ffffff' },
   avatarActive: { borderColor: '#5ebc68' },
   avatarImage: { width: '100%', height: '100%' },
   avatarText: { color: '#fff', fontSize: 17, fontWeight: '900' },
-  profileMenuLayer: { ...StyleSheet.absoluteFillObject, zIndex: 50, elevation: 50 },
-  profileMenu: { position: 'absolute', right: 14, width: 280, maxWidth: '88%', backgroundColor: '#fff', borderRadius: 18, borderWidth: 1, borderColor: '#e3e9ed', overflow: 'hidden', shadowColor: '#001a33', shadowOpacity: 0.18, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 16 },
+  profileMenuLayer: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 50, elevation: 50 },
+  profileMenu: { position: 'absolute', left: 14, width: 280, maxWidth: '88%', backgroundColor: '#fff', borderRadius: 18, borderWidth: 1, borderColor: '#e3e9ed', overflow: 'hidden', shadowColor: '#001a33', shadowOpacity: 0.18, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 16 },
+  notificationsMenu: { position: 'absolute', right: 14, width: 320, maxWidth: '88%', backgroundColor: '#fff', borderRadius: 18, borderWidth: 1, borderColor: '#e3e9ed', overflow: 'hidden', shadowColor: '#001a33', shadowOpacity: 0.18, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 16 },
+  notificationsMenuHeading: { color: '#102d43', fontSize: 16, fontWeight: '900', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#edf1f3' },
+  notificationsMenuList: { maxHeight: 340 },
+  notificationsMenuRow: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 16, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: '#edf1f3' },
+  notificationsMenuState: { alignItems: 'center', padding: 18 },
+  notificationsMenuHint: { color: '#697887', fontSize: 13, lineHeight: 19, padding: 16 },
+  notificationsMenuRetry: { minHeight: 44, justifyContent: 'center' },
+  notificationsMenuFooter: { minHeight: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderTopWidth: 1, borderTopColor: '#edf1f3' },
+  notificationsMenuLink: { color: '#2475cf', fontSize: 14, fontWeight: '800' },
   profileIdentity: { padding: 18, backgroundColor: '#f8fbfd', borderBottomWidth: 1, borderBottomColor: '#edf1f3' },
   profileName: { color: '#102d43', fontSize: 17, fontWeight: '900' },
   profileEmail: { color: '#6a7885', fontSize: 13, marginTop: 4 },
@@ -700,8 +777,8 @@ const styles = StyleSheet.create({
   profileActionText: { color: '#20394d', fontSize: 15, fontWeight: '800' },
   destructiveText: { color: '#c2413b' },
   content: { paddingHorizontal: 24, paddingTop: 14, gap: 0 },
-  todayCard: { minHeight: 105, flexDirection: 'row', alignItems: 'center', paddingBottom: 12 },
-  dateBlock: { width: 76, alignItems: 'flex-start', justifyContent: 'center', borderRightWidth: 1, borderRightColor: '#dce4e8' },
+  todayCard: { minHeight: 105, flexDirection: 'row', alignItems: 'center', paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#dce4e8' },
+  dateBlock: { width: 76, alignItems: 'center', justifyContent: 'center', borderRightWidth: 1, borderRightColor: '#dce4e8' },
   dateMonth: { color: '#2475cf', fontSize: 11, fontWeight: '900', letterSpacing: 1.6 },
   dateDay: { color: '#061e35', fontSize: 43, lineHeight: 48, fontWeight: '900', letterSpacing: -2 },
   dateWeekday: { color: '#657685', fontSize: 10, fontWeight: '800', letterSpacing: 1 },
@@ -730,10 +807,11 @@ const styles = StyleSheet.create({
   rentDetailLabel: { color: '#536777', fontSize: 12 },
   rentDetailValue: { color: '#102d43', fontSize: 14, fontWeight: '900' },
   rentOverdue: { color: '#c2413b' },
-  attentionProperty: { minHeight: 86, flexDirection: 'row', alignItems: 'center', gap: 14, borderWidth: 1, borderColor: '#dce4e8', backgroundColor: '#f8fbfd', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 13, marginBottom: 9 },
+  propertyPaid: { color: '#2f8f46' },
+  attentionProperty: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: 12, borderBottomWidth: 1, borderBottomColor: '#e9edf0', paddingVertical: 12 },
   attentionCopy: { flex: 1, minWidth: 0 },
-  attentionName: { color: '#061e35', fontSize: 17, fontWeight: '900', marginTop: 4 },
-  attentionReason: { color: '#536777', fontSize: 12, lineHeight: 18, marginTop: 5 },
+  attentionName: { color: '#061e35', fontSize: 16, fontWeight: '800' },
+  attentionReason: { color: '#536777', fontSize: 12, lineHeight: 18, marginTop: 4 },
   progressTrack: { height: 8, borderRadius: 4, overflow: 'hidden', backgroundColor: '#dff0e3' },
   progressFill: { height: '100%', borderRadius: 4, backgroundColor: '#2f8f46' },
   dashboardSection: { borderTopWidth: 1, borderTopColor: '#dce4e8', paddingTop: 16, paddingBottom: 18 },
@@ -745,13 +823,6 @@ const styles = StyleSheet.create({
   cardTitleWithIcon: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   cardLink: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 5, paddingLeft: 8 },
   cardLinkText: { color: '#647585', fontSize: 12, fontWeight: '800' },
-  portfolioList: {},
-  portfolioMetric: { minHeight: 80, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#e9edf0' },
-  portfolioMetricCopy: { flex: 1, minWidth: 0 },
-  portfolioLabel: { color: '#102d43', fontSize: 14, lineHeight: 19, fontWeight: '800' },
-  portfolioIcon: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
-  portfolioValue: { color: '#102d43', fontSize: 20, lineHeight: 26, fontWeight: '900', textAlign: 'right' },
-  portfolioHelper: { color: '#6d7c88', fontSize: 11, lineHeight: 16, marginTop: 3 },
   maintenanceRow: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: '#e9edf0' },
   maintenanceCopy: { flex: 1, minWidth: 0 },
   maintenanceTitle: { color: '#102d43', fontSize: 14, fontWeight: '900' },
@@ -762,6 +833,9 @@ const styles = StyleSheet.create({
   lastRow: { borderBottomWidth: 0 },
   notificationDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#aeb9c1', marginTop: 6, marginRight: 11 },
   notificationDotUnread: { backgroundColor: '#2475cf' },
+  notificationDotReceived: { backgroundColor: '#2f8f46' },
+  notificationDotPending: { backgroundColor: '#b76a11' },
+  notificationDotFailed: { backgroundColor: '#c2413b' },
   notificationCopy: { flex: 1 },
   notificationTitle: { color: '#102d43', fontSize: 14, fontWeight: '900', marginBottom: 3 },
   notificationMessage: { color: '#697887', fontSize: 12, lineHeight: 17 },

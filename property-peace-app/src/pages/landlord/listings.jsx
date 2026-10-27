@@ -558,7 +558,7 @@ function ListingsTab() {
               variant="contained"
               color="success"
               startIcon={<PlusOutlined />}
-              onClick={() => drawer.openListingAddDrawer()}
+              onClick={() => navigate('/landlord/listings/add')}
               sx={{ textTransform: 'none', fontWeight: 700 }}
             >
               Add listing
@@ -598,6 +598,7 @@ function ListingsTab() {
 export default function ListingsPage() {
   const theme = useTheme();
   const drawer = useDrawer();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') === 'applications' ? 'applications' : 'listings';
 
@@ -616,14 +617,14 @@ export default function ListingsPage() {
     <Box sx={{ pb: 3 }}>
       <ManagementPageHeader
         title="Listings & Applications"
-        description="Market vacancies, review applicants, and move qualified renters toward a signed lease."
+        showBreadcrumbs={false}
         actions={
           <Button
             variant="contained"
             color="success"
             startIcon={<PlusOutlined />}
             onClick={() =>
-              activeTab === 'applications' ? drawer.openApplicationAddDrawer() : drawer.openListingAddDrawer()
+              activeTab === 'applications' ? drawer.openApplicationAddDrawer() : navigate('/landlord/listings/add')
             }
             sx={managementPageHeaderActionSx}
           >

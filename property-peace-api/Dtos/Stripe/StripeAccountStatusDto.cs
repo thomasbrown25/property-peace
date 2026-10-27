@@ -15,6 +15,8 @@ namespace brownstone_hub_api.Dtos.Stripe
         public bool IsEnabled { get; set; }
         public bool ChargesEnabled { get; set; }
         public bool PayoutsEnabled { get; set; }
+        /// <summary>Stripe card_payments capability; null when Stripe could not confirm it.</summary>
+        public string? CardPaymentsCapabilityStatus { get; set; }
         public bool DetailsSubmitted { get; set; }
         public string? OnboardingUrl { get; set; }
         public string InternalReviewStatus { get; set; } = "Onboarding";

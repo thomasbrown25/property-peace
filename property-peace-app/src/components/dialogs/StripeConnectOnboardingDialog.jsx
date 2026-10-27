@@ -147,11 +147,7 @@ export default function StripeConnectOnboardingDialog({ open, onClose, onComplet
 
       // If account doesn't exist yet, create it first
       if (!currentAccountStatus?.AccountId) {
-        const returnUrl = window.location.href;
-        const createResponse = await axiosServices.post('/api/stripe/connect-account', {
-          returnUrl,
-          refreshUrl: returnUrl
-        });
+        const createResponse = await axiosServices.post('/api/stripe/connect-account', {});
 
         if (!createResponse.data?.success) {
           throw new Error('Failed to create Stripe account');

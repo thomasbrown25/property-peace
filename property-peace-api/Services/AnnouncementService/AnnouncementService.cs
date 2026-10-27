@@ -13,6 +13,7 @@ using brownstone_hub_api.Services.MessageService;
 using brownstone_hub_api.Repositories.Users;
 using brownstone_hub_api.Repositories.Conversations;
 using brownstone_hub_api.Data;
+using brownstone_hub_api.Entitlements.Policy;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
@@ -91,6 +92,33 @@ namespace brownstone_hub_api.Services.AnnouncementService
                 return orgId;
             }
             return null;
+        }
+
+        private async Task<List<long>?> AuthorizedOrganizationIdsAsync(long userId, List<long>? organizationIds, long? fallbackOrganizationId)
+        {
+            var requested = organizationIds?.Distinct().ToList() ?? [];
+            if (requested.Count == 0 && fallbackOrganizationId.HasValue)
+                requested.Add(fallbackOrganizationId.Value);
+
+            if (requested.Count == 0)
+                return null;
+
+            // The global Landlord/Admin claim is not authority over every organization.
+            // Evaluate each selected organization using the same role policy as org-scoped actions.
+            var members = await _dataContext.OrganizationMembers
+                .AsNoTracking()
+                .Include(member => member.Organization)
+                .Where(member => member.UserId == userId && requested.Contains(member.OrganizationId))
+                .ToListAsync();
+            var requirement = new OrganizationAuthorityRequirement(OrganizationRole.Manager);
+            return requested.All(id => members.Any(member => member.Organization != null &&
+                OrganizationAuthorityPolicy.Evaluate(
+                    new OrganizationAuthorityFacts(id, Exists: true,
+                        IsActive: member.Organization.IsActive, IsDeleted: member.Organization.IsDeleted),
+                    new OrganizationMembershipFacts(member.OrganizationId,
+                        member.IsActive ? MembershipState.Active : MembershipState.Inactive,
+                        Role: null, RawRole: member.Role, Permissions: []),
+                    requirement).IsAllowed)) ? requested : null;
         }
 
         public async Task<ServiceResponse<FormatMessageResponseDto>> FormatMessageAsync(FormatMessageDto dto)
@@ -207,7 +235,7 @@ Subject line only (no quotes, no 'Subject:' prefix):";
                     .Include(u => u.Leases)
                         .ThenInclude(l => l.TenantLeases!)
                             .ThenInclude(tl => tl.Tenant)
-                    .Where(u => unitIds.Contains(u.Id) && organizationIds.Contains(u.Property.OrganizationId ?? 0))
+                    .Where(u => unitIds.Contains(u.Id) && organizationIds.Contains(u.Property.OrganizationId ?? 0) && !u.Property.IsDeleted)
                     .ToListAsync();
 
                 foreach (var unit in units)
@@ -261,20 +289,9 @@ Subject line only (no quotes, no 'Subject:' prefix):";
                     );
                 }
 
-                var accessibleOrganizationIds = await _dataContext.OrganizationMembers
-                    .Where(member => member.UserId == currentUserId.Value && member.IsActive)
-                    .Select(member => member.OrganizationId)
-                    .ToListAsync();
-
-                var currentOrganizationId = GetCurrentOrganizationId();
-                if (currentOrganizationId.HasValue && !accessibleOrganizationIds.Contains(currentOrganizationId.Value))
-                    accessibleOrganizationIds.Add(currentOrganizationId.Value);
-
-                var requestedOrganizationIds = dto.OrganizationIds?.Distinct().ToList() ?? [];
-                if (requestedOrganizationIds.Count == 0 && currentOrganizationId.HasValue)
-                    requestedOrganizationIds.Add(currentOrganizationId.Value);
-
-                if (requestedOrganizationIds.Count == 0 || requestedOrganizationIds.Any(id => !accessibleOrganizationIds.Contains(id)))
+                var requestedOrganizationIds = await AuthorizedOrganizationIdsAsync(
+                    currentUserId.Value, dto.OrganizationIds, GetCurrentOrganizationId());
+                if (requestedOrganizationIds == null)
                 {
                     return ServiceResponse<List<AnnouncementRecipientPreviewDto>>.CreateError(
                         "Forbidden",
@@ -336,32 +353,15 @@ Subject line only (no quotes, no 'Subject:' prefix):";
                     );
                 }
 
-                // Use the first selected organization as the primary organization for the announcement
-                // If no organizations selected but properties/units are, use current organization context
-                // If sending to all properties, use current organization context
-                long? primaryOrganizationId = null;
-                if (dto.OrganizationIds != null && dto.OrganizationIds.Any())
-                {
-                    primaryOrganizationId = dto.OrganizationIds.First();
-                }
-                else
-                {
-                    primaryOrganizationId = GetCurrentOrganizationId();
-                }
-
-                if (!primaryOrganizationId.HasValue)
+                // Resolve and authorize the entire selected audience before persisting or delivering anything.
+                var requestedOrganizationIds = await AuthorizedOrganizationIdsAsync(
+                    currentUserId.Value, dto.OrganizationIds, GetCurrentOrganizationId());
+                if (requestedOrganizationIds == null)
                 {
                     return ServiceResponse<SendAnnouncementResponseDto>.CreateError(
-                        "Organization context required",
-                        "Organization context is required to send announcements",
-                        "",
-                        403
-                    );
+                        "Forbidden", "You do not have access to one or more selected organizations", "", 403);
                 }
-
-                // If sending to all properties (null propertyIds and unitIds), use organizationIds or current org
-                bool sendToAllProperties = (dto.PropertyIds == null || !dto.PropertyIds.Any()) && 
-                                          (dto.UnitIds == null || !dto.UnitIds.Any());
+                var primaryOrganizationId = requestedOrganizationIds[0];
 
                 if (string.IsNullOrWhiteSpace(dto.Message))
                 {
@@ -379,115 +379,12 @@ Subject line only (no quotes, no 'Subject:' prefix):";
                     );
                 }
 
-                // Collect all unique tenant user IDs from selected units
-                var tenantUserIds = new HashSet<long>();
-                var processedUnitIds = new HashSet<long>();
-                var processedPropertyIds = new HashSet<long>();
-
-                // If sending to all properties, get all tenants from all properties in selected organizations
-                if (sendToAllProperties)
-                {
-                    var orgIdsToUse = dto.OrganizationIds != null && dto.OrganizationIds.Any() 
-                        ? dto.OrganizationIds 
-                        : new List<long> { primaryOrganizationId.Value };
-
-                    var allProperties = await _dataContext.Properties
-                        .Include(p => p.Units)
-                            .ThenInclude(u => u.Leases)
-                                .ThenInclude(l => l.TenantLeases!)
-                                    .ThenInclude(tl => tl.Tenant)
-                        .Where(p => orgIdsToUse.Contains(p.OrganizationId ?? 0) && !p.IsDeleted)
-                        .ToListAsync();
-
-                    foreach (var property in allProperties)
-                    {
-                        foreach (var unit in property.Units ?? [])
-                        {
-                            if (unit.Lease != null && unit.Lease.TenantLeases != null)
-                            {
-                                foreach (var tenantLease in unit.Lease.TenantLeases)
-                                {
-                                    var tenant = tenantLease.Tenant;
-                                    if (tenant.UserId.HasValue)
-                                    {
-                                        tenantUserIds.Add(tenant.UserId.Value);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    // Get tenants from selected units
-                    if (dto.UnitIds != null && dto.UnitIds.Any())
-                    {
-                        var units = await _dataContext.Units
-                            .Include(u => u.Leases)
-                                .ThenInclude(l => l.TenantLeases!)
-                                    .ThenInclude(tl => tl.Tenant)
-                            .Where(u => dto.UnitIds.Contains(u.Id))
-                            .ToListAsync();
-
-                        foreach (var unit in units)
-                        {
-                            processedUnitIds.Add(unit.Id);
-                            if (unit.Lease != null && unit.Lease.TenantLeases != null)
-                            {
-                                foreach (var tenantLease in unit.Lease.TenantLeases)
-                                {
-                                    var tenant = tenantLease.Tenant;
-                                    if (tenant.UserId.HasValue)
-                                    {
-                                        tenantUserIds.Add(tenant.UserId.Value);
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // Get tenants from selected properties (all units in those properties, excluding already processed units)
-                    if (dto.PropertyIds != null && dto.PropertyIds.Any())
-                    {
-                        var propertyIdsToProcess = dto.PropertyIds.Where(pid => !processedPropertyIds.Contains(pid)).ToList();
-                        if (propertyIdsToProcess.Any())
-                        {
-                            var properties = await _dataContext.Properties
-                                .Include(p => p.Units)
-                                    .ThenInclude(u => u.Leases)
-                                        .ThenInclude(l => l.TenantLeases!)
-                                            .ThenInclude(tl => tl.Tenant)
-                                .Where(p => propertyIdsToProcess.Contains(p.Id))
-                                .ToListAsync();
-
-                            foreach (var property in properties)
-                            {
-                                processedPropertyIds.Add(property.Id);
-                                foreach (var unit in property.Units ?? [])
-                                {
-                                    // Skip if this unit was already processed
-                                    if (processedUnitIds.Contains(unit.Id))
-                                    {
-                                        continue;
-                                    }
-
-                                    if (unit.Lease != null && unit.Lease.TenantLeases != null)
-                                    {
-                                        foreach (var tenantLease in unit.Lease.TenantLeases)
-                                        {
-                                            var tenant = tenantLease.Tenant;
-                                            if (tenant.UserId.HasValue)
-                                            {
-                                                tenantUserIds.Add(tenant.UserId.Value);
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                }
+                var tenantUserIds = await ResolveRecipientUserIdsAsync(
+                    requestedOrganizationIds, dto.PropertyIds, dto.UnitIds);
+                tenantUserIds = (await _dataContext.Users
+                    .Where(user => tenantUserIds.Contains(user.Id) && !user.IsDeleted)
+                    .Select(user => user.Id)
+                    .ToListAsync()).ToHashSet();
 
                 // Get current user's name for signature
                 var currentUser = await _userRepository.GetCurrentUser();
@@ -590,13 +487,19 @@ Subject line only (no quotes, no 'Subject:' prefix):";
                             "The announcement you are trying to edit does not exist"
                         );
                     }
+                    if (announcement.CreatedByUserId != currentUserId.Value ||
+                        !requestedOrganizationIds.Contains(announcement.OrganizationId))
+                    {
+                        return ServiceResponse<SendAnnouncementResponseDto>.CreateError(
+                            "Forbidden", "You do not have access to this announcement", "", 403);
+                    }
                     
                     // Update existing announcement
                     announcement.Title = announcementTitle;
                     announcement.Message = messageWithSignature;
                     announcement.SendAsNotification = dto.SendNotification;
                     announcement.SendAsEmail = dto.SendEmail;
-                    announcement.OrganizationIds = dto.OrganizationIds != null ? JsonSerializer.Serialize(dto.OrganizationIds) : null;
+                    announcement.OrganizationIds = JsonSerializer.Serialize(requestedOrganizationIds);
                     announcement.PropertyIds = dto.PropertyIds != null ? JsonSerializer.Serialize(dto.PropertyIds) : null;
                     announcement.UnitIds = dto.UnitIds != null ? JsonSerializer.Serialize(dto.UnitIds) : null;
                     announcement.ScheduledAt = dto.ScheduledAt;
@@ -617,13 +520,13 @@ Subject line only (no quotes, no 'Subject:' prefix):";
                     // Create new announcement record
                     announcement = new Announcement
                     {
-                        OrganizationId = primaryOrganizationId.Value,
+                        OrganizationId = primaryOrganizationId,
                         CreatedByUserId = currentUserId.Value,
                         Title = announcementTitle,
                         Message = messageWithSignature,
                         SendAsNotification = dto.SendNotification,
                         SendAsEmail = dto.SendEmail,
-                        OrganizationIds = dto.OrganizationIds != null ? JsonSerializer.Serialize(dto.OrganizationIds) : null,
+                        OrganizationIds = JsonSerializer.Serialize(requestedOrganizationIds),
                         PropertyIds = dto.PropertyIds != null ? JsonSerializer.Serialize(dto.PropertyIds) : null,
                         UnitIds = dto.UnitIds != null ? JsonSerializer.Serialize(dto.UnitIds) : null,
                         ScheduledAt = dto.ScheduledAt,
@@ -774,7 +677,7 @@ Subject line only (no quotes, no 'Subject:' prefix):";
                                 try
                                 {
                                     var conversation = await _conversationRepository.GetOrCreateTenantLandlordConversation(
-                                        tenantUserId, primaryOrganizationId.Value);
+                                        tenantUserId, primaryOrganizationId);
                                     if (conversation != null && conversation.Id > 0)
                                     {
                                         _logger.LogInformation("Adding announcement message to conversation {ConversationId} for tenant {TenantUserId}. Landlord ID: {LandlordId}, Current User ID: {CurrentUserId}", 
@@ -954,6 +857,21 @@ Subject line only (no quotes, no 'Subject:' prefix):";
                 // Filter by organization
                 if (organizationId.HasValue)
                 {
+                    var member = await _dataContext.OrganizationMembers
+                        .AsNoTracking()
+                        .Include(m => m.Organization)
+                        .FirstOrDefaultAsync(m => m.UserId == currentUserId.Value &&
+                            m.OrganizationId == organizationId.Value && m.IsActive);
+                    if (member?.Organization == null || !OrganizationAuthorityPolicy.Evaluate(
+                        new OrganizationAuthorityFacts(organizationId.Value, Exists: true,
+                            IsActive: member.Organization.IsActive, IsDeleted: member.Organization.IsDeleted),
+                        new OrganizationMembershipFacts(organizationId.Value, MembershipState.Active,
+                            Role: null, RawRole: member.Role, Permissions: []),
+                        new OrganizationAuthorityRequirement(OrganizationRole.Viewer)).IsAllowed)
+                    {
+                        return ServiceResponse<List<LoadAnnouncementDto>>.CreateError(
+                            "Forbidden", "You do not have access to this organization", "", 403);
+                    }
                     // Build the search pattern before the query to avoid translation issues
                     var orgPattern = "\"" + organizationId.Value + "\"";
                     
@@ -1230,101 +1148,21 @@ Subject line only (no quotes, no 'Subject:' prefix):";
                     ? JsonSerializer.Deserialize<List<long>>(announcement.UnitIds)
                     : null;
 
-                // Collect tenant user IDs
-                var tenantUserIds = new HashSet<long>();
-                bool sendToAllProperties = (propertyIds == null || !propertyIds.Any()) && 
-                                          (unitIds == null || !unitIds.Any());
-
-                if (sendToAllProperties)
+                var authorizedOrganizationIds = await AuthorizedOrganizationIdsAsync(
+                    announcement.CreatedByUserId, organizationIds, announcement.OrganizationId);
+                if (authorizedOrganizationIds == null || !authorizedOrganizationIds.Contains(announcement.OrganizationId))
                 {
-                    var orgIdsToUse = organizationIds != null && organizationIds.Any() 
-                        ? organizationIds 
-                        : new List<long> { announcement.OrganizationId };
-
-                    var allProperties = await _dataContext.Properties
-                        .Include(p => p.Units)
-                            .ThenInclude(u => u.Leases)
-                                .ThenInclude(l => l.TenantLeases!)
-                                    .ThenInclude(tl => tl.Tenant)
-                        .Where(p => orgIdsToUse.Contains(p.OrganizationId ?? 0) && !p.IsDeleted)
-                        .ToListAsync();
-
-                    foreach (var property in allProperties)
-                    {
-                        foreach (var unit in property.Units ?? [])
-                        {
-                            if (unit.Lease != null && unit.Lease.TenantLeases != null)
-                            {
-                                foreach (var tenantLease in unit.Lease.TenantLeases)
-                                {
-                                    var tenant = tenantLease.Tenant;
-                                    if (tenant.UserId.HasValue)
-                                    {
-                                        tenantUserIds.Add(tenant.UserId.Value);
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    _logger.LogWarning("Scheduled announcement {AnnouncementId} is no longer authorized", announcementId);
+                    return false;
                 }
-                else
-                {
-                    // Get tenants from selected units
-                    if (unitIds != null && unitIds.Any())
-                    {
-                        var units = await _dataContext.Units
-                            .Include(u => u.Leases)
-                                .ThenInclude(l => l.TenantLeases!)
-                                    .ThenInclude(tl => tl.Tenant)
-                            .Where(u => unitIds.Contains(u.Id))
-                            .ToListAsync();
 
-                        foreach (var unit in units)
-                        {
-                            if (unit.Lease != null && unit.Lease.TenantLeases != null)
-                            {
-                                foreach (var tenantLease in unit.Lease.TenantLeases)
-                                {
-                                    var tenant = tenantLease.Tenant;
-                                    if (tenant.UserId.HasValue)
-                                    {
-                                        tenantUserIds.Add(tenant.UserId.Value);
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // Get tenants from selected properties
-                    if (propertyIds != null && propertyIds.Any())
-                    {
-                        var properties = await _dataContext.Properties
-                            .Include(p => p.Units)
-                                .ThenInclude(u => u.Leases)
-                                    .ThenInclude(l => l.TenantLeases!)
-                                        .ThenInclude(tl => tl.Tenant)
-                            .Where(p => propertyIds.Contains(p.Id))
-                            .ToListAsync();
-
-                        foreach (var property in properties)
-                        {
-                            foreach (var unit in property.Units ?? [])
-                            {
-                                if (unit.Lease != null && unit.Lease.TenantLeases != null)
-                                {
-                                    foreach (var tenantLease in unit.Lease.TenantLeases)
-                                    {
-                                        var tenant = tenantLease.Tenant;
-                                        if (tenant.UserId.HasValue)
-                                        {
-                                            tenantUserIds.Add(tenant.UserId.Value);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+                // Resolve against the same organization/property/unit boundary used by preview and immediate send.
+                var tenantUserIds = await ResolveRecipientUserIdsAsync(
+                    authorizedOrganizationIds, propertyIds, unitIds);
+                tenantUserIds = (await _dataContext.Users
+                    .Where(user => tenantUserIds.Contains(user.Id) && !user.IsDeleted)
+                    .Select(user => user.Id)
+                    .ToListAsync()).ToHashSet();
 
                 // If no tenants found, mark as completed (sent) with 0 sent count
                 // This ensures the announcement shows as "Sent" status even with no recipients

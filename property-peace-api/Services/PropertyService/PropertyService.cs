@@ -109,6 +109,11 @@ namespace brownstone_hub_api.Services.PropertyService
                     return Forbidden<LoadPropertyDto>();
                 }
 
+                if (!Enum.IsDefined(propertyDto.RentalMode))
+                    return ServiceResponse<LoadPropertyDto>.CreateError(
+                        "Invalid rental mode", statusCode: StatusCodes.Status400BadRequest,
+                        suppressDetailedErrors: true);
+
                 if (propertyDto.Id <= 0 &&
                     propertyDto.PropertyType == Enums.EPropertyType.MultiUnit &&
                     propertyDto.UnitCount is not > 0)
@@ -212,7 +217,7 @@ namespace brownstone_hub_api.Services.PropertyService
                         if (initialUnitCount == 1 && propertyDto.PropertyType == Enums.EPropertyType.SingleFamily)
                         {
                             createdUnits.Add(await _unitRepository.AddUnit(
-                                NewInitialUnit(1, created.Id), created.Id, organizationId, token));
+                                NewInitialUnit(1, created.Id, propertyDto.RentalMode), created.Id, organizationId, token));
                         }
                         else if (initialUnitCount > 0)
                         {
@@ -220,7 +225,7 @@ namespace brownstone_hub_api.Services.PropertyService
                             {
                                 PropertyId = created.Id,
                                 Units = Enumerable.Range(1, initialUnitCount)
-                                    .Select(number => NewInitialUnit(number, created.Id))
+                                    .Select(number => NewInitialUnit(number, created.Id, propertyDto.RentalMode))
                                     .ToList()
                             };
                             createdUnits.AddRange(await _unitRepository.BulkCreateUnits(
@@ -289,9 +294,10 @@ namespace brownstone_hub_api.Services.PropertyService
             return true;
         }
 
-        private static UpdateUnitDto NewInitialUnit(int number, long propertyId) => new()
+        private static UpdateUnitDto NewInitialUnit(int number, long propertyId, Enums.ERentalMode rentalMode) => new()
         {
             Id = 0,
+            RentalMode = rentalMode,
             Name = $"Unit {number}",
             PropertyId = propertyId,
             Bedrooms = "",

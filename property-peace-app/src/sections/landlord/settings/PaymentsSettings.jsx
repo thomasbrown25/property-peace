@@ -30,6 +30,7 @@ import useFetchProperties from 'hooks/useFetchProperties';
 import useRentPaymentAccess from 'hooks/useRentPaymentAccess';
 import RentPaymentAccessPanel from 'components/rent-payments/RentPaymentAccessPanel';
 import ConnectOnboardingWizard from 'sections/landlord/payments/ConnectOnboardingWizard';
+import ShortStayConnect from 'pages/landlord/short-stay-connect.jsx';
 import { validateConnectOnboardingContext } from 'utils/connectOnboarding';
 import { useOrganization } from 'contexts/OrganizationContext';
 import {
@@ -407,12 +408,10 @@ export function PaymentsSettingsContent({ rentPaymentAccess, headerActionElement
         if (!savedPreparation?.id || !Array.isArray(savedPreparation.propertyIds) || !savedPreparation.updatedAt) {
           throw new Error('Property Peace could not confirm the saved payout setup.');
         }
-        const returnUrl = `${window.location.origin}/landlord/settings?tab=payments&stripe=connected`;
         const createResponse = await axiosServices.post(
           '/api/stripe/connect-account',
           {
-            returnUrl,
-            refreshUrl: returnUrl,
+
             operatingType: preparationContext.operatingType,
             legalBusinessName: preparationContext.operatingType === 'business' ? preparationContext.displayName : null,
             ein
@@ -1123,5 +1122,8 @@ export function PaymentsSettingsContent({ rentPaymentAccess, headerActionElement
 
 export default function PaymentsSettings() {
   const rentPaymentAccess = useRentPaymentAccess();
-  return <PaymentsSettingsContent rentPaymentAccess={rentPaymentAccess} />;
+  return <Stack spacing={3}>
+    <ShortStayConnect />
+    <PaymentsSettingsContent rentPaymentAccess={rentPaymentAccess} />
+  </Stack>;
 }

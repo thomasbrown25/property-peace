@@ -12,6 +12,10 @@ namespace brownstone_hub_api.Dtos.RentCollection
         public long PropertyId { get; set; }
         public string UnitName { get; set; }
         public decimal RentAmount { get; set; }
+        /// <summary>Prorated rent expected for the selected calendar month.</summary>
+        public decimal CurrentMonthExpected { get; set; }
+        /// <summary>Finalized rent credits allocated to that month, not merely received in it.</summary>
+        public decimal CurrentMonthCollected { get; set; }
         public decimal OverdueAmount { get; set; }
         /// <summary>Total accrued unpaid rent, with no fees or deposits.</summary>
         public decimal RentDue { get; set; }
@@ -23,6 +27,8 @@ namespace brownstone_hub_api.Dtos.RentCollection
         public DateTime? CurrentMonthRentDueDate { get; set; }
         /// <summary>True when the current installment remains unpaid after its configured grace period.</summary>
         public bool CurrentMonthRentIsOverdue { get; set; }
+        /// <summary>Selected period was fully paid, but not until after its due date and grace period.</summary>
+        public bool PaidLateForMonth { get; set; }
         /// <summary>Overdue rent from periods before the current calendar month.</summary>
         public decimal PriorPeriodOverdueRent { get; set; }
         /// <summary>Outstanding lease fees, itemized separately from rent.</summary>

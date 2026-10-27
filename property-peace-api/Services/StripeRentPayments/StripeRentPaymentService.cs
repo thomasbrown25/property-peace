@@ -3,6 +3,7 @@ using System.Data;
 using System.Security.Cryptography;
 using System.Text;
 using brownstone_hub_api.Data;
+using brownstone_hub_api.Enums;
 using brownstone_hub_api.Models;
 using brownstone_hub_api.Utils;
 using brownstone_hub_api.Services.ActivationFunnel;
@@ -38,7 +39,10 @@ namespace brownstone_hub_api.Services.StripeRentPayments
         public async Task<StripeRentPaymentClientResult> CreateAsync(CreateStripeRentPaymentCommand command, CancellationToken cancellationToken = default)
         {
             EnsurePaymentsEnabled();
+            EnsureSupportedCharge(command.ChargeId);
             ValidateMoney(command.AmountCents, command.Currency);
+            if (command.ChargeId != null && command.AmountCents < 50)
+                throw new ArgumentOutOfRangeException(nameof(command.AmountCents));
             if (command.LeaseId <= 0 || command.OrganizationId <= 0 || command.TenantUserId <= 0)
                 throw new ArgumentException("Lease, organization, and tenant are required.");
             if (string.IsNullOrWhiteSpace(command.OperationId) || command.OperationId.Length > 64)
@@ -57,12 +61,16 @@ namespace brownstone_hub_api.Services.StripeRentPayments
                 payeeGateAcquired = true;
                 transaction = await BeginCollectionReservationTransactionAsync(command.LeaseId,
                     command.DestinationStripeAccountId, cancellationToken);
+                await EnsureLongTermLeaseAsync(command.LeaseId, command.OrganizationId, cancellationToken);
                 var existing = await _context.StripeRentPayments.SingleOrDefaultAsync(x => x.OperationId == command.OperationId, cancellationToken);
                 var request = BuildIntentRequest(command.OperationId, command.LeaseId, command.OrganizationId, command.TenantUserId,
                     command.AmountCents, command.Currency, command.Description);
                 if (existing != null)
                 {
                     EnsureReplayMatches(existing, command);
+                    if (command.ChargeId != null)
+                        await EnsureSelectedChargeAmountAvailableAsync(command.ChargeId, command.LeaseId, command.OrganizationId,
+                            command.TenantUserId, command.AmountCents, existing.Id, cancellationToken);
                     await EnsureCollectionPayeeEligibleAsync(existing.Id, existing.LeaseId, existing.OrganizationId,
                         existing.TenantUserId, existing.AmountCents, existing.Currency,
                         existing.DestinationStripeAccountId, cancellationToken);
@@ -73,8 +81,12 @@ namespace brownstone_hub_api.Services.StripeRentPayments
                     return new StripeRentPaymentClientResult(replay.PaymentIntentId, replay.ClientSecret);
                 }
 
-                await EnsureAmountAvailableAsync(command.LeaseId, command.OrganizationId, command.TenantUserId,
-                    command.AmountCents, null, cancellationToken);
+                if (command.ChargeId == null)
+                    await EnsureAmountAvailableAsync(command.LeaseId, command.OrganizationId, command.TenantUserId,
+                        command.AmountCents, null, cancellationToken);
+                else
+                    await EnsureSelectedChargeAmountAvailableAsync(command.ChargeId, command.LeaseId, command.OrganizationId,
+                        command.TenantUserId, command.AmountCents, null, cancellationToken);
                 await EnsureCollectionPayeeEligibleAsync(0, command.LeaseId, command.OrganizationId,
                     command.TenantUserId, command.AmountCents, command.Currency,
                     command.DestinationStripeAccountId, cancellationToken);
@@ -85,6 +97,7 @@ namespace brownstone_hub_api.Services.StripeRentPayments
                     OperationId = command.OperationId,
                     PaymentIntentId = result.PaymentIntentId,
                     LeaseId = command.LeaseId,
+                    ChargeId = command.ChargeId,
                     OrganizationId = command.OrganizationId,
                     TenantUserId = command.TenantUserId,
                     AmountCents = command.AmountCents,
@@ -109,12 +122,16 @@ namespace brownstone_hub_api.Services.StripeRentPayments
         public async Task<StripeRentPaymentClientResult> UpdateAsync(UpdateStripeRentPaymentCommand command, CancellationToken cancellationToken = default)
         {
             EnsurePaymentsEnabled();
+            EnsureSupportedCharge(command.ChargeId);
             ValidateMoney(command.AmountCents, "usd");
+            if (command.ChargeId != null && command.AmountCents < 50)
+                throw new ArgumentOutOfRangeException(nameof(command.AmountCents));
             var registered = await _context.StripeRentPayments.AsNoTracking()
                 .SingleOrDefaultAsync(x => x.PaymentIntentId == command.PaymentIntentId, cancellationToken)
                 ?? throw new InvalidOperationException("Rent PaymentIntent is not registered.");
             if (registered.LeaseId != command.LeaseId || registered.TenantUserId != command.TenantUserId)
                 throw new UnauthorizedAccessException("Rent PaymentIntent does not belong to this tenant and lease.");
+            EnsureChargeMatches(registered.ChargeId, command.ChargeId);
 
             var leaseGate = PaymentLocks.GetOrAdd($"lease:{registered.LeaseId}", _ => new SemaphoreSlim(1, 1));
             var payeeGate = PaymentLocks.GetOrAdd($"payee:{registered.DestinationStripeAccountId}", _ => new SemaphoreSlim(1, 1));
@@ -131,11 +148,17 @@ namespace brownstone_hub_api.Services.StripeRentPayments
                     ?? throw new InvalidOperationException("Rent PaymentIntent is not registered.");
                 if (payment.LeaseId != command.LeaseId || payment.TenantUserId != command.TenantUserId)
                     throw new UnauthorizedAccessException("Rent PaymentIntent does not belong to this tenant and lease.");
+                EnsureChargeMatches(payment.ChargeId, command.ChargeId);
                 if (payment.Status != StripeRentPaymentStatus.Created)
                     throw new InvalidOperationException("Only an uncompleted rent PaymentIntent can be updated.");
 
-                await EnsureAmountAvailableAsync(payment.LeaseId, payment.OrganizationId, payment.TenantUserId,
-                    command.AmountCents, payment.Id, cancellationToken);
+                await EnsureLongTermLeaseAsync(payment.LeaseId, payment.OrganizationId, cancellationToken);
+                if (payment.ChargeId == null)
+                    await EnsureAmountAvailableAsync(payment.LeaseId, payment.OrganizationId, payment.TenantUserId,
+                        command.AmountCents, payment.Id, cancellationToken);
+                else
+                    await EnsureSelectedChargeAmountAvailableAsync(payment.ChargeId, payment.LeaseId, payment.OrganizationId,
+                        payment.TenantUserId, command.AmountCents, payment.Id, cancellationToken);
                 await EnsureCollectionPayeeEligibleAsync(payment.Id, payment.LeaseId, payment.OrganizationId,
                     payment.TenantUserId, command.AmountCents, payment.Currency,
                     payment.DestinationStripeAccountId, cancellationToken);
@@ -259,7 +282,7 @@ namespace brownstone_hub_api.Services.StripeRentPayments
             DateTimeOffset succeededAt,
             CancellationToken cancellationToken)
         {
-            if (payment.AmountCents <= 0 || _activationRecorder is null)
+            if (payment.AmountCents <= 0 || payment.ChargeId != null || _activationRecorder is null)
                 return;
             var authoritativeLeaseExists = await (from lease in _context.Leases.AsNoTracking()
                                                   join unit in _context.Units.AsNoTracking() on lease.UnitId equals unit.Id
@@ -469,6 +492,8 @@ IF @result < 0 THROW 51000, 'Unable to acquire connected-payee transfer lock.', 
                             && (candidate.NextTransferAttemptAt > now
                                 || (candidate.NextTransferAttemptAt != null && candidate.TransferAttemptCount >= maxAttempts)))) continue;
 
+                    if (await BlockTransferForRentalModeAsync(candidate,
+                        candidate.Status == StripeRentPaymentStatus.TransferReconciliationPending, cancellationToken)) continue;
                     var decision = await _risk.EvaluateAsync(candidate, cancellationToken);
                     if (!decision.Approved)
                     {
@@ -533,6 +558,8 @@ IF @result < 0 THROW 51000, 'Unable to acquire connected-payee transfer lock.', 
                         continue;
                     }
 
+                    if (await BlockTransferForRentalModeAsync(candidate,
+                        candidate.Status == StripeRentPaymentStatus.TransferReconciliationPending, cancellationToken)) continue;
                     try
                     {
                         var transferId = await _gateway.CreateTransferAsync(new StripeRentTransferRequest(
@@ -710,12 +737,15 @@ IF @result < 0 THROW 51000, 'Unable to acquire connected-payee transfer reconcil
                         || candidate.TransferReplayFailureCount >= maxReplayFailures
                         || candidate.TransferReconciliationPaused
                         || candidate.NextTransferAttemptAt > _timeProvider.GetUtcNow()) continue;
+                    if (await BlockTransferForRentalModeAsync(candidate, true, cancellationToken)) continue;
                     candidate.TransferIdempotencyKey ??= LegacyTransferIdempotencyKey(candidate);
                     await _context.SaveChangesAsync(cancellationToken);
 
                     // Replaying an idempotent create can be the first request Stripe receives after an
                     // ambiguous network failure. Treat it as transfer creation, not a read-only lookup:
                     // every live risk, authority, hold, source-charge and destination check must pass again.
+                    if (await BlockTransferForRentalModeAsync(candidate,
+                        candidate.Status == StripeRentPaymentStatus.TransferReconciliationPending, cancellationToken)) continue;
                     var decision = await _risk.EvaluateAsync(candidate, cancellationToken);
                     if (!decision.Approved)
                     {
@@ -765,6 +795,8 @@ IF @result < 0 THROW 51000, 'Unable to acquire connected-payee transfer reconcil
                         continue;
                     }
 
+                    if (await BlockTransferForRentalModeAsync(candidate,
+                        candidate.Status == StripeRentPaymentStatus.TransferReconciliationPending, cancellationToken)) continue;
                     try
                     {
                         var transferId = await _gateway.CreateTransferAsync(new StripeRentTransferRequest(
@@ -1147,6 +1179,38 @@ IF @lockResult < 0
             }
         }
 
+        private async Task<bool> BlockTransferForRentalModeAsync(StripeRentPayment payment, bool reconciliation,
+            CancellationToken cancellationToken)
+        {
+            if (await IsLongTermLeaseAsync(payment.LeaseId, payment.OrganizationId, cancellationToken)) return false;
+            if (reconciliation)
+            {
+                // The request may have succeeded already; keep its durable identity for operator review.
+                payment.TransferReconciliationPaused = true;
+                payment.RiskReason = "Rent transfer reconciliation requires a LongTerm unit lease; operator review required.";
+            }
+            else
+            {
+                payment.Status = StripeRentPaymentStatus.Blocked;
+                payment.TransferEligibleAt = null;
+                payment.RiskReason = "Rent transfer requires a LongTerm unit lease.";
+            }
+            payment.NextTransferAttemptAt = null;
+            payment.UpdatedAt = _timeProvider.GetUtcNow();
+            await _context.SaveChangesAsync(cancellationToken);
+            return true;
+        }
+
+        private Task<bool> IsLongTermLeaseAsync(long leaseId, long organizationId, CancellationToken cancellationToken) =>
+            _context.Leases.AsNoTracking().AnyAsync(l => l.Id == leaseId && l.OrganizationId == organizationId
+                && !l.IsDeleted && l.Unit.RentalMode == ERentalMode.LongTerm, cancellationToken);
+
+        private async Task EnsureLongTermLeaseAsync(long leaseId, long organizationId, CancellationToken cancellationToken)
+        {
+            if (!await IsLongTermLeaseAsync(leaseId, organizationId, cancellationToken))
+                throw new InvalidOperationException("Rent PaymentIntent requires a LongTerm unit lease.");
+        }
+
         private async Task EnsureAmountAvailableAsync(long leaseId, long organizationId, long tenantUserId,
             long requestedCents, long? excludedPaymentId, CancellationToken cancellationToken)
         {
@@ -1160,8 +1224,9 @@ IF @lockResult < 0
             var outstanding = await RentCalculator.GetOutstandingForTenantAsync(_context, leaseId);
             // Created aggregates reserve rent not yet represented by authoritative accounting rows.
             // Held/pending aggregates already have completed allocations and must not be subtracted twice.
-            var reserved = await _context.StripeRentPayments.Where(x => x.LeaseId == leaseId && x.Id != excludedPaymentId
-                    && x.Status == StripeRentPaymentStatus.Created)
+            var reserved = await _context.StripeRentPayments.Where(x => x.LeaseId == leaseId
+                    && x.OrganizationId == organizationId && (x.ChargeId == null || x.ChargeId.StartsWith("rent:"))
+                    && x.Id != excludedPaymentId && x.Status == StripeRentPaymentStatus.Created)
                 .SumAsync(x => x.AmountCents, cancellationToken);
             var availableCents = Math.Max(0, checked((long)decimal.Round(outstanding * 100m, 0, MidpointRounding.AwayFromZero)) - reserved);
             if (requestedCents > availableCents)
@@ -1183,13 +1248,91 @@ IF @lockResult < 0
         {
             if (existing.LeaseId != command.LeaseId || existing.OrganizationId != command.OrganizationId
                 || existing.TenantUserId != command.TenantUserId || existing.AmountCents != command.AmountCents
-                || existing.DestinationStripeAccountId != command.DestinationStripeAccountId)
+                || existing.DestinationStripeAccountId != command.DestinationStripeAccountId
+                || !string.Equals(existing.ChargeId, command.ChargeId, StringComparison.Ordinal))
                 throw new InvalidOperationException("Payment operation ID was already used with different authorization data.");
+        }
+
+        private static void EnsureChargeMatches(string? existingChargeId, string? requestedChargeId)
+        {
+            if (!string.Equals(existingChargeId, requestedChargeId, StringComparison.Ordinal))
+                throw new InvalidOperationException("Payment charge identity does not match the registered intent.");
         }
 
         private void EnsurePaymentsEnabled()
         {
             if (_configuration.GetValue<bool?>("Stripe:RentPaymentsEnabled") != true) throw new RentPaymentsDisabledException();
+        }
+
+        // Reject malformed charge identities before they reach Stripe.
+        private static void EnsureSupportedCharge(string? chargeId)
+        {
+            if (chargeId == null) return;
+            if (chargeId.StartsWith("deposit:", StringComparison.Ordinal))
+                throw new InvalidOperationException("Deposit charge-specific online payments are unavailable.");
+            if (SelectedRentCharge.IsRent(chargeId))
+            {
+                if (!SelectedRentCharge.IsWellFormed(chargeId))
+                    throw new InvalidOperationException("Charge-specific online payments are unavailable.");
+                return;
+            }
+            if (!chargeId.StartsWith("fee:", StringComparison.Ordinal)
+                || !long.TryParse(chargeId.AsSpan(4), System.Globalization.NumberStyles.None,
+                    System.Globalization.CultureInfo.InvariantCulture, out var feeId)
+                || feeId <= 0 || chargeId != $"fee:{feeId}")
+                throw new InvalidOperationException("Charge-specific online payments are unavailable.");
+        }
+
+        private async Task EnsureSelectedChargeAmountAvailableAsync(string chargeId, long leaseId, long organizationId,
+            long tenantUserId, long requestedCents, long? excludedPaymentId, CancellationToken cancellationToken)
+        {
+            if (!SelectedRentCharge.IsRent(chargeId))
+            {
+                await EnsureFeeAmountAvailableAsync(chargeId, leaseId, organizationId, tenantUserId,
+                    requestedCents, excludedPaymentId, cancellationToken);
+                return;
+            }
+            var membership = await _context.TenantLeases.AnyAsync(x => x.LeaseId == leaseId
+                && x.Tenant.UserId == tenantUserId && x.Tenant.OrganizationId == organizationId && !x.Tenant.IsDeleted,
+                cancellationToken);
+            if (!membership) throw new UnauthorizedAccessException("The authenticated tenant is not linked to this lease.");
+            var oldest = await SelectedRentCharge.OldestUnpaidAsync(_context, chargeId, leaseId, organizationId, cancellationToken);
+            var reserved = await _context.StripeRentPayments.Where(p => p.LeaseId == leaseId
+                    && p.OrganizationId == organizationId && (p.ChargeId == chargeId || p.ChargeId == null)
+                    && p.Id != excludedPaymentId && p.Status == StripeRentPaymentStatus.Created)
+                .SumAsync(p => p.AmountCents, cancellationToken);
+            var available = checked((long)(oldest.Remaining * 100m)) - reserved;
+            if (requestedCents > available)
+                throw new InvalidOperationException("Requested rent payment exceeds the selected outstanding balance after existing reservations.");
+        }
+
+        private async Task EnsureFeeAmountAvailableAsync(string chargeId, long leaseId, long organizationId,
+            long tenantUserId, long requestedCents, long? excludedPaymentId, CancellationToken cancellationToken)
+        {
+            // Called only inside the existing lease/payee reservation locks and serializable transaction.
+            var validLease = await _context.Leases.AnyAsync(l => l.Id == leaseId
+                && l.OrganizationId == organizationId && !l.IsDeleted && l.IsActive, cancellationToken);
+            if (!validLease) throw new InvalidOperationException("Lease is not active in the authorized organization.");
+            var activeMembership = await _context.TenantLeases.AnyAsync(x => x.LeaseId == leaseId
+                && x.Tenant.UserId == tenantUserId && x.Tenant.OrganizationId == organizationId && !x.Tenant.IsDeleted,
+                cancellationToken);
+            if (!activeMembership) throw new UnauthorizedAccessException("The authenticated tenant is not linked to this active lease.");
+
+            var feeId = long.Parse(chargeId.AsSpan(4), System.Globalization.CultureInfo.InvariantCulture);
+            var fee = await _context.LeaseFees.AsNoTracking().SingleOrDefaultAsync(f => f.Id == feeId
+                && f.LeaseId == leaseId && f.OrganizationId == organizationId && f.Amount > 0, cancellationToken)
+                ?? throw new InvalidOperationException("Fee does not belong to the authorized lease and organization.");
+            var feePayments = await _context.Payments.Where(p => p.LeaseId == leaseId
+                    && p.OrganizationId == organizationId && p.FeeId == feeId)
+                .AsNoTracking().ToListAsync(cancellationToken);
+            var credited = brownstone_hub_api.Services.Payments.FeeCollection.Credited(feePayments);
+            var reserved = await _context.StripeRentPayments.Where(p => p.LeaseId == leaseId
+                    && p.OrganizationId == organizationId && p.ChargeId == chargeId
+                    && p.Id != excludedPaymentId && p.Status == StripeRentPaymentStatus.Created)
+                .SumAsync(p => p.AmountCents, cancellationToken);
+            var remaining = checked((long)(fee.Amount * 100m)) - checked((long)(credited * 100m)) - reserved;
+            if (remaining <= 0 || requestedCents > remaining)
+                throw new InvalidOperationException("Requested fee payment exceeds the outstanding balance after existing reservations.");
         }
 
         private async Task EnsureCollectionPayeeEligibleAsync(long paymentId, long leaseId, long organizationId,

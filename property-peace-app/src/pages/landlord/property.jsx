@@ -103,6 +103,7 @@ import { FEATURE_KEYS } from 'utils/featureReadiness';
 import PropertyLeasingPipeline from 'components/leasing-pipeline/PropertyLeasingPipeline';
 import { recordRecentlyViewedProperty } from 'utils/recentlyViewedProperties';
 import useAuth from 'hooks/useAuth';
+import { rentalMode, modeLabel, propertyModeLabel } from 'utils/rentalMode';
 
 // Default payload for creating a draft listing (same as listing-create page)
 const DEFAULT_LISTING_CREATE_PAYLOAD = {
@@ -808,7 +809,7 @@ function SummaryTab({ property, onRefresh, onImageUpload, uploading }) {
       </Grid>
 
       {/* Leasing Information Section - Only show for single-family properties */}
-      {property?.propertyType !== 'multiUnit' && (
+      {property?.propertyType !== 'multiUnit' && rentalMode(property?.units?.[0]) !== 'shortTerm' && (
       <MainCard
         sx={{
           mt: 3,
@@ -2029,6 +2030,7 @@ function UnitsTab({ property, onRefresh, onOpenBulkCreate }) {
             {filteredUnits.length} of {units.length} {units.length === 1 ? 'Unit' : 'Units'}
             {selectedUnits.size > 0 && ` (${selectedUnits.size} selected)`}
           </Typography>
+          <Chip size="small" label={propertyModeLabel(property)} variant="outlined" />
         </Stack>
         {isMultiUnit && (
           <Stack direction="row" spacing={1} alignItems="center">
@@ -2127,6 +2129,7 @@ function UnitsTab({ property, onRefresh, onOpenBulkCreate }) {
                   />
                 </TableCell>
                 <TableCell>Unit Name</TableCell>
+                <TableCell>Rental mode</TableCell>
                 <TableCell>Bedrooms</TableCell>
                 <TableCell>Baths</TableCell>
                 <TableCell>Square Feet</TableCell>
@@ -2217,6 +2220,7 @@ function UnitsTab({ property, onRefresh, onOpenBulkCreate }) {
                         </IconButton>
                       </Stack>
                     </TableCell>
+                    <TableCell><Chip size="small" variant="outlined" label={modeLabel(unit)} /></TableCell>
                     <TableCell>
                       <Typography variant="body2" color="text.secondary">
                         {unit.bedrooms || '-'}
@@ -2233,15 +2237,17 @@ function UnitsTab({ property, onRefresh, onOpenBulkCreate }) {
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <Chip
+                      {rentalMode(unit) === 'shortTerm' ? <Typography variant="body2" color="text.secondary">—</Typography> : <Chip
                         size="small"
                         label={unit.isOccupied ? 'Occupied' : 'Vacant'}
                         color={unit.isOccupied ? 'success' : 'default'}
                         variant="outlined"
-                      />
+                      />}
                     </TableCell>
                     <TableCell>
-                      {hasLease && (unit?.lease?.id || unit?.lease?.Id) ? (
+                      {rentalMode(unit) === 'shortTerm' ? (
+                        <Typography variant="body2" color="text.secondary">Not available for short-term units</Typography>
+                      ) : hasLease && (unit?.lease?.id || unit?.lease?.Id) ? (
                         <Button
                           variant="outlined"
                           size="small"
@@ -2261,6 +2267,7 @@ function UnitsTab({ property, onRefresh, onOpenBulkCreate }) {
                           color="primary"
                           onClick={(e) => {
                             e.stopPropagation();
+                            const params = new URLSearchParams({ propertyId: String(property.id), unitId: String(unit.id) });
                             navigate(`/landlord/leases/builder?${params.toString()}`);
                           }}
                           sx={{ textTransform: 'none' }}
@@ -2584,6 +2591,7 @@ export default function Property() {
 
   const theme = useTheme();
   const isSingleFamily = selectedProperty?.propertyType?.toLowerCase() === 'singlefamily';
+  const longTermUnits = (selectedProperty?.units ?? selectedProperty?.Units ?? []).filter(unit => rentalMode(unit) !== 'shortTerm');
   const downMD = useMediaQuery(theme => theme.breakpoints.down('md'));
 
   // Redirect from units tab to overview if single-family property
@@ -2616,13 +2624,13 @@ export default function Property() {
         </AnimateIn>
 
         {/* Desktop/tablet leasing progress — directly below the header overview */}
-        <Box sx={{ mt: 2, display: { xs: 'none', sm: 'block' } }}>
+        {longTermUnits.length > 0 && <Box sx={{ mt: 2, display: { xs: 'none', sm: 'block' } }}>
           <PropertyLeasingPipeline
             propertyId={propertyId}
-            units={selectedProperty?.units ?? selectedProperty?.Units ?? []}
-            onCreateListing={drawer.openListingAddDrawer}
+            units={longTermUnits}
+            onCreateListing={() => navigate('/landlord/listings/add')}
           />
-        </Box>
+        </Box>}
 
         {/* Property Overview Columns */}
         <Box sx={{ mt: 3 }}>
@@ -2631,9 +2639,9 @@ export default function Property() {
               property={selectedProperty}
               propertyId={propertyId}
               rentRecords={rentRecords}
-              onCreateListing={drawer.openListingAddDrawer}
+              onCreateListing={() => navigate('/landlord/listings/add')}
             />
-            <PropertyScheduledLeases property={selectedProperty} propertyId={propertyId} />
+            {longTermUnits.length > 0 && <PropertyScheduledLeases property={{ ...selectedProperty, units: longTermUnits, Units: longTermUnits }} propertyId={propertyId} />}
           </AnimateIn>
         </Box>
       {/* Confirmation Dialog */}

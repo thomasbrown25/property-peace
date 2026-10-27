@@ -231,7 +231,7 @@ namespace brownstone_hub_api.Services.MaintenanceAgentService
                     }
                     case "submit_maintenance_request":
                     {
-                        var (result, request) = await SubmitMaintenanceRequestAsync(input);
+                        var (result, request) = await SubmitMaintenanceRequestAsync(input, tenantUserId);
                         return (result, request);
                     }
                     default:
@@ -275,7 +275,7 @@ namespace brownstone_hub_api.Services.MaintenanceAgentService
             return JsonSerializer.Serialize(new { categories = result });
         }
 
-        private async Task<(string result, LoadMaintenanceRequestDto? request)> SubmitMaintenanceRequestAsync(JsonNode? input)
+        private async Task<(string result, LoadMaintenanceRequestDto? request)> SubmitMaintenanceRequestAsync(JsonNode? input, long tenantUserId)
         {
             if (input == null)
                 return (JsonSerializer.Serialize(new { error = "Missing input parameters" }), null);
@@ -289,6 +289,16 @@ namespace brownstone_hub_api.Services.MaintenanceAgentService
 
             if (propertyId == 0 || string.IsNullOrWhiteSpace(description) || categoryId == 0)
                 return (JsonSerializer.Serialize(new { error = "property_id, description, and category_id are required" }), null);
+
+            // Tool arguments come from the model, not a trusted tenant selection. Never let
+            // a prompt or forged chat history create a ticket for another tenant's unit.
+            var leases = await _leaseRepository.GetLeasesByTenantUserId(tenantUserId);
+            var matching = leases.Where(l => l.IsActive == true && l.PropertyId == propertyId &&
+                (!unitId.HasValue || l.UnitId == unitId.Value)).ToList();
+            if (matching.Count != 1)
+                return (JsonSerializer.Serialize(new { error = "Select an active leased unit for this property" }), null);
+            // If the model omitted unit_id, only infer it when exactly one active lease matches.
+            unitId = matching[0].UnitId == 0 ? null : matching[0].UnitId;
 
             var priority = priorityStr switch
             {

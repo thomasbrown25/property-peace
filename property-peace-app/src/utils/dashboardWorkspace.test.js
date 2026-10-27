@@ -9,12 +9,12 @@ try {
   // The first TDD run intentionally exercises the missing workspace module.
 }
 
-test('dashboard workspace navigation maps Overview, Calendar, and Tasks to their landlord routes', () => {
+test('dashboard workspace navigation uses a clean Overview URL while preserving Calendar and Tasks deep links', () => {
   assert.deepEqual(
     dashboardWorkspace.dashboardWorkspaceTabs?.map(({ key, label, path }) => ({ key, label, path })),
     [
-      { key: 'overview', label: 'Overview', path: '/landlord/dashboard?tab=overview' },
-      { key: 'calendar', label: 'Calendar', path: '/landlord/dashboard?tab=calendar' },
+      { key: 'overview', label: 'Overview', path: '/landlord/dashboard' },
+      { key: 'calendar', label: 'Calendar', path: '/landlord/calendar' },
       { key: 'tasks', label: 'Tasks', path: '/landlord/dashboard?tab=tasks' }
     ]
   );

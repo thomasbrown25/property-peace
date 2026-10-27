@@ -530,8 +530,6 @@ export default function TenantDashboard() {
 
   const [lease, setLease] = useState(null);
   const [payments, setPayments] = useState([]);
-  const [deposits, setDeposits] = useState([]);
-  const [loadingDeposits, setLoadingDeposits] = useState(false);
   const [maintenanceRequests, setMaintenanceRequests] = useState([]);
   const [rentCollection, setRentCollection] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -623,7 +621,6 @@ export default function TenantDashboard() {
         if (!selectedLease) {
           setLease(null);
           setPayments([]);
-          setDeposits([]);
           setMaintenanceRequests([]);
           setRentCollection(null);
           prevLeaseIdRef.current = null;
@@ -657,19 +654,6 @@ export default function TenantDashboard() {
             setPayments([]);
           }
 
-          // Fetch deposits for this lease
-          try {
-            setLoadingDeposits(true);
-            const depositsResponse = await axiosServices.get(`/api/deposit/lease/${leaseData.id}`);
-            if (depositsResponse.data && depositsResponse.data.success) {
-              setDeposits(depositsResponse.data.data || []);
-            }
-          } catch (err) {
-            if (import.meta.env.DEV) console.warn('Could not fetch deposits:', err);
-            setDeposits([]);
-          } finally {
-            setLoadingDeposits(false);
-          }
         }
 
         // Fetch rent collection data for this lease
@@ -842,52 +826,14 @@ export default function TenantDashboard() {
     return maintenanceRequests.filter((req) => req.status?.toLowerCase() !== 'completed' && req.status?.toLowerCase() !== 'cancelled');
   }, [maintenanceRequests]);
 
-  // Calculate if deposit is paid
-  const depositPaid = useMemo(() => {
-    if (!lease?.depositAmount || lease.depositAmount <= 0) return null;
-    if (loadingDeposits) return null; // Return null while loading
-    if (!deposits || deposits.length === 0) return false;
-    return deposits.some((d) => d.receivedDate && !d.refundedDate);
-  }, [deposits, lease?.depositAmount, loadingDeposits]);
-
-  // Payment allocation data for Make Payment modal (rent, fees by due date, deposit)
+  // The dashboard rent action pays the lease-wide accrued balance, oldest-first.
+  // Fees and read-only deposits are shown separately on the Payments page.
   const paymentAllocation = useMemo(() => {
     if (!nextRentDue || !lease) return null;
     const rentAmountDue = nextRentDue.amount ?? 0;
-    const depositAmount = (lease?.depositAmount || 0) > 0 && !depositPaid ? lease.depositAmount || 0 : 0;
-    const fees = lease?.fees || lease?.Fees || [];
-    const feesWithRemaining = fees
-      .map((fee) => {
-        const feeId = fee.id || fee.Id;
-        const originalAmount = fee.amount || fee.Amount || 0;
-        const feePayments = (payments || []).filter(
-          (p) => (p.feeId === feeId || p.FeeId === feeId) && (p.status === 'Completed' || p.Status === 'Completed' || !p.status)
-        );
-        const paidAmount = feePayments.reduce((s, p) => s + (p.amount || p.Amount || 0), 0);
-        const remaining = Math.max(0, originalAmount - paidAmount);
-        return { fee, feeName: fee.name || fee.Name || 'Fee', feeDueDate: fee.dueDate || fee.DueDate, remaining };
-      })
-      .filter(({ remaining }) => remaining > 0)
-      .sort((a, b) => {
-        const dA = a.feeDueDate ? new Date(a.feeDueDate).getTime() : Number.MAX_SAFE_INTEGER;
-        const dB = b.feeDueDate ? new Date(b.feeDueDate).getTime() : Number.MAX_SAFE_INTEGER;
-        return dA - dB;
-      });
-    const totalFeesRemaining = feesWithRemaining.reduce((sum, { remaining }) => sum + remaining, 0);
-    const totalAmountDue = rentAmountDue + depositAmount + totalFeesRemaining;
-    const allocationOrder = [
-      { type: 'rent', label: 'Rent amount due', amount: rentAmountDue, dueDate: nextRentDue.date },
-      ...feesWithRemaining.map(({ fee, feeName, feeDueDate, remaining }) => ({
-        type: 'fee',
-        label: feeName,
-        amount: remaining,
-        feeId: fee.id || fee.Id,
-        dueDate: feeDueDate
-      })),
-      ...(depositAmount > 0 ? [{ type: 'deposit', label: 'Deposit amount', amount: depositAmount, dueDate: lease.startDate }] : [])
-    ];
-    return { rentAmountDue, feesWithRemaining, depositAmount, totalAmountDue, allocationOrder };
-  }, [nextRentDue, lease, depositPaid, payments]);
+    const totalAmountDue = rentAmountDue;
+    return { rentAmountDue, totalAmountDue };
+  }, [nextRentDue, lease]);
 
   if (loading) {
     return (
@@ -1031,11 +977,6 @@ export default function TenantDashboard() {
                     boxShadow: `inset 0 0 0 1px ${alpha(statusTone.main, isDark ? 0.24 : 0.14)}`,
                     flexShrink: 0
                   };
-                  const amountRowSx = {
-                    py: 1.15,
-                    borderBottom: `1px solid ${sectionDivider}`,
-                    '&:last-of-type': { borderBottom: 0 }
-                  };
 
                   return (
                     <Box
@@ -1078,7 +1019,7 @@ export default function TenantDashboard() {
 
                           <Box sx={{ textAlign: { xs: 'left', sm: 'right' } }}>
                             <Typography variant="overline" color="text.secondary" sx={{ lineHeight: 1.2, letterSpacing: 0.8 }}>
-                              Amount due
+                              Accumulated rent balance
                             </Typography>
                             <Typography variant="h4" fontWeight={800} color={totalAmountDue > 0 ? statusTone.main : 'success.main'}>
                               {formatCurrency(totalAmountDue)}
@@ -1103,41 +1044,9 @@ export default function TenantDashboard() {
                           }}
                         >
                           <Stack>
-                            <Stack direction="row" spacing={1.5} alignItems="center" justifyContent="space-between" sx={amountRowSx}>
-                              <Typography variant="body2" color="text.secondary">
-                                Rent for {formatDate(nextRentDue.date)}
-                              </Typography>
-                              <Typography variant="body1" fontWeight={700} color="text.primary">
-                                {formatCurrency(paymentAllocation.rentAmountDue)}
-                              </Typography>
-                            </Stack>
-                            {paymentAllocation.feesWithRemaining.map(({ fee, feeName, feeDueDate, remaining }, idx) => (
-                              <Stack
-                                key={fee.id || fee.Id || idx}
-                                direction="row"
-                                spacing={1.5}
-                                alignItems="center"
-                                justifyContent="space-between"
-                                sx={amountRowSx}
-                              >
-                                <Typography variant="body2" color="text.secondary">
-                                  {feeName} due{feeDueDate ? ` ${formatDate(feeDueDate)}` : ''}
-                                </Typography>
-                                <Typography variant="body1" fontWeight={700} color="text.primary">
-                                  {formatCurrency(remaining)}
-                                </Typography>
-                              </Stack>
-                            ))}
-                            {paymentAllocation.depositAmount > 0 && (
-                              <Stack direction="row" spacing={1.5} alignItems="center" justifyContent="space-between" sx={amountRowSx}>
-                                <Typography variant="body2" color="text.secondary">
-                                  Deposit due {formatDate(lease.startDate)}
-                                </Typography>
-                                <Typography variant="body1" fontWeight={700} color="text.primary">
-                                  {formatCurrency(paymentAllocation.depositAmount)}
-                                </Typography>
-                              </Stack>
-                            )}
+                            <Typography variant="caption" color="text.secondary" sx={{ py: 1 }}>
+                              Rent checkout applies oldest-first across the lease. Fees and read-only deposits are listed separately on the Payments page.
+                            </Typography>
                           </Stack>
                         </Box>
                       )}
@@ -1154,10 +1063,11 @@ export default function TenantDashboard() {
                               onClick={() => {
                                 if (paymentAllocation) {
                                   modal.openPaymentModal({
-                                    isTotalPayment: true,
                                     leaseId: lease.id,
-                                    totalAmountDue: paymentAllocation.totalAmountDue,
-                                    allocationOrder: paymentAllocation.allocationOrder,
+                                    rentAmount: lease.rentAmount || 0,
+                                    rentDue: paymentAllocation.rentAmountDue,
+                                    amountDueNow: paymentAllocation.rentAmountDue,
+                                    overdueAmount: nextRentDue.overdueAmount,
                                     propertyName: propertyDisplay || lease?.propertyName || '',
                                     unitName: unitDisplay || lease?.unitName || ''
                                   });
@@ -1519,18 +1429,6 @@ export default function TenantDashboard() {
                 if (paymentsResponse.data) {
                   const paymentsData = paymentsResponse.data.data || paymentsResponse.data || [];
                   setPayments(Array.isArray(paymentsData) ? paymentsData : []);
-                }
-
-                try {
-                  setLoadingDeposits(true);
-                  const depositsResponse = await axiosServices.get(`/api/deposit/lease/${lease.id}`);
-                  if (depositsResponse.data && depositsResponse.data.success) {
-                    setDeposits(depositsResponse.data.data || []);
-                  }
-                } catch (err) {
-                  if (import.meta.env.DEV) console.warn('Could not refetch deposits:', err);
-                } finally {
-                  setLoadingDeposits(false);
                 }
 
                 try {

@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Security.Cryptography;
 using brownstone_hub_api.Dtos.Maintenance;
 using brownstone_hub_api.Services.Maintenance;
+using brownstone_hub_api.Middleware;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -16,9 +17,11 @@ public sealed class MaintenanceRequestsController(
     IMaintenanceCommandExecutor? commands = null) : ControllerBase
 {
     [HttpGet]
+    [TenantSelfOrganization]
     public async Task<IActionResult> List(CancellationToken ct) => Result(await service.ListAsync(ct));
 
     [HttpPost]
+    [TenantSelfOrganization]
     public async Task<IActionResult> Create([FromBody] CreateMaintenanceRequestDto dto,
         [FromHeader(Name = "Idempotency-Key")] string? key, CancellationToken ct)
     {
@@ -29,6 +32,7 @@ public sealed class MaintenanceRequestsController(
     }
 
     [HttpGet("{id:long}")]
+    [TenantSelfOrganization]
     public async Task<IActionResult> Get(long id, CancellationToken ct) => Result(await service.GetAsync(id, ct));
 
     [HttpPost("{id:long}/acknowledge")]
@@ -41,11 +45,13 @@ public sealed class MaintenanceRequestsController(
         Result(await Command(key, "request.change-status", new { id, command.Status, command.ExpectedStatus }, token => service.ChangeStatusAsync(id, command, token), ct));
 
     [HttpPost("{id:long}/percy/troubleshooting")]
+    [TenantSelfOrganization]
     public async Task<IActionResult> Troubleshoot(long id, [FromBody] PercyTroubleshootingCommandDto command,
         [FromHeader(Name = "Idempotency-Key")] string? key, CancellationToken ct) =>
         Result(await Command(key, "troubleshooting.issue", new { id, command }, token => service.TroubleshootAsync(id, command, token), ct));
 
     [HttpPost("{id:long}/percy/troubleshooting/{stepId:long}/outcome")]
+    [TenantSelfOrganization]
     public async Task<IActionResult> RecordTroubleshootingOutcome(long id, long stepId,
         [FromBody] PercyTroubleshootingOutcomeCommandDto command, [FromHeader(Name = "Idempotency-Key")] string? key, CancellationToken ct) =>
         Result(await Command(key, "troubleshooting.outcome", new { id, stepId, command }, token => service.RecordTroubleshootingOutcomeAsync(id, stepId, command, token), ct));
@@ -86,11 +92,13 @@ public sealed class MaintenanceRequestsController(
         Result(await Command(key, "appointment.propose", new { id, command }, token => service.ProposeAppointmentAsync(id, command, token), ct));
 
     [HttpPost("{id:long}/appointments/{appointmentId:long}/confirm")]
+    [TenantSelfOrganization]
     public async Task<IActionResult> ConfirmAppointment(long id, long appointmentId, WorkflowVersionCommandDto command,
         [FromHeader(Name = "Idempotency-Key")] string? key, CancellationToken ct) =>
         Result(await Command(key, "appointment.confirm", new { id, appointmentId, command }, token => service.ConfirmAppointmentAsync(id, appointmentId, command, token), ct));
 
     [HttpPost("{id:long}/appointments/{appointmentId:long}/cancel")]
+    [TenantSelfOrganization]
     public async Task<IActionResult> CancelAppointment(long id, long appointmentId, CancelMaintenanceAppointmentDto command,
         [FromHeader(Name = "Idempotency-Key")] string? key, CancellationToken ct) =>
         Result(await Command(key, "appointment.cancel", new { id, appointmentId, command }, token => service.CancelAppointmentAsync(id, appointmentId, command, token), ct));
@@ -106,11 +114,13 @@ public sealed class MaintenanceRequestsController(
         Result(await Command(key, "completion.submit", new { id, command }, token => service.SubmitCompletionAsync(id, command, token), ct));
 
     [HttpPost("{id:long}/completions/{completionId:long}/confirm")]
+    [TenantSelfOrganization]
     public async Task<IActionResult> ConfirmCompletion(long id, long completionId, CompletionDecisionCommandDto command,
         [FromHeader(Name = "Idempotency-Key")] string? key, CancellationToken ct) =>
         Result(await Command(key, "completion.confirm", new { id, completionId, command }, token => service.ConfirmCompletionAsync(id, completionId, command, token), ct));
 
     [HttpPost("{id:long}/completions/{completionId:long}/reopen")]
+    [TenantSelfOrganization]
     public async Task<IActionResult> ReopenCompletion(long id, long completionId, CompletionReasonCommandDto command,
         [FromHeader(Name = "Idempotency-Key")] string? key, CancellationToken ct) =>
         Result(await Command(key, "completion.reopen", new { id, completionId, command }, token => service.ReopenCompletionAsync(id, completionId, command, token), ct));
@@ -124,10 +134,12 @@ public sealed class MaintenanceRequestsController(
     public async Task<IActionResult> CostProjection(long id, CancellationToken ct) => Result(await service.GetCostProjectionAsync(id, ct));
 
     [HttpGet("{id:long}/attachments")]
+    [TenantSelfOrganization]
     public async Task<IActionResult> ListAttachments(long id, CancellationToken ct) =>
         attachments is null ? StatusCode(500) : Result(await attachments.ListAsync(id, ct));
 
     [HttpPost("{id:long}/attachments")]
+    [TenantSelfOrganization]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(104_857_600)]
     public async Task<IActionResult> UploadAttachment(long id, [FromForm] MaintenanceAttachmentPurpose purpose,
@@ -142,12 +154,14 @@ public sealed class MaintenanceRequestsController(
     }
 
     [HttpDelete("{id:long}/attachments/{attachmentId:long}")]
+    [TenantSelfOrganization]
     public async Task<IActionResult> DeleteAttachment(long id, long attachmentId,
         [FromHeader(Name = "Idempotency-Key")] string? key, CancellationToken ct) =>
         attachments is null ? StatusCode(500) : Result(await Command(key, "attachment.delete", new { id, attachmentId },
             token => attachments.DeleteAsync(id, attachmentId, token), ct));
 
     [HttpGet("{id:long}/attachments/{attachmentId:long}/content")]
+    [TenantSelfOrganization]
     public async Task<IActionResult> DownloadAttachment(long id, long attachmentId, CancellationToken ct)
     {
         if (attachments is null) return StatusCode(500);

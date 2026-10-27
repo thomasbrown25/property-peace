@@ -3,7 +3,6 @@ using brownstone_hub_api.Attributes;
 using brownstone_hub_api.Dtos.Stripe;
 using brownstone_hub_api.Filters;
 using brownstone_hub_api.Helpers;
-using brownstone_hub_api.Services.RentPaymentAccess;
 using brownstone_hub_api.Services.StripeRentPayments;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -14,7 +13,7 @@ namespace brownstone_hub_api.Controllers
     [Route("api/stripe/connect-preparation")]
     [Authorize]
     [RequireOrganizationRole("Owner", "Manager")]
-    [RequireRentPaymentActionReady(RentPaymentAction.Configure)]
+    [RequireStripeConnectSetupReady]
     public sealed class StripeConnectPreparationController(IStripeConnectPreparationService service) : ControllerBase
     {
         [HttpGet]

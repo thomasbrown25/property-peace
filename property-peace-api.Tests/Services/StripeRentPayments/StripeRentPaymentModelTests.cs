@@ -13,6 +13,56 @@ namespace brownstone_hub_api.Tests.Services.StripeRentPayments;
 public sealed class StripeRentPaymentModelTests
 {
     [Fact]
+    public void ChargeIdentityMigration_AddsOnlyNullableColumnToFinancialRentPayments()
+    {
+        var migration = new TestableChargeIdentityMigration();
+        var up = migration.BuildUpOperations();
+        var column = up.Should().ContainSingle().Which.Should().BeOfType<AddColumnOperation>().Which;
+        column.Name.Should().Be("ChargeId");
+        column.Schema.Should().Be("financial");
+        column.Table.Should().Be("StripeRentPayments");
+        column.IsNullable.Should().BeTrue();
+        column.MaxLength.Should().Be(255);
+        column.DefaultValue.Should().BeNull();
+        column.ColumnType.Should().Be("nvarchar(255)");
+        migration.BuildDownOperations().Should().ContainSingle().Which.Should().BeOfType<DropColumnOperation>()
+            .Which.Should().Match<DropColumnOperation>(x => x.Name == "ChargeId"
+                && x.Schema == "financial" && x.Table == "StripeRentPayments");
+    }
+
+    [Fact]
+    public void ChargeIdentity_ModelAndSnapshotKeepLegacyRentNullable()
+    {
+        using var context = StripeRentPaymentFlowTests.CreateContext();
+        var entity = context.GetService<IDesignTimeModel>().Model.FindEntityType(typeof(StripeRentPayment));
+        entity!.FindProperty(nameof(StripeRentPayment.ChargeId))!.IsNullable.Should().BeTrue();
+        entity.FindProperty(nameof(StripeRentPayment.ChargeId))!.GetMaxLength().Should().Be(255);
+
+        var snapshotEntity = new DataContextModelSnapshot().Model.FindEntityType(typeof(StripeRentPayment));
+        snapshotEntity.Should().NotBeNull();
+        snapshotEntity!.FindProperty(nameof(StripeRentPayment.ChargeId))!.IsNullable.Should().BeTrue();
+        snapshotEntity.GetSchema().Should().Be("financial");
+        snapshotEntity.GetTableName().Should().Be("StripeRentPayments");
+    }
+
+    private sealed class TestableChargeIdentityMigration : AddStripeRentPaymentChargeIdentity
+    {
+        public IReadOnlyList<MigrationOperation> BuildUpOperations()
+        {
+            var builder = new MigrationBuilder("Microsoft.EntityFrameworkCore.SqlServer");
+            base.Up(builder);
+            return builder.Operations;
+        }
+
+        public IReadOnlyList<MigrationOperation> BuildDownOperations()
+        {
+            var builder = new MigrationBuilder("Microsoft.EntityFrameworkCore.SqlServer");
+            base.Down(builder);
+            return builder.Operations;
+        }
+    }
+
+    [Fact]
     public void FinancialCounters_AreProtectedByDatabaseCheckConstraints()
     {
         using var context = StripeRentPaymentFlowTests.CreateContext();

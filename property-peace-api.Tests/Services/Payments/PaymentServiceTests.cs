@@ -57,7 +57,15 @@ namespace brownstone_hub_api.Tests.Services.Payments
         public async Task AddPayment_ReturnsSuccess_WhenRepositorySucceeds()
         {
             var dto = new AddPaymentDto { Amount = 1200, LeaseId = 1 };
-            _repo.Setup(r => r.AddPayment(dto)).ReturnsAsync([MakePaymentDto(1)]);
+            _context.Properties.Add(new Models.Property { Id = 1, Name = "One", OrganizationId = 10 });
+            _context.Units.Add(new Models.Unit { Id = 1, PropertyId = 1, Name = "One" });
+            _context.Leases.Add(new Models.Lease { Id = 1, UnitId = 1, OrganizationId = 10 });
+            await _context.SaveChangesAsync();
+            _accountMapping.Setup(m => m.GetRentIncomeAccountAsync(10)).ReturnsAsync(new Models.Account
+                { Id = 4, OrganizationId = 10, AccountCode = "4000", AccountType = Enums.EAccountType.Income });
+            _ledger.Setup(l => l.CreateLedgerEntryAsync(10, 4, 1, "Payment", It.IsAny<decimal>(), It.IsAny<DateTime>(), It.IsAny<string>(), It.IsAny<string>()))
+                .ReturnsAsync(new Models.ServiceResponse<Dtos.GeneralLedger.LoadGeneralLedgerEntryDto>());
+            _repo.Setup(r => r.AddPaymentWithIdentity(dto)).ReturnsAsync((MakePaymentDto(1), new List<LoadPaymentDto> { MakePaymentDto(1) }));
 
             var result = await _sut.AddPayment(dto);
 
@@ -70,7 +78,7 @@ namespace brownstone_hub_api.Tests.Services.Payments
         public async Task AddPayment_ReturnsFailure_WhenRepositoryThrows()
         {
             var dto = new AddPaymentDto { Amount = 1200, LeaseId = 1 };
-            _repo.Setup(r => r.AddPayment(dto)).ThrowsAsync(new Exception("db error"));
+            _repo.Setup(r => r.AddPaymentWithIdentity(dto)).ThrowsAsync(new Exception("db error"));
 
             var result = await _sut.AddPayment(dto);
 
@@ -84,14 +92,19 @@ namespace brownstone_hub_api.Tests.Services.Payments
             var now = new DateTimeOffset(2026, 8, 11, 10, 0, 0, TimeSpan.Zero);
             _context.Properties.Add(new Models.Property { Id = 80, Name = "Authorized", OrganizationId = 10 });
             _context.Units.Add(new Models.Unit { Id = 81, PropertyId = 80, Name = "Main" });
-            _context.Leases.Add(new Models.Lease { Id = 82, UnitId = 81 });
+            _context.Leases.Add(new Models.Lease { Id = 82, UnitId = 81, OrganizationId = 10 });
             await _context.SaveChangesAsync();
+            _accountMapping.Setup(m => m.GetRentIncomeAccountAsync(10)).ReturnsAsync(new Models.Account
+                { Id = 4, OrganizationId = 10, AccountCode = "4000", AccountType = Enums.EAccountType.Income });
+            _ledger.Setup(l => l.CreateLedgerEntryAsync(10, 4, It.IsAny<long>(), "Payment", It.IsAny<decimal>(), It.IsAny<DateTime>(), It.IsAny<string>(), It.IsAny<string>()))
+                .ReturnsAsync(new Models.ServiceResponse<Dtos.GeneralLedger.LoadGeneralLedgerEntryDto>());
             var dto = new AddPaymentDto
             {
                 LeaseId = 82, Amount = 100m, PaymentDate = now.AddYears(-1).UtcDateTime,
                 Method = "Manual Entry", Status = "Completed"
             };
-            _repo.Setup(r => r.AddPayment(dto)).ReturnsAsync([MakePaymentDto(91, 100m)]);
+            var inserted = new LoadPaymentDto { Id = 91, LeaseId = 82, Amount = 100m, Status = "Completed", PaymentDate = now.UtcDateTime };
+            _repo.Setup(r => r.AddPaymentWithIdentity(dto)).ReturnsAsync((inserted, new List<LoadPaymentDto> { inserted }));
             var service = new PaymentService(_repo.Object, _accountMapping.Object, _ledger.Object, _context,
                 Mock.Of<ILogger<PaymentService>>(), new ActivationOccurrenceRecorder(_context, new FixedTime(now)), new FixedTime(now));
 
@@ -104,7 +117,8 @@ namespace brownstone_hub_api.Tests.Services.Payments
             occurrence.SourceEventId.Should().Be("91");
             occurrence.OccurredAtUtc.Should().Be(now.UtcDateTime);
 
-            _repo.Setup(r => r.AddPayment(It.Is<AddPaymentDto>(x => x.Amount == 0))).ReturnsAsync([MakePaymentDto(92, 0m)]);
+            _repo.Setup(r => r.AddPaymentWithIdentity(It.Is<AddPaymentDto>(x => x.Amount == 0)))
+                .ReturnsAsync((MakePaymentDto(92, 0m), new List<LoadPaymentDto> { MakePaymentDto(92, 0m) }));
             await service.AddManualPayment(new AddPaymentDto { LeaseId = 82, Amount = 0, Status = "Completed" }, 10);
             _context.ActivationMilestoneOccurrences.Should().ContainSingle();
         }
@@ -325,9 +339,10 @@ namespace brownstone_hub_api.Tests.Services.Payments
         [Fact]
         public async Task GetTenantLeasePaymentHistory_UsesServerAuthorizedTenantLeaseOrganization()
         {
+            _context.Organizations.Add(new Models.Organization { Id = 10, Name = "Authorized", IsActive = true });
             _context.Properties.Add(new Models.Property { Id = 81, Name = "Authorized", OrganizationId = 10 });
             _context.Units.Add(new Models.Unit { Id = 82, PropertyId = 81, Name = "Main" });
-            _context.Leases.Add(new Models.Lease { Id = 83, UnitId = 82 });
+            _context.Leases.Add(new Models.Lease { Id = 83, UnitId = 82, OrganizationId = 10 });
             _context.Tenants.Add(new Models.Tenant
             {
                 Id = 84, UserId = 85, OrganizationId = 10, Firstname = "Safe", Lastname = "Tenant"

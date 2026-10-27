@@ -1,5 +1,6 @@
 import apiClient from '../services/apiClient';
 import { ApiResponse } from '../types';
+import type { RentalMode } from '../features/properties/rentalMode';
 
 export interface Property {
   id?: string | number;
@@ -16,6 +17,8 @@ export interface Property {
 export interface Unit {
   id?: string | number;
   name?: string;
+  rentalMode?: RentalMode;
+  RentalMode?: RentalMode;
   lease?: any;
   activeLease?: any;
   [key: string]: any;
@@ -39,10 +42,10 @@ class PropertyAPI {
     return response.data ?? [];
   }
 
-  async createProperty(property: Partial<Property>): Promise<Property> {
+  async createProperty(property: Partial<Property>, imageUri?: string | null, imageMimeType = 'image/jpeg'): Promise<Property> {
     const formData = new FormData();
     formData.append('propertyData', JSON.stringify(property));
-    formData.append('files', '' as any);
+    if (imageUri) formData.append('files', { uri: imageUri, name: `property-image.${imageMimeType === 'image/png' ? 'png' : imageMimeType === 'image/webp' ? 'webp' : 'jpg'}`, type: imageMimeType } as any);
     const response = await this.client.post<ApiResponse<Property>>('/api/Property', formData);
     return response.data;
   }
@@ -50,7 +53,6 @@ class PropertyAPI {
   async updateProperty(propertyId: string | number, property: Partial<Property>): Promise<Property> {
     const formData = new FormData();
     formData.append('propertyData', JSON.stringify({ ...property, id: propertyId }));
-    formData.append('files', '' as any);
     const response = await this.client.post<ApiResponse<Property>>('/api/Property', formData);
     return response.data;
   }

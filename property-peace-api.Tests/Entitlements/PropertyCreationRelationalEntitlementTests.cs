@@ -200,12 +200,15 @@ public sealed class PropertyCreationRelationalEntitlementTests
                     YearBuilt INTEGER NOT NULL DEFAULT 0, LotSize REAL NOT NULL DEFAULT 0,
                     TargetRent TEXT NOT NULL DEFAULT '0', TargetDeposit TEXT NOT NULL DEFAULT '0',
                     MainImageUrl TEXT NOT NULL DEFAULT '', DateListed TEXT NOT NULL,
-                    IsDeleted INTEGER NOT NULL DEFAULT 0, DeletedAt TEXT, IsOccupied INTEGER NOT NULL DEFAULT 0);
+                    TimeZoneId TEXT, IsDeleted INTEGER NOT NULL DEFAULT 0, DeletedAt TEXT,
+                    IsOccupied INTEGER NOT NULL DEFAULT 0);
                 CREATE TABLE Units (
                     Id INTEGER PRIMARY KEY AUTOINCREMENT, Name TEXT NOT NULL DEFAULT '',
                     Bedrooms TEXT NOT NULL DEFAULT '', Baths TEXT NOT NULL DEFAULT '', Type TEXT NOT NULL DEFAULT '',
                     SquareFeet INTEGER NOT NULL DEFAULT 0, IsOccupied INTEGER NOT NULL DEFAULT 0,
-                    PropertyId INTEGER NOT NULL, OrganizationId INTEGER);
+                    PropertyId INTEGER NOT NULL, OrganizationId INTEGER,
+                    RentalMode TEXT NOT NULL DEFAULT 'LongTerm'
+                        CHECK (RentalMode IN ('LongTerm', 'ShortTerm')));
                 """);
             return database;
         }

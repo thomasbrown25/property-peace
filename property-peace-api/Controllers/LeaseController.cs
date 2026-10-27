@@ -16,6 +16,7 @@ using brownstone_hub_api.Dtos.Notification;
 using brownstone_hub_api.Repositories.Tenants;
 using brownstone_hub_api.Helpers;
 using brownstone_hub_api.Data;
+using brownstone_hub_api.Middleware;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
@@ -176,6 +177,7 @@ namespace brownstone_hub_api.Controllers
 
         [Authorize(Roles = "Tenant,Admin")]
         [HttpGet("tenant/my-leases")]
+        [TenantSelfOrganization(allowWithoutOrganization: true)]
         public async Task<IActionResult> GetMyLeases()
         {
             // Get current user ID from JWT token (try multiple claim names)
@@ -227,6 +229,8 @@ namespace brownstone_hub_api.Controllers
             }
 
             var response = await _leaseService.GetLeasesByTenantUserId(userId.Value);
+            if (response.Success && response.Data != null && HttpContext.Items.TryGetValue("OrganizationId", out var scope) && scope is long organizationId)
+                response.Data = response.Data.Where(lease => lease.OrganizationId == organizationId).ToList();
 
             if (!response.Success)
                 return StatusCode(response.StatusCode, new
@@ -240,6 +244,7 @@ namespace brownstone_hub_api.Controllers
 
         [Authorize(Roles = "Tenant,Admin")]
         [HttpGet("tenant/my-lease")]
+        [TenantSelfOrganization(allowWithoutOrganization: true)]
         public async Task<IActionResult> GetMyLease()
         {
             long? userId = null;
@@ -269,6 +274,8 @@ namespace brownstone_hub_api.Controllers
                 return Unauthorized(new { Message = "User ID not found in token" });
 
             var leasesResponse = await _leaseService.GetLeasesByTenantUserId(userId.Value);
+            if (leasesResponse.Success && leasesResponse.Data != null && HttpContext.Items.TryGetValue("OrganizationId", out var scope) && scope is long organizationId)
+                leasesResponse.Data = leasesResponse.Data.Where(lease => lease.OrganizationId == organizationId).ToList();
             if (!leasesResponse.Success || leasesResponse.Data == null || !leasesResponse.Data.Any())
                 return NotFound(new { Message = "No lease found", Errors = new { Details = "No active lease found for this tenant" } });
 
@@ -307,6 +314,34 @@ namespace brownstone_hub_api.Controllers
                     lease.OrganizationId == organizationId && !lease.IsDeleted && lease.IsActive)
                 .OrderBy(lease => lease.StartDate)
                 .Select(lease => new { lease.Id, lease.UnitId, lease.StartDate, lease.EndDate, lease.IsActive })
+                .ToListAsync(cancellationToken);
+            return Ok(new { success = true, data = leases });
+        }
+
+        // Property lease workspace needs both current and historical contracts.
+        [Authorize(Roles = "Landlord,Admin")]
+        [HttpGet("property/{propertyId:long}/all")]
+        public async Task<IActionResult> GetAllPropertyLeases(long propertyId, CancellationToken cancellationToken)
+        {
+            var organizationId = this.GetCurrentOrganizationIdOrForbid();
+            if (!await RequireLeaseManagementPermissionAsync(cancellationToken)) return Forbid();
+
+            var propertyExists = await _dataContext.Properties.AsNoTracking().AnyAsync(property =>
+                property.Id == propertyId && property.OrganizationId == organizationId && !property.IsDeleted,
+                cancellationToken);
+            if (!propertyExists) return NotFound(new { message = "Property not found" });
+
+            var leases = await _dataContext.Leases.AsNoTracking()
+                .Where(lease => lease.Unit.PropertyId == propertyId &&
+                    lease.Unit.Property.OrganizationId == organizationId &&
+                    lease.OrganizationId == organizationId && !lease.IsDeleted && !lease.Unit.Property.IsDeleted)
+                .OrderByDescending(lease => lease.StartDate)
+                .ThenByDescending(lease => lease.Id)
+                .Select(lease => new {
+                    lease.Id, lease.UnitId, lease.Name, lease.StartDate, lease.EndDate,
+                    lease.RentAmount, lease.IsActive,
+                    IsDrafted = lease.LeaseAgreement != null && lease.LeaseAgreement.IsDrafted == true
+                })
                 .ToListAsync(cancellationToken);
             return Ok(new { success = true, data = leases });
         }

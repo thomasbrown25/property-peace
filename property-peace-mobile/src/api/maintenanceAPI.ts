@@ -29,6 +29,9 @@ export interface CreateMaintenanceRequest {
   signals: MaintenanceSignal[]; hasPhotos: boolean; preferredWindows: PreferredWindow[];
 }
 export interface LocalMedia { uri: string; fileName: string; mimeType: string; fileSize?: number; type: 'image' | 'video'; idempotencyKey: string }
+export interface MaintenanceAgentMessage { role: 'user' | 'assistant'; content: string; photoBase64?: string; photoMimeType?: string }
+export interface MaintenanceAgentReply { message: string; done: boolean; photoRequested: boolean; maintenanceRequest?: MaintenanceRequest | null }
+export interface MaintenanceAgentContext { propertyId?: number; propertyName?: string; unitId?: number; unitName?: string }
 export interface MaintenanceAssigneeOption { id: number; label: string; detail?: string; type: 'OrganizationMember' | 'Vendor' }
 export type MaintenanceAssignmentDirectorySource = 'members' | 'vendors';
 export interface MaintenanceAssignmentDirectory { options: MaintenanceAssigneeOption[]; failedSources: MaintenanceAssignmentDirectorySource[] }
@@ -41,14 +44,29 @@ const safeEvidenceExtension = (contentType: string) => ({ 'image/jpeg': '.jpg', 
 class MaintenanceAPI {
   private client = apiClient;
 
-  async getCurrent(_tenant = false): Promise<MaintenanceRequest[]> { return (await this.listScoped()).filter(item => !isClosedStatus(item.status ?? item.Status)); }
-  async getHistory(_tenant = false): Promise<MaintenanceRequest[]> { return (await this.listScoped()).filter(item => isClosedStatus(item.status ?? item.Status)); }
-  private async listScoped(): Promise<MaintenanceRequest[]> { return unwrap(await this.client.get<ApiResponse<MaintenanceRequest[]> | MaintenanceRequest[]>('/api/maintenance-requests')) || []; }
+  async getCurrent(_tenant = false): Promise<MaintenanceRequest[]> { return (await this.getAll()).filter(item => !isClosedStatus(item.status ?? item.Status)); }
+  async getHistory(_tenant = false): Promise<MaintenanceRequest[]> { return (await this.getAll()).filter(item => isClosedStatus(item.status ?? item.Status)); }
+  async getAll(): Promise<MaintenanceRequest[]> { return unwrap(await this.client.get<ApiResponse<MaintenanceRequest[]> | MaintenanceRequest[]>('/api/maintenance-requests')) || []; }
   async getDetail(id: string | number): Promise<MaintenanceRequest> {
     const detail = await this.client.get<MaintenanceRequest>(`/api/maintenance-requests/${id}`);
     return { ...detail, activityEvents: detail.activityEvents ?? detail.activities ?? detail.ActivityEvents ?? detail.Activities ?? [], attachments: detail.attachments ?? detail.Attachments ?? [] };
   }
   async createTenantRequest(request: CreateMaintenanceRequest, idempotencyKey: string): Promise<MaintenanceRequest> { return this.client.post('/api/maintenance-requests', request, mutationConfig(idempotencyKey)); }
+  async createRequest(request: CreateMaintenanceRequest, idempotencyKey: string): Promise<MaintenanceRequest> { return this.client.post('/api/maintenance-requests', request, mutationConfig(idempotencyKey)); }
+  async getTenantAgentSettings(): Promise<boolean> {
+    const response = unwrap(await this.client.get<ApiResponse<{ isMaintenanceAgentEnabled: boolean }>>('/api/maintenance-agent/settings'));
+    return response.isMaintenanceAgentEnabled;
+  }
+  async chatWithTenantAgent(messages: MaintenanceAgentMessage[]): Promise<MaintenanceAgentReply> {
+    return unwrap(await this.client.post<ApiResponse<MaintenanceAgentReply>>('/api/maintenance-agent/chat', { messages }));
+  }
+  async getLandlordAgentSettings(): Promise<boolean> {
+    const response = unwrap(await this.client.get<ApiResponse<{ isMaintenanceAgentEnabled: boolean }>>('/api/landlord-maintenance-agent/settings'));
+    return response.isMaintenanceAgentEnabled;
+  }
+  async chatWithLandlordAgent(messages: MaintenanceAgentMessage[], context: MaintenanceAgentContext): Promise<MaintenanceAgentReply> {
+    return unwrap(await this.client.post<ApiResponse<MaintenanceAgentReply>>('/api/landlord-maintenance-agent/chat', { messages, ...context }));
+  }
   async getTenantLeaseScopes(): Promise<any[]> { return unwrap(await this.client.get<ApiResponse<any[]>>('/api/Lease/tenant/my-leases')) || []; }
   async getAssignmentDirectory(): Promise<MaintenanceAssignmentDirectory> {
     const organizationId = await storageService.getCurrentOrganizationId();
@@ -88,6 +106,7 @@ class MaintenanceAPI {
     return result.uri;
   }
   async deleteDownloadedAttachment(uri: string): Promise<void> { await FileSystem.deleteAsync(uri, { idempotent: true }); }
+  async changeStatus(id: string | number, status: string, expectedStatus: string, idempotencyKey: string) { return this.client.post(`/api/maintenance-requests/${id}/status`, { status, expectedStatus }, mutationConfig(idempotencyKey)); }
   async acknowledge(id: string | number, idempotencyKey: string) { return this.client.post(`/api/maintenance-requests/${id}/acknowledge`, {}, mutationConfig(idempotencyKey)); }
   async troubleshoot(id: string | number, stepCode: string, cycleKey: string, safety: { isWorsening: boolean; hasNewEmergency: boolean }, idempotencyKey: string) {
     return this.client.post(`/api/maintenance-requests/${id}/percy/troubleshooting`, { resolutionCycleKey: cycleKey, stepKey: `${stepCode}-${idempotencyKey}`, stepCode, ...safety }, mutationConfig(idempotencyKey));

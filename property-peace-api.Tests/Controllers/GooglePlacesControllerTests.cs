@@ -104,6 +104,25 @@ public sealed class GooglePlacesControllerTests
             .Which.Message.Should().Be("Address suggestions are unavailable. Continue entering it manually.");
     }
 
+    [Fact]
+    public async Task StreetView_RequiresAddressAndOnlyReturnsVerifiedImage()
+    {
+        var service = new Mock<IGooglePlacesService>();
+        var controller = Create(service.Object);
+        (await controller.StreetView(" ", CancellationToken.None)).Should().BeOfType<BadRequestObjectResult>();
+        service.VerifyNoOtherCalls();
+
+        service.Setup(value => value.GetStreetViewImageAsync("123 Main St", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new byte[] { 1, 2, 3 });
+        var result = await controller.StreetView(" 123 Main St ", CancellationToken.None);
+        result.Should().BeOfType<OkObjectResult>().Which.Value
+            .Should().BeOfType<brownstone_hub_api.Models.ServiceResponse<string>>().Which.Data
+            .Should().Be(Convert.ToBase64String(new byte[] { 1, 2, 3 }));
+        service.Setup(value => value.GetStreetViewImageAsync("unknown", It.IsAny<CancellationToken>()))
+            .ReturnsAsync((byte[]?)null);
+        (await controller.StreetView("unknown", CancellationToken.None)).Should().BeOfType<NotFoundResult>();
+    }
+
     private static GooglePlacesController Create(IGooglePlacesService service) =>
         new(service, NullLogger<GooglePlacesController>.Instance);
 }

@@ -21,7 +21,17 @@ namespace brownstone_hub_api.Controllers
             {
                 ContractResolver = new Newtonsoft.Json.Serialization.CamelCasePropertyNamesContractResolver()
             };
-            var newPropertyDto = Newtonsoft.Json.JsonConvert.DeserializeObject<UpdatePropertyDto>(propertyData, settings);
+            UpdatePropertyDto? newPropertyDto;
+            try
+            {
+                newPropertyDto = Newtonsoft.Json.JsonConvert.DeserializeObject<UpdatePropertyDto>(propertyData, settings);
+            }
+            catch (Newtonsoft.Json.JsonException)
+            {
+                return BadRequest(new { Message = "Invalid property data" });
+            }
+            if (newPropertyDto is null)
+                return BadRequest(new { Message = "Invalid property data" });
             var response = await _propertyService.AddOrUpdateProperty(newPropertyDto, files, cancellationToken);
 
             if (!response.Success)

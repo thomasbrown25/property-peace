@@ -5,6 +5,7 @@ using brownstone_hub_api.Data;
 using brownstone_hub_api.Dtos.Maintenance;
 using brownstone_hub_api.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Http;
 
 namespace brownstone_hub_api.Services.Maintenance;
 
@@ -60,7 +61,8 @@ public sealed record MaintenanceAttachmentDownload(Stream Content, string Conten
 
 public sealed class MaintenanceAttachmentService(DataContext db, IMaintenanceActorAccessor actors,
     IMaintenanceAttachmentStorage storage, TimeProvider clock,
-    IMaintenanceTransactionSideEffects sideEffects) : IMaintenanceAttachmentService
+    IMaintenanceTransactionSideEffects sideEffects,
+    IHttpContextAccessor? httpContextAccessor = null) : IMaintenanceAttachmentService
 {
     private static readonly Dictionary<string, (MaintenanceAttachmentMediaType Media, long Max, string[] Extensions)> Allowed = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -305,7 +307,13 @@ public sealed class MaintenanceAttachmentService(DataContext db, IMaintenanceAct
     {
         var actor = await actors.GetCurrentAsync(ct);
         if (actor is null) return (null, null, false);
+        // The tenant-self middleware validates the selected organization against active leases.
+        // A missing validated selection in an HTTP tenant request is not an all-org grant.
+        long? selectedOrg = actor.IsTenant && httpContextAccessor?.HttpContext is { } context
+            ? context.Items["OrganizationId"] is long organizationId && organizationId > 0 ? organizationId : 0L
+            : null;
         var request = await db.MaintenanceRequests.Include(x => x.Property).SingleOrDefaultAsync(x => x.Id == id &&
+            (selectedOrg == null || x.OrganizationId == selectedOrg) &&
             (x.Property.LandlordId == actor.UserId ||
              x.OrganizationId != null && db.OrganizationMembers.Any(m => m.OrganizationId == x.OrganizationId && m.UserId == actor.UserId && m.IsActive && m.CanManageMaintenance) ||
              x.AssignedToType == EAssignedToType.Vendor && x.VendorId != null && x.OrganizationId != null &&

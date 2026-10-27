@@ -28,6 +28,7 @@ namespace brownstone_hub_api.Data
             RejectAppendOnly<ActivationMilestoneOccurrence>();
             RejectAppendOnly<RentPaymentAccessAuditEvent>();
             RejectInvalidMessageDeliveryEvidenceMutation();
+            RejectShortStayReservationMutation();
             return base.SaveChanges(acceptAllChangesOnSuccess);
         }
 
@@ -42,6 +43,7 @@ namespace brownstone_hub_api.Data
             RejectAppendOnly<ActivationMilestoneOccurrence>();
             RejectAppendOnly<RentPaymentAccessAuditEvent>();
             RejectInvalidMessageDeliveryEvidenceMutation();
+            RejectShortStayReservationMutation();
             var now = DateTime.Now;
 
             foreach (var entry in ChangeTracker.Entries<MaintenanceRequest>())
@@ -105,6 +107,67 @@ namespace brownstone_hub_api.Data
             static string ToCamel(string s) =>
                 string.IsNullOrEmpty(s) ? s : char.ToLowerInvariant(s[0]) + s[1..];
         }
+
+        private void RejectShortStayReservationMutation()
+        {
+            RejectAppendOnly<ShortStayReservationNight>();
+            RejectImmutableChanges<ShortStayReservation>(nameof(ShortStayReservation.Status),
+                nameof(ShortStayReservation.StripePaymentIntentId), nameof(ShortStayReservation.PaymentConfirmedAtUtc),
+                nameof(ShortStayReservation.UpdatedAtUtc), nameof(ShortStayReservation.RowVersion));
+
+            foreach (var entry in ChangeTracker.Entries<ShortStayReservation>())
+            {
+                if (entry.State == EntityState.Added)
+                {
+                    var r = entry.Entity;
+                    var nights = r.Nights.Select(n => (n.UnitId, n.Date)).ToHashSet();
+                    var claims = r.Claims.Select(c => (c.UnitId, c.Date)).ToHashSet();
+                    if (r.Status != ShortStayReservationStatus.Held ||
+                        r.Nights.Count != nights.Count ||
+                        nights.Count != r.CheckOutDate.DayNumber - r.CheckInDate.DayNumber ||
+                        nights.Any(n => n.UnitId != r.UnitId || n.Date < r.CheckInDate || n.Date >= r.CheckOutDate) ||
+                        r.DiscountCents < 0 || r.Nights.Sum(n => n.PriceCents) - r.DiscountCents != r.NightlySubtotalCents ||
+                        claims.Count != r.Claims.Count || !claims.SetEquals(nights) ||
+                        r.TotalCents > ShortStayReservation.MaximumUsdPaymentCents)
+                        throw new InvalidOperationException("A new reservation requires a complete, consistent night quote and live claims.");
+                }
+                if (entry.State == EntityState.Modified)
+                {
+                    var status = entry.Property(x => x.Status);
+                    var version = entry.Property(x => x.RowVersion);
+                    var changedStatus = status.IsModified && status.OriginalValue != status.CurrentValue;
+                    if (!Enum.IsDefined(entry.Entity.Status) ||
+                        (changedStatus && (!IsAllowedShortStayTransition(status.OriginalValue, status.CurrentValue) ||
+                                           entry.Entity.RowVersion != version.OriginalValue + 1)) ||
+                        (!changedStatus && version.IsModified && entry.Entity.RowVersion != version.OriginalValue))
+                        throw new InvalidOperationException("Invalid reservation status transition or optimistic version.");
+                }
+            }
+            foreach (var claim in ChangeTracker.Entries<ShortStayOccupancyClaim>().Where(e => e.State == EntityState.Deleted))
+            {
+                var reservation = ChangeTracker.Entries<ShortStayReservation>()
+                    .FirstOrDefault(e => e.Entity.Id == claim.Entity.ReservationId)?.Entity;
+                var status = reservation?.Status ?? ShortStayReservations.AsNoTracking()
+                    .Where(r => r.Id == claim.Entity.ReservationId).Select(r => r.Status).Single();
+                if (status is not (ShortStayReservationStatus.Failed or ShortStayReservationStatus.Expired or ShortStayReservationStatus.Refunded))
+                    throw new InvalidOperationException("Active or unresolved reservations cannot release occupancy claims.");
+            }
+            if (ChangeTracker.Entries<ShortStayOccupancyClaim>().Any(e => e.State == EntityState.Modified))
+                throw new InvalidOperationException("Occupancy claims cannot be reassigned.");
+        }
+
+        private static bool IsAllowedShortStayTransition(ShortStayReservationStatus from, ShortStayReservationStatus to) =>
+            from switch
+            {
+                ShortStayReservationStatus.Held => to is ShortStayReservationStatus.PendingPayment or ShortStayReservationStatus.Expired or ShortStayReservationStatus.Failed,
+                ShortStayReservationStatus.PendingPayment => to is ShortStayReservationStatus.Processing or ShortStayReservationStatus.Confirmed or ShortStayReservationStatus.Failed or ShortStayReservationStatus.RefundRequired,
+                ShortStayReservationStatus.Processing => to is ShortStayReservationStatus.Confirmed or ShortStayReservationStatus.Failed or ShortStayReservationStatus.RefundRequired,
+                ShortStayReservationStatus.Confirmed => to is ShortStayReservationStatus.RefundRequired or ShortStayReservationStatus.Disputed,
+                ShortStayReservationStatus.RefundRequired => to is ShortStayReservationStatus.Refunded or ShortStayReservationStatus.Disputed,
+                ShortStayReservationStatus.Disputed => to is ShortStayReservationStatus.Refunded or ShortStayReservationStatus.Confirmed or ShortStayReservationStatus.RefundRequired,
+                ShortStayReservationStatus.Expired or ShortStayReservationStatus.Failed => to == ShortStayReservationStatus.RefundRequired,
+                _ => false
+            };
 
         private void RejectScreeningDeletionEvidenceMutation()
         {
@@ -210,6 +273,7 @@ namespace brownstone_hub_api.Data
         public DbSet<UserSettings> UserSettings => Set<UserSettings>();
         public DbSet<NotificationSetting> NotificationSettings => Set<NotificationSetting>();
         public DbSet<Notification> Notifications => Set<Notification>();
+        public DbSet<ExpoPushToken> ExpoPushTokens => Set<ExpoPushToken>();
         public DbSet<Announcement> Announcements => Set<Announcement>();
         public DbSet<AnnouncementRecipient> AnnouncementRecipients => Set<AnnouncementRecipient>();
         public DbSet<Admin> Admins => Set<Admin>();
@@ -217,6 +281,19 @@ namespace brownstone_hub_api.Data
         public DbSet<Property> Properties => Set<Property>();
         public DbSet<PropertyImage> PropertyImages => Set<PropertyImage>();
         public DbSet<Unit> Units => Set<Unit>();
+        public DbSet<ShortStayListing> ShortStayListings => Set<ShortStayListing>();
+        public DbSet<ShortStayGuidebookDraft> ShortStayGuidebookDrafts => Set<ShortStayGuidebookDraft>();
+        public DbSet<ShortStayListingPhoto> ShortStayListingPhotos => Set<ShortStayListingPhoto>();
+        public DbSet<ShortStayBlock> ShortStayBlocks => Set<ShortStayBlock>();
+        public DbSet<ShortStayRefundAttempt> ShortStayRefundAttempts => Set<ShortStayRefundAttempt>();
+        public DbSet<ShortStayReservation> ShortStayReservations => Set<ShortStayReservation>();
+        public DbSet<ShortStayReservationNight> ShortStayReservationNights => Set<ShortStayReservationNight>();
+        public DbSet<ShortStayOccupancyClaim> ShortStayOccupancyClaims => Set<ShortStayOccupancyClaim>();
+        public DbSet<ShortStayIcalSubscription> ShortStayIcalSubscriptions => Set<ShortStayIcalSubscription>();
+        public DbSet<ShortStayIcalOccurrence> ShortStayIcalOccurrences => Set<ShortStayIcalOccurrence>();
+        public DbSet<ShortStayNightlyRateOverride> ShortStayNightlyRateOverrides => Set<ShortStayNightlyRateOverride>();
+        public DbSet<ShortStayCollectionApplication> ShortStayCollectionApplications => Set<ShortStayCollectionApplication>();
+        public DbSet<ShortStayCollectionApplicationProperty> ShortStayCollectionApplicationProperties => Set<ShortStayCollectionApplicationProperty>();
         public DbSet<Tenant> Tenants => Set<Tenant>();
         public DbSet<TenantLease> TenantLeases => Set<TenantLease>();
         public DbSet<TenantInvite> TenantInvites => Set<TenantInvite>();

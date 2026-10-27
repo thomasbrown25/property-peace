@@ -1,5 +1,6 @@
 using brownstone_hub_api.Dtos.Lease;
 using brownstone_hub_api.Models;
+using brownstone_hub_api.Enums;
 using brownstone_hub_api.Repositories.Leases;
 using brownstone_hub_api.Tests.Helpers;
 using FluentAssertions;
@@ -10,6 +11,49 @@ namespace brownstone_hub_api.Tests.Repositories.Leases;
 
 public sealed class LeaseRepositoryAutoRenewTests : IDisposable
 {
+    [Fact]
+    public async Task UpdateLease_rejects_short_term_unit_even_for_existing_historical_lease()
+    {
+        _context.Properties.Add(new Property { Id = 1000, OrganizationId = 7 });
+        _context.Units.Add(new Unit { Id = 101, PropertyId = 1000, OrganizationId = 7, RentalMode = ERentalMode.ShortTerm });
+        _context.Leases.Add(Lease(1, DateTime.Today.AddDays(-10), -1, -1));
+        await _context.SaveChangesAsync();
+        var repository = new LeaseRepository(_context, NullLogger<LeaseRepository>.Instance, MapperFactory.Create());
+        await Assert.ThrowsAsync<InvalidOperationException>(() => repository.UpdateLease(new UpdateLeaseDto
+        {
+            Id = 1, UnitId = 101, PropertyId = 1000, IsDrafted = true
+        }));
+        _context.Leases.Single(l => l.Id == 1).UpdatedAt.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Month_to_month_renewal_does_not_extend_short_term_unit()
+    {
+        var end = DateTime.Today;
+        _context.Properties.Add(new Property { Id = 1000, OrganizationId = 7 });
+        _context.Units.Add(new Unit { Id = 101, PropertyId = 1000, OrganizationId = 7, RentalMode = ERentalMode.ShortTerm });
+        _context.Leases.Add(Lease(1, end, -1, -1));
+        await _context.SaveChangesAsync();
+        var repository = new LeaseRepository(_context, NullLogger<LeaseRepository>.Instance, MapperFactory.Create());
+        Assert.False(await repository.ExtendMonthToMonthLeaseEndDateAsync(1, 7, end, end.AddMonths(1)));
+        _context.Leases.Single(l => l.Id == 1).EndDate.Should().Be(end);
+    }
+
+    [Fact]
+    public async Task Fixed_term_renewal_does_not_create_lease_on_short_term_unit()
+    {
+        var end = DateTime.Today;
+        _context.Properties.Add(new Property { Id = 1000, OrganizationId = 7 });
+        _context.Units.Add(new Unit { Id = 101, PropertyId = 1000, OrganizationId = 7, RentalMode = ERentalMode.ShortTerm });
+        _context.Leases.Add(Lease(1, end, 12, 12));
+        await _context.SaveChangesAsync();
+        var repository = new LeaseRepository(_context, NullLogger<LeaseRepository>.Instance, MapperFactory.Create());
+        Assert.False(await repository.RenewFixedTermLeaseAsync(1, 7, end, new UpdateLeaseDto
+        {
+            UnitId = 101, StartDate = end.AddDays(1), EndDate = end.AddYears(1)
+        }));
+        _context.Leases.Count().Should().Be(1);
+    }
     private readonly Data.DataContext _context = DbContextFactory.Create();
 
     public void Dispose() => _context.Dispose();
@@ -35,6 +79,8 @@ public sealed class LeaseRepositoryAutoRenewTests : IDisposable
     public async Task ExtendMonthToMonthLeaseEndDateAsync_UpdatesOnlyExpectedOrganizationAndEndDate()
     {
         var currentEnd = new DateTime(2026, 8, 1);
+        _context.Properties.Add(new Property { Id = 1000, OrganizationId = 7 });
+        _context.Units.Add(new Unit { Id = 101, PropertyId = 1000, OrganizationId = 7 });
         _context.Leases.Add(Lease(1, currentEnd, -1, -1));
         await _context.SaveChangesAsync();
         var repository = new LeaseRepository(_context, NullLogger<LeaseRepository>.Instance, MapperFactory.Create());

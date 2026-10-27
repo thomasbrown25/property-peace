@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import TenantAPI from '../../api/tenantAPI';
+import { emptyTenantForm, tenantPayload, validateTenant } from '../../features/tenants/tenantForm';
+import TenantAssociationFields from './TenantAssociationFields';
 import { useAppTheme } from '../../theme/AppTheme';
 
 export default function AddTenantScreen() {
@@ -9,17 +11,20 @@ export default function AddTenantScreen() {
   const dark = mode === 'dark';
   const navigation = useNavigation<any>();
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ firstName: '', lastName: '', email: '', phoneNumber: '' });
+  const [associationsReady, setAssociationsReady] = useState(false);
+  const [form, setForm] = useState(emptyTenantForm);
   const update = (key: string, value: string) => setForm((current) => ({ ...current, [key]: value }));
 
   const save = async () => {
-    if (!form.firstName.trim() || !form.lastName.trim() || !form.email.trim()) {
-      Alert.alert('Missing info', 'First name, last name, and email are required.');
+    if (saving || !associationsReady) return;
+    const problem = validateTenant(form);
+    if (problem) {
+      Alert.alert('Check tenant details', problem);
       return;
     }
     setSaving(true);
     try {
-      await TenantAPI.createTenant(form);
+      await TenantAPI.createTenant(tenantPayload(form));
       Alert.alert('Tenant added', 'The tenant was added successfully.');
       navigation.goBack();
     } catch (error: any) {
@@ -33,13 +38,14 @@ export default function AddTenantScreen() {
     <ScrollView style={[styles.container, dark && { backgroundColor: colors.background }]} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
       <Text style={[styles.eyebrow, dark && { color: colors.accent }]}>NEW TENANT</Text>
       <Text style={[styles.title, dark && { color: colors.text }]}>Add a tenant</Text>
-      <Text style={[styles.helper, dark && { color: colors.muted }]}>Capture contact details here. Portal invitations and account setup can be handled on the web.</Text>
+      <Text style={[styles.helper, dark && { color: colors.muted }]}>Add contact details and assign a property and unit, with an optional lease. This saves a tenant record, not a portal account. Open the tenant profile after saving to send a portal invitation.</Text>
       <Text style={[styles.sectionLabel, dark && { color: colors.muted }]}>CONTACT DETAILS</Text>
-      <TextInput style={[styles.input, dark && { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]} placeholderTextColor={dark ? colors.muted : undefined} placeholder="First name" value={form.firstName} onChangeText={(v) => update('firstName', v)} />
-      <TextInput style={[styles.input, dark && { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]} placeholderTextColor={dark ? colors.muted : undefined} placeholder="Last name" value={form.lastName} onChangeText={(v) => update('lastName', v)} />
-      <TextInput style={[styles.input, dark && { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]} placeholderTextColor={dark ? colors.muted : undefined} placeholder="Email" autoCapitalize="none" keyboardType="email-address" value={form.email} onChangeText={(v) => update('email', v)} />
-      <TextInput style={[styles.input, dark && { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]} placeholderTextColor={dark ? colors.muted : undefined} placeholder="Phone" keyboardType="phone-pad" value={form.phoneNumber} onChangeText={(v) => update('phoneNumber', v)} />
-      <TouchableOpacity style={[styles.primaryButton, dark && { backgroundColor: colors.accent }, saving && styles.disabledButton]} onPress={save} disabled={saving}>
+      <TextInput accessibilityLabel="First name" style={[styles.input, dark && { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]} placeholderTextColor={dark ? colors.muted : undefined} placeholder="First name" value={form.firstName} onChangeText={(v) => update('firstName', v)} />
+      <TextInput accessibilityLabel="Last name" style={[styles.input, dark && { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]} placeholderTextColor={dark ? colors.muted : undefined} placeholder="Last name" value={form.lastName} onChangeText={(v) => update('lastName', v)} />
+      <TextInput accessibilityLabel="Email" autoComplete="email" style={[styles.input, dark && { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]} placeholderTextColor={dark ? colors.muted : undefined} placeholder="Email" autoCapitalize="none" keyboardType="email-address" value={form.email} onChangeText={(v) => update('email', v)} />
+      <TextInput accessibilityLabel="Phone" style={[styles.input, dark && { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]} placeholderTextColor={dark ? colors.muted : undefined} placeholder="Phone" keyboardType="phone-pad" value={form.phoneNumber} onChangeText={(v) => update('phoneNumber', v)} />
+      <TenantAssociationFields form={form} onChange={change => setForm(current => ({ ...current, ...change }))} onReadyChange={setAssociationsReady} disabled={saving} />
+      <TouchableOpacity accessibilityRole="button" accessibilityLabel="Add tenant" style={[styles.primaryButton, dark && { backgroundColor: colors.accent }, (saving || !associationsReady) && styles.disabledButton]} onPress={save} disabled={saving || !associationsReady}>
         <Text style={[styles.primaryButtonText, dark && { color: colors.background }]}>{saving ? 'Adding…' : 'Add Tenant'}</Text>
       </TouchableOpacity>
     </ScrollView>
@@ -47,8 +53,8 @@ export default function AddTenantScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fbf7f4' },
-  content: { paddingHorizontal: 22, paddingTop: 30, paddingBottom: 48 },
+  container: { flex: 1, backgroundColor: '#fff' },
+  content: { paddingHorizontal: 22, paddingTop: 30, paddingBottom: 36 },
   eyebrow: { color: '#2f8f46', fontSize: 12, fontWeight: '800', letterSpacing: 1.4, marginBottom: 8 },
   title: { color: '#082941', fontSize: 30, fontWeight: '800', letterSpacing: -0.7, marginBottom: 8 },
   helper: { color: '#596b79', marginBottom: 30, lineHeight: 22, fontSize: 15 },

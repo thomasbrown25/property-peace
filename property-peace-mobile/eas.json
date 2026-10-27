@@ -25,10 +25,22 @@
         "EXPO_PUBLIC_API_URL": "https://api.propertypeace.io/",
         "EXPO_PUBLIC_SIGNALR_URL": "https://api.propertypeace.io/notificationHub"
       }
+    },
+    "testflight": {
+      "extends": "production",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api-dev.propertypeace.io/",
+        "EXPO_PUBLIC_SIGNALR_URL": "https://api-dev.propertypeace.io/notificationHub"
+      }
     }
   },
   "submit": {
     "production": {
+      "ios": {
+        "ascAppId": "6823003439"
+      }
+    },
+    "testflight": {
       "ios": {
         "ascAppId": "6823003439"
       }

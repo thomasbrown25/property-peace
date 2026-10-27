@@ -1,5 +1,6 @@
 using brownstone_hub_api.Dtos.Payment;
 using brownstone_hub_api.Helpers;
+using brownstone_hub_api.Middleware;
 using brownstone_hub_api.Services.RentCollectionService;
 using brownstone_hub_api.Services.LeaseService;
 using brownstone_hub_api.Services.PropertyService;
@@ -23,15 +24,23 @@ namespace brownstone_hub_api.Controllers
         private readonly IPropertyService _propertyService = propertyService;
         private readonly IUserService _userService = userService;
 
-        [Authorize(Roles = "Landlord,Admin,Tenant")]
+        [Authorize(Roles = "Landlord,Admin")]
         [HttpGet("")]
-        public async Task<IActionResult> GetRentCollection([FromQuery] long? propertyId = null, [FromQuery] long? leaseId = null, [FromQuery] bool lifetime = false)
+        public async Task<IActionResult> GetRentCollection([FromQuery] long? propertyId = null, [FromQuery] long? leaseId = null, [FromQuery] bool lifetime = false, [FromQuery] string? month = null)
         {
+            DateTime? period = null;
+            if (month != null)
+            {
+                if (!System.Text.RegularExpressions.Regex.IsMatch(month, @"^\d{4}-(0[1-9]|1[0-2])$")
+                    || !DateTime.TryParseExact(month + "-01", "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var parsedMonth))
+                    return BadRequest(new { Message = "Month must be YYYY-MM" });
+                period = parsedMonth;
+            }
             var organizationId = this.GetCurrentOrganizationIdOrForbid();
             if (!organizationId.HasValue)
                 return StatusCode(403, new { Message = "Organization context is required" });
 
-            var response = await _rentCollectionService.GetRentCollection(organizationId.Value, propertyId, leaseId, lifetime);
+            var response = await _rentCollectionService.GetRentCollection(organizationId.Value, propertyId, leaseId, lifetime, period);
 
             if (!response.Success)
                 return StatusCode(response.StatusCode, new
@@ -45,6 +54,7 @@ namespace brownstone_hub_api.Controllers
 
         [Authorize(Roles = "Landlord,Admin,Tenant")]
         [HttpGet("tenant/my-rent")]
+        [TenantSelfOrganization]
         public async Task<IActionResult> GetMyRentCollection([FromQuery] long? leaseId = null)
         {
             // Get current user ID from JWT token
@@ -101,26 +111,33 @@ namespace brownstone_hub_api.Controllers
                 return NotFound(new { Message = "No active leases found for tenant" });
             }
 
-            // Use the requested lease when provided, but only if it belongs to this tenant.
+            var organizationId = this.GetCurrentOrganizationIdOrForbid();
+            if (!organizationId.HasValue)
+                return StatusCode(403, new { Message = "Organization context is required" });
+            // Use only this tenant's leases in the verified organization.
             var lease = leaseId.HasValue
-                ? leaseResponse.Data.FirstOrDefault(l => l.Id == leaseId.Value)
-                : leaseResponse.Data.First();
+                ? leaseResponse.Data.FirstOrDefault(l => l.Id == leaseId.Value && l.OrganizationId == organizationId.Value)
+                : leaseResponse.Data.FirstOrDefault(l => l.OrganizationId == organizationId.Value);
 
             if (lease == null)
             {
                 return NotFound(new { Message = "Lease not found for tenant" });
             }
 
-            // Get property to get landlordId
+            if (lease.OrganizationId != organizationId.Value)
+                return StatusCode(403, new { Message = "Lease does not belong to the selected organization" });
+
+            // Verify the property is in the canonical lease-derived organization.
             var propertyResponse = await _propertyService.GetPropertyById(lease.PropertyId);
             if (!propertyResponse.Success || propertyResponse.Data == null)
             {
                 return NotFound(new { Message = "Property not found for lease" });
             }
 
-            var landlordId = propertyResponse.Data.LandlordId;
+            if (propertyResponse.Data.OrganizationId != organizationId.Value)
+                return StatusCode(403, new { Message = "Property does not belong to the selected organization" });
             // Get rent collection for the tenant's property (filtered to their lease)
-            var response = await _rentCollectionService.GetRentCollection(landlordId, lease.PropertyId, lease.Id);
+            var response = await _rentCollectionService.GetRentCollection(organizationId.Value, lease.PropertyId, lease.Id);
 
             if (!response.Success)
                 return StatusCode(response.StatusCode, new
@@ -140,6 +157,7 @@ namespace brownstone_hub_api.Controllers
 
         [Authorize(Roles = "Landlord,Admin")]
         [HttpPost("payment")]
+        [ManualPaymentWrite]
         public async Task<IActionResult> AddPayment([FromBody] AddPaymentDto newPayment)
         {
             // Get current user ID for tracking who created the payment (landlord manual entry)

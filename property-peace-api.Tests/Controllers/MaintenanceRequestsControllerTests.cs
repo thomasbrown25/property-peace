@@ -2,17 +2,49 @@ using brownstone_hub_api.Controllers;
 using brownstone_hub_api.Dtos.Maintenance;
 using brownstone_hub_api.Dtos.MaintenanceRequest;
 using brownstone_hub_api.Services.Maintenance;
+using brownstone_hub_api.Middleware;
 using FluentAssertions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
+using System.Reflection;
 using Xunit;
 
 namespace brownstone_hub_api.Tests.Controllers;
 
 public sealed class MaintenanceRequestsControllerTests
 {
+    [Theory]
+    [InlineData(nameof(MaintenanceRequestsController.List))]
+    [InlineData(nameof(MaintenanceRequestsController.Get))]
+    [InlineData(nameof(MaintenanceRequestsController.Create))]
+    [InlineData(nameof(MaintenanceRequestsController.Troubleshoot))]
+    [InlineData(nameof(MaintenanceRequestsController.RecordTroubleshootingOutcome))]
+    [InlineData(nameof(MaintenanceRequestsController.ConfirmAppointment))]
+    [InlineData(nameof(MaintenanceRequestsController.CancelAppointment))]
+    [InlineData(nameof(MaintenanceRequestsController.ConfirmCompletion))]
+    [InlineData(nameof(MaintenanceRequestsController.ReopenCompletion))]
+    [InlineData(nameof(MaintenanceRequestsController.ListAttachments))]
+    [InlineData(nameof(MaintenanceRequestsController.UploadAttachment))]
+    [InlineData(nameof(MaintenanceRequestsController.DeleteAttachment))]
+    [InlineData(nameof(MaintenanceRequestsController.DownloadAttachment))]
+    public void TenantMaintenanceRoute_UsesLeaseValidatedOrganization(string action) =>
+        typeof(MaintenanceRequestsController).GetMethod(action)!
+            .GetCustomAttribute<TenantSelfOrganizationAttribute>()!.AllowWithoutOrganization.Should().BeFalse();
+
+    [Theory]
+    [InlineData(nameof(MaintenanceRequestsController.Acknowledge))]
+    [InlineData(nameof(MaintenanceRequestsController.ChangeStatus))]
+    [InlineData(nameof(MaintenanceRequestsController.Assign))]
+    [InlineData(nameof(MaintenanceRequestsController.ApproveEstimate))]
+    [InlineData(nameof(MaintenanceRequestsController.IssueWorkOrder))]
+    [InlineData(nameof(MaintenanceRequestsController.StaffCloseCompletion))]
+    [InlineData(nameof(MaintenanceRequestsController.CostProjection))]
+    public void ManagerOnlyMaintenanceRoute_DoesNotInheritTenantLeaseAuthority(string action) =>
+        typeof(MaintenanceRequestsController).GetMethod(action)!
+            .GetCustomAttribute<TenantSelfOrganizationAttribute>().Should().BeNull();
+
     [Fact]
     public async Task LegacySingularCreateAndUnsafeReads_AreGone_AndNeverInvokeBypassService()
     {

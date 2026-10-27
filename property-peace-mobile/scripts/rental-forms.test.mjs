@@ -1,0 +1,61 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { listingInitial, listingPayload, listingError } from '../src/features/rentals/listingForm.ts';
+import { applicationInitial, applicationPayload, applicationError } from '../src/features/rentals/applicationForm.ts';
+
+test('listing edit prefills supported fields and create preserves web draft defaults', () => {
+  const edit = listingInitial({ Id: 7, PropertyId: 3, UnitId: 4, MonthlyRent: 1200, PetsAllowed: true, DateAvailable: '2026-12-02T00:00:00', MarketingDescription: 'hello' });
+  assert.equal(edit.monthlyRent, '1200');
+  assert.equal(edit.dateAvailable, '2026-12-02');
+  assert.equal(edit.petsAllowed, true);
+  assert.equal(edit.marketingDescription, 'hello');
+  assert.equal(listingPayload(edit).monthlyRent, 1200);
+  const create = listingPayload(listingInitial());
+  assert.equal(create.acceptOnlineApplications, true);
+  assert.equal(create.syndicateToListingWebsite, true);
+  assert.equal(create.monthlyRent, 0);
+  assert.equal(listingError({ ...edit, propertyId: null }), 'Select a property and unit where required.');
+});
+test('application create/edit payloads honor DTO boundaries and validate dates/numbers', () => {
+  const form = applicationInitial({ FirstName: ' Ada ', LastName: ' Lovelace ', Email: ' ADA@example.com ', PropertyId: 1, UnitId: 2, MonthlyIncome: 0, HasPets: true, Status: 8 });
+  assert.equal(form.monthlyIncome, '0');
+  assert.equal(form.hasPets, true);
+  assert.equal(form.status, 8);
+  assert.equal(applicationError(form, false), '');
+  const created = applicationPayload(form, false);
+  assert.equal(created.isLandlordEntered, true);
+  assert.equal(created.monthlyIncome, 0);
+  assert.equal(created.propertyId, 1);
+  const updated = applicationPayload(form, true);
+  assert.equal(updated.propertyId, undefined);
+  assert.equal(updated.unitId, undefined);
+  assert.equal(updated.status, undefined);
+  assert.equal(updated.isLandlordEntered, undefined);
+  assert.equal(updated.email, 'ADA@example.com');
+  assert.equal(applicationError({ ...form, desiredMoveInDate: '2026-99-99' }, true), 'Enter dates as YYYY-MM-DD.');
+});
+test('edit clears optional strings using empty strings accepted by backend, not ignored nulls', () => {
+  const application = applicationInitial({ FirstName: 'Ada', LastName: 'Lovelace', Email: 'ada@example.com', PhoneNumber: '555', AdditionalNotes: 'note' });
+  const appEdit = applicationPayload({ ...application, phoneNumber: '', additionalNotes: '   ' }, true);
+  assert.equal(appEdit.phoneNumber, '');
+  assert.equal(appEdit.additionalNotes, '');
+  assert.equal(applicationPayload({ ...application, phoneNumber: '' }, false).phoneNumber, null);
+  const listing = listingInitial({ PropertyId: 1, UnitId: 2, MonthlyRent: 1000, MarketingDescription: 'text', VideoTourUrl: 'https://example.com' });
+  const edit = listingPayload({ ...listing, marketingDescription: '', videoTourUrl: '   ' }, true);
+  assert.equal(edit.marketingDescription, '');
+  assert.equal(edit.videoTourUrl, '');
+  assert.equal(listingPayload({ ...listing, videoTourUrl: '' }).videoTourUrl, null);
+});
+test('edit rejects clearing existing optional numeric/date fields instead of reporting success', () => {
+  const app = applicationInitial({ FirstName: 'Ada', LastName: 'Lovelace', Email: 'ada@example.com', MonthlyIncome: 1200, DateOfBirth: '1990-01-02' });
+  assert.match(applicationError({ ...app, monthlyIncome: '' }, true, false, app), /monthly income/i);
+  assert.match(applicationError({ ...app, dateOfBirth: '' }, true, false, app), /date of birth/i);
+  assert.equal(applicationError({ ...app, monthlyIncome: '0' }, true, false, app), '');
+  assert.equal(applicationError({ ...app, dateOfBirth: '1990-02-02' }, true, false, app), '');
+  const listing = listingInitial({ PropertyId: 1, UnitId: 2, MonthlyRent: 1000, SecurityDeposit: 500, DateAvailable: '2026-12-02' });
+  assert.match(listingError({ ...listing, securityDeposit: '' }, true, listing), /security deposit/i);
+  assert.match(listingError({ ...listing, dateAvailable: '' }, true, listing), /date available/i);
+  assert.equal(listingError({ ...listing, securityDeposit: '0' }, true, listing), '');
+  assert.equal(listingError({ ...listing, dateAvailable: '2026-12-03' }, true, listing), '');
+  assert.equal(listingError({ ...listing, squareFeet: '' }, true, listing), '');
+});

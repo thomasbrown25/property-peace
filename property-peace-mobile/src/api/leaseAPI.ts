@@ -53,7 +53,7 @@ class LeaseAPI {
     return response.data ?? null;
   }
 
-  async addOrUpdateLease(leaseData: Partial<Lease>): Promise<Lease> {
+  async addOrUpdateLease(leaseData: Record<string, unknown>): Promise<Lease> {
     const response = await this.client.post<ApiResponse<Lease>>('/api/Lease', leaseData);
     return response.data;
   }

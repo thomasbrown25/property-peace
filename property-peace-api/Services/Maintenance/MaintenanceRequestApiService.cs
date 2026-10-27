@@ -7,6 +7,7 @@ using brownstone_hub_api.Repositories.Users;
 using brownstone_hub_api.Services.MaintenanceTriage;
 using brownstone_hub_api.Services.ActivationFunnel;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Http;
 
 namespace brownstone_hub_api.Services.Maintenance;
 
@@ -71,8 +72,13 @@ public sealed partial class MaintenanceRequestApiService(
     MaintenanceTriagePolicyV1 triagePolicy,
     TimeProvider timeProvider,
     IMaintenanceActivityService? activity = null,
-    IActivationOccurrenceRecorder? activationRecorder = null) : IMaintenanceRequestApiService
+    IActivationOccurrenceRecorder? activationRecorder = null,
+    IHttpContextAccessor? httpContextAccessor = null) : IMaintenanceRequestApiService
 {
+    // Only the middleware-validated organization, never the caller's raw header.
+    private long? TenantOrganization => httpContextAccessor?.HttpContext is { } context
+        ? context.Items["OrganizationId"] is long id && id > 0 ? id : 0L
+        : null;
     private static readonly JsonSerializerOptions StoredJson = new(JsonSerializerDefaults.Web)
     {
         Converters = { new JsonStringEnumConverter() }
@@ -90,21 +96,51 @@ public sealed partial class MaintenanceRequestApiService(
     {
         var actor = await actors.GetCurrentAsync(cancellationToken);
         if (actor is null) return MaintenanceApiResult<MaintenanceRequestDetailDto>.Error(MaintenanceApiResultCode.Unauthorized, "Authentication is required.");
-        if (!actor.IsTenant) return MaintenanceApiResult<MaintenanceRequestDetailDto>.Error(MaintenanceApiResultCode.NotFound, "Maintenance request not found.");
+        if (!actor.IsTenant && !actor.IsLandlord) return MaintenanceApiResult<MaintenanceRequestDetailDto>.Error(MaintenanceApiResultCode.NotFound, "Maintenance request not found.");
         if (dto.PropertyId <= 0 || dto.UnitId <= 0 || string.IsNullOrWhiteSpace(dto.Description) ||
             dto.Description.Trim().Length > 4000 || dto.Location?.Trim().Length > 500 || dto.PreferredWindows?.Count > 10)
             return MaintenanceApiResult<MaintenanceRequestDetailDto>.Error(MaintenanceApiResultCode.BadRequest, "Property, unit, and description are required.");
         if (dto.Signals is null || dto.Signals.Any(signal => !Enum.IsDefined(signal)) || dto.PreferredWindows is null || dto.PreferredWindows.Any(window => window.EndsAtUtc <= window.StartsAtUtc))
             return MaintenanceApiResult<MaintenanceRequestDetailDto>.Error(MaintenanceApiResultCode.BadRequest, "Structured intake is invalid.");
 
-        var leaseScope = await db.TenantLeases
-            .Where(link => link.Tenant.UserId == actor.UserId && !link.Tenant.IsDeleted &&
-                           link.Lease.IsActive && !link.Lease.IsDeleted &&
-                           link.Lease.UnitId == dto.UnitId && link.Lease.Unit.PropertyId == dto.PropertyId)
-            .Select(link => new { link.TenantId, link.LeaseId, link.Lease.OrganizationId, UnitName = link.Lease.Unit.Name })
-            .SingleOrDefaultAsync(cancellationToken);
-        if (leaseScope is null)
-            return MaintenanceApiResult<MaintenanceRequestDetailDto>.Error(MaintenanceApiResultCode.NotFound, "Maintenance request scope not found.");
+        long? tenantId = null;
+        long? leaseId = null;
+        long? organizationId;
+        string unitName;
+        if (actor.IsTenant)
+        {
+            // Keep the tenant submission path bound to the tenant's active lease.
+            var leaseScope = await db.TenantLeases
+                .Where(link => link.Tenant.UserId == actor.UserId && !link.Tenant.IsDeleted &&
+                               link.Lease.IsActive && !link.Lease.IsDeleted &&
+                               link.Lease.UnitId == dto.UnitId && link.Lease.Unit.PropertyId == dto.PropertyId)
+                .Select(link => new { link.TenantId, link.LeaseId, link.Lease.OrganizationId, UnitName = link.Lease.Unit.Name })
+                .SingleOrDefaultAsync(cancellationToken);
+            if (leaseScope is null)
+                return MaintenanceApiResult<MaintenanceRequestDetailDto>.Error(MaintenanceApiResultCode.NotFound, "Maintenance request scope not found.");
+            if (TenantOrganization is long selectedOrg && leaseScope.OrganizationId != selectedOrg)
+                return MaintenanceApiResult<MaintenanceRequestDetailDto>.Error(MaintenanceApiResultCode.NotFound, "Maintenance request scope not found.");
+            tenantId = leaseScope.TenantId;
+            leaseId = leaseScope.LeaseId;
+            organizationId = leaseScope.OrganizationId;
+            unitName = leaseScope.UnitName;
+        }
+        else
+        {
+            // Authorize against the property linked to this exact unit, not client-supplied organization or lease data.
+            var managerScope = await db.Units
+                .Where(unit => unit.Id == dto.UnitId && unit.PropertyId == dto.PropertyId &&
+                    (unit.Property.LandlordId == actor.UserId ||
+                     unit.Property.OrganizationId != null && db.OrganizationMembers.Any(member =>
+                         member.OrganizationId == unit.Property.OrganizationId && member.UserId == actor.UserId &&
+                         member.IsActive && member.CanManageMaintenance)))
+                .Select(unit => new { UnitName = unit.Name, unit.Property.OrganizationId })
+                .SingleOrDefaultAsync(cancellationToken);
+            if (managerScope is null)
+                return MaintenanceApiResult<MaintenanceRequestDetailDto>.Error(MaintenanceApiResultCode.NotFound, "Maintenance request scope not found.");
+            organizationId = managerScope.OrganizationId;
+            unitName = managerScope.UnitName;
+        }
 
         var normalizedDescription = dto.Description.Trim();
         var normalizedLocation = string.IsNullOrWhiteSpace(dto.Location) ? null : dto.Location.Trim();
@@ -124,11 +160,11 @@ public sealed partial class MaintenanceRequestApiService(
         {
             PropertyId = dto.PropertyId,
             UnitId = dto.UnitId,
-            UnitName = leaseScope.UnitName,
-            OrganizationId = leaseScope.OrganizationId,
+            UnitName = unitName,
+            OrganizationId = organizationId,
             SubmittedByUserId = actor.UserId,
-            SubmittedByTenantId = leaseScope.TenantId,
-            SubmittedUnderLeaseId = leaseScope.LeaseId,
+            SubmittedByTenantId = tenantId,
+            SubmittedUnderLeaseId = leaseId,
             Title = title,
             Description = normalizedDescription,
             LocationDetails = normalizedLocation,
@@ -324,8 +360,11 @@ public sealed partial class MaintenanceRequestApiService(
     private Task<MaintenanceRequest?> ScopedRequest(long id, MaintenanceActor actor, bool tracking, CancellationToken cancellationToken) =>
         ScopedRequests(actor, tracking).SingleOrDefaultAsync(request => request.Id == id, cancellationToken);
 
-    private IQueryable<MaintenanceRequest> ScopedRequests(MaintenanceActor actor, bool tracking) =>
-        DetailedRequests(tracking).Where(request =>
+    private IQueryable<MaintenanceRequest> ScopedRequests(MaintenanceActor actor, bool tracking)
+    {
+        var selectedOrg = actor.IsTenant ? TenantOrganization : null;
+        return DetailedRequests(tracking).Where(request =>
+            (selectedOrg == null || request.OrganizationId == selectedOrg) && (
             request.Property.LandlordId == actor.UserId ||
             request.OrganizationId != null && db.OrganizationMembers.Any(member => member.OrganizationId == request.OrganizationId && member.UserId == actor.UserId && member.IsActive && member.CanManageMaintenance) ||
             request.AssignedToType == EAssignedToType.Vendor && request.VendorId != null && request.OrganizationId != null &&
@@ -338,7 +377,8 @@ public sealed partial class MaintenanceRequestApiService(
             request.SubmittedByUserId == null && request.SubmittedByTenantId == null &&
                 db.Conversations.Any(conversation => conversation.TenantId != null &&
                     (conversation.Id == request.ConversationId || conversation.MaintenanceRequestId == request.Id) &&
-                    db.Tenants.Any(tenant => tenant.Id == conversation.TenantId && tenant.UserId == actor.UserId)));
+                    db.Tenants.Any(tenant => tenant.Id == conversation.TenantId && tenant.UserId == actor.UserId))));
+    }
 
     private Task<MaintenanceRequest?> ManagerRequest(long id, long userId, CancellationToken cancellationToken) =>
         DetailedRequests(true).SingleOrDefaultAsync(request => request.Id == id && (
@@ -347,7 +387,8 @@ public sealed partial class MaintenanceRequestApiService(
         ), cancellationToken);
 
     private Task<MaintenanceRequest?> TenantRequest(long id, long userId, CancellationToken cancellationToken) =>
-        DetailedRequests(true).SingleOrDefaultAsync(request => request.Id == id && (
+        DetailedRequests(true).SingleOrDefaultAsync(request => request.Id == id &&
+            (TenantOrganization == null || request.OrganizationId == TenantOrganization) && (
             request.SubmittedByUserId == userId ||
             request.SubmittedByUserId == null && request.SubmittedByTenantId != null &&
                 db.Tenants.Any(tenant => tenant.Id == request.SubmittedByTenantId && tenant.UserId == userId) ||

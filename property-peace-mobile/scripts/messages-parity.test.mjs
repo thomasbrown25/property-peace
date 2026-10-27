@@ -44,6 +44,16 @@ test('selects the participant-safe inbox endpoint from the active organization r
   assert.throws(() => getConversationInboxPath('unsupported', false), /unsupported/i);
 });
 
+test('tenant top message icon shows a red, scoped unread count and refreshes on focus', () => {
+  const header = readFileSync(resolve(import.meta.dirname, '../src/components/LandlordPageHeader.tsx'), 'utf8');
+  assert.match(header, /useFocusEffect\(useCallback/);
+  assert.match(header, /ConversationAPI\.getConversations\('tenant'\)/);
+  assert.match(header, /messageBadge\?\.scope === messageScope/);
+  assert.match(header, /unreadMessages > 0 && <View style=\{styles\.messageBadge\}>/);
+  assert.match(header, /backgroundColor: '#dc2626'/);
+  assert.match(header, /unreadMessages > 99 \? '99\+' : unreadMessages/);
+});
+
 test('messaging data scopes are bound to active user, organization, audience, and thread', () => {
   const tenant = { id: 7, currentOrganizationId: 12 };
   assert.equal(buildMessagingScopeKey(tenant, 'tenant'), '7:12:tenant');
@@ -124,7 +134,8 @@ test('role-aware behavior is wired into the inbox and detail screens without wea
   assert.match(api, /getConversationInboxPath\(audience, includeArchived\)/);
   assert.match(list, /getConversations\(audience, capabilities\.archive\)/);
   assert.match(list, /selectedConversation: item/);
-  for (const capability of ['createGroup', 'pin']) assert.match(list, new RegExp(`capabilities\\.${capability}`));
+  assert.match(list, /audience === 'landlord'.*testID="new-message"/);
+  assert.match(list, /capabilities\.pin/);
   for (const capability of ['manageGroup', 'quickReplies', 'followUps', 'archive']) assert.match(detail, new RegExp(`capabilities\\.${capability}`));
   assert.match(detail, /loadConversationCore/);
   assert.match(detail, /canAccessMessages\(audience\)/);
@@ -314,21 +325,18 @@ test('presents group title and active member names in inbox and detail', () => {
   });
 });
 
-test('mobile group workflow is wired to the real API routes and product controls', () => {
+test('new mobile messages are one-to-one renter conversations; legacy groups remain manageable', () => {
   const root = resolve(import.meta.dirname, '..');
   const api = readFileSync(resolve(root, 'src/api/conversationAPI.ts'), 'utf8');
   const list = readFileSync(resolve(root, 'src/screens/landlord/MessagesScreen.tsx'), 'utf8');
   const detail = readFileSync(resolve(root, 'src/screens/landlord/ConversationDetailScreen.tsx'), 'utf8');
-  const dialog = readFileSync(resolve(root, 'src/components/messages/GroupConversationDialog.tsx'), 'utf8');
-  for (const route of [
-    '/api/Conversation/groups/participants', '/api/Conversation/groups',
-    '/participants/${participantUserId}', '/leave',
-  ]) assert.ok(api.includes(route), `missing mobile group route ${route}`);
-  assert.match(list, /testID="new-group"/);
+  const picker = readFileSync(resolve(root, 'src/components/messages/NewMessageDialog.tsx'), 'utf8');
+  assert.match(list, /testID="new-message"/);
+  assert.doesNotMatch(list, /testID="new-group"|GroupConversationDialog/);
+  assert.match(picker, /TenantAPI\.getTenants\(\)/);
+  assert.match(picker, /userId = positiveId\(tenant\.userId/);
+  assert.match(picker, /participantUserIds: \[userId\], isGroupChat: false/);
+  assert.match(picker, /ConversationAPI\.createConversation/);
+  assert.match(api, /'\/api\/Conversation', data/);
   assert.match(detail, /testID="manage-group"/);
-  assert.match(dialog, /testID="group-title"/);
-  assert.match(dialog, /testID=\{creating \? 'create-group'/);
-  assert.match(dialog, /Leave group/);
-  assert.match(dialog, /status === 401/);
-  assert.match(dialog, /status === 403/);
 });

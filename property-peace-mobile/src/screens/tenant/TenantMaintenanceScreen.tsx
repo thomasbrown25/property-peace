@@ -1,16 +1,22 @@
-import React, { useCallback, useState } from 'react';
+import { useTabScrollReset } from '../../navigation/useTabScrollReset';
+import React, { useRef, useCallback, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import MaintenanceAPI, { MaintenanceRequest } from '../../api/maintenanceAPI';
 import { displayStatus, isClosedStatus } from '../../features/maintenance/maintenanceModel';
 import { useAppTheme } from '../../theme/AppTheme';
+import LandlordPageHeader from '../../components/LandlordPageHeader';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const value = (item: any, key: string) => item?.[key] ?? item?.[key[0].toUpperCase() + key.slice(1)];
 
 export default function TenantMaintenanceScreen() {
+  const scrollRef = useRef<FlatList>(null);
+  useTabScrollReset(scrollRef);
   const { mode, colors } = useAppTheme();
   const dark = mode === 'dark';
   const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<'current' | 'history'>('current');
   const [items, setItems] = useState<MaintenanceRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,8 +37,9 @@ export default function TenantMaintenanceScreen() {
   useFocusEffect(useCallback(() => { setLoading(true); load(); }, [load]));
 
   return <View style={[styles.page, dark && { backgroundColor: colors.background }]}>
+    <LandlordPageHeader title="Maintenance" />
     <View style={styles.hero}>
-      <Text style={[styles.eyebrow, dark && { color: '#ff9cae' }]}>YOUR HOME</Text>
+      <Text style={[styles.eyebrow, dark && { color: '#8cdda4' }]}>YOUR HOME</Text>
       <Text style={[styles.heading, dark && { color: colors.text }]}>Repairs & maintenance</Text>
       <Text style={[styles.sub, dark && { color: colors.muted }]}>Report an issue, see who is handling it, and follow every update.</Text>
     </View>
@@ -45,10 +52,11 @@ export default function TenantMaintenanceScreen() {
       </TouchableOpacity>)}
     </View>
     {loading ? <ActivityIndicator style={{ marginTop: 40 }} color={dark ? colors.accent : '#0b5cab'} /> : <FlatList
+      ref={scrollRef}
       data={items}
       keyExtractor={(x, i) => String(value(x, 'id') ?? i)}
       refreshControl={<RefreshControl refreshing={refreshing} tintColor={dark ? colors.accent : '#0b5cab'} onRefresh={() => { setRefreshing(true); load(); }} />}
-      contentContainerStyle={styles.list}
+      contentContainerStyle={[styles.list, { paddingBottom: Math.max(insets.bottom, 24) + 100 }]}
       ItemSeparatorComponent={() => <View style={[styles.divider, dark && { backgroundColor: colors.border }]} />}
       ListHeaderComponent={<View>
         {error && <View style={[styles.error, dark && { backgroundColor: '#432630' }]}><Text style={[styles.errorText, dark && { color: '#ffb8c2' }]}>{error}</Text><TouchableOpacity onPress={load}><Text style={[styles.retry, dark && { color: colors.accent }]}>Try again</Text></TouchableOpacity></View>}
@@ -73,7 +81,7 @@ export default function TenantMaintenanceScreen() {
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#fff' },
   hero: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 18 },
-  eyebrow: { fontSize: 11, fontWeight: '800', letterSpacing: 1.4, color: '#b7475a' },
+  eyebrow: { fontSize: 11, fontWeight: '800', letterSpacing: 1.4, color: '#24733a' },
   heading: { fontSize: 27, fontWeight: '800', color: '#102d43', marginTop: 5 },
   sub: { fontSize: 14, lineHeight: 20, color: '#60717e', marginTop: 5 },
   newButton: { marginHorizontal: 20, minHeight: 50, backgroundColor: '#0b5cab', borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
@@ -83,7 +91,7 @@ const styles = StyleSheet.create({
   tabActive: { borderBottomColor: '#0b5cab' },
   tabText: { fontWeight: '700', color: '#60717e' },
   tabTextActive: { color: '#102d43', fontWeight: '800' },
-  list: { paddingHorizontal: 20, paddingBottom: 126, flexGrow: 1 },
+  list: { paddingHorizontal: 20, paddingBottom: 28, flexGrow: 1 },
   listLabel: { paddingTop: 22, paddingBottom: 5, fontSize: 11, fontWeight: '800', letterSpacing: 1.2, color: '#778794' },
   requestRow: { paddingVertical: 19 },
   divider: { height: 1, backgroundColor: '#e8edf0' },

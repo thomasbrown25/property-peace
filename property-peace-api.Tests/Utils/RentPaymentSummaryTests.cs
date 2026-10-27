@@ -240,6 +240,26 @@ public sealed class RentPaymentSummaryTests
     }
 
     [Fact]
+    public void UnpaidFeeBalances_LossAndRecoveryRemainOnTheirFeeEvenWithSharedIntent()
+    {
+        var lease = ActiveMonthlyLease(DateTime.Today.AddMonths(-2), DateTime.Today.AddMonths(10), 1190m);
+        lease.Fees =
+        [
+            new LeaseFeeDto { Id = 11, LeaseId = lease.Id, Name = "Pet", Amount = 100m },
+            new LeaseFeeDto { Id = 12, LeaseId = lease.Id, Name = "Late", Amount = 50m }
+        ];
+        var payments = new List<LoadPaymentDto>
+        {
+            new() { LeaseId = lease.Id, FeeId = 11, Amount = 100m, Status = "Disputed", StripePaymentIntentId = "pi_x" },
+            new() { LeaseId = lease.Id, FeeId = 12, Amount = -30m, Status = "Completed", StripePaymentIntentId = "pi_x", Method = "Stripe loss adjustment" },
+            new() { LeaseId = lease.Id, FeeId = 12, Amount = 10m, Status = "Completed", StripePaymentIntentId = "pi_x", Method = "Stripe dispute recovery adjustment" }
+        };
+        var balances = RentCalculator.GetUnpaidFeeBalances(lease, payments);
+        balances.Single(x => x.FeeId == 11).AmountDue.Should().Be(100m);
+        balances.Single(x => x.FeeId == 12).AmountDue.Should().Be(50m);
+    }
+
+    [Fact]
     public void UnpaidFeeBalances_AreItemizedAndSubtractOnlyCreditingPayments()
     {
         var lease = ActiveMonthlyLease(DateTime.Today.AddMonths(-2), DateTime.Today.AddMonths(10), 1_190m);

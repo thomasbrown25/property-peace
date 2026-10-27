@@ -73,6 +73,49 @@ namespace brownstone_hub_api.Middleware
                             return;
                         }
 
+                        var tenantSelf = endpoint?.Metadata.GetMetadata<TenantSelfOrganizationAttribute>();
+                        if (tenantSelf != null && context.User.IsInRole("Tenant"))
+                        {
+                            context.Items.Remove("OrganizationId");
+                            context.Items["UserId"] = userId.Value;
+                            var hasHeader = context.Request.Headers.ContainsKey("X-Organization-Id");
+                            var requestedId = 0L;
+                            if (hasHeader && (!long.TryParse(context.Request.Headers["X-Organization-Id"].FirstOrDefault(), out requestedId) || requestedId <= 0))
+                            {
+                                context.Items.Remove("UserId");
+                                context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                                return;
+                            }
+                            // Headerless self-reads remain controller-owned: convey no org authority.
+                            if (!hasHeader && tenantSelf.AllowWithoutOrganization)
+                            {
+                                await _next(context);
+                                return;
+                            }
+                            var organizations = await authorityResolver.GetTenantLeaseOrganizationIdsAsync(userId.Value, context.RequestAborted);
+                            var selectedId = hasHeader ? requestedId : organizations.Count == 1 ? organizations[0] : 0;
+                            if (selectedId <= 0 || !organizations.Contains(selectedId))
+                            {
+                                context.Items.Remove("UserId");
+                                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                                return;
+                            }
+                            // Where a self endpoint names a lease, its lease must also belong to
+                            // the selected organization (not merely another lease of this user).
+                            var leaseValue = context.Request.RouteValues.TryGetValue("leaseId", out var routeLease)
+                                ? routeLease?.ToString() : context.Request.Query["leaseId"].FirstOrDefault();
+                            if (leaseValue != null && (!long.TryParse(leaseValue, out var leaseId) || leaseId <= 0 ||
+                                !await authorityResolver.HasTenantLeaseInOrganizationAsync(userId.Value, leaseId, selectedId, context.RequestAborted)))
+                            {
+                                context.Items.Remove("UserId");
+                                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                                return;
+                            }
+                            context.Items["OrganizationId"] = selectedId;
+                            await _next(context);
+                            return;
+                        }
+
                         var organizationHeaderWasProvided = context.Request.Headers.ContainsKey("X-Organization-Id");
                         var organizationIdHeader = context.Request.Headers["X-Organization-Id"].FirstOrDefault();
 
@@ -166,6 +209,25 @@ namespace brownstone_hub_api.Middleware
                 }
             }
 
+            if (context.User.Identity?.IsAuthenticated == true &&
+                context.GetEndpoint()?.Metadata.GetMetadata<ManualPaymentWriteAttribute>() != null)
+            {
+                if (context.Items["UserId"] is not long paymentUserId ||
+                    context.Items["OrganizationId"] is not long paymentOrganizationId)
+                {
+                    context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                    return;
+                }
+                var member = await authorityResolver.ResolveActiveMemberAsync(
+                    paymentUserId, paymentOrganizationId, context.RequestAborted);
+                if (member == null ||
+                    !string.Equals(member.Role, "Owner", StringComparison.OrdinalIgnoreCase) &&
+                    !string.Equals(member.Role, "Manager", StringComparison.OrdinalIgnoreCase))
+                {
+                    context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                    return;
+                }
+            }
             await _next(context);
         }
     }

@@ -859,6 +859,10 @@ Property Peace Team
                 await _tenantInviteRepository.MarkInviteAsUsed(dto.InviteToken);
                 return ServiceResponse<bool>.CreateSuccess(true, "Invite accepted successfully");
             }
+            catch (InvalidOperationException ex) when (ex.Message.StartsWith("Long-term tenant assignment unavailable", StringComparison.Ordinal))
+            {
+                return ServiceResponse<bool>.CreateError("Long-term tenant assignment unavailable", statusCode: 409);
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error accepting tenant invite");

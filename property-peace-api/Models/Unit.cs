@@ -1,6 +1,7 @@
 
 
 using Microsoft.EntityFrameworkCore;
+using brownstone_hub_api.Enums;
 
 namespace brownstone_hub_api.Models
 {
@@ -13,6 +14,7 @@ namespace brownstone_hub_api.Models
         public string Type { get; set; } = "";
         public int SquareFeet { get; set; }
         public bool IsOccupied { get; set; } = false;
+        public ERentalMode RentalMode { get; set; } = ERentalMode.LongTerm;
 
         public long PropertyId { get; set; }
         public Property Property { get; set; } = null!;

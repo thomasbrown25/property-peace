@@ -1,4 +1,5 @@
 using brownstone_hub_api.Dtos.Unit;
+using brownstone_hub_api.Enums;
 using brownstone_hub_api.Models;
 using brownstone_hub_api.Repositories.Units;
 using brownstone_hub_api.Tests.Helpers;
@@ -14,6 +15,26 @@ public sealed class UnitRepositoryMutationScopeTests : IDisposable
     private readonly Data.DataContext _context = DbContextFactory.Create();
 
     public void Dispose() => _context.Dispose();
+
+    [Fact]
+    public async Task Legacy_update_and_explicit_update_cannot_switch_existing_unit_mode()
+    {
+        var property = PropertyWithUnit(301, 10, 3001, "Short stay");
+        property.Units.Single().RentalMode = ERentalMode.ShortTerm;
+        _context.Properties.Add(property);
+        await _context.SaveChangesAsync();
+        var repository = Repository();
+        await repository.UpdateUnitForMutationAsync(new UpdateUnitDto
+        {
+            Id = 3001, PropertyId = 301, Name = "Renamed"
+        }, 10);
+        Assert.Equal(ERentalMode.ShortTerm, (await _context.Units.AsNoTracking().SingleAsync(u => u.Id == 3001)).RentalMode);
+        await repository.UpdateUnitForMutationAsync(new UpdateUnitDto
+        {
+            Id = 3001, PropertyId = 301, Name = "Renamed again", RentalMode = ERentalMode.LongTerm
+        }, 10);
+        Assert.Equal(ERentalMode.ShortTerm, (await _context.Units.AsNoTracking().SingleAsync(u => u.Id == 3001)).RentalMode);
+    }
 
     [Fact]
     public async Task Scoped_update_mutates_only_exact_organization_and_preserves_property_id()
