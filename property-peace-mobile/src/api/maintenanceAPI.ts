@@ -55,6 +55,7 @@ class MaintenanceAPI {
   async createRequest(request: CreateMaintenanceRequest, idempotencyKey: string): Promise<MaintenanceRequest> { return this.client.post('/api/maintenance-requests', request, mutationConfig(idempotencyKey)); }
   async getTenantAgentSettings(): Promise<boolean> {
     const response = unwrap(await this.client.get<ApiResponse<{ isMaintenanceAgentEnabled: boolean }>>('/api/maintenance-agent/settings'));
+    if (typeof response?.isMaintenanceAgentEnabled !== 'boolean') throw new Error('Maintenance assistant settings unavailable');
     return response.isMaintenanceAgentEnabled;
   }
   async chatWithTenantAgent(messages: MaintenanceAgentMessage[]): Promise<MaintenanceAgentReply> {

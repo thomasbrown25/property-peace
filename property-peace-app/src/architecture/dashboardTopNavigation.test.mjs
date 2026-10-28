@@ -4,14 +4,22 @@ import assert from 'node:assert/strict';
 
 const source = (path) => readFileSync(new URL(path, import.meta.url), 'utf8');
 
-test('dashboard shell uses full-width header and content without a sidenav or collapse button', () => {
+test('dashboard shell restores the existing drawer only for admin routes', () => {
   const layout = source('../layout/Dashboard/index.jsx');
   const header = source('../layout/Dashboard/Header/index.jsx');
-  assert.doesNotMatch(layout, /<Drawer\s*\/>|<HorizontalBar\s*\/>|DRAWER_WIDTH|MINI_DRAWER_WIDTH/);
-  assert.match(layout, /width: '100%'/);
-  assert.doesNotMatch(header, /handlerDrawerOpen|MenuFoldOutlined|MenuUnfoldOutlined|AppBarStyled/);
-  assert.match(header, /<HeaderContent\s*\/>/);
-  assert.match(header, /width: '100%'/);
+  const content = source('../layout/Dashboard/Header/HeaderContent/index.jsx');
+  const drawer = source('../layout/Dashboard/Drawer/index.jsx');
+  const navigation = source('../layout/Dashboard/Drawer/DrawerContent/Navigation/index.jsx');
+  assert.match(layout, /pathname === '\/admin' \|\| pathname\.startsWith\('\/admin\/'\)/);
+  assert.match(layout, /\{isAdminPortal && <MainDrawer mobileOpen=\{adminMobileMenuOpen\}/);
+  assert.match(layout, /width: isAdminPortal \?/);
+  assert.match(header, /width: adminPortal \?/);
+  assert.match(header, /<HeaderContent adminPortal=\{adminPortal\}/);
+  assert.match(content, /adminPortal && \([\s\S]*?aria-label="Open admin navigation"/);
+  assert.match(drawer, /variant="permanent"/);
+  assert.match(drawer, /variant="temporary"/);
+  assert.match(drawer, /onClose=\{onMobileClose\}/);
+  assert.match(navigation, /menuData = \{ items: \[adminPages\] \}/);
 });
 
 test('mobile More keeps Calendar reachable when the centered desktop links are hidden', () => {

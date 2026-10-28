@@ -1,4 +1,6 @@
-import { Box, Divider, useMediaQuery, useTheme } from '@mui/material';
+import PropTypes from 'prop-types';
+import { MenuOutlined } from '@ant-design/icons';
+import { Box, Divider, IconButton, useMediaQuery, useTheme } from '@mui/material';
 import Message from './Message';
 import Profile from './Profile';
 import Notification from './Notification';
@@ -9,7 +11,7 @@ import Logo from 'components/logo';
 import useAuth from 'hooks/useAuth';
 import useIsAdmin from 'hooks/useIsAdmin';
 
-export default function HeaderContent() {
+export default function HeaderContent({ adminPortal = false, onAdminMenuOpen }) {
   const theme = useTheme();
   const { user } = useAuth();
   const isAdmin = useIsAdmin();
@@ -21,6 +23,11 @@ export default function HeaderContent() {
 
   return (
     <>
+      {adminPortal && (
+        <IconButton aria-label="Open admin navigation" onClick={onAdminMenuOpen} sx={{ display: { xs: 'inline-flex', lg: 'none' }, color: 'inherit' }}>
+          <MenuOutlined />
+        </IconButton>
+      )}
       <Logo
         reverse
         darkSurface={theme.palette.mode === 'dark'}
@@ -46,3 +53,5 @@ export default function HeaderContent() {
     </>
   );
 }
+
+HeaderContent.propTypes = { adminPortal: PropTypes.bool, onAdminMenuOpen: PropTypes.func };

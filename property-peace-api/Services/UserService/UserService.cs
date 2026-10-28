@@ -3123,6 +3123,13 @@ namespace brownstone_hub_api.Services.UserService
                 await HardDeletePropertyCompletely(property.Id);
             }
 
+            // Archived leases may outlive their original lease and property. Remove histories
+            // belonging to this organization before deleting it (not other organizations' history).
+            var archivedLeaseHistories = await _dataContext.LeaseHistories
+                .Where(history => history.OrganizationId == organizationId)
+                .ToListAsync();
+            _dataContext.LeaseHistories.RemoveRange(archivedLeaseHistories);
+
             // Delete all bank accounts
             var bankAccounts = await _dataContext.BankAccounts
                 .Where(ba => ba.OrganizationId == organizationId)
@@ -3317,6 +3324,13 @@ namespace brownstone_hub_api.Services.UserService
 
                 foreach (var lease in leases)
                 {
+                    // Collections history has a required NoAction FK to the lease.
+                    // Remove only this lease's actions as part of an explicit permanent delete.
+                    var collectionsActions = await _dataContext.CollectionsAgentActions
+                        .Where(action => action.LeaseId == lease.Id)
+                        .ToListAsync();
+                    _dataContext.CollectionsAgentActions.RemoveRange(collectionsActions);
+
                     // Delete all payments
                     var payments = await _dataContext.Payments
                         .Where(p => p.LeaseId == lease.Id)

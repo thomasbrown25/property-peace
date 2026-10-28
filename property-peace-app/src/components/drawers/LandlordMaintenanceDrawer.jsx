@@ -3,34 +3,13 @@ import PropTypes from 'prop-types';
 import { useDrawer } from 'contexts/DrawerContext';
 import MaintenanceAgentDrawer from 'pages/tenant/MaintenanceAgentDrawer';
 import MaintenanceAddDrawer from './MaintenanceAddDrawer';
-import axiosServices from 'utils/axios';
 
 export default function LandlordMaintenanceDrawer({ onAddSuccess }) {
   const drawer = useDrawer();
-  const [agentEnabled, setAgentEnabled] = useState(null);
+  const [agentEnabled, setAgentEnabled] = useState(true);
 
   useEffect(() => {
-    if (!drawer.isOpenMaintenanceAdd) {
-      setAgentEnabled(null);
-      return undefined;
-    }
-
-    let isCurrent = true;
-    setAgentEnabled(null);
-
-    axiosServices
-      .get('/api/landlord-maintenance-agent/settings')
-      .then((res) => {
-        const enabled = res.data?.success
-          ? (res.data.data?.isMaintenanceAgentEnabled ?? false)
-          : false;
-        if (isCurrent) setAgentEnabled(enabled);
-      })
-      .catch(() => {
-        if (isCurrent) setAgentEnabled(false);
-      });
-
-    return () => { isCurrent = false; };
+    if (!drawer.isOpenMaintenanceAdd) setAgentEnabled(true);
   }, [drawer.isOpenMaintenanceAdd]);
 
   const handleAgentRequestCreated = async () => {
@@ -41,9 +20,7 @@ export default function LandlordMaintenanceDrawer({ onAddSuccess }) {
     setAgentEnabled(false);
   };
 
-  if (agentEnabled === null) return null;
-
-  if (agentEnabled === true) {
+  if (agentEnabled) {
     return (
       <MaintenanceAgentDrawer
         open={drawer.isOpenMaintenanceAdd}

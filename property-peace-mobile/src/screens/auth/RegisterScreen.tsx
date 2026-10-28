@@ -684,10 +684,11 @@ const styles = StyleSheet.create({
   },
   googleButton: {
     backgroundColor: "rgba(255, 255, 255, 0.08)",
-    padding: 14,
+    height: 50,
+    paddingHorizontal: 14,
     borderRadius: 10,
     alignItems: "center",
-    minHeight: 48,
+    justifyContent: "center",
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.16)",
 

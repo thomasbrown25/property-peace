@@ -544,6 +544,12 @@ export default function SettingsScreen() {
       </View>}
 
       {category === 'account' && <>
+      {isTenant && <View style={styles.accountIdentity}>
+        <Text style={styles.rowLabel}>Name</Text>
+        <Text style={styles.accountIdentityValue}>{name}</Text>
+        <Text style={styles.rowLabel}>Email</Text>
+        <Text style={styles.accountIdentityValue}>{email}</Text>
+      </View>}
       <SectionHeader icon="lock-closed-outline" title={currentUser?.hasPassword === false || currentUser?.HasPassword === false ? 'Set password' : 'Change password'} />
       <Text style={styles.rowValue}>Use a password with 8–128 characters, uppercase and lowercase letters, a number and a special character.</Text>
       {(['current', 'next', 'confirm'] as const).map((key) => {
@@ -641,6 +647,8 @@ function useSettingsStyles() {
     avatarText: { ...baseStyles.avatarText, color: colors.dockText },
     profileName: { ...baseStyles.profileName, color: colors.text },
     profileDetail: { ...baseStyles.profileDetail, color: colors.muted },
+    accountIdentity: { ...baseStyles.accountIdentity, borderBottomColor: colors.border },
+    accountIdentityValue: { ...baseStyles.accountIdentityValue, color: colors.text },
     sectionTitle: { ...baseStyles.sectionTitle, color: colors.text },
     rowLabel: { ...baseStyles.rowLabel, color: colors.text },
     rowValue: { ...baseStyles.rowValue, color: colors.muted },
@@ -686,6 +694,8 @@ const baseStyles = StyleSheet.create({
   profileCopy: { flex: 1, minWidth: 0 },
   profileName: { color: '#102d43', fontSize: 20, fontWeight: '900', marginBottom: 5 },
   profileDetail: { color: '#596876', fontSize: 14, lineHeight: 20 },
+  accountIdentity: { paddingTop: 8, paddingBottom: 18, marginBottom: 4, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#e8edf2', gap: 5 },
+  accountIdentityValue: { color: '#102d43', fontSize: 16, fontWeight: '600', marginBottom: 8 },
   sectionHeader: { minHeight: 55, flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 17 },
   sectionTitle: { color: '#102d43', fontSize: 17, fontWeight: '800' },
   settingRow: { minHeight: 86, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },

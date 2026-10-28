@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Platform, RefreshControl, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -45,6 +45,10 @@ export default function ConversationDetailScreen() {
   const retrySend = useRef<{ content: string; clientRequestId: string } | null>(null);
   const requestSequence = useRef(0);
   const coreLoadInFlight = useRef(0);
+  const olderLoadInFlight = useRef(false);
+  const userScrollingHistory = useRef(false);
+  const scrollToLatestOnContent = useRef(true);
+  const lastScrollY = useRef(0);
   const currentScopeRef = useRef('');
   const scopeGenerationRef = useRef<MessagingScopeGeneration | undefined>(undefined);
   const organizationId = currentUser?.currentOrganizationId ?? currentUser?.CurrentOrganizationId;
@@ -81,13 +85,17 @@ export default function ConversationDetailScreen() {
         loadConversation: () => ConversationAPI.getConversation(conversationId),
         loadTimeline: () => timelineQuery.trim() || timelineChannel
           ? ConversationAPI.searchTimeline(conversationId, timelineQuery, timelineChannel)
-          : ConversationAPI.getTimeline(conversationId),
+          : ConversationAPI.getTimeline(conversationId, undefined, 15),
       });
       if (requestId !== requestSequence.current || !scopeGenerationRef.current || !isMessagingOperationCurrent(operation, scopeGenerationRef.current)) return;
       const page = normalizeTimelinePage(rawPage);
       if (!page) throw new Error('The conversation returned an unsupported timeline.');
       const visibleItems = filterTimelineForAudience(page.items, audience);
-      setConversation(conversationResult); setEntries(visibleItems); setNextCursor(page.nextCursor); setError(null); setLoadedScope(requestScope);
+      setConversation(conversationResult);
+      setEntries((previous) => refresh && !timelineQuery.trim() && !timelineChannel
+        ? mergeTimelinePages(previous, visibleItems) : visibleItems);
+      setNextCursor((previous) => refresh && !timelineQuery.trim() && !timelineChannel && previous !== null ? previous : page.nextCursor);
+      setError(null); setLoadedScope(requestScope);
       void markVisibleRead(visibleItems, requestScope);
       if (capabilities.quickReplies && organizationId) {
         ConversationAPI.getQuickReplies(organizationId).then((items) => {
@@ -103,9 +111,7 @@ export default function ConversationDetailScreen() {
       } else {
         setQuickReplies([]); setFollowUps([]);
       }
-      requestAnimationFrame(() => {
-        if (requestId === requestSequence.current && scopeGenerationRef.current && isMessagingOperationCurrent(operation, scopeGenerationRef.current)) listRef.current?.scrollToEnd({ animated: false });
-      });
+      if (!refresh) scrollToLatestOnContent.current = true;
     } catch (loadError: any) {
       if (requestId !== requestSequence.current || !scopeGenerationRef.current || !isMessagingOperationCurrent(operation, scopeGenerationRef.current)) return;
       setConversation(null); setEntries([]); setNextCursor(null); setQuickReplies([]); setFollowUps([]);
@@ -121,6 +127,7 @@ export default function ConversationDetailScreen() {
 
   useEffect(() => {
     requestSequence.current += 1;
+    olderLoadInFlight.current = false; userScrollingHistory.current = false; scrollToLatestOnContent.current = true; lastScrollY.current = 0;
     setConversation(null); setEntries([]); setNextCursor(null); setQuickReplies([]); setFollowUps([]); setError(null);
     setFollowUpEntry(null); setFollowUpTitle(''); setGroupDialogVisible(false); setDraft(''); retrySend.current = null;
     setLoading(true); setRefreshing(false); setLoadingMore(false); setSending(false); setLoadedScope(null);
@@ -172,10 +179,11 @@ export default function ConversationDetailScreen() {
     const actionScope = dataScope;
     const operation = scopeGeneration;
     const generation = requestSequence.current;
-    if (!hasMessageAccess || !scopeIsCurrent || !scopeGenerationRef.current || !isMessagingOperationCurrent(operation, scopeGenerationRef.current) || nextCursor === null || loadingMore || loading || refreshing || coreLoadInFlight.current > 0) return;
+    if (!hasMessageAccess || !scopeIsCurrent || !scopeGenerationRef.current || !isMessagingOperationCurrent(operation, scopeGenerationRef.current) || nextCursor === null || olderLoadInFlight.current || loading || refreshing || coreLoadInFlight.current > 0 || timelineQuery.trim() || timelineChannel) return;
+    olderLoadInFlight.current = true;
     setLoadingMore(true);
     try {
-      const page = normalizeTimelinePage(await ConversationAPI.getTimeline(conversationId, nextCursor));
+      const page = normalizeTimelinePage(await ConversationAPI.getTimeline(conversationId, nextCursor, 15));
       if (generation !== requestSequence.current || !scopeGenerationRef.current || !isMessagingOperationCurrent(operation, scopeGenerationRef.current)) return;
       if (!page) throw new Error('Unsupported timeline page.');
       const merged = mergeTimelinePages(entries, filterTimelineForAudience(page.items, audience));
@@ -183,6 +191,7 @@ export default function ConversationDetailScreen() {
     } catch (loadError: any) {
       if (generation === requestSequence.current && scopeGenerationRef.current && isMessagingOperationCurrent(operation, scopeGenerationRef.current)) setError(loadError?.message || 'More activity could not be loaded.');
     } finally {
+      olderLoadInFlight.current = false;
       if (generation === requestSequence.current && scopeGenerationRef.current && isMessagingOperationCurrent(operation, scopeGenerationRef.current)) setLoadingMore(false);
     }
   };
@@ -201,6 +210,7 @@ export default function ConversationDetailScreen() {
       await MessageAPI.addMessage({ conversationId, content, clientRequestId: attempt.clientRequestId });
       if (!scopeGenerationRef.current || !isMessagingOperationCurrent(operation, scopeGenerationRef.current)) return;
       retrySend.current = null;
+      scrollToLatestOnContent.current = true;
       await load(true);
     } catch (sendError: any) {
       if (scopeGenerationRef.current && isMessagingOperationCurrent(operation, scopeGenerationRef.current)) {
@@ -290,10 +300,31 @@ export default function ConversationDetailScreen() {
     {capabilities.followUps && followUpEntry?.context && <View style={styles.followUpComposer}><Text style={styles.followUpHeading}>Follow up on {followUpEntry.context.label}</Text><TextInput style={styles.searchInput} placeholder="What needs follow-up?" placeholderTextColor={mode === 'dark' ? colors.muted : undefined} value={followUpTitle} onChangeText={setFollowUpTitle} /><View style={styles.followUpActions}><TouchableOpacity onPress={() => setFollowUpEntry(null)}><Text style={styles.cancelText}>Cancel</Text></TouchableOpacity><TouchableOpacity disabled={!followUpTitle.trim()} onPress={() => void createContextualFollowUp()}><Text style={styles.followUpLink}>Create · due tomorrow</Text></TouchableOpacity></View></View>}
     {capabilities.followUps && followUps.some((task) => task.status === 'open') && <View style={styles.followUpList}>{followUps.filter((task) => task.status === 'open').map((task) => <View key={task.id} style={styles.followUpRow}><Text style={styles.followUpTask}>{task.title}</Text><TouchableOpacity onPress={() => void completeFollowUp(task)}><Text style={styles.followUpLink}>Complete</Text></TouchableOpacity></View>)}</View>}
     <FlatList ref={listRef} data={entries} renderItem={renderEntry} keyExtractor={(item) => String(item.id)} contentContainerStyle={[styles.timeline, entries.length === 0 && styles.emptyTimeline]}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={mode === 'dark' ? colors.accent : '#2563eb'} />}
-      ListHeaderComponent={nextCursor !== null ? <TouchableOpacity style={styles.more} disabled={loadingMore} onPress={() => void loadMore()}>{loadingMore ? <ActivityIndicator color={mode === 'dark' ? colors.accent : '#2563eb'} /> : <Text style={styles.moreText}>Load more activity</Text>}</TouchableOpacity> : null}
+      maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
+      onScrollBeginDrag={() => { userScrollingHistory.current = true; }}
+      onScrollEndDrag={(event) => {
+        if (userScrollingHistory.current && event.nativeEvent.contentOffset.y <= 80) {
+          userScrollingHistory.current = false;
+          void loadMore();
+        }
+      }}
+      onScroll={(event) => {
+        const y = event.nativeEvent.contentOffset.y;
+        if (userScrollingHistory.current && y <= 80 && y < lastScrollY.current) {
+          userScrollingHistory.current = false;
+          void loadMore();
+        }
+        lastScrollY.current = y;
+      }}
+      scrollEventThrottle={16}
+      ListHeaderComponent={loadingMore ? <View style={styles.more}><ActivityIndicator accessibilityLabel="Loading older messages" color={mode === 'dark' ? colors.accent : '#2563eb'} /></View> : null}
       ListEmptyComponent={<View style={styles.center}><Ionicons name="chatbubble-outline" size={38} color={mode === 'dark' ? colors.muted : '#94a3b8'} /><Text style={styles.emptyTitle}>No activity yet</Text><Text style={styles.muted}>Send a message to start the conversation.</Text></View>}
-      onContentSizeChange={() => !loadingMore && listRef.current?.scrollToEnd({ animated: false })} />
+      onContentSizeChange={() => {
+        if (scrollToLatestOnContent.current && entries.length > 0 && !loadingMore) {
+          scrollToLatestOnContent.current = false;
+          listRef.current?.scrollToEnd({ animated: false });
+        }
+      }} />
     {capabilities.quickReplies && quickReplies.length > 0 && <FlatList horizontal data={quickReplies} keyExtractor={(item) => String(item.id)} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickReplies} renderItem={({ item }) => <TouchableOpacity style={styles.quickReply} onPress={() => setDraft(item.body)}><Text style={styles.quickReplyText}>{item.title}</Text></TouchableOpacity>} />}
     <View style={styles.composer}>
       <TextInput testID="message-composer" style={styles.input} placeholder="Type a message…" placeholderTextColor={mode === 'dark' ? colors.muted : '#94a3b8'} value={draft} onChangeText={setDraft} multiline maxLength={MAX_MESSAGE_LENGTH} accessibilityLabel="Message" />

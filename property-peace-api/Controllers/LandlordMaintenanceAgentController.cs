@@ -53,24 +53,8 @@ namespace brownstone_hub_api.Controllers
                 if (!userId.HasValue)
                     return Unauthorized(new { message = "User not authenticated" });
 
-                var property = await _dataContext.Properties
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(p => p.LandlordId == userId.Value && !p.IsDeleted && p.OrganizationId != null);
-
-                if (property?.OrganizationId == null)
-                {
-                    return Ok(new { success = true, data = new { isMaintenanceAgentEnabled = false } });
-                }
-
-                var org = await _dataContext.Organizations
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(o => o.Id == property.OrganizationId && !o.IsDeleted);
-
-                return Ok(new
-                {
-                    success = true,
-                    data = new { isMaintenanceAgentEnabled = org?.IsMaintenanceAgentEnabled ?? false }
-                });
+                // Reporting defaults to the assistant, independent of organization preferences.
+                return Ok(new { success = true, data = new { isMaintenanceAgentEnabled = true } });
             }
             catch (Exception ex)
             {

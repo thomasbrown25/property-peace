@@ -358,10 +358,11 @@ const styles = StyleSheet.create({
   },
   googleButton: {
     backgroundColor: '#fff',
-    padding: 14,
+    height: 50,
+    paddingHorizontal: 14,
     borderRadius: 16,
     alignItems: 'center',
-    minHeight: 48,
+    justifyContent: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.16)',
     shadowColor: '#020617',

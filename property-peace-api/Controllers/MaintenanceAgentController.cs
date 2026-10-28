@@ -51,24 +51,8 @@ namespace brownstone_hub_api.Controllers
                 if (!userId.HasValue)
                     return Unauthorized(new { message = "User not authenticated" });
 
-                // Find the tenant record and walk up to its organization
-                var tenant = await _dataContext.Tenants
-                    .FirstOrDefaultAsync(t => t.UserId == userId.Value && !t.IsDeleted);
-
-                if (tenant?.OrganizationId == null)
-                {
-                    // No org found — default to agent enabled so the chat still works
-                    return Ok(new { success = true, data = new { isMaintenanceAgentEnabled = true } });
-                }
-
-                var org = await _dataContext.Organizations
-                    .FirstOrDefaultAsync(o => o.Id == tenant.OrganizationId && !o.IsDeleted);
-
-                return Ok(new
-                {
-                    success = true,
-                    data = new { isMaintenanceAgentEnabled = org?.IsMaintenanceAgentEnabled ?? true }
-                });
+                // The assistant is the default for every tenant; provider failures are handled by the client.
+                return Ok(new { success = true, data = new { isMaintenanceAgentEnabled = true } });
             }
             catch (Exception ex)
             {

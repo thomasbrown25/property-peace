@@ -250,7 +250,7 @@ export default function EmailEntryForm({
             )}
             <TransitionIn delay={0.1} disabled={reduceMotion}>
               <Typography variant="h3" sx={{ mb: emailAlreadyVerified ? 1 : 3, color: '#061e35', fontWeight: 700, textAlign: 'center' }}>
-                Create your landlord account
+                Sign up to Property Peace
               </Typography>
               {emailAlreadyVerified && (
                 <Typography color="text.secondary" sx={{ mb: 3, textAlign: 'center' }}>

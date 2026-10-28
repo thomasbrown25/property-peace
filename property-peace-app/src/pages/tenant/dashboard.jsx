@@ -553,17 +553,7 @@ export default function TenantDashboard() {
       .catch(() => setTenantConversations([]));
   }, [user]);
 
-  // Fetch maintenance agent settings
-  useEffect(() => {
-    axiosServices
-      .get('/api/maintenance-agent/settings')
-      .then((res) => {
-        if (res.data?.success) {
-          setMaintenanceAgentEnabled(res.data.data?.isMaintenanceAgentEnabled ?? true);
-        }
-      })
-      .catch(() => {});
-  }, []);
+  // The assistant is the default; switch to the form only after an assistant error.
 
   // Check if user was redirected here after account creation
   useEffect(() => {
@@ -1295,7 +1285,7 @@ export default function TenantDashboard() {
               height: '100%'
             }}
             secondary={
-              <Button size="small" startIcon={<PlusOutlined />} onClick={() => setMaintenanceDrawerOpen(true)}>
+              <Button size="small" startIcon={<PlusOutlined />} onClick={() => { setMaintenanceAgentEnabled(true); setMaintenanceDrawerOpen(true); }}>
                 New Request
               </Button>
             }
@@ -1358,7 +1348,7 @@ export default function TenantDashboard() {
                   variant="outlined"
                   size="small"
                   startIcon={<PlusOutlined />}
-                  onClick={() => setMaintenanceDrawerOpen(true)}
+                  onClick={() => { setMaintenanceAgentEnabled(true); setMaintenanceDrawerOpen(true); }}
                   sx={{ mt: 2 }}
                 >
                   Submit Request
@@ -1374,6 +1364,7 @@ export default function TenantDashboard() {
         <MaintenanceAgentDrawer
           open={maintenanceDrawerOpen}
           onClose={() => setMaintenanceDrawerOpen(false)}
+          onUnavailable={() => setMaintenanceAgentEnabled(false)}
           onRequestCreated={() => {
             setMaintenanceDrawerOpen(false);
             axiosServices

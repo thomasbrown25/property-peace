@@ -384,6 +384,118 @@ namespace brownstone_hub_api.Tests.Services.Users
             result.Data!.JWTToken.Should().NotBeNullOrEmpty();
         }
 
+        [Fact]
+        public async Task Register_ValidEmailProofCreatesOnlyALandlordAndConsumesProof()
+        {
+            var proof = await SeedVerifiedEmailAsync();
+            _userRepo.Setup(r => r.AddUser(It.IsAny<AddUserDto>()))
+                .ReturnsAsync(MakeLoadUserDto());
+            _userRepo.Setup(r => r.GetUser(1L)).ReturnsAsync(MakeUser());
+            _userRepo.Setup(r => r.GetUser("john@test.com")).ReturnsAsync(MakeLoadUserDto());
+            _userRepo.Setup(r => r.AddUserSettings(It.IsAny<long?>(), It.IsAny<string?>()))
+                .ReturnsAsync(new SettingsDto());
+            _roleRepo.Setup(r => r.GetRoleByNameAsync("Landlord"))
+                .ReturnsAsync(new LoadRoleDto { Id = 1, RoleName = "Landlord" });
+
+            var result = await _sut.Register(new AddUserDto
+            {
+                Email = " JOHN@TEST.COM ", EmailVerificationProof = proof,
+                Password = ValidPassword, Firstname = "John", Lastname = "Doe",
+                Roles = ["Admin", "Tenant"], HasSeenTutorial = true,
+                NotificationPreferencesConfigured = true,
+                PasswordHash = [1], PasswordSalt = [2]
+            });
+
+            result.Success.Should().BeTrue(result.Message);
+            result.Data!.JWTToken.Should().NotBeNullOrWhiteSpace();
+            _userRepo.Verify(r => r.AddUser(It.Is<AddUserDto>(user =>
+                user.Email == "john@test.com" &&
+                user.Roles.Count == 1 && user.Roles[0] == "Landlord" &&
+                !user.HasSeenTutorial && !user.NotificationPreferencesConfigured &&
+                user.PasswordHash != null && user.PasswordHash.Length > 1 &&
+                user.PasswordSalt != null && user.PasswordSalt.Length > 1)), Times.Once);
+            _userRepo.Verify(r => r.AddUserRole(It.Is<AddUserRoleDto>(role =>
+                role.UserId == 1 && role.RoleId == 1)), Times.Once);
+            var verification = await _context.EmailVerifications.SingleAsync();
+            verification.Code.Should().BeEmpty();
+            verification.ExpiresAt.Should().BeBefore(DateTime.UtcNow);
+        }
+
+        [Fact]
+        public async Task Register_ConsumedProofCannotCreateAnotherAccount()
+        {
+            var proof = await SeedVerifiedEmailAsync();
+            _userRepo.Setup(r => r.AddUser(It.IsAny<AddUserDto>()))
+                .ReturnsAsync(MakeLoadUserDto());
+            _userRepo.Setup(r => r.GetUser(1L)).ReturnsAsync(MakeUser());
+            _userRepo.Setup(r => r.GetUser("john@test.com")).ReturnsAsync(MakeLoadUserDto());
+            _userRepo.Setup(r => r.AddUserSettings(It.IsAny<long?>(), It.IsAny<string?>()))
+                .ReturnsAsync(new SettingsDto());
+            _roleRepo.Setup(r => r.GetRoleByNameAsync("Landlord"))
+                .ReturnsAsync(new LoadRoleDto { Id = 1, RoleName = "Landlord" });
+
+            var first = await _sut.Register(new AddUserDto
+            {
+                Email = "john@test.com", Password = ValidPassword, EmailVerificationProof = proof
+            });
+            var replay = await _sut.Register(new AddUserDto
+            {
+                Email = "john@test.com", Password = ValidPassword, EmailVerificationProof = proof
+            });
+
+            first.Success.Should().BeTrue(first.Message);
+            replay.Success.Should().BeFalse();
+            replay.StatusCode.Should().Be(403);
+            _userRepo.Verify(r => r.AddUser(It.IsAny<AddUserDto>()), Times.Once);
+        }
+
+        [Fact]
+        public async Task Register_ProofForDifferentEmailIsRejectedWithoutConsumingIt()
+        {
+            var proof = await SeedVerifiedEmailAsync();
+
+            var result = await _sut.Register(new AddUserDto
+            {
+                Email = "other@test.com", Password = ValidPassword, EmailVerificationProof = proof
+            });
+
+            result.Success.Should().BeFalse();
+            result.StatusCode.Should().Be(403);
+            _userRepo.Verify(r => r.AddUser(It.IsAny<AddUserDto>()), Times.Never);
+            (await _context.EmailVerifications.SingleAsync()).Code.Should().Be("123456");
+        }
+
+        [Fact]
+        public async Task Register_WeakPasswordDoesNotConsumeProofSoUserCanRetry()
+        {
+            var proof = await SeedVerifiedEmailAsync();
+            var rejected = await _sut.Register(new AddUserDto
+            {
+                Email = "john@test.com", Password = "weak", EmailVerificationProof = proof
+            });
+
+            rejected.Success.Should().BeFalse();
+            rejected.StatusCode.Should().Be(400);
+            (await _context.EmailVerifications.SingleAsync()).Code.Should().Be("123456");
+            _userRepo.Verify(r => r.AddUser(It.IsAny<AddUserDto>()), Times.Never);
+
+            _userRepo.Setup(r => r.AddUser(It.IsAny<AddUserDto>()))
+                .ReturnsAsync(MakeLoadUserDto());
+            _userRepo.Setup(r => r.GetUser(1L)).ReturnsAsync(MakeUser());
+            _userRepo.Setup(r => r.GetUser("john@test.com")).ReturnsAsync(MakeLoadUserDto());
+            _userRepo.Setup(r => r.AddUserSettings(It.IsAny<long?>(), It.IsAny<string?>()))
+                .ReturnsAsync(new SettingsDto());
+            _roleRepo.Setup(r => r.GetRoleByNameAsync("Landlord"))
+                .ReturnsAsync(new LoadRoleDto { Id = 1, RoleName = "Landlord" });
+            var retry = await _sut.Register(new AddUserDto
+            {
+                Email = "john@test.com", Password = ValidPassword, EmailVerificationProof = proof
+            });
+
+            retry.Success.Should().BeTrue(retry.Message);
+            _userRepo.Verify(r => r.AddUser(It.IsAny<AddUserDto>()), Times.Once);
+        }
+
         [Theory]
         [InlineData(false)]
         [InlineData(true)]
@@ -931,6 +1043,46 @@ namespace brownstone_hub_api.Tests.Services.Users
             _context.Notifications.Single(n => n.Id == 70).PerformedByUserId.Should().BeNull();
             _context.Conversations.Single(c => c.Id == 80).TenantId.Should().BeNull();
             _userRepo.Verify(r => r.HardDeleteUser(user), Times.Once);
+        }
+
+        [Fact]
+        public async Task HardDeleteUserCompletely_RemovesCollectionsActionsForDeletedLeaseOnly()
+        {
+            var owner = MakeUser(1);
+            var otherOwner = MakeUser(2);
+            otherOwner.Email = "other@test.com";
+            _userRepo.Setup(r => r.GetUserByIdIncludingDeleted(1L)).ReturnsAsync(owner);
+            _userRepo.Setup(r => r.HardDeleteUser(owner)).Returns(Task.CompletedTask);
+
+            _context.Users.AddRange(owner, otherOwner);
+            _context.Organizations.AddRange(
+                new Organization { Id = 10, OwnerId = 1, Name = "Owned" },
+                new Organization { Id = 20, OwnerId = 2, Name = "Other" });
+            _context.Properties.AddRange(
+                new Property { Id = 100, LandlordId = 1, OrganizationId = 10 },
+                new Property { Id = 200, LandlordId = 2, OrganizationId = 20 });
+            _context.Units.AddRange(
+                new Unit { Id = 101, PropertyId = 100 },
+                new Unit { Id = 201, PropertyId = 200 });
+            _context.Leases.AddRange(
+                new Lease { Id = 102, UnitId = 101 },
+                new Lease { Id = 202, UnitId = 201 });
+            _context.CollectionsAgentActions.AddRange(
+                new CollectionsAgentAction { Id = 103, OrganizationId = 10, LeaseId = 102, ActionType = "sent", Message = "Owned history" },
+                new CollectionsAgentAction { Id = 203, OrganizationId = 20, LeaseId = 202, ActionType = "sent", Message = "Other history" });
+            _context.LeaseHistories.AddRange(
+                new LeaseHistory { Id = 104, OrganizationId = 10, OriginalLeaseId = 99, UnitId = 101 },
+                new LeaseHistory { Id = 204, OrganizationId = 20, OriginalLeaseId = 199, UnitId = 201 });
+            await _context.SaveChangesAsync();
+            // Simulate archived history that is not tracked when the delete begins.
+            _context.ChangeTracker.Clear();
+
+            var result = await _sut.HardDeleteUserCompletely(1);
+
+            result.Success.Should().BeTrue(result.Message);
+            _context.CollectionsAgentActions.Should().ContainSingle(a => a.Id == 203);
+            _context.LeaseHistories.Should().ContainSingle(h => h.Id == 204);
+            _context.Leases.Should().ContainSingle(l => l.Id == 202);
         }
 
         // ── GetUserByIdAsync ──────────────────────────────────────────────────────

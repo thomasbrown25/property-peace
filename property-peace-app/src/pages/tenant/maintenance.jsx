@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import TenantMaintenanceFormDrawer from 'components/drawers/TenantMaintenanceFormDrawer';
+import MaintenanceAgentDrawer from './MaintenanceAgentDrawer';
 
 // material-ui
 import {
@@ -237,6 +238,7 @@ export default function TenantMaintenance() {
   const [sortOrder, setSortOrder] = useState('desc');
   const [loading, setLoading] = useState(true);
   const [agentDrawerOpen, setAgentDrawerOpen] = useState(false);
+  const [agentFailed, setAgentFailed] = useState(false);
 
   const [error, setError] = useState(null);
 
@@ -493,7 +495,7 @@ export default function TenantMaintenance() {
                 variant="contained"
                 size="small"
                 startIcon={<PlusOutlined />}
-                onClick={() => setAgentDrawerOpen(true)}
+                onClick={() => { setAgentFailed(false); setAgentDrawerOpen(true); }}
                 sx={{ textTransform: 'none', width: { xs: '100%', sm: 'auto' } }}
               >
                 New Request
@@ -700,7 +702,7 @@ export default function TenantMaintenance() {
                     variant="outlined"
                     size="small"
                     startIcon={<PlusOutlined />}
-                    onClick={() => setAgentDrawerOpen(true)}
+                    onClick={() => { setAgentFailed(false); setAgentDrawerOpen(true); }}
                     sx={{ mt: 2, textTransform: 'none' }}
                   >
                     Submit a Request
@@ -712,14 +714,17 @@ export default function TenantMaintenance() {
         </Box>
       </Box>
 
-      <TenantMaintenanceFormDrawer
+      {agentFailed ? <TenantMaintenanceFormDrawer
         open={agentDrawerOpen}
         onClose={() => setAgentDrawerOpen(false)}
         unitId={selectedLease?.unitId ?? null}
-        onRequestCreated={() => {
-          refetchRequests();
-        }}
-      />
+        onRequestCreated={refetchRequests}
+      /> : <MaintenanceAgentDrawer
+        open={agentDrawerOpen}
+        onClose={() => setAgentDrawerOpen(false)}
+        onUnavailable={() => setAgentFailed(true)}
+        onRequestCreated={refetchRequests}
+      />}
     </Box>
   );
 }
