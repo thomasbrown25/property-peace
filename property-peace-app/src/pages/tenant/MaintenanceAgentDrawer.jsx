@@ -206,6 +206,7 @@ export default function MaintenanceAgentDrawer({
   // index of the last agent message that requested a photo (-1 = none)
   const [photoRequestIdx, setPhotoRequestIdx] = useState(-1);
   const [awaitingPostSubmitChoice, setAwaitingPostSubmitChoice] = useState(false);
+  const [uncertainSubmission, setUncertainSubmission] = useState(false);
 
   useEffect(() => {
     sessionVersionRef.current += 1;
@@ -233,6 +234,7 @@ export default function MaintenanceAgentDrawer({
       setInput('');
       setPhotoRequestIdx(-1);
       setAwaitingPostSubmitChoice(false);
+      setUncertainSubmission(false);
       setInitialized(true);
       sendToAgent([]);
     }
@@ -268,13 +270,16 @@ export default function MaintenanceAgentDrawer({
         } catch (err) {
           if (!openRef.current || sessionVersion !== sessionVersionRef.current) return;
           console.error('Maintenance Agent error:', err);
-          if (onUnavailable) {
+          if (onUnavailable && msgHistory.length === 0) {
             onUnavailable(err);
             return;
           }
+          if (msgHistory.length) setUncertainSubmission(true);
           setMessages((prev) => [
             ...prev,
-            { role: 'assistant', content: "I'm sorry, something went wrong. Please try again or contact support." }
+            { role: 'assistant', content: msgHistory.length
+              ? 'The assistant could not confirm that message. Check your maintenance requests before trying again; it may already have created a report.'
+              : 'The assistant is unavailable. Please try again or contact support.' }
           ]);
           return;
         }
@@ -310,7 +315,7 @@ export default function MaintenanceAgentDrawer({
 
   const handleSend = () => {
     const text = input.trim();
-    if (!text || loading) return;
+    if (!text || loading || uncertainSubmission) return;
     const userMsg = { role: 'user', content: text };
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
@@ -375,7 +380,7 @@ export default function MaintenanceAgentDrawer({
     }
   };
 
-  const canSend = input.trim() && !loading;
+  const canSend = input.trim() && !loading && !uncertainSubmission;
 
   return (
     <Drawer
@@ -492,7 +497,7 @@ export default function MaintenanceAgentDrawer({
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Type your message…"
-              disabled={loading}
+              disabled={loading || uncertainSubmission}
               size="small"
               sx={{
                 '& .MuiOutlinedInput-root': {

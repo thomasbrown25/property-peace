@@ -1,4 +1,5 @@
 import { rentalMode } from './rentalMode.js';
+import { isStartedActiveLease } from './leaseStatus.js';
 
 const read = (item, camel, pascal) => item?.[camel] ?? item?.[pascal];
 
@@ -14,12 +15,15 @@ export function getOwnerProperties(properties = []) {
       address: [read(property, 'streetAddress', 'StreetAddress'), read(property, 'city', 'City'), read(property, 'state', 'State')].filter(Boolean).join(', '),
       imageUrl: read(property, 'mainImageUrl', 'MainImageUrl') || read(property, 'images', 'Images')?.[0]?.blobUrl || null,
       original: property,
+      activeLeaseCount: (read(property, 'units', 'Units') || []).filter(
+        (unit) => isStartedActiveLease(read(unit, 'lease', 'Lease'))
+      ).length,
       href: `/landlord/property/${encodeURIComponent(id)}`,
       shortStayHref: shortStayUnit
         ? `/landlord/property/${encodeURIComponent(id)}/unit/${encodeURIComponent(read(shortStayUnit, 'id', 'Id'))}/short-stay`
         : null
     };
-  });
+  }).sort((a, b) => Number(b.activeLeaseCount > 0) - Number(a.activeLeaseCount > 0) || a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }));
 }
 
 export function getPropertyMonthRent(propertyId, records = [], unavailable = false) {

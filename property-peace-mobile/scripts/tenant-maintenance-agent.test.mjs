@@ -7,10 +7,14 @@ test('tenant reporting defaults to tenant agent and retains manual fallback', ()
   const entry = read('screens/tenant/TenantMaintenanceReportScreen.tsx');
   const nav = read('navigation/MainNavigator.tsx');
   assert.match(nav, /TenantMaintenanceIntake.*component=\{TenantMaintenanceReportScreen\}/);
-  assert.match(entry, /getTenantAgentSettings\(/);
+  assert.match(entry, /useState<'agent' \| 'manual'>\('agent'\)/);
   assert.match(entry, /TenantMaintenanceAgentScreen/);
   assert.match(entry, /TenantMaintenanceIntakeScreen/);
   assert.match(entry, /onManual/);
+  assert.doesNotMatch(entry, /getTenantAgentSettings\(/);
+  const agent = read('screens/tenant/TenantMaintenanceAgentScreen.tsx');
+  assert.match(agent, /\{!!error && <TouchableOpacity[^>]*onPress=\{onManual\}/);
+  assert.doesNotMatch(agent, /^        <TouchableOpacity[^\n]*onPress=\{onManual\}/m);
   assert.doesNotMatch(entry, /chatWithLandlordAgent/);
 });
 

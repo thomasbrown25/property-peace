@@ -27,7 +27,6 @@ export default function MaintenanceAgentIntakeScreen({ onManual }: { onManual: (
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadingUnits, setLoadingUnits] = useState(false);
-  const [enabled, setEnabled] = useState(false);
   const [messages, setMessages] = useState<Bubble[]>([]);
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
@@ -42,10 +41,9 @@ export default function MaintenanceAgentIntakeScreen({ onManual }: { onManual: (
 
   useEffect(() => {
     let active = true;
-    Promise.all([PropertyAPI.getProperties(), MaintenanceAPI.getLandlordAgentSettings()]).then(([items, allowed]) => {
+    PropertyAPI.getProperties().then(items => {
       if (!active) return;
       setProperties(items ?? []);
-      setEnabled(allowed);
       if (scopedId) {
         const match = items.find(item => idOf(item) === scopedId);
         if (match) void selectProperty(match);
@@ -136,7 +134,7 @@ export default function MaintenanceAgentIntakeScreen({ onManual }: { onManual: (
   const surface = dark ? colors.surface : '#fff';
   const border = dark ? colors.border : '#d5e0e8';
   const muted = colors.muted;
-  const ready = !!property && (!isMultiUnit(property) || (!loadingUnits && unitChosen)) && enabled;
+  const ready = !!property && (!isMultiUnit(property) || (!loadingUnits && unitChosen));
 
   return <KeyboardAvoidingView style={[styles.page, { backgroundColor: colors.background }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
     <View style={styles.header}>
@@ -163,7 +161,6 @@ export default function MaintenanceAgentIntakeScreen({ onManual }: { onManual: (
         </>}
         {!properties.length && <Text style={[styles.hint, { color: muted }]}>Add a property before creating a request.</Text>}
       </>}
-      {!enabled && !loading && !error && <Text style={[styles.hint, { color: muted }]}>The assistant is not enabled for this organization. Use the manual form instead.</Text>}
       {ready && !messages.length && <TouchableOpacity style={[styles.primary, { backgroundColor: colors.accent }]} disabled={busy} onPress={() => void chat([], true)}><Text style={styles.primaryText}>Start conversation</Text></TouchableOpacity>}
     </View>
     <ScrollView ref={scroll} style={styles.conversation} contentContainerStyle={styles.conversationInner} onContentSizeChange={() => scroll.current?.scrollToEnd({ animated: true })} keyboardShouldPersistTaps="handled">
@@ -175,7 +172,7 @@ export default function MaintenanceAgentIntakeScreen({ onManual }: { onManual: (
     <View style={[styles.footer, { borderColor: border, backgroundColor: colors.background }]}>
       {photoRequested && !uncertain && <View style={styles.actions}><TouchableOpacity disabled={busy} onPress={() => void attachPhoto()}><Text style={{ color: colors.accent, fontWeight: '700' }}>Add photo</Text></TouchableOpacity><TouchableOpacity disabled={busy} onPress={() => void chat([...messagesRef.current, { role: 'user', content: "I don't have a photo. Please continue." }])}><Text style={{ color: colors.accent, fontWeight: '700' }}>Skip photo</Text></TouchableOpacity></View>}
       {messages.length > 0 && !uncertain && <View style={styles.composer}><TextInput style={[styles.input, { color: ink, backgroundColor: surface, borderColor: border }]} value={draft} onChangeText={setDraft} placeholder="Type your reply…" placeholderTextColor={muted} multiline maxLength={2000} accessibilityLabel="Message to maintenance assistant" editable={!busy} /><TouchableOpacity accessibilityRole="button" accessibilityLabel="Send message" style={[styles.send, { backgroundColor: colors.accent }, (!draft.trim() || busy) && styles.disabled]} disabled={!draft.trim() || busy} onPress={send}><Text style={styles.primaryText}>Send</Text></TouchableOpacity></View>}
-      <TouchableOpacity onPress={onManual} style={styles.manual}><Text style={{ color: colors.accent }}>Use manual form instead</Text></TouchableOpacity>
+      {!!error && <TouchableOpacity onPress={onManual} style={styles.manual}><Text style={{ color: colors.accent }}>Use manual form instead</Text></TouchableOpacity>}
     </View>
   </KeyboardAvoidingView>;
 }

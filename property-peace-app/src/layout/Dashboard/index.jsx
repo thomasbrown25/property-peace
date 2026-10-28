@@ -11,6 +11,8 @@ import { Container, Toolbar, Box, alpha } from '@mui/material';
 
 // project imports
 import Header from './Header';
+import MainDrawer from './Drawer';
+import { DRAWER_WIDTH } from 'config';
 import Footer from './Footer';
 import Loader from 'components/Loader';
 
@@ -29,6 +31,8 @@ import { useGetMenuMaster } from 'api/menu';
 
 export default function DashboardLayout() {
   const { pathname } = useLocation();
+  const isAdminPortal = pathname === '/admin' || pathname.startsWith('/admin/');
+  const [adminMobileMenuOpen, setAdminMobileMenuOpen] = useState(false);
   // Standalone property onboarding supplies its own logo, Save & exit, and step footer.
   const isAddPropertyPage = pathname === '/landlord/properties/add' || pathname === '/landlord/property-add-workflow';
   const { menuMasterLoading, menuMaster } = useGetMenuMaster();
@@ -58,6 +62,10 @@ export default function DashboardLayout() {
   const isSuspended = user?.isSuspended || user?.IsSuspended || false;
 
   // Hide loader once layout is ready (menu loaded)
+  useEffect(() => {
+    setAdminMobileMenuOpen(false);
+  }, [pathname]);
+
   // Keep it visible longer to allow page components to start animating
   useEffect(() => {
     if (!menuMasterLoading && menuMaster) {
@@ -141,12 +149,13 @@ export default function DashboardLayout() {
           })
         })}
       >
-        {!isAddPropertyPage && <Header />}
+        {!isAddPropertyPage && <Header adminPortal={isAdminPortal} onAdminMenuOpen={() => setAdminMobileMenuOpen(true)} />}
+        {isAdminPortal && <MainDrawer mobileOpen={adminMobileMenuOpen} onMobileClose={() => setAdminMobileMenuOpen(false)} />}
 
         <Box 
           component="main" 
           sx={{ 
-            width: '100%',
+            width: isAdminPortal ? { xs: '100%', lg: `calc(100% - ${DRAWER_WIDTH}px)` } : '100%',
             flexGrow: 1, 
             p: isAddPropertyPage ? 0 : 2.5,
             pb: 0,

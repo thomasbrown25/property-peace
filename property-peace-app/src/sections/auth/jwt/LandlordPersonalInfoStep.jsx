@@ -21,8 +21,7 @@ export default function LandlordPersonalInfoStep({
   initialPhoneNumber = '',
   initialOrganizationName = '',
   googleProfile = false,
-  onNext,
-  onBack
+  onNext
 }) {
   const googleHasName = googleProfile && Boolean(initialFirstName.trim() && initialLastName.trim());
   const nameFields = [
@@ -31,17 +30,8 @@ export default function LandlordPersonalInfoStep({
   ].filter(([name]) => !googleProfile || !String(name === 'firstName' ? initialFirstName : initialLastName).trim());
   return (
     <Box sx={{ width: '100%', maxWidth: 460, mx: 'auto' }}>
-      <Button onClick={onBack} sx={{ px: 0, mb: 2, textTransform: 'none' }}>
-        Back
-      </Button>
-      <Typography color="success.main" fontWeight={700} variant="body2">
-        Step 3 of 3 · Your workspace
-      </Typography>
-      <Typography variant="h3" sx={{ mt: 1, mb: 1, color: '#061e35', fontWeight: 700 }}>
+      <Typography variant="h3" sx={{ mb: 3, color: '#061e35', fontWeight: 700 }}>
         Tell us about your business
-      </Typography>
-      <Typography color="text.secondary" sx={{ mb: 3 }}>
-        Add the details we need to personalize your workspace. Your phone number is required for account and property communications.
       </Typography>
       <Formik
         initialValues={{
@@ -187,6 +177,5 @@ LandlordPersonalInfoStep.propTypes = {
   initialPhoneNumber: PropTypes.string,
   initialOrganizationName: PropTypes.string,
   googleProfile: PropTypes.bool,
-  onNext: PropTypes.func.isRequired,
-  onBack: PropTypes.func
+  onNext: PropTypes.func.isRequired
 };

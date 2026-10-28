@@ -37,7 +37,7 @@ export default function Navigation() {
   const shortTermOnly = useLandlordInventoryMenu(hasLandlordRole && !hasTenantRole && !hasAdminRole);
 
   // Subscription restrictions only apply to landlord accounts. Tenants are always free.
-  const isTrialExpired = !hasTenantRole && subscriptionStatus?.isTrialActive &&
+  const isTrialExpired = hasLandlordRole && !hasAdminRole && !hasTenantRole && subscriptionStatus?.isTrialActive &&
     (subscriptionStatus?.trialDaysRemaining === null || subscriptionStatus?.trialDaysRemaining <= 0);
 
 

@@ -73,7 +73,6 @@ export default function RegisterLandlord() {
             initialOrganizationName: draft.organizationName,
             googleProfile
           }}
-          onBack={() => go(googleProfile ? 'account' : 'verify')}
           onNext={(values) => {
             Object.entries(values).forEach(([key, value]) =>
               sessionStorage.setItem(`register${key.charAt(0).toUpperCase()}${key.slice(1)}`, value)
@@ -119,7 +118,6 @@ export default function RegisterLandlord() {
           updateDraft(next);
           go('details');
         }}
-        onBack={() => window.location.assign('/')}
       />
     );
   })();

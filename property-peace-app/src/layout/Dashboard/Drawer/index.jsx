@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 
 import { useMediaQuery } from '@mui/material';
 import { Drawer } from '@mui/material';
@@ -11,17 +11,20 @@ import DrawerContent from './DrawerContent';
 import MiniDrawerStyled from './MiniDrawerStyled';
 
 import { DRAWER_WIDTH } from 'config';
-import { handlerDrawerOpen, useGetMenuMaster } from 'api/menu';
+import { handlerDrawerOpen } from 'api/menu';
 import useConfig from 'hooks/useConfig';
 
 const DEFAULT_LIGHT_DRAWER_BACKGROUND = '#ffffff';
 
 // ==============================|| MAIN LAYOUT - DRAWER ||============================== //
 
-export default function MainDrawer({ window }) {
-  const { menuMaster } = useGetMenuMaster();
-  const drawerOpen = menuMaster.isDashboardDrawerOpened;
+export default function MainDrawer({ window, mobileOpen = false, onMobileClose }) {
   const downLG = useMediaQuery((theme) => theme.breakpoints.down('lg'));
+  const drawerOpen = downLG ? mobileOpen : true;
+  // The existing nav items read menuMaster to decide whether to display labels.
+  useEffect(() => {
+    handlerDrawerOpen(drawerOpen);
+  }, [drawerOpen]);
   const { presetColor } = useConfig();
   const lightDrawerBackground = presetColor === 'default' ? DEFAULT_LIGHT_DRAWER_BACKGROUND : undefined;
 
@@ -36,7 +39,8 @@ export default function MainDrawer({ window }) {
   );
 
   return (
-    <Box component="nav" sx={{ flexShrink: { md: 0 }, zIndex: 1200 }} aria-label="mailbox folders">
+    <Box component="nav" sx={{ flexShrink: 0, zIndex: 1200 }} aria-label="Admin navigation"
+      onClick={(event) => { if (downLG && event.target.closest('a[href]')) onMobileClose(); }}>
       {!downLG ? (
         <MiniDrawerStyled variant="permanent" open={drawerOpen} lightDrawerBackground={lightDrawerBackground}>
           {drawerHeader}
@@ -47,7 +51,7 @@ export default function MainDrawer({ window }) {
           container={container}
           variant="temporary"
           open={drawerOpen}
-          onClose={() => handlerDrawerOpen(!drawerOpen)}
+          onClose={onMobileClose}
           ModalProps={{ keepMounted: true }}
           sx={{ display: { xs: drawerOpen ? 'block' : 'none', lg: 'none' } }}
           slotProps={{
@@ -75,4 +79,4 @@ export default function MainDrawer({ window }) {
   );
 }
 
-MainDrawer.propTypes = { window: PropTypes.func };
+MainDrawer.propTypes = { window: PropTypes.func, mobileOpen: PropTypes.bool, onMobileClose: PropTypes.func };

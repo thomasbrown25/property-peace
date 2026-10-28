@@ -82,7 +82,7 @@ const styles = StyleSheet.create({
   },
   button: {
     width: '100%',
-    height: 44,
+    height: 50,
   },
   loading: {
     opacity: 0.6,

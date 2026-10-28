@@ -34,6 +34,7 @@ export default function DrawerHeader({ open, lightDrawerBackground }) {
     >
       <Box sx={{ paddingTop: isHorizontal ? { xs: '8px', lg: '6px' } : 0 }}>
         <Logo
+          to="/admin/dashboard"
           isIcon={!open}
           reverse
           darkSurface={theme.palette.mode === 'dark'}

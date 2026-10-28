@@ -69,13 +69,13 @@ export default function OwnerTodayHome({ reminders = [], properties = [], proper
                   </Stack>
                   <Box>
                     <Typography sx={{ display: { xs: 'block', md: 'none' }, mb: 0.5, fontSize: '0.66rem', fontWeight: 750, textTransform: 'uppercase', color: 'text.secondary' }}>Rent paid</Typography>
-                    {rentLoading && !rentReady ? <Typography sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>Loading rent…</Typography> : rent ? (
+                    {property.activeLeaseCount === 0 ? <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>No lease</Typography> : rentLoading && !rentReady ? <Typography sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>Loading rent…</Typography> : rent ? (
                       <>
                         <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
                           <Typography sx={{ fontSize: '0.8rem', fontWeight: 650 }}>{money(rent.paid)} of {money(rent.expected)}</Typography>
                           <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary' }}>{Math.round(rent.percent)}%</Typography>
                         </Stack>
-                        <LinearProgress variant="determinate" value={rent.percent} aria-label={`${property.name} rent paid this month`} sx={{ mt: 0.65, height: 5, borderRadius: 8, bgcolor: alpha(theme.palette.divider, 0.12), '& .MuiLinearProgress-bar': { borderRadius: 8, bgcolor: theme.palette.success.main } }} />
+                        <LinearProgress variant="determinate" value={rent.percent} aria-label={`${property.name} rent paid this month`} sx={{ mt: 0.65, height: 5, borderRadius: 8, bgcolor: rent.paid === 0 ? theme.palette.grey[theme.palette.mode === 'dark' ? 700 : 300] : alpha(theme.palette.divider, 0.3), '& .MuiLinearProgress-bar': { borderRadius: 8, bgcolor: theme.palette.success.main } }} />
                         {rent.expected === 0 && <Typography sx={{ mt: 0.55, fontSize: '0.7rem', color: 'text.secondary' }}>No rent scheduled this month</Typography>}
                       </>
                     ) : <Typography sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>{rentError ? 'Rent data unavailable' : rentReady ? 'No rent scheduled this month' : 'Loading rent…'}</Typography>}

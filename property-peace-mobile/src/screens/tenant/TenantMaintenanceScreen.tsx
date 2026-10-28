@@ -62,7 +62,7 @@ export default function TenantMaintenanceScreen() {
         {error && <View style={[styles.error, dark && { backgroundColor: '#432630' }]}><Text style={[styles.errorText, dark && { color: '#ffb8c2' }]}>{error}</Text><TouchableOpacity onPress={load}><Text style={[styles.retry, dark && { color: colors.accent }]}>Try again</Text></TouchableOpacity></View>}
         {items.length > 0 && <Text style={[styles.listLabel, dark && { color: colors.muted }]}>{tab === 'current' ? 'OPEN REQUESTS' : 'PAST REQUESTS'}</Text>}
       </View>}
-      ListEmptyComponent={<View style={styles.empty}><Text style={[styles.emptyTitle, dark && { color: colors.text }]}>{tab === 'current' ? 'No open repairs' : 'No repair history'}</Text><Text style={[styles.sub, dark && { color: colors.muted }]}>{tab === 'current' ? 'When something needs attention, start a structured report here.' : 'Completed and cancelled requests will appear here.'}</Text></View>}
+      ListEmptyComponent={<View style={styles.empty}><Text style={[styles.emptyTitle, dark && { color: colors.text }]}>{tab === 'current' ? 'No open repairs' : 'No repair history'}</Text><Text style={[styles.sub, dark && { color: colors.muted }]}>{tab === 'current' ? 'When something needs attention, report it with the maintenance assistant.' : 'Completed and cancelled requests will appear here.'}</Text></View>}
       renderItem={({ item }) => {
         const status = value(item, 'status');
         return <TouchableOpacity style={styles.requestRow} onPress={() => navigation.navigate('TenantMaintenanceDetail', { requestId: String(value(item, 'id')), listItem: item })}>

@@ -20,11 +20,27 @@ test('empty, loading and failed property requests cannot claim the portfolio is 
   assert.equal(getOwnerNextStep({ properties: [], propertiesError: true }), null);
   assert.deepEqual(getOwnerNextStep({ properties: [] }), { title: 'Add your first property', label: 'Get started', href: '/landlord/properties/add' });
   assert.deepEqual(getOwnerProperties([{ Id: 'A', Name: 'Oak', Units: [{ Id: 'U', rentalMode: 'shortTerm' }] }]), [
-    { id: 'A', name: 'Oak', address: '', imageUrl: null, original: { Id: 'A', Name: 'Oak', Units: [{ Id: 'U', rentalMode: 'shortTerm' }] }, href: '/landlord/property/A', shortStayHref: '/landlord/property/A/unit/U/short-stay' }
+    { id: 'A', name: 'Oak', address: '', imageUrl: null, original: { Id: 'A', Name: 'Oak', Units: [{ Id: 'U', rentalMode: 'shortTerm' }] }, activeLeaseCount: 0, href: '/landlord/property/A', shortStayHref: '/landlord/property/A/unit/U/short-stay' }
   ]);
   assert.deepEqual(getOwnerProperties([{ id: 'B', streetAddress: '12 Elm', units: [{ id: 'V', rentalMode: 'LongTerm' }] }]), [
-    { id: 'B', name: '12 Elm', address: '12 Elm', imageUrl: null, original: { id: 'B', streetAddress: '12 Elm', units: [{ id: 'V', rentalMode: 'LongTerm' }] }, href: '/landlord/property/B', shortStayHref: null }
+    { id: 'B', name: '12 Elm', address: '12 Elm', imageUrl: null, original: { id: 'B', streetAddress: '12 Elm', units: [{ id: 'V', rentalMode: 'LongTerm' }] }, activeLeaseCount: 0, href: '/landlord/property/B', shortStayHref: null }
   ]);
+});
+
+test('today properties put active leases first and sort names alphabetically within each group', () => {
+  const active = { isActive: true, startDate: '2020-01-01' };
+  const inactive = { isActive: false, startDate: '2020-01-01' };
+  const properties = [
+    { id: 1, name: 'Zebra', units: [{ lease: inactive }] },
+    { id: 2, name: 'Maple', units: [{ lease: active }] },
+    { id: 3, name: 'apple', units: [] },
+    { id: 4, name: 'Birch', units: [{ lease: active }] },
+    { id: 5, name: 'Elm', units: [{ lease: { ...active, endDate: '2020-02-01' } }] }
+  ];
+  assert.deepEqual(getOwnerProperties(properties).map(({ name, activeLeaseCount }) => [name, activeLeaseCount]), [
+    ['Birch', 1], ['Maple', 1], ['apple', 0], ['Elm', 0], ['Zebra', 0]
+  ]);
+  assert.deepEqual(properties.map(({ name }) => name), ['Zebra', 'Maple', 'apple', 'Birch', 'Elm']);
 });
 
 test('property month rent uses scoped period allocations, not lifetime or other-property payments', () => {
@@ -48,6 +64,12 @@ test('rent API exposes the same period allocation per lease used for the portfol
   assert.match(dto, /CurrentMonthCollected/);
   assert.match(service, /CurrentMonthExpected = RentCalculator\.ExpectedForLease\(l, startOfMonth, endOfMonth\)/);
   assert.match(service, /CurrentMonthCollected = RentCalculator\.CollectedForPeriod\(l, leasePaymentList, startOfMonth, endOfMonth\)/);
+});
+
+test('today shows No lease instead of zero figures and a visible gray zero-collected track', () => {
+  const home = source('sections/landlord/dashboard/OwnerTodayHome.jsx');
+  assert.match(home, /property\.activeLeaseCount === 0\s*\?\s*<Typography[^>]*>No lease<\/Typography>/);
+  assert.match(home, /bgcolor: rent\.paid === 0 \? theme\.palette\.grey\[theme\.palette\.mode === 'dark' \? 700 : 300\]/);
 });
 
 test('today property list includes image, address, rent paid and operations columns', () => {

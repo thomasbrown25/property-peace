@@ -1079,7 +1079,8 @@ namespace brownstone_hub_api.Services.OrganizationService
                 if (member == null || (member.Role != "Owner" && !member.CanManageProperties))
                     return ServiceResponse<LoadOrganizationDto>.CreateError("Unauthorized", "You do not have permission to update agent settings.", "", 403);
 
-                org.IsMaintenanceAgentEnabled = dto.IsMaintenanceAgentEnabled;
+                // Maintenance assistant is always on; retain the legacy column for schema compatibility.
+                org.IsMaintenanceAgentEnabled = true;
                 org.IsCollectionsAgentEnabled = dto.IsCollectionsAgentEnabled;
                 org.UpdatedAt = DateTime.Now;
 
