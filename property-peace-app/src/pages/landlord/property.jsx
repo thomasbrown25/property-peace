@@ -90,7 +90,7 @@ import MarketingTab from 'sections/landlord/property/MarketingTab';
 import DocumentsTab from 'sections/landlord/property/DocumentsTab';
 import ExpensesTab from 'sections/landlord/property/ExpensesTab';
 import OverviewTab from 'sections/landlord/property/OverviewTab';
-import PropertyOverview from 'sections/landlord/property/PropertyOverview';
+import PropertyRecordsTabs from 'sections/landlord/property/PropertyRecordsTabs';
 import LandlordMaintenanceDrawer from 'components/drawers/LandlordMaintenanceDrawer';
 import { bankAccountAPI } from 'api';
 import axiosServices from 'utils/axios';
@@ -2376,7 +2376,7 @@ export default function Property() {
   const maintenanceLoading = useSelector(selectMaintenanceLoading);
 
   const { rentRecords, loading: rentCollectionLoading } = useFetchRentCollection(propertyId);
-  const { maintenances, refetch: refetchMaintenances } = useFetchMaintenances(propertyId);
+  const { maintenances, historyMaintenances, loadError: maintenanceError, refetch: refetchMaintenances } = useFetchMaintenances(propertyId);
   
   // Get context to update property loading state
   const { setPropertyLoading } = useDashboardLoading();
@@ -2625,10 +2625,21 @@ export default function Property() {
         {/* Property Overview */}
         <Box sx={{ mt: 3 }}>
           <AnimateIn direction="bottom" delay={200} distance={120}>
-            <PropertyOverview
+            <PropertyRecordsTabs
               property={selectedProperty}
               propertyId={propertyId}
               rentRecords={rentRecords}
+              maintenances={maintenances}
+              historyMaintenances={historyMaintenances}
+              maintenanceError={maintenanceError}
+              tab={tab}
+              onTabChange={(nextTab) => {
+                setTab(nextTab);
+                const params = new URLSearchParams(searchParams);
+                if (nextTab === 'overview') params.delete('tab');
+                else params.set('tab', nextTab);
+                navigate({ pathname: location.pathname, search: params.toString() });
+              }}
             />
           </AnimateIn>
         </Box>

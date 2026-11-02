@@ -37,7 +37,7 @@ function rentDueDayLabel(day) {
  * @param {Date} [props.windowStart] - Optional start of the window (first day of first month). When provided with windowMonthCount, overrides year/monthRange.
  * @param {number} [props.windowMonthCount] - Number of months to show starting at windowStart (e.g. 12).
  */
-function OccupancyTimelineGraph({ calendarData, year, loading, monthRange, windowStart, windowMonthCount, fallbackPropertyName }) {
+function OccupancyTimelineGraph({ calendarData, year, loading, monthRange, windowStart, windowMonthCount, fallbackPropertyName, onMonthClick, maxVisibleUnits }) {
   const allMonths = useMemo(() => {
     if (windowStart && windowMonthCount > 0) {
       return Array.from({ length: windowMonthCount }, (_, i) => addMonths(windowStart, i));
@@ -200,7 +200,7 @@ function OccupancyTimelineGraph({ calendarData, year, loading, monthRange, windo
       </Box>
 
       {/* Timeline Table */}
-      <TableContainer component={Paper} sx={{ maxHeight: 600, overflow: 'auto' }}>
+      <TableContainer component={Paper} sx={{ maxHeight: maxVisibleUnits && calendarData.units.length > maxVisibleUnits ? maxVisibleUnits * 48 + 50 : 600, overflow: 'auto' }}>
         <Table stickyHeader size="small">
           <TableHead>
             <TableRow>
@@ -336,9 +336,17 @@ function OccupancyTimelineGraph({ calendarData, year, loading, monthRange, windo
                             arrow
                           >
                             <Box
+                              component={onMonthClick ? 'button' : 'div'}
+                              type={onMonthClick ? 'button' : undefined}
+                              onClick={onMonthClick ? () => onMonthClick(unit, month) : undefined}
+                              aria-label={onMonthClick ? `${unit.unitName || fallbackPropertyName || 'Unit'} ${format(month, 'MMMM yyyy')}: ${isOccupied ? 'occupied' : 'vacant'}; view daily occupancy` : undefined}
                               sx={{
                                 width: '100%',
                                 height: 24,
+                                border: 0,
+                                bgcolor: 'transparent',
+                                cursor: onMonthClick ? 'pointer' : 'inherit',
+                                '&:focus-visible': onMonthClick ? { outline: '2px solid white', outlineOffset: -2 } : undefined,
                                 borderRadius: 0.5,
                                 display: 'flex',
                                 alignItems: 'center',

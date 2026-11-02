@@ -11,7 +11,7 @@ import {
   FileTextOutlined, PlusOutlined,
   StopOutlined, UploadOutlined, ArrowRightOutlined,
   MailOutlined, PhoneOutlined, DeleteOutlined, CalendarOutlined,
-  SearchOutlined, UserOutlined
+  SearchOutlined, UserOutlined, ThunderboltOutlined
 } from '@ant-design/icons';
 import PaymentEditDrawer from 'components/drawers/PaymentEditDrawer';
 import TenantMessageDrawer from 'components/drawers/TenantMessageDrawer';
@@ -657,14 +657,14 @@ export default function LeaseDetailView({
           </Stack>
           <Box sx={{ flexShrink: 0, alignSelf: { xs: 'flex-end', md: 'flex-start' } }}>
             <Button
-              size="small"
               variant="outlined"
+              startIcon={<ThunderboltOutlined style={{ fontSize: 13 }} />}
               aria-label="Lease actions"
               aria-controls={leaseActionsAnchor ? 'lease-actions-menu' : undefined}
               aria-haspopup="menu"
               aria-expanded={Boolean(leaseActionsAnchor)}
               onClick={(event) => setLeaseActionsAnchor(event.currentTarget)}
-              sx={{ textTransform: 'none' }}
+              sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 1.5, px: 3, fontSize: '0.875rem', whiteSpace: 'nowrap', borderColor: theme.palette.mode === 'dark' ? alpha('#cbd5e1', 0.16) : alpha(theme.palette.divider, 0.24) }}
             >
               Actions
             </Button>

@@ -65,9 +65,9 @@ export const getPropertyOccupancyData = async (landlordId, propertyId = null) =>
  * @param {Date|null} endDate - Optional end date (defaults to 6 months from today)
  * @returns {Promise} Calendar data
  */
-export const getUnitAvailabilityCalendar = async (landlordId, propertyId = null, startDate = null, endDate = null) => {
+export const getUnitAvailabilityCalendar = async (landlordId, propertyId = null, startDate = null, endDate = null, signal = undefined) => {
   try {
-    const response = await axiosServices.get(endpoints.calendar(landlordId, propertyId, startDate, endDate));
+    const response = await axiosServices.get(endpoints.calendar(landlordId, propertyId, startDate, endDate), { signal });
     return response.data?.data || response.data;
   } catch (error) {
     console.error('Error fetching unit availability calendar:', error);

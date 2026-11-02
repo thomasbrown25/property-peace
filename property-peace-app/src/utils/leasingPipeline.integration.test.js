@@ -28,27 +28,19 @@ test('listing and application detail surfaces still mount the reusable leasing p
   );
 });
 
-test('property detail places tenant, lease, and actions in three columns above full-width activity', async () => {
-  const [property, overview, lease] = await Promise.all([
+test('property detail mounts property-scoped tabs above overview activity without current tenant and lease cards', async () => {
+  const [property, overview, tabs] = await Promise.all([
     source('../pages/landlord/property.jsx'),
     source('../sections/landlord/property/PropertyOverview.jsx'),
-    source('../sections/landlord/property/PropertyActiveLease.jsx')
+    source('../sections/landlord/property/PropertyRecordsTabs.jsx')
   ]);
-  assert.match(property, /<PropertyOverview[\s\S]*rentRecords=\{rentRecords\}/);
-  assert.doesNotMatch(property, /<PropertyActiveLease/);
-  assert.doesNotMatch(property, /<PropertyLeasingPipeline/);
-  const tenantIndex = overview.indexOf('<PropertyCurrentTenant');
-  const leaseIndex = overview.indexOf('<PropertyActiveLease');
-  const actionsIndex = overview.indexOf('<PropertyQuickActionsPanel');
-  const activityIndex = overview.indexOf('<PropertyStory');
-  assert.ok(tenantIndex > 0 && leaseIndex > tenantIndex && actionsIndex > leaseIndex && activityIndex > actionsIndex);
-  assert.match(overview, /longTermUnits\.length > 0 && \([\s\S]*<Grid size=\{\{ xs: 12, md: 4 \}\} sx=\{\{ '& > \.MuiCard-root': \{ height: '100%' \} \}\}>[\s\S]*<PropertyCurrentTenant/);
-  assert.match(overview, /longTermUnits\.length > 0 && \([\s\S]*<Grid size=\{\{ xs: 12, md: 4 \}\} sx=\{\{ '& > \.MuiCard-root': \{ height: '100%' \} \}\}>\s*<PropertyActiveLease property=\{leaseProperty\}/);
-  assert.match(overview, /<Grid size=\{\{ xs: 12, md: 4 \}\}>\s*<PropertyQuickActionsPanel/);
+  assert.match(property, /<PropertyRecordsTabs[\s\S]*rentRecords=\{rentRecords\}/);
+  assert.match(tabs, /<Tab value="overview" label="Overview"/);
+  assert.match(tabs, /<PropertyOverview/);
+  assert.doesNotMatch(overview, /<PropertyCurrentTenant|<PropertyActiveLease/);
+  assert.doesNotMatch(overview, /PropertyQuickActionsPanel/);
   assert.match(overview, /<Grid size=\{12\}>\s*<PropertyStory/);
   assert.doesNotMatch(overview, /PropertyMarketRent|PropertyLeasingPipeline/);
-  assert.match(lease, /No active lease on this property\./);
-  assert.match(lease, /justifyContent="space-between"[\s\S]*variant="contained"[\s\S]*bgcolor: '#061E35'[\s\S]*Create a lease/);
 });
 
 test('property page retains its listing onboarding drawer without rendering leasing progress', async () => {

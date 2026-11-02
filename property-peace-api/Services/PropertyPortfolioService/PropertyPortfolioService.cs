@@ -450,11 +450,17 @@ namespace brownstone_hub_api.Services.PropertyPortfolioService
                     EndDate = calendarEndDate
                 };
 
-                // Get properties
-                var properties = await _propertyRepository.GetPropertiesByLandlordId(landlordId);
+                // Scope the database reads before materializing data for a property calendar.
+                // The portfolio calendar still supports the unfiltered landlord view.
+                List<LoadPropertyDto> properties;
                 if (propertyId.HasValue)
                 {
-                    properties = properties?.Where(p => p.Id == propertyId.Value).ToList();
+                    var property = await _propertyRepository.GetPropertyForCalendarAsync(propertyId.Value, landlordId);
+                    properties = property != null && property.LandlordId == landlordId ? [property] : [];
+                }
+                else
+                {
+                    properties = await _propertyRepository.GetPropertiesByLandlordId(landlordId);
                 }
 
                 if (properties == null || !properties.Any())
@@ -462,12 +468,11 @@ namespace brownstone_hub_api.Services.PropertyPortfolioService
                     return ServiceResponse<UnitAvailabilityCalendarDto>.CreateSuccess(calendar, "No properties found");
                 }
 
-                // Get leases (including inactive ones for complete calendar view)
-                var leases = await _leaseRepository.GetLeasesByLandlordId(landlordId, isActive: false);
-                if (propertyId.HasValue)
-                {
-                    leases = leases?.Where(l => l.PropertyId == propertyId.Value).ToList();
-                }
+                // Include inactive leases for the historical calendar, but only query the
+                // selected property's leases when a property filter is supplied.
+                var leases = propertyId.HasValue
+                    ? await _leaseRepository.GetLeasesForCalendarAsync(propertyId.Value, calendarStartDate, calendarEndDate)
+                    : await _leaseRepository.GetLeasesByLandlordId(landlordId, isActive: false);
 
                 var unitAvailabilityList = new List<UnitAvailabilityDto>();
 
