@@ -114,13 +114,20 @@ namespace brownstone_hub_api.Services.PropertyService
                         "Invalid rental mode", statusCode: StatusCodes.Status400BadRequest,
                         suppressDetailedErrors: true);
 
+                if (!Enum.IsDefined(propertyDto.PropertyType))
+                    return ServiceResponse<LoadPropertyDto>.CreateError(
+                        "Invalid property type", statusCode: StatusCodes.Status400BadRequest,
+                        suppressDetailedErrors: true);
+
                 if (propertyDto.Id <= 0 &&
-                    propertyDto.PropertyType == Enums.EPropertyType.MultiUnit &&
+                    (propertyDto.PropertyType is Enums.EPropertyType.MultiUnit or
+                        Enums.EPropertyType.SmallMultiFamily or Enums.EPropertyType.ApartmentBuilding or
+                        Enums.EPropertyType.Other) &&
                     propertyDto.UnitCount is not > 0)
                 {
                     return ServiceResponse<LoadPropertyDto>.CreateError(
                         "Invalid unit count",
-                        "Multi-unit properties require a positive unit count.",
+                        "Multi-unit property types require a positive unit count.",
                         statusCode: StatusCodes.Status400BadRequest,
                         suppressDetailedErrors: true);
                 }
@@ -178,8 +185,11 @@ namespace brownstone_hub_api.Services.PropertyService
 
                 var initialUnitCount = propertyDto.PropertyType switch
                 {
-                    Enums.EPropertyType.SingleFamily => 1,
-                    Enums.EPropertyType.MultiUnit when propertyDto.UnitCount is > 0 => propertyDto.UnitCount.Value,
+                    Enums.EPropertyType.SingleFamily or Enums.EPropertyType.Townhouse or
+                        Enums.EPropertyType.Condominium => 1,
+                    Enums.EPropertyType.MultiUnit or Enums.EPropertyType.SmallMultiFamily or
+                        Enums.EPropertyType.ApartmentBuilding or Enums.EPropertyType.Other
+                        when propertyDto.UnitCount is > 0 => propertyDto.UnitCount.Value,
                     _ => 0
                 };
 
@@ -214,7 +224,8 @@ namespace brownstone_hub_api.Services.PropertyService
 
                         var created = await _propertyRepository.AddProperty(propertyDto, token);
                         var createdUnits = new List<LoadUnitDto>();
-                        if (initialUnitCount == 1 && propertyDto.PropertyType == Enums.EPropertyType.SingleFamily)
+                        if (propertyDto.PropertyType is Enums.EPropertyType.SingleFamily or
+                            Enums.EPropertyType.Townhouse or Enums.EPropertyType.Condominium)
                         {
                             createdUnits.Add(await _unitRepository.AddUnit(
                                 NewInitialUnit(1, created.Id, propertyDto.RentalMode), created.Id, organizationId, token));

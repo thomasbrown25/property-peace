@@ -1,3 +1,4 @@
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
@@ -113,7 +114,7 @@ export default function ESignDocumentPage() {
     // Add unit name if it's a multi-unit property
     const unitName = lease.unitName || lease.unit?.name || '';
     const propertyType = property?.propertyType?.toLowerCase() || '';
-    if (unitName && propertyType !== 'singlefamily' && propertyType !== 'single-family') {
+    if (unitName && !isDetachedSingleUnitType(propertyType)) {
       return `${streetOnly}${streetOnly ? ', ' : ''}${unitName} - ${month} ${year}`;
     }
     

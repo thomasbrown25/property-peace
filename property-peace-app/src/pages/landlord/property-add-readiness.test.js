@@ -35,7 +35,8 @@ test('property add reports readiness and hides all bank selection and onboarding
 test('primary creation does not silently finish with no property and uses a defined single-unit selector', async () => {
   const text = await source(propertyAddWorkflowPath);
   assert.match(text, /if \(!created\?\.id\) throw new Error/);
-  assert.match(text, /if \(\['singleFamily', 'townhouse', 'condominium'\]\.includes\(values\.propertyType\)\) \{/);
+  assert.match(text, /const backendPropertyType = values\.propertyType;[\s\S]*propertyType: backendPropertyType/);
+  assert.match(text, /if \(isDetachedSingleUnitType\(values\.propertyType\)\) \{/);
   assert.doesNotMatch(text, /if \(isSingleFamilyType\)/);
   assert.match(text, /if \(!updated\) throw new Error/);
   assert.match(text, /initial units could not be updated\. Review the property before retrying/);

@@ -1,11 +1,15 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
+using brownstone_hub_api.Models;
 
 namespace brownstone_hub_api.Dtos.ShortStay;
 
 // The unit and timezone are resolved from the authorized route unit, never supplied by the client.
 public sealed class SaveShortStayListingDto
 {
+    [EnumDataType(typeof(ShortStayBookingAcceptancePreference))]
+    [JsonConverter(typeof(JsonStringEnumConverter<ShortStayBookingAcceptancePreference>))]
+    public ShortStayBookingAcceptancePreference? BookingAcceptancePreference { get; set; }
     [Range(typeof(decimal), "0.01", "9999999999999999.99")]
     [CentPrecision]
     public decimal NightlyBasePrice { get; set; }

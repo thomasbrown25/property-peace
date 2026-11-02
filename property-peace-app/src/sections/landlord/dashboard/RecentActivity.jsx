@@ -96,7 +96,7 @@ export default function RecentActivity() {
         break;
       case 'Tenant':
         if (activity.relatedId) {
-          navigate(`/landlord/renters/${activity.relatedId}`);
+          navigate(`/landlord/tenants/${activity.relatedId}`);
         }
         break;
       case 'StaffMember':

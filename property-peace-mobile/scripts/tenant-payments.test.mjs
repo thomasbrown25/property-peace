@@ -69,9 +69,12 @@ test('bill is server rent due only, never lease face rent, fees or other lease',
   assert.equal(canPayRent(lease, { ...rent, rentDue: 0 }, { allowed: true, blockers: [] }), false);
   assert.equal(canPayRent({ ...lease, rentCollectionByPlatform: false }, rent, { allowed: true, blockers: [] }), false);
 });
-test('single-family homes omit unit labels and only server-confirmed outstanding rent is late', () => {
+test('single-unit homes omit unit labels and only server-confirmed outstanding rent is late', () => {
   assert.equal(leaseHomeLabel({ ...lease, propertyType: 'SingleFamily' }), 'Oak House');
   assert.equal(leaseHomeLabel({ ...lease, propertyType: 'Single Family' }), 'Oak House');
+  assert.equal(leaseHomeLabel({ ...lease, propertyType: 'Townhouse' }), 'Oak House');
+  assert.equal(leaseHomeLabel({ ...lease, propertyType: 'Condominium' }), 'Oak House');
+  assert.equal(leaseHomeLabel({ ...lease, propertyType: 'SmallMultiFamily' }), 'Oak House · 2B');
   assert.equal(leaseHomeLabel({ ...lease, propertyType: 'MultiUnit' }), 'Oak House · 2B');
   assert.equal(leaseHomeLabel(lease), 'Oak House · 2B');
   assert.equal(rentIsLate({ ...rent, rentDueIsOverdue: true }), true);

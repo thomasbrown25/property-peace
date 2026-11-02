@@ -1,3 +1,4 @@
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Link } from '@mui/material';
@@ -213,7 +214,7 @@ export default function LeaseList({ rentRecords = [], loading = false, propertie
     
     // Generate lease name from property/unit info
     // For single family, use property name/address
-    if (propertyType?.toLowerCase() === 'singlefamily') {
+    if (isDetachedSingleUnitType(propertyType)) {
       return displayPropertyName || 'Lease';
     }
     

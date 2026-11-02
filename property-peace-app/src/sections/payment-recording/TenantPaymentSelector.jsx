@@ -1,3 +1,4 @@
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 import { useEffect, useMemo } from 'react';
 import PropTypes from 'prop-types';
 
@@ -79,7 +80,7 @@ const getLeaseTenants = (lease) => {
 const isSingleUnitProperty = (property, lease) => {
   const propertyType = getValue(property, 'propertyType') || getValue(lease, 'propertyType') || getValue(lease?.unit?.property, 'propertyType') || '';
   const normalizedType = propertyType.toString().toLowerCase();
-  return ['singlefamily', 'singleunit', 'townhouse', 'condominium'].includes(normalizedType);
+  return isDetachedSingleUnitType(normalizedType);
 };
 
 const buildPaymentTarget = ({ lease, property, unit = null }) => {

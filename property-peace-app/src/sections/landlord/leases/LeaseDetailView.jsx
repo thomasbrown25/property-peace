@@ -1,25 +1,32 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  alpha, Avatar, Box, Button, Checkbox, Chip, Dialog, DialogActions, DialogContent,
-  DialogContentText, DialogTitle, Divider, Grid, IconButton, LinearProgress,
-  FormControlLabel, Menu, MenuItem, Stack, Tab, Tabs, TextField, Typography, useTheme
+  alpha, Avatar, Box, Button, Checkbox, Dialog, DialogActions, DialogContent,
+  DialogContentText, DialogTitle, Divider, IconButton, LinearProgress,
+  FormControlLabel, Menu, MenuItem, Stack, Tab, Tabs, TextField, Typography, useTheme,
+  FormControl, InputLabel, Select, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TablePagination
 } from '@mui/material';
 import {
   CheckOutlined, DollarOutlined, EditOutlined, EllipsisOutlined,
   FileTextOutlined, PlusOutlined,
   StopOutlined, UploadOutlined, ArrowRightOutlined,
   MailOutlined, PhoneOutlined, DeleteOutlined, CalendarOutlined,
-  HomeOutlined, SearchOutlined, UserOutlined
+  SearchOutlined, UserOutlined
 } from '@ant-design/icons';
 import PaymentEditDrawer from 'components/drawers/PaymentEditDrawer';
 import TenantMessageDrawer from 'components/drawers/TenantMessageDrawer';
 import { openSnackbar } from 'api/snackbar';
+import { modeLabel } from 'utils/rentalMode';
 import axios from 'utils/axios';
 import { format } from 'date-fns';
 import { formatCurrency, formatPhoneInput } from 'utils/formatters';
-import { buildLeasePaymentSchedule } from 'utils/leasePaymentSchedule';
+import { buildLeasePaymentTimeline } from 'utils/leasePaymentTimeline';
+import { getLeaseHeaderBalance } from 'utils/leaseHeaderSummary';
+import { buildDocumentRows, filterDocumentRows, paginateDocumentRows } from './leaseDocumentTable.mjs';
+import { leaseDetailTitle } from 'utils/leaseDetailTitle.mjs';
 import { renterProfileRoute } from 'utils/renterWorkspace';
+import LeaseChargesTab from './LeaseChargesTab';
+import { buildLeaseChecklistCards, sortLeaseChecklistSteps } from 'utils/leaseMoveIn';
 
 const detailCardSx = {
   p: 2,
@@ -42,143 +49,33 @@ const detailHeaderSx = {
 
 const subtleDivider = (theme, darkAlpha = 0.22, lightAlpha = 0.12) => alpha(theme.palette.divider, theme.palette.mode === 'dark' ? darkAlpha : lightAlpha);
 
-// ─── Lifecycle helpers ────────────────────────────────────────────────────────
 
-function getLeaseLifecycleStages(lease, isDraftLease = false) {
-  const now = new Date();
-  const startDate = lease.startDate ? new Date(lease.startDate) : null;
-  const endDate   = lease.endDate   ? new Date(lease.endDate)   : null;
-  const daysUntilEnd = endDate ? Math.max(0, Math.floor((endDate - now) / 86400000)) : null;
 
-  const hasStarted        = !isDraftLease && !!(startDate && startDate <= now);
-  const isActive          = !!lease.isActive && hasStarted;
-  const isInRenewalWindow = isActive && daysUntilEnd !== null && daysUntilEnd <= 90;
-  const hasEnded          = !lease.isActive && hasStarted;
 
-  const stepIdx = hasEnded ? 3 : isInRenewalWindow ? 2 : isActive ? 1 : 0;
-
-  // Progress along the active→renewal segment (only while in the active stage).
-  let activeProgress = null;
-  if (stepIdx === 1 && startDate && endDate) {
-    const renewalStart = new Date(endDate.getTime() - 90 * 86400000);
-    const total = renewalStart - startDate;
-    activeProgress = total > 0 ? Math.min(1, Math.max(0, (now - startDate) / total)) : 0;
-  }
-
-  return [
-    { key: 'not-started', label: 'Not Started',   date: null,                                                          done: stepIdx > 0, current: stepIdx === 0 },
-    { key: 'active',      label: 'Active',         date: startDate && hasStarted ? format(startDate, 'MMM d') : null,  done: stepIdx > 1, current: stepIdx === 1, progress: activeProgress },
-    { key: 'renewal',     label: 'Renewal Window', date: null,                                                          done: stepIdx > 2, current: stepIdx === 2 },
-    { key: 'ended',       label: 'Ended',          date: endDate && hasEnded ? format(endDate, "MMM d ''yy") : null,   done: stepIdx === 3, current: stepIdx === 3 },
-  ];
-}
-
-function getLeaseAgreementStages(lease, hasLeaseAgreementDocument) {
-  const ag = lease.leaseAgreement || lease.LeaseAgreement;
-  if (!ag || !hasLeaseAgreementDocument) {
-    return [
-      { key: 'draft',  label: 'Draft',  date: null, done: false, current: false },
-      { key: 'signed', label: 'Signed', date: null, done: false, current: false },
-      { key: 'active', label: 'Active', date: null, done: false, current: false },
-    ];
-  }
-  const signatureStatus = ag?.signatureStatus ?? ag?.SignatureStatus;
-  const landlordSignedAt = ag?.landlordSignedAt ?? ag?.LandlordSignedAt;
-  const isSigned = signatureStatus === 4 || !!landlordSignedAt;
-  const hasStarted = lease.startDate ? new Date(lease.startDate) <= new Date() : false;
-  const isAgreementActive = isSigned && !!lease.isActive && hasStarted;
-
-  const stepIdx = isAgreementActive ? 2 : isSigned ? 1 : 0;
-
-  return [
-    { key: 'draft',  label: 'Draft',  date: null,                                                              done: stepIdx > 0, current: stepIdx === 0 },
-    { key: 'signed', label: 'Signed', date: landlordSignedAt ? format(new Date(landlordSignedAt), 'MMM d') : null, done: stepIdx > 1, current: stepIdx === 1 },
-    { key: 'active', label: 'Active', date: null,                                                              done: stepIdx === 2, current: stepIdx === 2 },
-  ];
-}
-
-// ─── Lifecycle bar ────────────────────────────────────────────────────────────
-
-function LifecycleBar({ title, stages, hint, action }) {
-  const theme = useTheme();
-  return (
-    <Box sx={{ ...detailCardSx, height: '100%' }}>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.75 }}>
-        <Typography sx={{ ...detailHeaderSx, fontSize: '0.6rem' }}>
-          {title}
-        </Typography>
-        {action ?? (hint && (
-          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.68rem' }}>
-            {hint}
-          </Typography>
-        ))}
-      </Stack>
-      <Stack direction="row" sx={{ position: 'relative' }}>
-        {stages.map((stage, i) => {
-          const isCurrent = stage.current || (!stage.done && i === stages.findIndex(s => !s.done));
-          return (
-            <Box key={stage.key} sx={{ flex: 1, textAlign: 'center', position: 'relative' }}>
-              {i < stages.length - 1 && (stage.progress != null ? (
-                <>
-                  <Box sx={{ position: 'absolute', top: 9, left: '50%', right: '-50%', height: '2px', bgcolor: subtleDivider(theme, 0.24, 0.16), zIndex: 0 }} />
-                  <Box sx={{ position: 'absolute', top: 9, left: '50%', width: `${stage.progress * 100}%`, height: '2px', bgcolor: theme.palette.primary.main, zIndex: 1, transition: 'width 0.4s ease' }} />
-                </>
-              ) : (
-                <Box sx={{
-                  position: 'absolute', top: 9, left: '50%', right: '-50%', height: '2px',
-                  bgcolor: (stage.done || stage.current) ? theme.palette.primary.main : subtleDivider(theme, 0.24, 0.16),
-                  zIndex: 0,
-                }} />
-              ))}
-              <Box sx={{
-                width: 18, height: 18, borderRadius: '50%', mx: 'auto', mb: 0.5, position: 'relative', zIndex: 1,
-                bgcolor: stage.key === 'active' && (stage.done || stage.current)
-                  ? theme.palette.success.main
-                  : (stage.done || stage.current) ? theme.palette.primary.main : 'background.paper',
-                border: `2px solid ${stage.done || isCurrent ? theme.palette.primary.main : subtleDivider(theme, 0.34, 0.24)}`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: isCurrent ? `0 0 0 4px ${alpha(theme.palette.primary.main, 0.15)}` : 'none',
-              }}>
-                {(stage.done || stage.current) && stage.key !== 'active' && <CheckOutlined style={{ fontSize: 9, color: '#fff' }} />}
-              </Box>
-              <Typography sx={{ fontSize: '0.62rem', fontWeight: isCurrent ? 700 : 400, color: isCurrent ? 'text.primary' : 'text.secondary', lineHeight: 1.3 }}>
-                {stage.label}
-              </Typography>
-              {stage.date && (
-                <Typography sx={{ fontSize: '0.58rem', color: 'text.disabled', mt: 0.15 }}>{stage.date}</Typography>
-              )}
-            </Box>
-          );
-        })}
-      </Stack>
-    </Box>
-  );
-}
-
-// ─── Lease-to-move-in readiness ──────────────────────────────────────────────
 
 function LeaseMoveInCard({
   readiness,
+  lease,
+  checklists,
   hasAgreement,
   eSignatureReadiness,
   onAssignTenants,
+  onViewTenants,
   onBuildAgreement,
   onViewAgreement,
   onOpenSignature,
-  onConfigureRent,
-  onCustomizeConditionReport,
   onViewChecklists
 }) {
   const theme = useTheme();
   if (!readiness) return null;
+  const checklist = buildLeaseChecklistCards({ readiness, lease, checklists });
 
   const actions = {
     tenants: { label: 'Assign tenants', onClick: onAssignTenants },
     agreement: { label: hasAgreement ? 'View agreement' : 'Build agreement', onClick: hasAgreement ? onViewAgreement : onBuildAgreement },
     signatures: { label: 'Open signatures', onClick: onOpenSignature, disabled: !eSignatureReadiness?.canInvoke },
-    'rent-deposit': { label: 'Configure rent', onClick: onConfigureRent },
-    'condition-report': { label: 'Customize report', onClick: onCustomizeConditionReport },
-    checklist: { label: 'View checklists', onClick: onViewChecklists }
+    checklist: { label: 'View checklists', onClick: () => onViewChecklists('move-in') },
+    'move-out': { label: 'View checklists', onClick: () => onViewChecklists('move-out') }
   };
 
   return (
@@ -186,54 +83,47 @@ function LeaseMoveInCard({
       <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1.5} sx={{ mb: 2 }}>
         <Box>
           <Typography sx={{ ...detailHeaderSx, fontSize: '0.7rem', color: 'primary.main', mb: 0.4 }}>
-            Lease to move-in
+            Lease checklist
           </Typography>
           <Typography sx={{ fontSize: '1rem', fontWeight: 750 }}>
-            {readiness.ready ? 'All tracked steps complete' : `${readiness.completed} of ${readiness.totalTrackable} tracked steps complete`}
+            {checklist.completed} of {checklist.totalTrackable} steps complete
           </Typography>
           <Typography sx={{ fontSize: '0.7rem', color: 'text.secondary', mt: 0.25 }}>
-            Based only on saved lease, signature, payment, and checklist records.
+            Based on saved lease, signature, and checklist records.
           </Typography>
         </Box>
-        <Chip
-          size="small"
-          label={readiness.ready ? 'Tracked steps complete' : 'Setup in progress'}
-          color={readiness.ready ? 'success' : 'warning'}
-          variant={readiness.ready ? 'filled' : 'outlined'}
-          sx={{ alignSelf: { xs: 'flex-start', sm: 'center' }, fontWeight: 700 }}
-        />
       </Stack>
 
       <LinearProgress
         variant="determinate"
-        value={readiness.progress}
-        color={readiness.ready ? 'success' : 'primary'}
-        sx={{ height: 7, borderRadius: 4, mb: 2.25, bgcolor: alpha(theme.palette.primary.main, 0.08) }}
+        value={checklist.progress}
+        color="success"
+        sx={{ height: 7, borderRadius: 4, mb: 2.25, bgcolor: alpha(theme.palette.success.main, 0.12) }}
       />
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', lg: 'repeat(3, minmax(0, 1fr))' }, gap: 1 }}>
-        {readiness.steps.map((step) => {
-          const action = actions[step.key];
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', lg: 'repeat(4, minmax(0, 1fr))' }, gap: 1 }}>
+        {sortLeaseChecklistSteps(checklist.steps).map((step) => {
+          const action = step.key === 'tenants' && step.status === 'complete'
+            ? { label: 'View tenants', onClick: onViewTenants }
+            : actions[step.key];
           const complete = step.status === 'complete';
           const unavailable = step.status === 'unavailable';
           const color = complete ? theme.palette.success.main : unavailable ? theme.palette.text.disabled : theme.palette.warning.main;
-          const signatureAgreementAction = step.key === 'signatures' && !complete
-            ? (hasAgreement ? onViewAgreement : onBuildAgreement)
-            : null;
+          const cardAction = (step.key === 'checklist' || step.key === 'move-out') ? action?.onClick : null;
           return (
             <Box
               key={step.key}
-              role={signatureAgreementAction ? 'button' : undefined}
-              tabIndex={signatureAgreementAction ? 0 : undefined}
-              aria-label={signatureAgreementAction ? `All signatures incomplete. ${hasAgreement ? 'View agreement' : 'Build agreement'}` : undefined}
-              onClick={signatureAgreementAction}
+              role={cardAction ? 'button' : undefined}
+              tabIndex={cardAction ? 0 : undefined}
+              aria-label={cardAction ? `${step.label}. ${action.label}` : undefined}
+              onClick={cardAction}
               onKeyDown={(event) => {
-                if (signatureAgreementAction && event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) {
+                if (cardAction && event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) {
                   event.preventDefault();
-                  signatureAgreementAction();
+                  cardAction();
                 }
               }}
-              sx={{ p: 1.35, borderRadius: 1.75, border: `1px solid ${alpha(color, 0.3)}`, bgcolor: alpha(color, unavailable ? 0.025 : 0.055), minWidth: 0, cursor: signatureAgreementAction ? 'pointer' : 'default', '&:focus-visible': signatureAgreementAction ? { outline: `2px solid ${theme.palette.primary.main}`, outlineOffset: 2 } : undefined }}
+              sx={{ p: 1.35, borderRadius: 1.75, border: `1px solid ${alpha(color, 0.3)}`, bgcolor: alpha(color, unavailable ? 0.025 : 0.055), minWidth: 0, cursor: cardAction ? 'pointer' : 'default', '&:focus-visible': cardAction ? { outline: `2px solid ${theme.palette.primary.main}`, outlineOffset: 2 } : undefined }}
             >
               <Stack direction="row" spacing={1} alignItems="flex-start">
                 <Box sx={{ width: 22, height: 22, borderRadius: '50%', flexShrink: 0, mt: 0.1, bgcolor: complete ? color : 'transparent', border: `1.5px solid ${color}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -244,12 +134,7 @@ function LeaseMoveInCard({
                   <Typography sx={{ fontSize: '0.64rem', color: unavailable ? 'text.disabled' : 'text.secondary', lineHeight: 1.4, minHeight: 18 }}>
                     {step.detail}
                   </Typography>
-                  {signatureAgreementAction && (
-                    <Typography sx={{ mt: 0.45, fontSize: '0.66rem', fontWeight: 700, color: 'primary.main' }}>
-                      {hasAgreement ? 'View agreement' : 'Build agreement'} →
-                    </Typography>
-                  )}
-                  {action?.onClick && (
+                  {action?.onClick && !(step.key === 'signatures' && complete) && (
                     <Button size="small" disabled={action.disabled} onClick={(event) => { event.stopPropagation(); action.onClick(); }} sx={{ mt: 0.45, p: 0, minWidth: 0, textTransform: 'none', fontSize: '0.66rem', fontWeight: 700 }}>
                       {action.label} →
                     </Button>
@@ -365,10 +250,6 @@ function TenantsCard({ tenants, property, onAddTenant, onViewProfile }) {
 
   return (
     <Box sx={detailCardSx}>
-      <Typography sx={{ ...detailHeaderSx, fontSize: '0.72rem', mb: 1.5 }}>
-        Tenants
-      </Typography>
-
       <Stack spacing={1.25}>
         {activeTenants.map((tenant) => {
           const first = tenant.firstname || tenant.Firstname || '';
@@ -434,14 +315,15 @@ function TenantsCard({ tenants, property, onAddTenant, onViewProfile }) {
 export default function LeaseDetailView({
   lease, tenants, property, payments, deposits, rentRecord,
   propertyDisplay, unitDisplay, isDraftLease, isNotStarted, leaseId,
-  dashboardSummary, user, leaseDocuments, leaseAgreement, moveInReadiness, eSignatureReadiness,
+  dashboardSummary, user, leaseDocuments, leaseAgreement, moveInReadiness, leaseChecklists, eSignatureReadiness,
   handleEndLeaseClick, handleReopenLeaseClick,
   onRecordPayment, onViewAgreement, onUploadDocument, onEditTerms,
-  onAddTenant, onOpenSignature, onConfigureRent, onCustomizeConditionReport,
+  onAddTenant, onOpenSignature,
   onViewChecklists, onPaymentUpdated, propertiesRefetch,
 }) {
   const theme = useTheme();
   const navigate = useNavigate();
+  const [leaseActionsAnchor, setLeaseActionsAnchor] = useState(null);
   const [deleteLeaseOpen, setDeleteLeaseOpen] = useState(false);
   const [deleteDocuments, setDeleteDocuments] = useState(true);
   const [deleteChecklists, setDeleteChecklists] = useState(true);
@@ -455,6 +337,11 @@ export default function LeaseDetailView({
   const [paymentSearch, setPaymentSearch] = useState('');
   const [paymentFromDate, setPaymentFromDate] = useState('');
   const [paymentToDate, setPaymentToDate] = useState('');
+  const [documentSearch, setDocumentSearch] = useState('');
+  const [documentTypeFilter, setDocumentTypeFilter] = useState('all');
+  const [documentVisibilityFilter, setDocumentVisibilityFilter] = useState('all');
+  const [documentPage, setDocumentPage] = useState(0);
+  const [documentRowsPerPage, setDocumentRowsPerPage] = useState(10);
 
   // ─── Computed ──────────────────────────────────────────────────────────────
   const primaryTenant = tenants[0];
@@ -481,8 +368,7 @@ export default function LeaseDetailView({
     leaseAgreement?.blobName ||
     leaseAgreement?.BlobName
   );
-  const leaseLifecycleStages    = useMemo(() => getLeaseLifecycleStages(lease, isDraftLease), [lease, isDraftLease]);
-  const leaseAgreementStages    = useMemo(() => getLeaseAgreementStages(lease, hasLeaseAgreementDocument), [lease, hasLeaseAgreementDocument]);
+
   const leaseAgreementSetupUrl = useMemo(() => {
     const params = new URLSearchParams();
     const resolvedLeaseId = lease?.id ?? lease?.Id ?? leaseId;
@@ -496,8 +382,6 @@ export default function LeaseDetailView({
     const query = params.toString();
     return `/landlord/leases/build-lease-agreement${query ? `?${query}` : ''}`;
   }, [lease, leaseId, property]);
-
-  const statusLabel = isDraftLease ? 'Draft' : isNotStarted ? 'Not started' : lease?.isActive ? 'Active' : 'Ended';
 
   const openDeleteLease = () => {
     setDeleteDocuments(true);
@@ -592,70 +476,15 @@ export default function LeaseDetailView({
   const rentAmount    = lease.rentAmount    || lease.RentAmount    || 0;
   const depositAmount = lease.depositAmount || lease.DepositAmount || 0;
 
-  const leasePaymentSchedule = useMemo(
-    () => buildLeasePaymentSchedule(lease),
-    [lease]
+  const paymentTimeline = useMemo(
+    () => buildLeasePaymentTimeline(lease, payments, now, isDraftLease),
+    [lease, payments, isDraftLease]
   );
-  const totalContractVal = leasePaymentSchedule.totalContractValue;
-
-  const totalCollected = useMemo(() =>
-    (payments || []).reduce((s, p) => s + (parseFloat(p.amount || p.Amount) || 0), 0),
-    [payments]
-  );
-
-  const outstandingAmt = rentRecord?.outstanding || rentRecord?.Outstanding || 0;
-  const depositHeld    = (deposits || []).reduce((s, d) => s + (parseFloat(d.amount || d.Amount) || 0), 0) || depositAmount;
-
-  // Payment calendar
-  const paymentCalendar = useMemo(() => {
-    if (isDraftLease || leasePaymentSchedule.cycles.length === 0) return [];
-    const gracePeriod = lease.lateFeeGracePeriod || lease.LateFeeGracePeriod || 5;
-    const upcomingWindowEnd = new Date(now.getFullYear(), now.getMonth() + 2, 1);
-
-    // Rent payments only (exclude fees & deposits), sorted oldest-first.
-    const rentPayments = (payments || [])
-      .filter(p => {
-        const typeStr = (p.type || p.Type || '').toLowerCase();
-        return !p.feeId && !p.FeeId && !p.depositId && !p.DepositId
-          && !typeStr.includes('fee') && !typeStr.includes('deposit');
-      })
-      .sort((a, b) => new Date(a.paymentDate || a.PaymentDate) - new Date(b.paymentDate || b.PaymentDate));
-
-    // Allocate payments cumulatively against each schedule amount. This keeps a
-    // prorated move-in installment from being treated as a full-rent threshold.
-    let running = 0;
-    const milestones = rentPayments.map(p => {
-      running += parseFloat(p.amount || p.Amount) || 0;
-      return { date: new Date(p.paymentDate || p.PaymentDate), cumulative: running };
-    });
-
-    let required = 0;
-    return leasePaymentSchedule.cycles.map(cycle => {
-      required += cycle.amount;
-      const milestone = milestones.find(m => m.cumulative >= required);
-      const isPaid = !!milestone;
-      const dueDate = new Date(`${cycle.dueDate}T00:00:00`);
-      const lateDate = new Date(dueDate);
-      lateDate.setDate(lateDate.getDate() + gracePeriod);
-      const isOverdue = !isPaid && now > lateDate;
-      const isUpcoming = !isPaid && !isOverdue && dueDate < upcomingWindowEnd;
-      const isPaidLate = isPaid && milestone.date > lateDate;
-
-      return {
-        ...cycle,
-        paid: isPaid,
-        paidLate: isPaidLate,
-        overdue: isOverdue,
-        upcoming: isUpcoming
-      };
-    });
-  }, [isDraftLease, leasePaymentSchedule, payments, now, lease.lateFeeGracePeriod, lease.LateFeeGracePeriod]);
-
-  const paidCycles     = paymentCalendar.filter(m => m.paid).length;
-  const paidLateCycles = paymentCalendar.filter(m => m.paidLate).length;
-  const overdueCycles  = paymentCalendar.filter(m => m.overdue).length;
-  const lateCycles     = paidLateCycles + overdueCycles;
-  const onTimePct      = paidCycles > 0 ? Math.round(((paidCycles - paidLateCycles) / paidCycles) * 100) : 0;
+  const paidCycles = paymentTimeline.filter(cycle => cycle.status === 'on-time' || cycle.status === 'late').length;
+  const paidLateCycles = paymentTimeline.filter(cycle => cycle.status === 'late').length;
+  const overdueCycles = paymentTimeline.filter(cycle => cycle.status === 'overdue').length;
+  const lateCycles = paidLateCycles + overdueCycles;
+  const headerBalance = getLeaseHeaderBalance(rentRecord, lease.balanceDue ?? lease.BalanceDue, isDraftLease);
 
   // Lease health
   const maintenanceRequests = useMemo(() => {
@@ -710,31 +539,16 @@ export default function LeaseDetailView({
     return items.sort((a, b) => b.date - a.date).slice(0, 8);
   }, [payments, lease.landlordSignedAt, tenantFullName]);
 
-  // Docs
-  const docs = useMemo(() => {
-    const list = [];
-    if (hasLeaseAgreementDocument) {
-      list.push({ name: 'Lease agreement PDF', tag: 'master', category: 'agreement', onClick: onViewAgreement });
-    }
-    (leaseDocuments || []).forEach(d => {
-      const url = d.url || d.Url || d.blobUrl || d.BlobUrl || d.documentUrl || d.DocumentUrl;
-      const name = d.name || d.Name || d.description || d.Description || d.fileName || d.FileName || 'Document';
-      const documentType = Number(d.documentType ?? d.DocumentType);
-      const normalizedName = name.toLowerCase();
-      const category = [10, 11, 12].includes(documentType) || /lease|agreement|addendum|renewal/.test(normalizedName)
-        ? 'agreement'
-        : [40, 41].includes(documentType) || /form|checklist|condition report/.test(normalizedName)
-          ? 'form'
-          : 'other';
-      list.push({
-        name,
-        tag: null,
-        category,
-        onClick: url ? () => window.open(url, '_blank', 'noopener,noreferrer') : onUploadDocument
-      });
-    });
-    return list;
-  }, [hasLeaseAgreementDocument, leaseDocuments, onUploadDocument, onViewAgreement]);
+  const docs = useMemo(() => buildDocumentRows(leaseDocuments, hasLeaseAgreementDocument), [leaseDocuments, hasLeaseAgreementDocument]);
+  const documentTypes = useMemo(() => [...new Set(docs.map((doc) => doc.type))].sort(), [docs]);
+  const filteredDocuments = useMemo(
+    () => filterDocumentRows(docs, { search: documentSearch, type: documentTypeFilter, visibility: documentVisibilityFilter }),
+    [docs, documentSearch, documentTypeFilter, documentVisibilityFilter]
+  );
+  const documentPagination = useMemo(
+    () => paginateDocumentRows(filteredDocuments, documentPage, documentRowsPerPage),
+    [filteredDocuments, documentPage, documentRowsPerPage]
+  );
 
   const filteredPayments = useMemo(() => {
     const query = paymentSearch.trim().toLowerCase();
@@ -762,9 +576,7 @@ export default function LeaseDetailView({
       .sort((a, b) => new Date(b.paymentDate ?? b.PaymentDate ?? 0) - new Date(a.paymentDate ?? a.PaymentDate ?? 0));
   }, [paymentFromDate, paymentSearch, paymentToDate, payments, tenantFullName]);
 
-  const agreementDocuments = useMemo(() => docs.filter((document) => document.category === 'agreement'), [docs]);
-  const formDocuments = useMemo(() => docs.filter((document) => document.category === 'form'), [docs]);
-  const otherDocuments = useMemo(() => docs.filter((document) => document.category === 'other'), [docs]);
+
 
   const handleViewTenantProfile = (tenant) => {
     const tenantId = tenant?.id ?? tenant?.Id;
@@ -818,27 +630,9 @@ export default function LeaseDetailView({
                 border: `1px solid ${alpha('#41a541', 0.24)}`
               }}
             >
-              <HomeOutlined style={{ fontSize: 21 }} />
+              <FileTextOutlined style={{ fontSize: 21 }} />
             </Box>
             <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 0.75 }}>
-                <Typography sx={{ fontSize: '0.68rem', fontWeight: 750, letterSpacing: 1.25, color: 'text.secondary', textTransform: 'uppercase' }}>
-                  Lease{leaseId ? ` · ${leaseId}` : ''}
-                </Typography>
-                <Chip
-                  label={statusLabel}
-                  size="small"
-                  sx={{
-                    height: 24,
-                    bgcolor: isDraftLease ? '#fef3c7' : isNotStarted ? alpha('#f59e0b', 0.12) : lease?.isActive ? alpha('#41a541', 0.12) : alpha(theme.palette.text.secondary, 0.1),
-                    color: isDraftLease ? '#92400e' : isNotStarted ? '#a35b00' : lease?.isActive ? '#287b2d' : 'text.secondary',
-                    border: '1px solid',
-                    borderColor: isDraftLease ? '#fde68a' : isNotStarted ? alpha('#f59e0b', 0.28) : lease?.isActive ? alpha('#41a541', 0.28) : alpha(theme.palette.divider, 0.22),
-                    fontWeight: 750,
-                    '& .MuiChip-label': { px: 1.15 }
-                  }}
-                />
-              </Stack>
               <Typography
                 variant="h3"
                 sx={{
@@ -849,44 +643,63 @@ export default function LeaseDetailView({
                   mb: 0.65
                 }}
               >
-                {propertyDisplay}
-                {unitDisplay && <Box component="span" sx={{ color: 'text.secondary', fontWeight: 500 }}> — {unitDisplay}</Box>}
+                {leaseDetailTitle(lease, propertyDisplay, leaseId)}
               </Typography>
               <Typography variant="body2" sx={{ color: 'text.secondary', maxWidth: 650 }}>
-                {isDraftLease
-                  ? 'This lease is saved as a draft and has not started. Review the terms and complete the agreement when you are ready.'
-                  : 'Residential lease'}
+                {unitDisplay ? `${unitDisplay} · ` : ''}{modeLabel(lease?.unit ?? lease?.Unit)} lease
               </Typography>
+              {isDraftLease && (
+                <Typography variant="body2" sx={{ color: 'text.secondary', maxWidth: 650, mt: 0.5 }}>
+                  This lease is saved as a draft and has not started. Review the terms and complete the agreement when you are ready.
+                </Typography>
+              )}
             </Box>
           </Stack>
-          <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap" useFlexGap sx={{ flexShrink: 0, pl: { xs: 7.25, sm: 8, md: 0 } }}>
-            {!isDraftLease && (
-              <Button size="small" variant="outlined" startIcon={<FileTextOutlined style={{ fontSize: 11 }} />} onClick={onUploadDocument}
-                sx={{ textTransform: 'none', fontWeight: 650, fontSize: '0.8rem', borderRadius: 1.5, borderColor: 'divider', color: theme.palette.mode === 'dark' ? 'text.primary' : '#061e35', px: 1.5, '&:hover': { borderColor: 'primary.main', bgcolor: alpha(theme.palette.primary.main, 0.04) } }}>
-                Upload document
-              </Button>
-            )}
-            {!isDraftLease && (lease?.isActive || isNotStarted) && (
-              <Button size="small" variant="contained" color="success" onClick={onRecordPayment}
-                sx={{ textTransform: 'none', fontWeight: 750, fontSize: '0.8rem', borderRadius: 1.5, boxShadow: 'none', '&:hover': { boxShadow: 'none' } }}>
-                Record payment
-              </Button>
-            )}
-            <Button size="small" variant="contained" color="success" startIcon={<EditOutlined />} onClick={onEditTerms}
-              sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 1.5, boxShadow: 'none', '&:hover': { boxShadow: 'none' } }}>
-              Edit lease
+          <Box sx={{ flexShrink: 0, alignSelf: { xs: 'flex-end', md: 'flex-start' } }}>
+            <Button
+              size="small"
+              variant="outlined"
+              aria-label="Lease actions"
+              aria-controls={leaseActionsAnchor ? 'lease-actions-menu' : undefined}
+              aria-haspopup="menu"
+              aria-expanded={Boolean(leaseActionsAnchor)}
+              onClick={(event) => setLeaseActionsAnchor(event.currentTarget)}
+              sx={{ textTransform: 'none' }}
+            >
+              Actions
             </Button>
-            <Button size="small" variant="outlined" color="error" startIcon={<DeleteOutlined />} onClick={openDeleteLease}
-              sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 1.5 }}>
-              Delete
-            </Button>
-            {!isDraftLease && (
-              <Button size="small" onClick={lease?.isActive ? handleEndLeaseClick : handleReopenLeaseClick}
-                sx={{ textTransform: 'none', fontSize: '0.75rem' }}>
-                {lease?.isActive ? 'End lease early' : 'Reopen lease'}
-              </Button>
-            )}
-          </Stack>
+            <Menu
+              id="lease-actions-menu"
+              anchorEl={leaseActionsAnchor}
+              open={Boolean(leaseActionsAnchor)}
+              onClose={() => setLeaseActionsAnchor(null)}
+              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+              transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+            >
+              {!isDraftLease && (
+                <MenuItem onClick={() => { setLeaseActionsAnchor(null); onUploadDocument?.(); }}>
+                  <FileTextOutlined style={{ marginRight: 12 }} /> Upload document
+                </MenuItem>
+              )}
+              {!isDraftLease && (lease?.isActive || isNotStarted) && (
+                <MenuItem onClick={() => { setLeaseActionsAnchor(null); onRecordPayment?.(); }}>
+                  <DollarOutlined style={{ marginRight: 12 }} /> Record payment
+                </MenuItem>
+              )}
+              <MenuItem onClick={() => { setLeaseActionsAnchor(null); onEditTerms?.(); }}>
+                <EditOutlined style={{ marginRight: 12 }} /> Edit lease
+              </MenuItem>
+              {!isDraftLease && (
+                <MenuItem onClick={() => { setLeaseActionsAnchor(null); (lease?.isActive ? handleEndLeaseClick : handleReopenLeaseClick)?.(); }}>
+                  <StopOutlined style={{ marginRight: 12 }} /> {lease?.isActive ? 'End lease early' : 'Reopen lease'}
+                </MenuItem>
+              )}
+              <Divider />
+              <MenuItem onClick={() => { setLeaseActionsAnchor(null); openDeleteLease(); }} sx={{ color: 'error.main' }}>
+                <DeleteOutlined style={{ marginRight: 12 }} /> Delete
+              </MenuItem>
+            </Menu>
+          </Box>
         </Stack>
         <Box
           sx={{
@@ -898,9 +711,9 @@ export default function LeaseDetailView({
           }}
         >
           {[
-            { label: 'Start date', value: startDate ? format(startDate, 'MMM d, yyyy') : 'Not set', icon: <CalendarOutlined /> },
-            { label: 'End date', value: endDate ? format(endDate, 'MMM d, yyyy') : 'Not set', icon: <CalendarOutlined /> },
+            { label: 'Start date - End date', value: `${startDate ? format(startDate, 'MMM d, yyyy') : 'Not set'} - ${endDate ? format(endDate, 'MMM d, yyyy') : 'Not set'}`, icon: <CalendarOutlined /> },
             { label: 'Monthly rent', value: rentAmount > 0 ? formatCurrency(rentAmount) : 'Not set', icon: <DollarOutlined /> },
+            { label: 'Amount due', value: formatCurrency(headerBalance.amountDue), overdueAmount: headerBalance.overdueAmount, icon: <DollarOutlined /> },
             { label: 'Tenant', value: tenantFullName || 'Not assigned', icon: <UserOutlined /> },
           ].map((item) => (
             <Box
@@ -921,7 +734,14 @@ export default function LeaseDetailView({
                 {item.icon}
                 <Typography sx={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: 0.65, textTransform: 'uppercase', color: 'inherit' }}>{item.label}</Typography>
               </Stack>
-              <Typography noWrap sx={{ color: 'text.primary', fontWeight: 700, fontSize: '0.85rem' }}>{item.value}</Typography>
+              <Stack direction="row" alignItems="baseline" flexWrap="wrap" columnGap={0.75} rowGap={0.1}>
+                <Typography sx={{ color: item.label === 'Amount due' ? '#061E35' : 'text.primary', fontWeight: 700, fontSize: '0.85rem' }}>{item.value}</Typography>
+                {item.overdueAmount > 0 && (
+                  <Typography sx={{ color: 'error.main', fontWeight: 650, fontSize: '0.72rem' }}>
+                    {formatCurrency(item.overdueAmount)} overdue
+                  </Typography>
+                )}
+              </Stack>
             </Box>
           ))}
         </Box>
@@ -973,43 +793,58 @@ export default function LeaseDetailView({
           <Tab label="Documents" />
           <Tab label="Insurance" />
           <Tab label="Utilities" />
+          <Tab label="Charges" />
         </Tabs>
       </Box>
 
       {activeTab === 0 && (
         <Stack spacing={2}>
-          {/* Lease lifecycle row */}
-          <Grid container spacing={2}>
-            <Grid size={{ xs: 12, lg: 8 }}>
-              <LifecycleBar
-                title="Lease Lifecycle"
-                stages={leaseLifecycleStages}
-                hint={daysUntilEnd !== null && lease?.isActive && daysUntilEnd > 90 ? `Renewal window opens in ${daysUntilEnd - 90} days` : null}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, lg: 4 }}>
-              <LifecycleBar
-                title="Lease Agreement Lifecycle"
-                stages={leaseAgreementStages}
-                action={!hasLeaseAgreementDocument && (
-                  <Typography variant="caption" color="primary" sx={{ fontWeight: 600, fontSize: '0.68rem', cursor: 'pointer' }} onClick={() => navigate(leaseAgreementSetupUrl)}>
-                    + Create agreement
-                  </Typography>
-                )}
-              />
-            </Grid>
-          </Grid>
+          <SectionCard title="Rent payment history">
+            {paymentTimeline.length ? (
+              <>
+                <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', mb: 1.5 }}>
+                  Full lease term · Each tile represents a scheduled rent payment. On time includes the lease grace period.
+                </Typography>
+                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(78px, 1fr))', gap: 1 }}>
+                  {paymentTimeline.map((cycle) => {
+                    const tone = cycle.status === 'on-time' ? 'success' : cycle.status === 'late' ? 'warning' : cycle.status === 'overdue' ? 'error' : 'grey';
+                    const color = (t) => tone === 'grey' ? t.palette.grey[500] : t.palette[tone].main;
+                    const label = cycle.status === 'on-time' ? 'Paid on time' : cycle.status === 'late' ? 'Paid late' : cycle.status === 'overdue' ? 'Overdue' : 'Upcoming';
+                    return (
+                      <Box key={cycle.key} title={`${cycle.dueDate} · ${label}${cycle.paidAt ? ` · paid ${format(cycle.paidAt, 'MMM d, yyyy')}` : ''}`} aria-label={`${format(new Date(`${cycle.dueDate}T00:00:00`), 'MMMM yyyy')} rent due ${cycle.dueDate}: ${label}`} sx={{ p: 1, borderRadius: 1.5, textAlign: 'center', border: '1px solid', borderColor: (t) => alpha(color(t), 0.4), bgcolor: (t) => alpha(color(t), 0.12) }}>
+                        <Typography sx={{ fontSize: '0.72rem', fontWeight: 750, color }}>{cycle.label} {cycle.dueDate.slice(2, 4)}</Typography>
+                        <Typography sx={{ fontSize: '0.61rem', color: 'text.secondary' }}>{cycle.isProrated ? 'Move-in' : `Due ${cycle.dueDate.slice(8)}`}</Typography>
+                      </Box>
+                    );
+                  })}
+                </Box>
+                <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap sx={{ mt: 1.75 }}>
+                  {[
+                    ['grey', 'Not due yet'], ['success', 'Paid on time'], ['warning', 'Paid late'], ['error', 'Overdue']
+                  ].map(([color, label]) => (
+                    <Stack key={label} direction="row" spacing={0.6} alignItems="center">
+                      <Box sx={{ width: 10, height: 10, borderRadius: 0.5, bgcolor: color === 'grey' ? 'grey.500' : `${color}.main` }} />
+                      <Typography sx={{ fontSize: '0.68rem', color: 'text.secondary' }}>{label}</Typography>
+                    </Stack>
+                  ))}
+                </Stack>
+              </>
+            ) : (
+              <Typography sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>Add lease dates and rent to see the full payment timeline.</Typography>
+            )}
+          </SectionCard>
 
           <LeaseMoveInCard
             readiness={moveInReadiness}
+            lease={lease}
+            checklists={leaseChecklists}
             hasAgreement={hasLeaseAgreementDocument}
             eSignatureReadiness={eSignatureReadiness}
             onAssignTenants={onAddTenant}
+            onViewTenants={() => setActiveTab(1)}
             onBuildAgreement={() => navigate(leaseAgreementSetupUrl)}
             onViewAgreement={onViewAgreement}
             onOpenSignature={onOpenSignature}
-            onConfigureRent={onConfigureRent}
-            onCustomizeConditionReport={onCustomizeConditionReport}
             onViewChecklists={onViewChecklists}
           />
 
@@ -1070,18 +905,11 @@ export default function LeaseDetailView({
       )}
 
       {activeTab === 1 && (
-        <Stack spacing={2}>
-          <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ sm: 'center' }} spacing={1.5}>
-            <Box>
-              <Typography variant="h4" sx={{ fontWeight: 750 }}>People on this lease</Typography>
-              <Typography variant="body2" color="text.secondary">Manage tenants and co-signers without leaving the lease.</Typography>
-            </Box>
-            <Button variant="contained" startIcon={<PlusOutlined />} onClick={onAddTenant} sx={{ textTransform: 'none', fontWeight: 700, alignSelf: { xs: 'stretch', sm: 'center' } }}>
-              Add tenant or co-signer
-            </Button>
-          </Stack>
-          <TenantsCard tenants={tenants} property={property} onAddTenant={onAddTenant} onViewProfile={handleViewTenantProfile} />
-        </Stack>
+        <TenantsCard tenants={tenants} property={property} onAddTenant={onAddTenant} onViewProfile={handleViewTenantProfile} />
+      )}
+
+      {activeTab === 6 && (
+        <LeaseChargesTab leaseId={lease?.id ?? lease?.Id ?? leaseId} />
       )}
 
       {activeTab === 2 && (
@@ -1122,88 +950,48 @@ export default function LeaseDetailView({
       )}
 
       {activeTab === 3 && (
-        <Stack spacing={2}>
-          <SectionCard
-            title="Lease agreements"
-            action={
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-                <Button size="small" variant="outlined" startIcon={<UploadOutlined />} onClick={onUploadDocument} sx={{ textTransform: 'none', fontWeight: 650 }}>Upload agreement</Button>
-                <Button size="small" variant="contained" startIcon={<PlusOutlined />} onClick={() => navigate(leaseAgreementSetupUrl)} sx={{ textTransform: 'none', fontWeight: 700 }}>Create agreement</Button>
-              </Stack>
-            }
-          >
-            {agreementDocuments.length > 0 ? (
-              <Stack spacing={1}>
-                {agreementDocuments.map((document, index) => (
-                  <Stack key={`${document.name}-${index}`} direction="row" alignItems="center" spacing={1.25} onClick={document.onClick} sx={{ p: 1.25, borderRadius: 1.5, border: `1px solid ${subtleDivider(theme, 0.22, 0.14)}`, cursor: 'pointer', '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.035) } }}>
-                    <FileTextOutlined style={{ fontSize: 18, color: theme.palette.primary.main }} />
-                    <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Typography sx={{ fontSize: '0.82rem', fontWeight: 700 }}>{document.name}</Typography>
-                      <Typography sx={{ fontSize: '0.66rem', color: 'text.secondary' }}>{document.tag === 'master' ? 'Primary lease agreement' : 'Lease document'}</Typography>
-                    </Box>
-                    <ArrowRightOutlined style={{ color: theme.palette.text.secondary }} />
-                  </Stack>
+        <SectionCard title="Documents" action={<Stack direction="row" spacing={1}>
+          <Button size="small" variant="outlined" startIcon={<PlusOutlined />} onClick={() => navigate(leaseAgreementSetupUrl)}>Create agreement</Button>
+          <Button size="small" variant="contained" startIcon={<UploadOutlined />} onClick={onUploadDocument}>Upload</Button>
+        </Stack>}>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mb: 2 }}>
+            <TextField size="small" label="Search documents" value={documentSearch} onChange={(event) => { setDocumentSearch(event.target.value); setDocumentPage(0); }} sx={{ flex: 1 }} />
+            <FormControl size="small" sx={{ minWidth: 170 }}>
+              <InputLabel id="document-type-filter-label">Type</InputLabel>
+              <Select labelId="document-type-filter-label" label="Type" value={documentTypeFilter} onChange={(event) => { setDocumentTypeFilter(event.target.value); setDocumentPage(0); }}>
+                <MenuItem value="all">All types</MenuItem>
+                {documentTypes.map((type) => <MenuItem key={type} value={type}>{type}</MenuItem>)}
+              </Select>
+            </FormControl>
+            <FormControl size="small" sx={{ minWidth: 175 }}>
+              <InputLabel id="document-visibility-filter-label">Tenant visibility</InputLabel>
+              <Select labelId="document-visibility-filter-label" label="Tenant visibility" value={documentVisibilityFilter} onChange={(event) => { setDocumentVisibilityFilter(event.target.value); setDocumentPage(0); }}>
+                <MenuItem value="all">All visibility</MenuItem>
+                <MenuItem value="visible">Tenant visible</MenuItem>
+                <MenuItem value="private">Private</MenuItem>
+              </Select>
+            </FormControl>
+          </Stack>
+          <TableContainer sx={{ overflowX: 'auto' }}>
+            <Table size="small" aria-label="Lease documents" sx={{ minWidth: 650 }}>
+              <TableHead><TableRow><TableCell>Name</TableCell><TableCell>Type</TableCell><TableCell>Tenant visible</TableCell><TableCell>Uploaded date</TableCell><TableCell>Action</TableCell></TableRow></TableHead>
+              <TableBody>
+                {documentPagination.rows.map((document) => (
+                  <TableRow key={document.key}>
+                    <TableCell>{document.name}</TableCell>
+                    <TableCell>{document.type}</TableCell>
+                    <TableCell>{document.tenantVisible === null ? 'Not specified' : document.tenantVisible ? 'Yes' : 'No'}</TableCell>
+                    <TableCell>{document.uploadedAt && !Number.isNaN(new Date(document.uploadedAt).getTime()) ? format(new Date(document.uploadedAt), 'MMM d, yyyy') : '—'}</TableCell>
+                    <TableCell><Button size="small" disabled={document.source !== 'agreement' && !document.url} onClick={() => document.source === 'agreement' ? onViewAgreement?.() : window.open(document.url, '_blank', 'noopener,noreferrer')}>View</Button></TableCell>
+                  </TableRow>
                 ))}
-              </Stack>
-            ) : (
-              <Box sx={{ py: 5, textAlign: 'center' }}>
-                <FileTextOutlined style={{ fontSize: 28, color: theme.palette.text.disabled }} />
-                <Typography sx={{ fontWeight: 700, mt: 1, mb: 0.4 }}>No lease agreements yet</Typography>
-                <Typography variant="body2" color="text.secondary">Upload an existing agreement or create one in Property Peace.</Typography>
-              </Box>
-            )}
-          </SectionCard>
-
-          <SectionCard
-            title="Forms"
-            action={<Button size="small" variant="outlined" startIcon={<UploadOutlined />} onClick={onUploadDocument} sx={{ textTransform: 'none', fontWeight: 650 }}>Upload form</Button>}
-          >
-            {formDocuments.length > 0 ? (
-              <Stack spacing={1}>
-                {formDocuments.map((document, index) => (
-                  <Stack key={`${document.name}-${index}`} direction="row" alignItems="center" spacing={1.25} onClick={document.onClick} sx={{ p: 1.25, borderRadius: 1.5, border: `1px solid ${subtleDivider(theme, 0.22, 0.14)}`, cursor: 'pointer', '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.035) } }}>
-                    <FileTextOutlined style={{ fontSize: 18, color: theme.palette.primary.main }} />
-                    <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Typography sx={{ fontSize: '0.82rem', fontWeight: 700 }}>{document.name}</Typography>
-                      <Typography sx={{ fontSize: '0.66rem', color: 'text.secondary' }}>Lease form</Typography>
-                    </Box>
-                    <ArrowRightOutlined style={{ color: theme.palette.text.secondary }} />
-                  </Stack>
-                ))}
-              </Stack>
-            ) : (
-              <Box sx={{ py: 4, textAlign: 'center' }}>
-                <Typography sx={{ fontWeight: 700, mb: 0.4 }}>No forms yet</Typography>
-                <Typography variant="body2" color="text.secondary">Condition reports, checklists, and other lease forms will appear here.</Typography>
-              </Box>
-            )}
-          </SectionCard>
-
-          <SectionCard
-            title="Other"
-            action={<Button size="small" variant="outlined" startIcon={<UploadOutlined />} onClick={onUploadDocument} sx={{ textTransform: 'none', fontWeight: 650 }}>Upload document</Button>}
-          >
-            {otherDocuments.length > 0 ? (
-              <Stack spacing={1}>
-                {otherDocuments.map((document, index) => (
-                  <Stack key={`${document.name}-${index}`} direction="row" alignItems="center" spacing={1.25} onClick={document.onClick} sx={{ p: 1.25, borderRadius: 1.5, border: `1px solid ${subtleDivider(theme, 0.22, 0.14)}`, cursor: 'pointer', '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.035) } }}>
-                    <FileTextOutlined style={{ fontSize: 18, color: theme.palette.text.secondary }} />
-                    <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Typography sx={{ fontSize: '0.82rem', fontWeight: 700 }}>{document.name}</Typography>
-                      <Typography sx={{ fontSize: '0.66rem', color: 'text.secondary' }}>Other lease document</Typography>
-                    </Box>
-                    <ArrowRightOutlined style={{ color: theme.palette.text.secondary }} />
-                  </Stack>
-                ))}
-              </Stack>
-            ) : (
-              <Box sx={{ py: 4, textAlign: 'center' }}>
-                <Typography sx={{ fontWeight: 700, mb: 0.4 }}>No other documents yet</Typography>
-                <Typography variant="body2" color="text.secondary">Supporting lease documents that are not agreements or forms will appear here.</Typography>
-              </Box>
-            )}
-          </SectionCard>
-        </Stack>
+                {!documentPagination.count && <TableRow><TableCell colSpan={5} align="center">No matching documents</TableCell></TableRow>}
+              </TableBody>
+            </Table>
+          </TableContainer>
+          <TablePagination component="div" count={documentPagination.count} page={documentPagination.page} rowsPerPage={documentRowsPerPage}
+            onPageChange={(_, page) => setDocumentPage(page)} onRowsPerPageChange={(event) => { setDocumentRowsPerPage(Number(event.target.value)); setDocumentPage(0); }} rowsPerPageOptions={[10, 20, 50, 100]} />
+        </SectionCard>
       )}
 
           {activeTab === 4 && (

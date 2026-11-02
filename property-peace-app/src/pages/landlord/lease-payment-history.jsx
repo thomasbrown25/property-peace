@@ -1,3 +1,4 @@
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
@@ -214,7 +215,7 @@ export default function LeasePaymentHistory() {
     );
   }
 
-  const propertyDisplay = lease.unit?.property?.propertyType?.toLowerCase() === 'singlefamily'
+  const propertyDisplay = isDetachedSingleUnitType(lease.unit?.property?.propertyType)
     ? lease.propertyName
     : `${lease.propertyName}${lease.unitName ? ` - ${lease.unitName}` : ''}`;
 

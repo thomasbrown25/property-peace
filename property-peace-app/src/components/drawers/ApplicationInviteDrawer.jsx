@@ -1,3 +1,4 @@
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 import { useEffect, useState, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 
@@ -170,7 +171,7 @@ export default function ApplicationInviteDrawer() {
     if (drawer.isOpenApplicationInvite && selectedProperty?.id) {
       setFieldValue('propertyId', selectedProperty.id);
       // Auto-select unit if single family
-      if ((selectedProperty.propertyType === 'singleFamily' || selectedProperty.propertyType === 'SingleFamily') && selectedProperty.units?.[0]?.id) {
+      if (isDetachedSingleUnitType(selectedProperty.propertyType) && selectedProperty.units?.[0]?.id) {
         setFieldValue('unitId', selectedProperty.units[0].id);
       }
     }

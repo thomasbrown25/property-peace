@@ -18,6 +18,7 @@ public sealed class ShortStayListingConfig : IEntityTypeConfiguration<ShortStayL
             t.HasCheckConstraint("CK_ShortStayListings_MinimumNights", "[MinimumNights] >= 1");
             t.HasCheckConstraint("CK_ShortStayListings_Capacity", "[Capacity] >= 1");
             t.HasCheckConstraint("CK_ShortStayListings_Status", "[Status] IN ('Draft', 'Published')");
+            t.HasCheckConstraint("CK_ShortStayListings_BookingAcceptancePreference", "[BookingAcceptancePreference] IN ('RequireOwnerApproval', 'AutoConfirmAfterVerifiedPayment')");
             t.HasCheckConstraint("CK_ShortStayListings_LodgingTaxRatePercent", "[LodgingTaxRatePercent] IS NULL OR ([LodgingTaxRatePercent] >= 0 AND [LodgingTaxRatePercent] <= 100)");
             t.HasCheckConstraint("CK_ShortStayListings_TaxAttestation", "([LodgingTaxRatePercent] IS NULL AND [TaxPolicyAttestedAtUtc] IS NULL AND [TaxPolicyAttestedByUserId] IS NULL) OR ([LodgingTaxRatePercent] IS NOT NULL AND [TaxPolicyAttestedAtUtc] IS NOT NULL AND [TaxPolicyAttestedByUserId] > 0)");
         });
@@ -35,6 +36,8 @@ public sealed class ShortStayListingConfig : IEntityTypeConfiguration<ShortStayL
         b.Property(x => x.Capacity).IsRequired();
         b.Property(x => x.Status).HasConversion<string>().HasMaxLength(32)
             .HasDefaultValue(ShortStayListingStatus.Draft).IsRequired();
+        b.Property(x => x.BookingAcceptancePreference).HasConversion<string>().HasMaxLength(48)
+            .HasDefaultValue(ShortStayBookingAcceptancePreference.RequireOwnerApproval).IsRequired();
         b.Property(x => x.HouseRules).HasMaxLength(4000);
         b.Property(x => x.Amenities).HasMaxLength(4000);
         b.Property(x => x.CancellationPolicy).HasMaxLength(2000);

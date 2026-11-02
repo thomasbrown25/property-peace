@@ -311,6 +311,7 @@ export default function UnitPage() {
           </Stack>
           <Stack direction="row" spacing={1}>
             {rentalMode(unit) === 'shortTerm' && <Button variant="contained" size="small" onClick={() => navigate(`/landlord/property/${property.id}/unit/${unit.id}/short-stay`)}>Short-stay draft & availability</Button>}
+            {import.meta.env.DEV && rentalMode(unit) === 'shortTerm' && <Button size="small" onClick={() => navigate(`/landlord/property/${property.id}/unit/${unit.id}/extended-stay-agreements`)}>Extended-stay agreement drafts</Button>}
             <Button
               size="small"
               variant="text"

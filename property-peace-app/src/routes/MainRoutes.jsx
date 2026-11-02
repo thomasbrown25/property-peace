@@ -21,6 +21,7 @@ const PropertyAddWorkflow = Loadable(lazy(() => import('pages/landlord/property-
 const PropertyImportPage = Loadable(lazy(() => import('pages/landlord/property-import')));
 const Leases = Loadable(lazy(() => import('pages/landlord/leases')));
 const Listings = Loadable(lazy(() => import('pages/landlord/listings')));
+const Bookings = Loadable(lazy(() => import('pages/landlord/bookings')));
 const ListingCreate = Loadable(lazy(() => import('pages/landlord/listing-create')));
 const ListingSetup = Loadable(lazy(() => import('pages/landlord/listing-setup')));
 const ListingSetupPhotos = Loadable(lazy(() => import('pages/landlord/listing-setup-photos')));
@@ -76,6 +77,7 @@ const PropertyChecklistsPage = Loadable(lazy(() => import('pages/landlord/inspec
 const CustomizeMoveInReportPage = Loadable(lazy(() => import('pages/landlord/customize-move-in-report')));
 const UnitPage = Loadable(lazy(() => import('pages/landlord/unit')));
 const ShortStaySetup = Loadable(lazy(() => import('pages/landlord/short-stay-setup')));
+const ExtendedStayAgreementBuilder = Loadable(lazy(() => import('pages/landlord/extended-stay-agreement')));
 const RenterProfile = Loadable(lazy(() => import('pages/landlord/renter-profile')));
 const ContactUs = Loadable(lazy(() => import('pages/landlord/contact-us')));
 const Files = Loadable(lazy(() => import('pages/landlord/files')));
@@ -194,9 +196,10 @@ function LegacyLeaseBuilderRedirect() {
   return <Navigate to={buildLeaseBuilderRedirect(search)} replace />;
 }
 
-function LegacyTenantProfileRedirect() {
-  const { tenantId } = useParams();
-  return <Navigate to={`/landlord/renters/${tenantId}`} replace />;
+function LegacyRenterProfileRedirect() {
+  const { renterId } = useParams();
+  const { search, hash } = useLocation();
+  return <Navigate to={`/landlord/tenants/${renterId}${search}${hash}`} replace />;
 }
 
 function LegacyRentCollectionRedirect() {
@@ -366,6 +369,14 @@ const MainRoutes = {
           )
         },
         {
+          path: 'landlord/property/:propertyId/unit/:unitId/extended-stay-agreements',
+          element: (
+            <SubscriptionPausedGuard>
+              <ExtendedStayAgreementBuilder />
+            </SubscriptionPausedGuard>
+          )
+        },
+        {
           path: 'landlord/unit/:unitId/checklists',
           element: (
             <SubscriptionPausedGuard>
@@ -378,6 +389,14 @@ const MainRoutes = {
           element: (
             <SubscriptionPausedGuard>
               <Leases />
+            </SubscriptionPausedGuard>
+          )
+        },
+        {
+          path: 'landlord/leases/:leaseId/checklists/:createType/new',
+          element: (
+            <SubscriptionPausedGuard>
+              <ChecklistsPage />
             </SubscriptionPausedGuard>
           )
         },
@@ -667,10 +686,6 @@ const MainRoutes = {
         },
         {
           path: 'landlord/tenants/:tenantId',
-          element: <LegacyTenantProfileRedirect />
-        },
-        {
-          path: 'landlord/renters/:renterId',
           element: (
             <SubscriptionPausedGuard>
               <RenterProfile />
@@ -678,10 +693,22 @@ const MainRoutes = {
           )
         },
         {
+          path: 'landlord/renters/:renterId',
+          element: <LegacyRenterProfileRedirect />
+        },
+        {
           path: 'landlord/listings',
           element: (
             <SubscriptionPausedGuard>
               <Listings />
+            </SubscriptionPausedGuard>
+          )
+        },
+        {
+          path: 'landlord/bookings',
+          element: (
+            <SubscriptionPausedGuard>
+              <Bookings />
             </SubscriptionPausedGuard>
           )
         },

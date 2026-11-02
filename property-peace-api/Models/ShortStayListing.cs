@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace brownstone_hub_api.Models;
 
@@ -42,6 +43,10 @@ public class ShortStayListing
     [MaxLength(1200)]
     public string? PublicSummary { get; set; }
     public ShortStayListingStatus Status { get; set; } = ShortStayListingStatus.Draft;
+    // Owner setup preference only; no booking workflow consumes this yet.
+    public ShortStayBookingAcceptancePreference BookingAcceptancePreference { get; set; } = ShortStayBookingAcceptancePreference.RequireOwnerApproval;
 }
 
 public enum ShortStayListingStatus { Draft, Published }
+[JsonConverter(typeof(JsonStringEnumConverter<ShortStayBookingAcceptancePreference>))]
+public enum ShortStayBookingAcceptancePreference { RequireOwnerApproval, AutoConfirmAfterVerifiedPayment }

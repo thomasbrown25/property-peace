@@ -28,7 +28,7 @@ const formatDetailDate = (value) => value
   ? new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(value))
   : null;
 
-export default function LeasingPipelinePanel({ resourceType, resourceId, unitId, title = 'Leasing progress', onCreateListing, onCreateLease }) {
+export default function LeasingPipelinePanel({ resourceType, resourceId, unitId, title = 'Leasing progress', onCreateListing, onCreateLease, showSignatureDetails = true }) {
   const theme = useTheme();
   const navigate = useNavigate();
   const { pipeline, error, isLoading, retry, canLoad } = useLeasingPipeline(resourceType, resourceId, unitId);
@@ -140,7 +140,7 @@ export default function LeasingPipelinePanel({ resourceType, resourceId, unitId,
           </Box>
         </Box>
 
-        {eSignatureDetails && (
+        {showSignatureDetails && eSignatureDetails && (
           <Box
             role="group"
             aria-label="Electronic signature details"

@@ -1,3 +1,4 @@
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 import ThemeAdaptiveDrawer from 'components/drawers/shared/ThemeAdaptiveDrawer';
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useDashboardLoading } from 'contexts/DashboardLoadingContext';
@@ -97,7 +98,7 @@ import LeasesHeader from 'sections/landlord/leases/LeasesHeader';
 import TenantsContent from 'sections/landlord/tenants/TenantsContent';
 import TenantAddDrawer from 'components/drawers/TenantAddDrawer';
 import { TenantCsvImportButton } from 'components/import/CsvImportButtons';
-import { managementPageHeaderActionSx } from 'components/headers/managementPageHeaderStyles';
+import { creationActionSx, managementPageHeaderActionSx } from 'components/headers/managementPageHeaderStyles';
 
 // TabPanel component with slide animation
 function TabPanel({ children, value, index, slideDirection, ...other }) {
@@ -198,7 +199,7 @@ const getLeaseDisplayName = (lease) => {
     displayPropertyName = streetOnly;
   }
 
-  if (propertyType?.toLowerCase() === 'singlefamily') return displayPropertyName || 'Lease';
+  if (isDetachedSingleUnitType(propertyType)) return displayPropertyName || 'Lease';
   const isMeaningfulUnitName = unitName && unitName.trim() && !unitName.match(/^-\s*\d+$/);
   if (isMeaningfulUnitName) return displayPropertyName ? `${displayPropertyName} · ${unitName}` : unitName || 'Lease';
   return displayPropertyName || 'Lease';
@@ -1564,10 +1565,10 @@ export default function LeasesPage({ onEditLease }) {
       <TenantCsvImportButton buttonProps={{ variant: 'outlined', sx: managementPageHeaderActionSx }} />
       <Button
         variant="contained"
-        color="success"
+        color="primary"
         startIcon={<PlusOutlined />}
         onClick={() => drawer.openTenantAddDrawer()}
-        sx={managementPageHeaderActionSx}
+        sx={creationActionSx}
       >
         Add tenant
       </Button>
@@ -1575,20 +1576,20 @@ export default function LeasesPage({ onEditLease }) {
   ) : activeTab === 1 ? (
     <Button
       variant="contained"
-      color="success"
+      color="primary"
       startIcon={<PlusOutlined />}
       onClick={() => openCreateAgreementDrawer()}
-      sx={managementPageHeaderActionSx}
+      sx={creationActionSx}
     >
       New agreement
     </Button>
   ) : (
     <Button
       variant="contained"
-      color="success"
+      color="primary"
       startIcon={<PlusOutlined />}
       onClick={() => drawer.openLeaseAddDrawer()}
-      sx={managementPageHeaderActionSx}
+      sx={creationActionSx}
     >
       Create lease
     </Button>
@@ -2106,7 +2107,7 @@ export default function LeasesPage({ onEditLease }) {
                               : 'Ended leases will appear here after you close them out.'}
                       </Typography>
                       {view === 'current' && !leaseSearch.trim() && (
-                        <Button variant="contained" startIcon={<PlusOutlined />} onClick={() => drawer.openLeaseAddDrawer()} sx={{ mt: 2, textTransform: 'none' }}>
+                        <Button variant="contained" startIcon={<PlusOutlined />} onClick={() => drawer.openLeaseAddDrawer()} sx={{ ...creationActionSx, mt: 2 }}>
                           Create Lease
                         </Button>
                       )}
@@ -2295,7 +2296,7 @@ export default function LeasesPage({ onEditLease }) {
                             const tenantCount = leaseAgreement.tenants?.length ?? 0;
                             const tenantsSignedCount = (leaseAgreement.tenants || []).filter((t) => !!(t.tenantSignedAt ?? t.TenantSignedAt)).length;
                             const weSigned = !!(leaseAgreement.landlordSignedAt ?? leaseAgreement.LandlordSignedAt);
-                            const isMultiUnit = leaseAgreement.propertyType?.toLowerCase() !== 'singlefamily' && leaseAgreement.unitName;
+                            const isMultiUnit = !isDetachedSingleUnitType(leaseAgreement.propertyType) && leaseAgreement.unitName;
                             const agreementStatus = getAgreementStatus(leaseAgreement);
                             const tenantDisplay = getTenantDisplay(leaseAgreement);
 
@@ -2327,7 +2328,7 @@ export default function LeasesPage({ onEditLease }) {
                                   {(() => {
                                     const statusConfig = {
                                       incomplete: { label: 'Incomplete', color: 'default' },
-                                      need_to_be_signed: { label: 'Need to be signed', color: 'warning' },
+                                      need_to_be_signed: { label: 'Needs signature', color: 'warning' },
                                       complete: { label: 'Complete', color: 'success' }
                                     };
                                     const { label, color } = statusConfig[agreementStatus];

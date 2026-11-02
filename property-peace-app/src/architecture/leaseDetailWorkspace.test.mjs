@@ -27,45 +27,59 @@ test('the six requested workspace tabs render in order', () => {
   assert.doesNotMatch(tabBlock, /label="Agreements"/);
 });
 
-test('Overview starts with the lifecycle row directly above full-width move-in readiness', () => {
+test('Overview shows full-term rent payment history above move-in readiness instead of lifecycle bars', () => {
   const tabs = source.indexOf('aria-label="Lease detail sections"');
   const overview = between('{activeTab === 0 && (', '{activeTab === 1 && (');
-  const leaseLifecycle = overview.indexOf('title="Lease Lifecycle"');
-  const agreementLifecycle = overview.indexOf('title="Lease Agreement Lifecycle"');
+  const timeline = overview.indexOf('title="Rent payment history"');
   const moveIn = overview.indexOf('<LeaseMoveInCard');
   const leaseActivity = overview.indexOf('title="Lease activity"');
 
   assert.ok(tabs >= 0, 'lease workspace tabs should render');
-  assert.ok(leaseLifecycle >= 0, 'lease lifecycle should be inside Overview');
-  assert.ok(agreementLifecycle > leaseLifecycle, 'agreement lifecycle should follow lease lifecycle');
-  assert.ok(moveIn > agreementLifecycle, 'move-in readiness should sit directly below the lifecycle row');
-  assert.ok(leaseActivity > moveIn, 'move-in readiness should be the first Overview component after the lifecycle row');
+  assert.ok(timeline >= 0, 'payment history should be inside Overview');
+  assert.ok(moveIn > timeline, 'move-in readiness should follow the payment timeline');
+  assert.ok(leaseActivity > moveIn, 'activity should follow move-in readiness');
+  assert.match(overview, /paymentTimeline\.map/);
+  assert.match(overview, /Not due yet/);
+  assert.match(overview, /Paid on time/);
+  assert.match(overview, /Paid late/);
+  assert.match(overview, /Overdue/);
+  assert.doesNotMatch(overview, /Lease Lifecycle|Lease Agreement Lifecycle|<LifecycleBar/);
   assert.doesNotMatch(overview, /title="Key terms"/);
   const afterMoveIn = overview.slice(moveIn);
   assert.doesNotMatch(afterMoveIn, /<Grid[^>]+size=/, 'move-in readiness should not be constrained to a grid column');
+});
 
-  for (const removedTitle of ['Payment heartbeat', 'Documents', 'This lease, in money', 'Lease actions', 'Lease health']) {
-    assert.doesNotMatch(overview, new RegExp(removedTitle, 'i'));
-  }
+test('lease checklist shows only the requested steps and no setup chip', () => {
+  const card = between('function LeaseMoveInCard(', '// ─── Section card');
+  assert.match(card, /Lease checklist/);
+  assert.doesNotMatch(card, /Setup in progress|Tracked steps complete|<Chip/);
+  assert.doesNotMatch(card, /onConfigureRent|onCustomizeConditionReport|rent-deposit|condition-report/);
+  assert.match(card, /sortLeaseChecklistSteps\(checklist\.steps\)\.map/);
+  assert.match(card, /gridTemplateColumns: \{ xs: '1fr', sm: 'repeat\(2, minmax\(0, 1fr\)\)', lg: 'repeat\(4, minmax\(0, 1fr\)\)' \}/);
+  const overview = between('{activeTab === 0 && (', '{activeTab === 1 && (');
+  assert.match(overview, /checklists=\{leaseChecklists\}/);
 });
 
 test('lease header keeps the property title compact and omits tenant names from the subtitle', () => {
   const header = between('{/* ── Lease header', '{isDraftLease && (');
   assert.match(header, /fontSize: \{ xs: '1\.75rem', sm: '2\.25rem' \}/);
-  assert.match(header, /: 'Residential lease'/);
+  assert.match(header, /modeLabel\(lease\?\.unit \?\? lease\?\.Unit\)/);
   assert.doesNotMatch(header, /tenantFullName \? `\$\{tenantFullName\}/);
 });
 
-test('lease header exposes upload without a renew shortcut', () => {
-  const headerActions = between('sx={{ flexShrink: 0, pl:', '</Stack>');
+test('lease header keeps upload in actions without a renew shortcut', () => {
+  const headerActions = between('id="lease-actions-menu"', '</Menu>');
   assert.match(headerActions, />\s*Upload document\s*</);
   assert.doesNotMatch(headerActions, />\s*Renew\s*</);
 });
 
 test('tenant, payment, and document tabs expose the requested controls and sections', () => {
   const tenants = between('{activeTab === 1 && (', '{activeTab === 2 && (');
-  assert.match(tenants, /Add tenant or co-signer/);
   assert.match(tenants, /<TenantsCard/);
+  assert.doesNotMatch(tenants, /People on this lease|Manage tenants and co-signers|Add tenant or co-signer/);
+  const tenantsList = between('function TenantsCard(', '// ─── Main Component');
+  assert.doesNotMatch(tenantsList, />\s*Tenants\s*</);
+  assert.match(tenantsList, /\+ Add tenant or co-signer/);
 
   const tenantCard = between('function TenantRow(', 'function TenantsCard(');
   assert.match(tenantCard, />\s*Message\s*</);
@@ -79,13 +93,8 @@ test('tenant, payment, and document tabs expose the requested controls and secti
   assert.doesNotMatch(payments, />\s*Record payment\s*</);
 
   const documents = between('{activeTab === 3 && (', '{activeTab === 4 && (');
-  const leaseAgreements = documents.indexOf('title="Lease agreements"');
-  const forms = documents.indexOf('title="Forms"');
-  const other = documents.indexOf('title="Other"');
-  assert.ok(leaseAgreements >= 0, 'Documents should keep the Lease agreements card');
-  assert.ok(forms > leaseAgreements, 'Forms should render below Lease agreements');
-  assert.ok(other > forms, 'Other should render below Forms');
-  assert.match(documents, /agreementDocuments\.map/);
-  assert.match(documents, /formDocuments\.map/);
-  assert.match(documents, /otherDocuments\.map/);
+  assert.match(documents, /<TableContainer/);
+  assert.match(documents, /documentPagination\.rows\.map/);
+  assert.match(documents, /Create agreement/);
+  assert.match(documents, /<TablePagination/);
 });

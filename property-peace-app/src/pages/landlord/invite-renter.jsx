@@ -1,3 +1,4 @@
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -144,7 +145,7 @@ export default function InviteRenter() {
         setFieldValue('propertyId', selectedProperty.id);
       }
       // Auto-select unit if single family
-      if ((selectedProperty.propertyType === 'singleFamily' || selectedProperty.propertyType === 'SingleFamily') 
+      if (isDetachedSingleUnitType(selectedProperty.propertyType)
           && selectedProperty.units?.[0]?.id 
           && !values.unitId) {
         setFieldValue('unitId', selectedProperty.units[0].id);

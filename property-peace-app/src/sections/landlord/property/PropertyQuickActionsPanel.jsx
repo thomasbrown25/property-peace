@@ -1,7 +1,8 @@
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 import { useMemo, useState } from 'react';
 import { alpha, Box, Button, Collapse, Stack, Typography, useTheme } from '@mui/material';
 import {
-  DollarOutlined, ToolOutlined, CalendarOutlined,
+  DollarOutlined, ToolOutlined,
   FileTextOutlined, UploadOutlined, PlusOutlined, ThunderboltOutlined, DownOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
@@ -16,7 +17,9 @@ export default function PropertyQuickActionsPanel({ property, propertyId, mobile
   const drawer = useDrawer();
   const [leasePreviewOpen, setLeasePreviewOpen] = useState(false);
   const [mobileActionsOpen, setMobileActionsOpen] = useState(false);
-  const hasLongTermUnits = (property?.units || property?.Units || []).some(unit => rentalMode(unit) !== 'shortTerm');
+  const units = property?.units || property?.Units || [];
+  const hasLongTermUnits = units.some(unit => rentalMode(unit) !== 'shortTerm');
+  const canCreateLease = hasLongTermUnits || (units.length === 0 && isDetachedSingleUnitType(property?.propertyType));
 
   const activeLease = useMemo(() => {
     const units = property?.units || property?.Units || [];
@@ -27,15 +30,17 @@ export default function PropertyQuickActionsPanel({ property, propertyId, mobile
     return null;
   }, [property]);
 
-  const leaseAction = activeLease
-    ? { label: 'View lease',   icon: <FileTextOutlined style={{ fontSize: 13 }} />, onClick: () => setLeasePreviewOpen(true) }
-    : { label: 'Create lease', icon: <PlusOutlined    style={{ fontSize: 13 }} />, onClick: () => navigate('/landlord/leases/selection') };
-
   const ACTIONS = [
-    ...(hasLongTermUnits ? [{ label: 'Record payment', icon: <DollarOutlined style={{ fontSize: 13 }} />, onClick: () => drawer.openPaymentAddDrawer() }] : []),
+    ...(canCreateLease ? [{
+      label: 'Create a lease',
+      icon: <PlusOutlined style={{ fontSize: 13 }} />,
+      onClick: () => drawer.openLeaseAddDrawer(null, property)
+    }] : []),
+    ...(hasLongTermUnits ? [
+      ...(activeLease ? [{ label: 'View lease', icon: <FileTextOutlined style={{ fontSize: 13 }} />, onClick: () => setLeasePreviewOpen(true) }] : []),
+      { label: 'Record payment', icon: <DollarOutlined style={{ fontSize: 13 }} />, onClick: () => drawer.openPaymentAddDrawer() }
+    ] : []),
     { label: 'New maintenance ticket', icon: <ToolOutlined     style={{ fontSize: 13 }} />, onClick: () => drawer.openMaintenanceAddDrawer({ propertyId, propertyName: property?.name }) },
-    { label: 'Schedule inspection',    icon: <CalendarOutlined style={{ fontSize: 13 }} />, onClick: () => drawer.openScheduleInspectionDrawer(propertyId) },
-    ...(hasLongTermUnits ? [leaseAction] : []),
     { label: 'Upload document',        icon: <UploadOutlined   style={{ fontSize: 13 }} />, onClick: () => navigate('/landlord/documents') },
   ];
 
@@ -87,7 +92,7 @@ export default function PropertyQuickActionsPanel({ property, propertyId, mobile
               }
             }}
           >
-            Quick actions
+            Actions
           </Button>
 
           <Collapse in={mobileActionsOpen} timeout={320} unmountOnExit>
@@ -138,9 +143,9 @@ export default function PropertyQuickActionsPanel({ property, propertyId, mobile
           </Collapse>
         </Box>
       ) : (
-        <Box sx={propertyAccentCardSx(theme.palette.primary.main, { p: 1.5, borderRadius: 1.5 })}>
+        <Box sx={propertyAccentCardSx(theme.palette.primary.main, { p: 1.5, borderRadius: 1.5, height: '100%' })}>
           <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Quick actions
+            Actions
           </Typography>
           <Stack spacing={0.75} sx={{ mt: 1 }}>
             {ACTIONS.map((action) => (

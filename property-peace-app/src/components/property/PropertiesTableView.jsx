@@ -311,7 +311,7 @@ export default function PropertiesTableView({
                         size="small"
                         label={property.isActive ? 'Active' : 'Inactive'}
                         color={property.isActive ? 'success' : 'default'}
-                        variant="outlined"
+                        variant={property.isActive ? 'filled' : 'outlined'}
                       />
                     </Stack>
                   </TableCell>

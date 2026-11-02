@@ -44,7 +44,7 @@ namespace brownstone_hub_api.Controllers
             [FromForm] DateTime? expirationDate = null,
             [FromForm] bool isRequired = false,
             [FromForm] long? leaseId = null,
-            [FromForm] bool isPrivate = false)
+            [FromForm] bool isPrivate = true)
         {
             if (files == null || files.Count == 0)
             {
@@ -67,7 +67,7 @@ namespace brownstone_hub_api.Controllers
             [FromForm] List<IFormFile> files,
             [FromForm] string? description = null,
             [FromForm] ETenantDocumentType documentType = ETenantDocumentType.Other,
-            [FromForm] bool isPrivate = false)
+            [FromForm] bool isPrivate = true)
         {
             if (files == null || files.Count == 0)
             {

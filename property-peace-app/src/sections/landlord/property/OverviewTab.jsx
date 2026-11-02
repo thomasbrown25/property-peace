@@ -1,3 +1,4 @@
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 import { useMemo, useState, useEffect } from 'react';
 import { Box, Grid, Stack, Typography, Card, CardContent, Button, alpha, useTheme, Divider, Link, Chip, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { UserOutlined, FileTextOutlined, DollarOutlined, PlusOutlined, ToolOutlined, KeyOutlined, EditOutlined, SendOutlined, RightOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
@@ -97,8 +98,7 @@ export default function OverviewTab({ property, propertyId, selectedProperty, le
 
   // Check if property is single family
   const isSingleFamily = useMemo(() => {
-    const propType = propertyData?.propertyType?.toLowerCase();
-    return propType === 'singlefamily' || propType === 'single-family';
+    return isDetachedSingleUnitType(propertyData?.propertyType);
   }, [propertyData?.propertyType]);
 
   // Format lease display text: prioritize lease name, fallback to date-based format
@@ -324,10 +324,10 @@ export default function OverviewTab({ property, propertyId, selectedProperty, le
                                   label={leaseStatus.label}
                                   size="small"
                                   color={leaseStatus.color}
-                                  variant="outlined"
+                                  variant={leaseStatus.label === 'ACTIVE' ? 'filled' : 'outlined'}
                                   sx={{ 
                                     fontWeight: 500,
-                                    bgcolor: leaseStatus.color === 'info' ? alpha(theme.palette.info.main, 0.1) : 'transparent',
+                                    bgcolor: leaseStatus.color === 'info' ? alpha(theme.palette.info.main, 0.1) : leaseStatus.label === 'ACTIVE' ? 'success.main' : 'transparent',
                                     color: leaseStatus.color === 'info' ? theme.palette.info.main : undefined
                                   }}
                                 />

@@ -1,3 +1,4 @@
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 import { Grid, Box, Stack, Typography, Card, CardContent, Chip, Button, useTheme, alpha } from '@mui/material';
 import { ToolOutlined, PlusOutlined, CalendarOutlined, UserOutlined, ArrowRightOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
@@ -49,7 +50,7 @@ const MaintenanceCard = ({ request, onClick }) => {
           />
 
           {/* Unit Info */}
-          {request.propertyType?.toLowerCase() !== 'singlefamily' && request.unitName && (
+          {!isDetachedSingleUnitType(request.propertyType) && request.unitName && (
             <Stack direction="row" spacing={1} alignItems="center">
               <Chip
                 label={request.unitName}

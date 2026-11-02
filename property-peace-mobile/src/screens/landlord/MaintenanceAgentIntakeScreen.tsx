@@ -6,10 +6,11 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import PropertyAPI, { Property, Unit } from '../../api/propertyAPI';
 import MaintenanceAPI, { MaintenanceAgentMessage, LocalMedia, newIdempotencyKey } from '../../api/maintenanceAPI';
 import { useAppTheme } from '../../theme/AppTheme';
+import { isMultiUnitProperty } from '../../features/properties/propertyType';
 
 const idOf = (item: any) => Number(item?.id ?? item?.Id);
 const labelOf = (item: any) => String(item?.name ?? item?.Name ?? item?.streetAddress ?? item?.StreetAddress ?? 'Unnamed');
-const isMultiUnit = (item: Property) => String(item.propertyType ?? item.PropertyType ?? '').toLowerCase() === 'multiunit';
+const isMultiUnit = (item: Property) => isMultiUnitProperty(item.propertyType ?? item.PropertyType);
 
 type Bubble = { role: 'user' | 'assistant'; content: string; photoBase64?: string; photoMimeType?: string };
 export default function MaintenanceAgentIntakeScreen({ onManual }: { onManual: () => void }) {

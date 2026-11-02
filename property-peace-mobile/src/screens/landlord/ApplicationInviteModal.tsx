@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PropertyAPI, { type Property, type Unit } from '../../api/propertyAPI';
 import apiClient from '../../services/apiClient';
 import { useAppTheme } from '../../theme/AppTheme';
+import { isMultiUnitProperty } from '../../features/properties/propertyType';
 
 const idOf = (value: { id?: string | number; Id?: string | number }) => value.id ?? value.Id;
 const nameOf = (value: { name?: string; Name?: string }) => value.name ?? value.Name ?? '';
@@ -44,7 +45,7 @@ export default function ApplicationInviteModal({ visible, scope, onClose, onSent
   }, [visible, scope]);
 
   const selectedProperty = properties.find(item => String(idOf(item)) === String(propertyId));
-  const multiUnit = String(selectedProperty?.propertyType ?? selectedProperty?.PropertyType ?? '').toLowerCase() === 'multiunit';
+  const multiUnit = isMultiUnitProperty(selectedProperty?.propertyType ?? selectedProperty?.PropertyType);
   const selectProperty = (item: Property) => {
     const id = idOf(item);
     if (id == null) return;

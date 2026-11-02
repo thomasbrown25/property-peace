@@ -1,3 +1,4 @@
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 import {
   Box,
   Table,
@@ -146,7 +147,7 @@ export default function RentCollectionTable({ sortedRents, sortField, sortOrder,
 
             // Format property display
             const propertyDisplay =
-              rent.propertyType?.toLowerCase() === 'singlefamily'
+              isDetachedSingleUnitType(rent.propertyType)
                 ? rent.propertyName
                 : rent.unitName
                   ? `${rent.propertyName} – ${rent.unitName}`

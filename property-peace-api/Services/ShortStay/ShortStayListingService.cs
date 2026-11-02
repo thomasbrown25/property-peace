@@ -38,6 +38,7 @@ public sealed class ShortStayListingService(DataContext db, IHttpContextAccessor
     private static ShortStayListingDraftDto Map(ShortStayListing listing, string zone) => new()
     {
         UnitId = listing.UnitId, TimeZoneId = zone, NightlyBasePrice = listing.NightlyBasePrice,
+        BookingAcceptancePreference = listing.BookingAcceptancePreference,
         WeekendNightlyRate = listing.WeekendNightlyRate, WeeklyDiscountPercent = listing.WeeklyDiscountPercent,
         MonthlyDiscountPercent = listing.MonthlyDiscountPercent,
         MinimumNights = listing.MinimumNights, Capacity = listing.Capacity, CleaningFee = listing.CleaningFee,
@@ -77,6 +78,8 @@ public sealed class ShortStayListingService(DataContext db, IHttpContextAccessor
     {
         if (Scope() is not { } scope) return Error("Forbidden", 403);
         if (unitId <= 0 || request is null) return Error("Invalid listing draft", 400);
+        if (request.BookingAcceptancePreference is { } preference && !Enum.IsDefined(preference))
+            return Error("Invalid booking acceptance preference", 400);
         if (!CentPrecisionAttribute.IsValidPrice(request.NightlyBasePrice))
             return Error("NightlyBasePrice must have no more than two decimal places", 400);
         if (!CentPrecisionAttribute.IsValidPrice(request.CleaningFee) ||
@@ -114,6 +117,8 @@ public sealed class ShortStayListingService(DataContext db, IHttpContextAccessor
             // This endpoint only edits draft data; it cannot publish or change ownership.
             if (listing!.Status != ShortStayListingStatus.Draft) return Error("Published listing cannot be edited as a draft", 409);
             listing.NightlyBasePrice = request.NightlyBasePrice;
+            if (request.BookingAcceptancePreference is { } acceptancePreference)
+                listing.BookingAcceptancePreference = acceptancePreference;
             // Pricing additions are optional on legacy PUT payloads. Only supplied values mutate
             // an existing draft; a supplied JSON null explicitly clears the weekend rate.
             if (request.HasWeekendNightlyRate) listing.WeekendNightlyRate = request.WeekendNightlyRate;

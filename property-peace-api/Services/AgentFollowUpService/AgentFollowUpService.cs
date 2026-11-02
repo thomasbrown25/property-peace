@@ -170,7 +170,7 @@ namespace brownstone_hub_api.Services.AgentFollowUpService
                     tenant.Email ?? string.Empty,
                     lease.PropertyName,
                     lease.UnitName,
-                    string.Equals(lease.PropertyType, "MultiUnit", StringComparison.OrdinalIgnoreCase),
+                    PropertyTypeClassification.IsMultiUnit(lease.PropertyType),
                     overdueAmount > 0 ? "CollectionsAgent_Overdue" : "CollectionsAgent_PreDue",
                     3,
                     lease.RentAmount,
@@ -191,8 +191,8 @@ namespace brownstone_hub_api.Services.AgentFollowUpService
                 {
                     selected_tenant = new { tenant_id = tenant.Id, name = tenantName, first_name = tenant.Firstname, email = tenant.Email },
                     property = lease.PropertyName,
-                    unit = string.Equals(lease.PropertyType, "MultiUnit", StringComparison.OrdinalIgnoreCase) ? lease.UnitName : null,
-                    residence_reference = string.Equals(lease.PropertyType, "MultiUnit", StringComparison.OrdinalIgnoreCase)
+                    unit = PropertyTypeClassification.IsMultiUnit(lease.PropertyType) ? lease.UnitName : null,
+                    residence_reference = PropertyTypeClassification.IsMultiUnit(lease.PropertyType)
                         ? $"{lease.PropertyName}, {lease.UnitName}"
                         : $"the home at {lease.PropertyName}",
                     lease_id = lease.Id,
@@ -343,7 +343,7 @@ namespace brownstone_hub_api.Services.AgentFollowUpService
                     tenant.Email ?? string.Empty,
                     lease.PropertyName,
                     lease.UnitName,
-                    string.Equals(lease.PropertyType, "MultiUnit", StringComparison.OrdinalIgnoreCase),
+                    PropertyTypeClassification.IsMultiUnit(lease.PropertyType),
                     actionType,
                     suppressionDays,
                     lease.RentAmount,

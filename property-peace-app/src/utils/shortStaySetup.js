@@ -41,6 +41,9 @@ function positiveInteger(value, label) {
 }
 
 export function listingPayload(values, attestLodgingTaxResponsibility = false) {
+  const bookingAcceptancePreference = values.bookingAcceptancePreference ?? 'RequireOwnerApproval';
+  if (!['RequireOwnerApproval', 'AutoConfirmAfterVerifiedPayment'].includes(bookingAcceptancePreference))
+    throw new Error('Select a valid booking acceptance preference.');
   const taxText = String(values.lodgingTaxRatePercent ?? '').trim();
   let lodgingTaxRatePercent = null;
   if (taxText !== '') {
@@ -71,6 +74,7 @@ export function listingPayload(values, attestLodgingTaxResponsibility = false) {
     capacity: positiveInteger(values.capacity, 'Sleeping capacity'),
     cleaningFee: money(values.cleaningFee, 'Cleaning fee', true),
     lodgingTaxRatePercent, attestLodgingTaxResponsibility,
+    bookingAcceptancePreference,
     checkInTime: time(values.checkInTime, 'Check-in'),
     checkOutTime: time(values.checkOutTime, 'Check-out'),
     houseRules: values.houseRules ?? '', amenities: values.amenities ?? '', cancellationPolicy: values.cancellationPolicy ?? '',

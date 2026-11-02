@@ -25,8 +25,12 @@ test('upload drawer provides drag-and-drop, file-name title defaults, type, and 
   assert.match(drawerSource, /Drag and drop your document here/);
   assert.match(drawerSource, /label="Document title"/i);
   assert.match(drawerSource, /label="Document type"/i);
-  assert.match(drawerSource, /Share with tenants/);
-  assert.match(drawerSource, /Keep private/);
+  assert.match(drawerSource, /control={<Checkbox checked={tenantVisible} onChange=\{\(event\) => setTenantVisible\(event.target.checked\)\} \/>}/);
+  assert.match(drawerSource, /label="Tenant visible"/);
+  assert.match(drawerSource, /useState\(false\)/);
+  assert.match(drawerSource, /setTenantVisible\(false\)/);
+  assert.match(drawerSource, /const isPrivate = !tenantVisible/);
+  assert.match(drawerSource, /isPrivate\s*\}/);
 });
 
 test('file-name title helper removes only the final extension', async () => {

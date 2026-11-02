@@ -9,6 +9,10 @@ export const propertyTypeOptions = [
   { id: 6, value: 'townhouse', label: 'Townhouse' },
   { id: 7, value: 'duplex', label: 'Duplex' },
   { id: 8, value: 'vacationHome', label: 'Vacation/Short-Term Rental' },
+  { id: 9, value: 'condominium', label: 'Condominium' },
+  { id: 10, value: 'smallMultiFamily', label: 'Small Multi-Family' },
+  { id: 11, value: 'apartmentBuilding', label: 'Apartment Building' },
+  { id: 12, value: 'other', label: 'Other Types' },
 ];
 
 export const maintenancePriorityOptions = [

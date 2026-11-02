@@ -1,3 +1,4 @@
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Box,
@@ -296,7 +297,7 @@ export default function TenantPage() {
 
   const propertyDisplay = useMemo(() => {
     if (!tenant) return 'N/A';
-    if (tenant.propertyType?.toLowerCase() === 'singlefamily') {
+    if (isDetachedSingleUnitType(tenant.propertyType)) {
       return tenant.propertyName || 'N/A';
     }
     return tenant.unitName

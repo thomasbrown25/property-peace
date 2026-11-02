@@ -308,7 +308,7 @@ export default function StaffMemberPage() {
                   label={staffMember.isActive ? 'Active' : 'Inactive'}
                   color={staffMember.isActive ? 'success' : 'default'}
                   size="small"
-                  variant="outlined"
+                  variant={staffMember.isActive ? 'filled' : 'outlined'}
                 />
                 <Chip
                   label={
@@ -424,7 +424,7 @@ export default function StaffMemberPage() {
                     label={staffMember.isActive ? 'Active' : 'Inactive'}
                     color={staffMember.isActive ? 'success' : 'default'}
                     size="small"
-                    variant="outlined"
+                    variant={staffMember.isActive ? 'filled' : 'outlined'}
                   />
                 </Stack>
               </Grid>

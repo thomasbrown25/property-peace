@@ -1,3 +1,4 @@
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -35,8 +36,7 @@ export default function SettingsTab({ property, propertyId, onRefresh }) {
   const [selectedImage, setSelectedImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
 
-  const isSingleFamily = property?.propertyType?.toLowerCase() === 'singlefamily' ||
-                         property?.propertyType?.toLowerCase() === 'single-family';
+  const isSingleFamily = isDetachedSingleUnitType(property?.propertyType);
 
   const unit = property?.units?.[0];
 

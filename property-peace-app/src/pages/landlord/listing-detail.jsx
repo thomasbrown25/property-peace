@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -8,10 +8,11 @@ import {
   CircularProgress,
   Chip,
   Grid,
+  Tabs,
+  Tab,
   Divider,
   alpha,
   useTheme,
-  Tooltip,
   LinearProgress
 } from '@mui/material';
 import MainCard from 'components/MainCard';
@@ -19,16 +20,12 @@ import AnimateIn from 'components/AnimateIn';
 import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
 import {
   ArrowLeftOutlined,
-  SettingOutlined,
   EditOutlined,
   GlobalOutlined,
   HomeOutlined,
   DollarOutlined,
   CalendarOutlined,
   FileTextOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  TeamOutlined,
   SafetyOutlined,
   EnvironmentOutlined
 } from '@ant-design/icons';
@@ -36,12 +33,11 @@ import { useDispatch, useSelector } from 'react-redux';
 import { getListingById, setSelectedListing } from 'store/listing/listing.action';
 import { selectSelectedListing, selectListingLoading } from 'store/listing/listing.selector';
 import { formatCurrency } from 'utils/formatters';
-import { useSubscription } from 'hooks/useSubscription';
+
 import RentEstimateCard from 'components/RentEstimateCard';
-import FeatureReadinessNotice from 'components/feature-readiness/FeatureReadinessNotice';
-import useFeatureReadiness from 'hooks/useFeatureReadiness';
-import { FEATURE_KEYS } from 'utils/featureReadiness';
 import LeasingPipelinePanel from 'components/leasing-pipeline/LeasingPipelinePanel';
+import ListingGallery from 'components/ListingGallery';
+import ListingPropertyDetails from 'components/ListingPropertyDetails';
 
 const softCardSx = (theme) => ({
   border: `1px solid ${alpha(theme.palette.primary.main, 0.08)}`,
@@ -84,52 +80,6 @@ function DetailRow({ label, value, icon, accent = false }) {
   );
 }
 
-function MetricCard({ label, value, icon, color = 'primary', helper }) {
-  const theme = useTheme();
-  const palette = theme.palette[color] || theme.palette.primary;
-
-  return (
-    <Box
-      sx={{
-        height: '100%',
-        p: 2,
-        borderRadius: 3,
-        bgcolor: alpha(palette.main, 0.07),
-        border: `1px solid ${alpha(palette.main, 0.12)}`
-      }}
-    >
-      <Stack direction="row" spacing={1.5} alignItems="center" justifyContent="space-between">
-        <Box sx={{ minWidth: 0 }}>
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.75 }}>
-            {label}
-          </Typography>
-          <Typography variant="h5" fontWeight={800} color={`${color}.main`} sx={{ lineHeight: 1.1 }}>
-            {value}
-          </Typography>
-          {helper && (
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.75 }}>
-              {helper}
-            </Typography>
-          )}
-        </Box>
-        <Box
-          sx={{
-            width: 42,
-            height: 42,
-            borderRadius: 2.5,
-            display: 'grid',
-            placeItems: 'center',
-            color: `${color}.main`,
-            bgcolor: alpha(palette.main, 0.12),
-            flexShrink: 0
-          }}
-        >
-          {icon}
-        </Box>
-      </Stack>
-    </Box>
-  );
-}
 
 function SectionCard({ title, subtitle, icon, children }) {
   const theme = useTheme();
@@ -182,10 +132,7 @@ export default function ListingDetailPage() {
   const theme = useTheme();
   const listing = useSelector(selectSelectedListing);
   const loading = useSelector(selectListingLoading);
-  const { subscription } = useSubscription();
-  const planName = (subscription?.plan?.name || subscription?.subscriptionPlan?.name || '').toLowerCase();
-  const isPremium = planName === 'premium' || planName.includes('lifetime');
-  const { presentation: syndicationReadiness } = useFeatureReadiness(FEATURE_KEYS.listingSyndication);
+  const [activeTab, setActiveTab] = useState('overview');
 
   useEffect(() => {
     if (id) dispatch(getListingById(parseInt(id, 10)));
@@ -218,11 +165,6 @@ export default function ListingDetailPage() {
   const title = listing.propertyName ? `${listing.propertyName}${listing.unitName ? ` · ${listing.unitName}` : ''}` : listing.listingNumber;
   const publicListingUrl = `${window.location.origin}/listing/${listing.listingNumber}`;
 
-  const allAmenities = [
-    ...(listing.basicAmenities ?? []),
-    ...(listing.propertyAmenities ?? []),
-    ...(listing.propertyFeatures ?? [])
-  ];
 
   const formatDate = (d) => (d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null);
   const applicationReadiness = [
@@ -246,9 +188,6 @@ export default function ListingDetailPage() {
         />
       </AnimateIn>
 
-      <Box sx={{ mb: 3 }}>
-        <LeasingPipelinePanel resourceType="listing" resourceId={id} />
-      </Box>
 
       <AnimateIn direction="bottom" delay={200} distance={120}>
         <Box
@@ -256,7 +195,7 @@ export default function ListingDetailPage() {
             position: 'relative',
             overflow: 'hidden',
             borderRadius: 4,
-            mb: 3,
+            mb: 0,
             minHeight: { xs: 430, md: 430 },
             color: 'white',
             bgcolor: 'grey.900',
@@ -459,140 +398,75 @@ export default function ListingDetailPage() {
         </Box>
       </AnimateIn>
 
-      {galleryImages.length > 0 && (
-        <AnimateIn direction="bottom" delay={300} distance={120}>
-          <Box sx={{ mb: 3 }}>
-            <Grid container spacing={1.5}>
-              {galleryImages.map((image, index) => (
-                <Grid key={`${image.id ?? image.blobUrl}-${index}`} size={{ xs: index === 0 ? 12 : 6, sm: index === 0 ? 4 : 2 }}>
-                  <Box
-                    component="img"
-                    src={image.blobUrl}
-                    alt={`${title} photo ${index + 1}`}
-                    sx={{
-                      width: '100%',
-                      height: { xs: index === 0 ? 160 : 118, sm: 132 },
-                      objectFit: 'cover',
-                      borderRadius: 2.5,
-                      border: `1px solid ${alpha(theme.palette.grey[500], 0.16)}`,
-                      boxShadow: `0 12px 28px ${alpha(theme.palette.grey[900], 0.08)}`
-                    }}
-                  />
-                </Grid>
-              ))}
-            </Grid>
-          </Box>
-        </AnimateIn>
-      )}
+      <Box sx={{ mt: 0.5, mb: 2.5, position: 'relative', isolation: 'isolate', width: '100%',
+        '&::after': { content: '""', position: 'absolute', right: 0, bottom: 0, left: 0, height: '1px',
+          bgcolor: alpha(theme.palette.text.primary, theme.palette.mode === 'dark' ? 0.22 : 0.12), pointerEvents: 'none', zIndex: 0 },
+        '& .MuiTabs-root': { minHeight: 42 },
+        '& .MuiTab-root': { minHeight: 42, px: 1.25, mr: 1.5, borderRadius: 1.5, textTransform: 'none',
+          fontSize: '0.875rem', fontWeight: 700, color: 'text.secondary',
+          transition: theme.transitions.create(['background-color', 'box-shadow', 'color'], { duration: theme.transitions.duration.shorter }),
+          '&:hover': { color: theme.palette.mode === 'dark' ? 'primary.light' : 'primary.main',
+            backgroundColor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.16 : 0.08),
+            boxShadow: theme.palette.mode === 'dark' ? `inset 0 0 0 1px ${alpha(theme.palette.primary.main, 0.24)}` : 'none' },
+          '&.Mui-selected': { color: theme.palette.mode === 'dark' ? 'primary.light' : 'primary.main',
+            backgroundColor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.12 : 0.04) } },
+        '& .MuiTabs-indicator': { zIndex: 1, height: 2, borderRadius: 2, backgroundColor: 'primary.main' }
+      }}>
+        <Tabs value={activeTab} onChange={(_, tab) => setActiveTab(tab)} variant="scrollable" scrollButtons="auto" aria-label="Listing detail views">
+          <Tab value="overview" label="Overview" id="overview-tab" aria-controls="overview-panel" />
+          <Tab value="property" label="Property Details" id="property-tab" aria-controls="property-panel" />
+          <Tab value="gallery" label="Gallery" id="gallery-tab" aria-controls="gallery-panel" />
+        </Tabs>
+      </Box>
 
-      <AnimateIn direction="bottom" delay={400} distance={120}>
-        <Grid container spacing={2} sx={{ mb: 3 }}>
-          <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-            <MetricCard label="Monthly Rent" value={formatCurrency(listing.monthlyRent)} icon={<DollarOutlined />} color="primary" />
-          </Grid>
-          <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-            <MetricCard label="Security Deposit" value={listing.securityDeposit ? formatCurrency(listing.securityDeposit) : '—'} icon={<SafetyOutlined />} color="success" />
-          </Grid>
-          <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-            <MetricCard label="Available From" value={formatDate(listing.dateAvailable) ?? 'Now'} icon={<CalendarOutlined />} color="info" />
-          </Grid>
-          <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-            <MetricCard
-              label="Lease Duration"
-              value={listing.minLeaseDuration ? `${listing.minLeaseDuration}${listing.maxLeaseDuration && listing.maxLeaseDuration !== listing.minLeaseDuration ? `–${listing.maxLeaseDuration}` : ''} mo` : '—'}
-              icon={<FileTextOutlined />}
-              color="warning"
-            />
-          </Grid>
-        </Grid>
-      </AnimateIn>
-
-      <Grid container spacing={3}>
-        <Grid size={{ xs: 12, md: 8 }}>
-          <Stack spacing={3}>
-            <AnimateIn direction="bottom" delay={500} distance={120}>
-              <SectionCard title="Property Details" subtitle="The core facts renters see first." icon={<HomeOutlined />}>
-                <Grid container spacing={2.5}>
-                  {listing.squareFeet && (
-                    <Grid size={{ xs: 12, sm: 6, lg: 4 }}>
-                      <DetailRow label="Square Feet" value={`${listing.squareFeet.toLocaleString()} sqft`} icon={<HomeOutlined />} accent />
-                    </Grid>
-                  )}
-                  {listing.yearBuilt && (
-                    <Grid size={{ xs: 12, sm: 6, lg: 4 }}>
-                      <DetailRow label="Year Built" value={listing.yearBuilt} icon={<CalendarOutlined />} />
-                    </Grid>
-                  )}
-                  <Grid size={{ xs: 12, sm: 6, lg: 4 }}>
-                    <DetailRow
-                      label="Pets"
-                      value={listing.petsAllowed ? 'Allowed' : 'Not allowed'}
-                      icon={listing.petsAllowed ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
-                      accent={listing.petsAllowed}
-                    />
-                  </Grid>
-                  {listing.listingContactName && (
-                    <Grid size={{ xs: 12, sm: 6, lg: 4 }}>
-                      <DetailRow label="Contact" value={listing.listingContactName} icon={<TeamOutlined />} />
-                    </Grid>
-                  )}
-                  {listing.listingContactPhone && (
-                    <Grid size={{ xs: 12, sm: 6, lg: 4 }}>
-                      <DetailRow label="Phone" value={listing.listingContactPhone} icon={<TeamOutlined />} />
-                    </Grid>
-                  )}
-                  {listing.listingContactEmail && (
-                    <Grid size={{ xs: 12, sm: 6, lg: 4 }}>
-                      <DetailRow label="Email" value={listing.listingContactEmail} icon={<TeamOutlined />} />
-                    </Grid>
-                  )}
-                </Grid>
+      <Box id={`${activeTab}-panel`} role="tabpanel" aria-labelledby={`${activeTab}-tab`}>
+        {activeTab === 'property' && <ListingPropertyDetails listing={listing} />}
+        {activeTab === 'gallery' && <ListingGallery listing={listing} onImagesChange={(images) => dispatch(setSelectedListing({ ...listing, images }))} />}
+        {activeTab === 'overview' && <>
+          <Grid container spacing={3} sx={{ mb: 3 }}>
+            <Grid size={{ xs: 12, md: 8 }}>
+              <SectionCard title="Market Rent Estimate" subtitle="Premium comparison context." icon={<DollarOutlined />}>
+                <Stack spacing={2}>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">Listed monthly rent</Typography>
+                    <Typography variant="h5" fontWeight={800}>{listing.monthlyRent != null ? `${formatCurrency(listing.monthlyRent)}/mo` : 'Not set'}</Typography>
+                  </Box>
+                  <RentEstimateCard propertyId={listing.propertyId} unitId={listing.unitId ?? null} />
+                </Stack>
               </SectionCard>
-            </AnimateIn>
+            </Grid>
+            <Grid size={{ xs: 12, md: 4 }}>
+              <SectionCard title="Rental facts" icon={<HomeOutlined />}>
+                <Stack spacing={2}>
+                  <DetailRow label="Listed rent" value={listing.monthlyRent != null ? `${formatCurrency(listing.monthlyRent)}/mo` : 'Not set'} icon={<DollarOutlined />} />
+                  <DetailRow label="Security deposit" value={listing.securityDeposit != null ? formatCurrency(listing.securityDeposit) : '—'} icon={<SafetyOutlined />} />
+                  <DetailRow label="Next availability" value={formatDate(listing.dateAvailable) ?? 'Not set'} icon={<CalendarOutlined />} />
+                  <Divider />
+                  <Typography variant="subtitle2" fontWeight={700}>Lease offerings</Typography>
+                  <DetailRow label="Long-term listing" value={listing.minLeaseDuration
+                    ? `${listing.minLeaseDuration}${listing.maxLeaseDuration && listing.maxLeaseDuration !== listing.minLeaseDuration ? `–${listing.maxLeaseDuration}` : ''} mo`
+                    : 'Monthly rental listing'} icon={<FileTextOutlined />} />
+                  <Typography variant="body2" color="text.secondary">Short stays are configured separately per unit; this listing does not report their status.</Typography>
+                </Stack>
+              </SectionCard>
+            </Grid>
+          </Grid>
 
-            {listing.marketingDescription && (
-              <AnimateIn direction="bottom" delay={600} distance={120}>
-                <SectionCard title="Listing Description" subtitle="Marketing copy shown to prospects." icon={<FileTextOutlined />}>
-                  <Box
-                    sx={{
-                      p: 2.25,
-                      borderRadius: 2.5,
-                      bgcolor: alpha(theme.palette.primary.main, 0.035),
-                      border: `1px solid ${alpha(theme.palette.primary.main, 0.08)}`
-                    }}
-                  >
-                    <Typography variant="body1" color="text.secondary" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.85 }}>
-                      {listing.marketingDescription}
-                    </Typography>
-                  </Box>
+          <Box sx={{ mb: 3 }}>
+            <LeasingPipelinePanel resourceType="listing" resourceId={id} showSignatureDetails={false} />
+          </Box>
+
+          <Stack spacing={3}>
+            <SectionCard title="Listing policies & contact" icon={<SafetyOutlined />}>
+                  <Grid container spacing={2}>
+                    <Grid size={{ xs: 12, sm: 6 }}><DetailRow label="Pets" value={listing.petsAllowed ? 'Allowed' : 'Not allowed'} /></Grid>
+                    {listing.listingContactName && <Grid size={{ xs: 12, sm: 6 }}><DetailRow label="Contact" value={listing.listingContactName} /></Grid>}
+                    {listing.listingContactPhone && <Grid size={{ xs: 12, sm: 6 }}><DetailRow label="Phone" value={listing.listingContactPhone} /></Grid>}
+                    {listing.listingContactEmail && <Grid size={{ xs: 12, sm: 6 }}><DetailRow label="Email" value={listing.listingContactEmail} /></Grid>}
+                  </Grid>
                 </SectionCard>
-              </AnimateIn>
-            )}
 
-            {allAmenities.length > 0 && (
-              <AnimateIn direction="bottom" delay={700} distance={120}>
-                <SectionCard title="Amenities & Features" subtitle="The selling points attached to this listing." icon={<CheckCircleOutlined />}>
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                    {allAmenities.map((a) => (
-                      <Chip
-                        key={`${a.id}-${a.name}`}
-                        label={a.name}
-                        size="small"
-                        sx={{
-                          borderRadius: 2,
-                          fontWeight: 700,
-                          bgcolor: alpha(theme.palette.success.main, 0.08),
-                          color: 'success.dark',
-                          border: `1px solid ${alpha(theme.palette.success.main, 0.16)}`
-                        }}
-                      />
-                    ))}
-                  </Box>
-                </SectionCard>
-              </AnimateIn>
-            )}
 
-            <AnimateIn direction="bottom" delay={800} distance={120}>
               <SectionCard title="Application Settings" subtitle="Screening and application configuration for prospects." icon={<SafetyOutlined />}>
                 <Grid container spacing={1.5}>
                   <Grid size={{ xs: 12, sm: 6 }}>
@@ -637,85 +511,9 @@ export default function ListingDetailPage() {
                   )}
                 </Grid>
               </SectionCard>
-            </AnimateIn>
           </Stack>
-        </Grid>
-
-        <Grid size={{ xs: 12, md: 4 }}>
-          <Stack spacing={3}>
-            <AnimateIn direction="bottom" delay={550} distance={120}>
-              <SectionCard title="Market Rent Estimate" subtitle="Premium comparison context." icon={<DollarOutlined />}>
-                <RentEstimateCard propertyId={listing.propertyId} unitId={listing.unitId ?? null} isPremium={isPremium} />
-              </SectionCard>
-            </AnimateIn>
-
-            <AnimateIn direction="bottom" delay={650} distance={120}>
-              <SectionCard title="Listing Control Center" subtitle="Status, publishing, and syndication." icon={<GlobalOutlined />}>
-                <Stack spacing={2}>
-                  <FeatureReadinessNotice presentation={syndicationReadiness} featureName="Listing syndication" />
-                  <Stack direction="row" justifyContent="space-between" alignItems="center">
-                    <Typography variant="body2" color="text.secondary">
-                      Status
-                    </Typography>
-                    <ListingStatusChip isActive={isActive} isDraft={isDraft} statusLabel={statusLabel} />
-                  </Stack>
-                  {listing.expiresAt && (
-                    <Stack direction="row" justifyContent="space-between" alignItems="center">
-                      <Typography variant="body2" color="text.secondary">
-                        Expires
-                      </Typography>
-                      <Typography variant="body2" fontWeight={800}>
-                        {formatDate(listing.expiresAt)}
-                      </Typography>
-                    </Stack>
-                  )}
-                  <Divider />
-                  {[
-                    ['Listing website', listing.syndicateToListingWebsite],
-                    ['Core external distribution', listing.syndicateToFreeSites],
-                    ['Extended external distribution', listing.syndicateToPremiumSites]
-                  ].map(([label, enabled]) => (
-                    <Stack key={label} direction="row" justifyContent="space-between" alignItems="center">
-                      <Typography variant="body2" color="text.secondary">
-                        {label}
-                      </Typography>
-                      <Chip size="small" label={!syndicationReadiness.canInvoke ? syndicationReadiness.title : enabled ? 'On' : 'Off'} color={syndicationReadiness.canInvoke && enabled ? 'success' : 'default'} variant="outlined" />
-                    </Stack>
-                  ))}
-                </Stack>
-              </SectionCard>
-            </AnimateIn>
-
-            <AnimateIn direction="bottom" delay={750} distance={120}>
-              <MainCard sx={softCardSx(theme)}>
-                <Stack spacing={1.5}>
-                  <Typography variant="h5" fontWeight={800}>
-                    Quick Actions
-                  </Typography>
-                  <Button fullWidth variant="contained" startIcon={<EditOutlined />} onClick={() => navigate(`/landlord/listings/${id}/setup`)} sx={{ textTransform: 'none', justifyContent: 'flex-start', fontWeight: 800 }}>
-                    Edit Listing
-                  </Button>
-                  {isActive && (
-                    <Button fullWidth variant="outlined" startIcon={<GlobalOutlined />} onClick={() => window.open(publicListingUrl, '_blank')} sx={{ textTransform: 'none', justifyContent: 'flex-start', fontWeight: 800 }}>
-                      View Published Listing
-                    </Button>
-                  )}
-                  <Button fullWidth variant="outlined" startIcon={<SettingOutlined />} onClick={() => navigate(`/landlord/listings/${id}/settings`)} sx={{ textTransform: 'none', justifyContent: 'flex-start', fontWeight: 800 }}>
-                    Listing Settings
-                  </Button>
-                  {isActive && (
-                    <Tooltip title={publicListingUrl} placement="top">
-                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', wordBreak: 'break-all', pt: 0.5 }}>
-                        Public URL: {publicListingUrl}
-                      </Typography>
-                    </Tooltip>
-                  )}
-                </Stack>
-              </MainCard>
-            </AnimateIn>
-          </Stack>
-        </Grid>
-      </Grid>
+        </>}
+      </Box>
     </Box>
   );
 }

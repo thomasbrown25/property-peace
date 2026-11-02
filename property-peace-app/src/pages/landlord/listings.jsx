@@ -6,7 +6,10 @@ import {
   Button,
   Chip,
   CircularProgress,
-  Grid,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   IconButton,
   InputAdornment,
   LinearProgress,
@@ -23,27 +26,28 @@ import {
   useTheme
 } from '@mui/material';
 import {
-  CalendarOutlined,
   CameraOutlined,
-  CheckCircleOutlined,
   DownOutlined,
-  EditOutlined,
   MoreOutlined,
   PlusOutlined,
-  SearchOutlined,
-  WarningOutlined
+  SearchOutlined
 } from '@ant-design/icons';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import useSWR from 'swr';
 
 import ManagementPageHeader from 'components/headers/ManagementPageHeader';
 import { managementPageHeaderActionSx } from 'components/headers/managementPageHeaderStyles';
 import ListingAddWorkflowDrawer from 'components/drawers/ListingAddWorkflowDrawer';
 import ApplicationsPage from 'pages/landlord/applications';
 import { useDrawer } from 'contexts/DrawerContext';
-import { getListings } from 'store/listing/listing.action';
+import { deleteListing, getListings } from 'store/listing/listing.action';
+import { openSnackbar } from 'api/snackbar';
 import { selectListings, selectListingLoading } from 'store/listing/listing.selector';
 import { formatCurrency } from 'utils/formatters';
+import { getRentEstimate } from 'api/rentEstimate';
+import useEntitlement from 'hooks/useEntitlement';
+import { RENT_ESTIMATE_FEATURE } from 'utils/entitlements';
 import placeholderImage from 'assets/images/placeholder-house.png';
 import { getImages, getReadinessIssues, getReadinessScore, isActiveListing } from './listing-readiness.mjs';
 
@@ -83,47 +87,6 @@ function formatDate(date, options = { month: 'short', day: 'numeric', year: 'num
   return date ? date.toLocaleDateString('en-US', options) : 'Not set';
 }
 
-function SummaryCard({ label, value, helper, icon, color, active, onClick }) {
-  const theme = useTheme();
-
-  return (
-    <Box
-      component="button"
-      type="button"
-      onClick={onClick}
-      sx={{
-        width: '100%',
-        minHeight: 112,
-        p: 2,
-        borderRadius: 2.5,
-        border: `1px solid ${active ? alpha(color, 0.55) : alpha(theme.palette.divider, 0.16)}`,
-        bgcolor: active ? alpha(color, theme.palette.mode === 'dark' ? 0.12 : 0.055) : 'background.paper',
-        boxShadow: active ? `0 8px 24px ${alpha(color, 0.12)}` : `0 4px 18px ${alpha('#061e35', 0.05)}`,
-        color: 'text.primary',
-        textAlign: 'left',
-        cursor: 'pointer',
-        font: 'inherit',
-        transition: 'transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease',
-        '&:hover': { transform: 'translateY(-2px)', borderColor: alpha(color, 0.45), boxShadow: `0 10px 28px ${alpha(color, 0.12)}` },
-        '&:focus-visible': { outline: `3px solid ${alpha(color, 0.28)}`, outlineOffset: 2 }
-      }}
-    >
-      <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1.5}>
-        <Box>
-          <Typography
-            sx={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: 0.65, textTransform: 'uppercase', color: 'text.secondary' }}
-          >
-            {label}
-          </Typography>
-          <Typography sx={{ mt: 0.55, fontSize: '1.45rem', lineHeight: 1.15, fontWeight: 750 }}>{value}</Typography>
-          <Typography sx={{ mt: 0.55, fontSize: '0.75rem', color: 'text.secondary' }}>{helper}</Typography>
-        </Box>
-        <Avatar sx={{ width: 38, height: 38, bgcolor: alpha(color, 0.12), color }}>{icon}</Avatar>
-      </Stack>
-    </Box>
-  );
-}
-
 function Readiness({ listing }) {
   const theme = useTheme();
   const issues = getReadinessIssues(listing);
@@ -159,7 +122,27 @@ function Readiness({ listing }) {
   );
 }
 
-function ListingRow({ listing, onOpen }) {
+function ListingMarketRent({ listing }) {
+  const propertyId = read(listing, 'propertyId', 'PropertyId');
+  const unitId = read(listing, 'unitId', 'UnitId');
+  const { presentation } = useEntitlement(RENT_ESTIMATE_FEATURE);
+  const allowed = presentation.kind === 'allowed';
+  const { data, error, isLoading } = useSWR(
+    allowed && propertyId ? ['listing-market-rent', propertyId, unitId] : null,
+    () => getRentEstimate(propertyId, unitId),
+    { shouldRetryOnError: false, revalidateOnFocus: false }
+  );
+  const estimate = Number(data?.rentEstimate);
+  const label = allowed
+    ? isLoading ? 'Checking market estimate…' : !error && Number.isFinite(estimate) && estimate > 0
+      ? `${formatCurrency(estimate)} est. market value`
+      : 'Market estimate unavailable'
+    : presentation.kind === 'loading' ? 'Checking market estimate…' : 'Market estimate requires Premium';
+
+  return <Typography sx={{ mt: 0.25, fontSize: '0.7rem', color: 'text.secondary' }}>{label}</Typography>;
+}
+
+function ListingRow({ listing, onOpen, onDelete }) {
   const theme = useTheme();
   const [anchorEl, setAnchorEl] = useState(null);
   const title = getTitle(listing);
@@ -225,9 +208,9 @@ function ListingRow({ listing, onOpen }) {
 
       <Box>
         <Typography sx={{ fontSize: '0.92rem', fontWeight: 750, color: rent > 0 ? 'text.primary' : 'text.disabled' }}>
-          {rent > 0 ? formatCurrency(rent) : 'Not set'}
+          {rent > 0 ? `${formatCurrency(rent)}/mo` : 'Not set'}
         </Typography>
-        <Typography sx={{ mt: 0.25, fontSize: '0.7rem', color: 'text.secondary' }}>per month</Typography>
+        <ListingMarketRent listing={listing} />
       </Box>
 
       <Box>
@@ -239,11 +222,8 @@ function ListingRow({ listing, onOpen }) {
         />
       </Box>
 
-      <Box>
+      <Box sx={{ display: 'flex', alignItems: 'center', alignSelf: 'stretch' }}>
         <Typography sx={{ fontSize: '0.8rem', fontWeight: 650 }}>{formatDate(available)}</Typography>
-        <Typography sx={{ mt: 0.25, fontSize: '0.7rem', color: 'text.secondary' }}>
-          {available && available <= new Date() ? 'Available now' : 'Availability'}
-        </Typography>
       </Box>
 
       <Readiness listing={listing} />
@@ -261,7 +241,7 @@ function ListingRow({ listing, onOpen }) {
             <MoreOutlined />
           </IconButton>
         </Tooltip>
-        <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
+        <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)} onClick={(event) => event.stopPropagation()}>
           <MenuItem
             onClick={(event) => {
               event.stopPropagation();
@@ -270,6 +250,15 @@ function ListingRow({ listing, onOpen }) {
             }}
           >
             {active ? 'Open listing' : 'Continue draft'}
+          </MenuItem>
+          <MenuItem
+            onClick={() => {
+              setAnchorEl(null);
+              onDelete(listing);
+            }}
+            sx={{ color: 'error.main' }}
+          >
+            Delete listing
           </MenuItem>
         </Menu>
       </Box>
@@ -291,6 +280,8 @@ function ListingsTab() {
   const [availability, setAvailability] = useState('all');
   const [sort, setSort] = useState('updated');
   const [page, setPage] = useState(1);
+  const [listingToDelete, setListingToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     dispatch(getListings());
@@ -299,21 +290,6 @@ function ListingsTab() {
   useEffect(() => {
     setPage(1);
   }, [availability, readiness, search, sort, status]);
-
-  const metrics = useMemo(() => {
-    const active = listings.filter(isActiveListing).length;
-    const drafts = listings.length - active;
-    const needsAttention = listings.filter((listing) => getReadinessIssues(listing).length > 0).length;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const upcoming = listings.filter((listing) => {
-      const date = getAvailableDate(listing);
-      if (!date) return false;
-      const difference = Math.ceil((date.getTime() - today.getTime()) / 86400000);
-      return difference >= 0 && difference <= 60;
-    }).length;
-    return { active, drafts, needsAttention, upcoming };
-  }, [listings]);
 
   const filteredListings = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -358,7 +334,8 @@ function ListingsTab() {
   }, [availability, listings, readiness, search, sort, status]);
 
   const pageCount = Math.ceil(filteredListings.length / PAGE_SIZE);
-  const paginatedListings = filteredListings.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const currentPage = Math.min(page, Math.max(1, pageCount));
+  const paginatedListings = filteredListings.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
   const hasFilters = search || status !== 'all' || readiness !== 'all' || availability !== 'all' || sort !== 'updated';
 
   const clearFilters = () => {
@@ -377,54 +354,26 @@ function ListingsTab() {
     navigate(`/landlord/listings/${getId(listing)}`);
   };
 
+  const confirmDelete = async () => {
+    if (!listingToDelete || deleting) return;
+    setDeleting(true);
+    try {
+      const result = await dispatch(deleteListing(getId(listingToDelete)));
+      if (!result?.success) throw new Error(result?.message || 'Failed to delete listing');
+      setListingToDelete(null);
+      openSnackbar({ open: true, message: 'Listing deleted. Applications were kept.', variant: 'alert', alert: { color: 'success' } });
+    } catch (error) {
+      openSnackbar({ open: true, message: error?.message || 'Failed to delete listing', variant: 'alert', alert: { color: 'error' } });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <Box sx={{ pb: 3 }}>
-      <Grid container spacing={1.5} sx={{ mb: 2.5 }}>
-        <Grid size={{ xs: 6, lg: 3 }}>
-          <SummaryCard
-            label="Active listings"
-            value={metrics.active}
-            helper="Currently marketed"
-            icon={<CheckCircleOutlined />}
-            color={theme.palette.success.main}
-            active={status === 'active'}
-            onClick={() => setStatus((value) => (value === 'active' ? 'all' : 'active'))}
-          />
-        </Grid>
-        <Grid size={{ xs: 6, lg: 3 }}>
-          <SummaryCard
-            label="Drafts"
-            value={metrics.drafts}
-            helper="Continue preparing"
-            icon={<EditOutlined />}
-            color={theme.palette.warning.main}
-            active={status === 'draft'}
-            onClick={() => setStatus((value) => (value === 'draft' ? 'all' : 'draft'))}
-          />
-        </Grid>
-        <Grid size={{ xs: 6, lg: 3 }}>
-          <SummaryCard
-            label="Needs attention"
-            value={metrics.needsAttention}
-            helper="Missing required listing details"
-            icon={<WarningOutlined />}
-            color={theme.palette.error.main}
-            active={readiness === 'attention'}
-            onClick={() => setReadiness((value) => (value === 'attention' ? 'all' : 'attention'))}
-          />
-        </Grid>
-        <Grid size={{ xs: 6, lg: 3 }}>
-          <SummaryCard
-            label="Available soon"
-            value={metrics.upcoming}
-            helper="Within the next 60 days"
-            icon={<CalendarOutlined />}
-            color={theme.palette.primary.main}
-            active={availability === 'upcoming'}
-            onClick={() => setAvailability((value) => (value === 'upcoming' ? 'all' : 'upcoming'))}
-          />
-        </Grid>
-      </Grid>
+      <Typography sx={{ mb: 2.5, color: 'text.secondary', maxWidth: 760 }}>
+        Create and manage rental listings with rent, availability, photos, and marketing details. Use the filters below to find drafts and listings that need attention.
+      </Typography>
 
       <Box data-testid="listing-filters" sx={{ mb: 2 }}>
           <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.1} alignItems={{ md: 'center' }}>
@@ -556,10 +505,9 @@ function ListingsTab() {
             </Typography>
             <Button
               variant="contained"
-              color="success"
               startIcon={<PlusOutlined />}
               onClick={() => navigate('/landlord/listings/add')}
-              sx={{ textTransform: 'none', fontWeight: 700 }}
+              sx={{ textTransform: 'none', fontWeight: 700, bgcolor: '#061e35', color: '#fff', '&:hover': { bgcolor: '#0b2f4f' } }}
             >
               Add listing
             </Button>
@@ -577,19 +525,34 @@ function ListingsTab() {
             </Button>
           </Stack>
         ) : (
-          paginatedListings.map((listing) => <ListingRow key={getId(listing)} listing={listing} onOpen={openListing} />)
+          paginatedListings.map((listing) => <ListingRow key={getId(listing)} listing={listing} onOpen={openListing} onDelete={setListingToDelete} />)
         )}
 
         {pageCount > 1 && (
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems="center" justifyContent="space-between" sx={{ p: 2 }}>
             <Typography sx={{ fontSize: '0.76rem', color: 'text.secondary' }}>
-              Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filteredListings.length)} of {filteredListings.length}
+              Showing {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filteredListings.length)} of {filteredListings.length}
             </Typography>
-            <Pagination count={pageCount} page={page} onChange={(_, value) => setPage(value)} color="primary" shape="rounded" />
+            <Pagination count={pageCount} page={currentPage} onChange={(_, value) => setPage(value)} color="primary" shape="rounded" />
           </Stack>
         )}
       </Box>
 
+      <Dialog open={Boolean(listingToDelete)} onClose={deleting ? undefined : () => setListingToDelete(null)}>
+        <DialogTitle>Delete listing?</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Permanently delete {listingToDelete ? getTitle(listingToDelete) : 'this listing'} and its listing photos and details?
+            Applications will remain in the Applications tab. This cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setListingToDelete(null)} disabled={deleting}>Cancel</Button>
+          <Button onClick={confirmDelete} color="error" variant="contained" disabled={deleting}>
+            {deleting ? 'Deleting…' : 'Permanently delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
       <ListingAddWorkflowDrawer />
     </Box>
   );
@@ -621,12 +584,12 @@ export default function ListingsPage() {
         actions={
           <Button
             variant="contained"
-            color="success"
+            color={activeTab === 'applications' ? 'primary' : undefined}
             startIcon={<PlusOutlined />}
             onClick={() =>
               activeTab === 'applications' ? drawer.openApplicationAddDrawer() : navigate('/landlord/listings/add')
             }
-            sx={managementPageHeaderActionSx}
+            sx={activeTab === 'applications' ? managementPageHeaderActionSx : { ...managementPageHeaderActionSx, bgcolor: '#061e35', color: '#fff', '&:hover': { bgcolor: '#0b2f4f' } }}
           >
             {activeTab === 'applications' ? 'New application' : 'Add listing'}
           </Button>

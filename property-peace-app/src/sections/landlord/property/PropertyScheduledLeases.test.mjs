@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 const source = (name) => readFileSync(new URL(name, import.meta.url), 'utf8');
 
-test('rendered property page mounts scheduled leases separately from current lease projection', () => {
+test('property page omits the scheduled leases section while retaining the overview', () => {
   const page = source('../../../pages/landlord/property.jsx');
-  assert.match(page, /<PropertyScheduledLeases\s+property=\{selectedProperty\}/);
+  assert.doesNotMatch(page, /PropertyScheduledLeases/);
   assert.match(page, /<PropertyOverview[\s\S]*?property=\{selectedProperty\}/);
 });
 

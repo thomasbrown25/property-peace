@@ -984,7 +984,7 @@ namespace brownstone_hub_api.Services.LeaseService
                     try
                     {
                         // Format property reference
-                        var propertyRef = lease.PropertyType == "MultiUnit" && !string.IsNullOrEmpty(lease.UnitName)
+                        var propertyRef = PropertyTypeClassification.IsMultiUnit(lease.PropertyType) && !string.IsNullOrEmpty(lease.UnitName)
                             ? $"{lease.PropertyName} - {lease.UnitName}"
                             : lease.PropertyName;
 
@@ -1718,7 +1718,7 @@ namespace brownstone_hub_api.Services.LeaseService
                 }
 
                 // Format property reference
-                var propertyRef = lease.PropertyType == "MultiUnit" && !string.IsNullOrEmpty(lease.UnitName)
+                var propertyRef = PropertyTypeClassification.IsMultiUnit(lease.PropertyType) && !string.IsNullOrEmpty(lease.UnitName)
                     ? $"{lease.PropertyName} - {lease.UnitName}"
                     : lease.PropertyName ?? "the property";
 

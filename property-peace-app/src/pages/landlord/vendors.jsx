@@ -58,7 +58,7 @@ import {
 } from '@ant-design/icons';
 import { formatPhoneInput } from 'utils/formatters';
 import ManagementPageHeader from 'components/headers/ManagementPageHeader';
-import { managementPageHeaderActionSx } from 'components/headers/managementPageHeaderStyles';
+import { creationActionSx, managementPageHeaderActionSx } from 'components/headers/managementPageHeaderStyles';
 import { VendorCsvImportButton } from 'components/import/CsvImportButtons';
 import { useDispatch, useSelector } from 'react-redux';
 import useAuth from 'hooks/useAuth';
@@ -810,10 +810,9 @@ export default function Vendors() {
             />
             <Button
               variant="contained"
-              color="success"
               startIcon={<PlusOutlined />}
               onClick={() => handleOpenDrawer()}
-              sx={managementPageHeaderActionSx}
+              sx={creationActionSx}
             >
               Add vendor
             </Button>
@@ -989,10 +988,9 @@ export default function Vendors() {
             </Typography>
             <Button
               variant="contained"
-              color="success"
               startIcon={<PlusOutlined />}
               onClick={() => handleOpenDrawer()}
-              sx={{ textTransform: 'none' }}
+              sx={creationActionSx}
             >
               Add your first vendor
             </Button>

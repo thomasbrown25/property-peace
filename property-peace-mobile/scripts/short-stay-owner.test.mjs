@@ -17,7 +17,7 @@ test('draft and rate payloads reject invalid values and use backend contract nam
   assert.deepEqual(ratePayload('42.50'), { nightlyRate: 42.5 });
   assert.equal(ratePayload('0'), null);
   const draft = { ...emptyListing(), nightlyBasePrice: '115.00', minimumNights: '2', capacity: '3', cleaningFee: '0', checkInTime: '15:00', checkOutTime: '11:00', amenities: 'Wifi' };
-  assert.deepEqual(listingPayload(draft), { nightlyBasePrice: 115, weekendNightlyRate: null, weeklyDiscountPercent: 0, monthlyDiscountPercent: 0, minimumNights: 2, capacity: 3, cleaningFee: 0, checkInTime: '15:00', checkOutTime: '11:00', houseRules: null, amenities: 'Wifi', cancellationPolicy: null, publicTitle: '', publicSummary: '', lodgingTaxRatePercent: null, attestLodgingTaxResponsibility: false });
+  assert.deepEqual(listingPayload(draft), { bookingAcceptancePreference: 'RequireOwnerApproval', nightlyBasePrice: 115, weekendNightlyRate: null, weeklyDiscountPercent: 0, monthlyDiscountPercent: 0, minimumNights: 2, capacity: 3, cleaningFee: 0, checkInTime: '15:00', checkOutTime: '11:00', houseRules: null, amenities: 'Wifi', cancellationPolicy: null, publicTitle: '', publicSummary: '', lodgingTaxRatePercent: null, attestLodgingTaxResponsibility: false });
   assert.equal(listingPayload({ ...draft, capacity: '0' }), null);
   assert.equal(listingPayload({ ...draft, cleaningFee: '0.001' }), null);
   assert.equal(listingPayload({ ...draft, checkInTime: '25:00' }), null);

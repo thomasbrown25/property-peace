@@ -1,3 +1,4 @@
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import TenantMaintenanceFormDrawer from 'components/drawers/TenantMaintenanceFormDrawer';
@@ -57,7 +58,7 @@ function LeaseListItem({ lease, selected, onClick }) {
     .replace(/[^a-z0-9]/g, '');
   const unitName = lease.unitName || lease.UnitName || lease.unit?.name || '';
   const normalizedUnitName = String(unitName).toLowerCase().replace(/[^a-z0-9]/g, '');
-  const showUnitName = unitName && normalizedPropertyType !== 'singlefamily' && normalizedUnitName !== 'unit1';
+  const showUnitName = unitName && !isDetachedSingleUnitType(normalizedPropertyType) && normalizedUnitName !== 'unit1';
   return (
     <Box
       onClick={onClick}
@@ -484,7 +485,7 @@ export default function TenantMaintenance() {
               <Box sx={{ minWidth: 0 }}>
                 <Typography variant="subtitle1" fontWeight={700}>
                   {selectedLease?.propertyName || 'Property'}
-                  {selectedLease?.unitName && selectedLease?.propertyType?.toLowerCase() !== 'singlefamily' && (
+                  {selectedLease?.unitName && !isDetachedSingleUnitType(selectedLease?.propertyType) && (
                     <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 1 }}>
                       · {selectedLease.unitName}
                     </Typography>

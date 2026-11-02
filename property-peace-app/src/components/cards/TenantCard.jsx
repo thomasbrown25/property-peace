@@ -1,3 +1,4 @@
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 import PropTypes from 'prop-types';
 import { useState, useMemo } from 'react';
 
@@ -58,7 +59,7 @@ export default function TenantCard({ tenant, onEdit, onDelete, onClick, refetch 
 
   const propertyDisplay = useMemo(() => {
     if (!propertyName) return 'N/A';
-    if (propertyType?.toLowerCase() === 'singlefamily') {
+    if (isDetachedSingleUnitType(propertyType)) {
       return propertyName;
     }
     return unitName ? `${propertyName} – ${unitName}` : propertyName;

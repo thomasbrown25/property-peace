@@ -25,6 +25,7 @@ import TenantEditDrawer from 'components/drawers/TenantEditDrawer';
 import useFetchProperty from 'hooks/useFetchProperty';
 import HouseholdEditDrawer from 'components/drawers/HouseholdEditDrawer';
 import { formatPhone } from '../../utils/formatters';
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 
 export default function HouseholdPage() {
   const drawer = useDrawer();
@@ -42,7 +43,7 @@ export default function HouseholdPage() {
     id: propertyId,
     name: householdTenants[0]?.propertyName || 'Unknown Property',
     unitName: householdTenants[0]?.unitName,
-    isSingleUnitPortfolio: householdTenants[0]?.propertyType?.toLowerCase() === 'singlefamily',
+    isSingleUnitPortfolio: isDetachedSingleUnitType(householdTenants[0]?.propertyType),
     isActive: householdTenants.some((t) => t.isActive)
   };
 

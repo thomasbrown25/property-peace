@@ -13,7 +13,7 @@ test('alternate add URL renders the same mode-aware creation workflow', async ()
 
 test('single-home lease actions are shown only for long-term units and mixed table shows per-unit mode', async () => {
   const page = await read('./property.jsx');
-  assert.match(page, /property\?\.propertyType !== 'multiUnit' && rentalMode\(property\?\.units\?\.\[0\]\) !== 'shortTerm' && \(/);
+  assert.match(page, /isDetachedSingleUnitType\(property\?\.propertyType\) && rentalMode\(property\?\.units\?\.\[0\]\) !== 'shortTerm' && \(/);
   assert.match(page, /<TableCell>Rental mode<\/TableCell>/);
   assert.match(page, /label=\{modeLabel\(unit\)\}/);
   assert.match(page, /rentalMode\(unit\) === 'shortTerm' \? \(/);
@@ -24,9 +24,12 @@ test('single-home lease actions are shown only for long-term units and mixed tab
   assert.match(page, /new URLSearchParams\(\{ propertyId: String\(property.id\), unitId: String\(unit.id\) \}\)/);
   const overview = await read('../../sections/landlord/property/PropertyOverview.jsx');
   const actions = await read('../../sections/landlord/property/PropertyQuickActionsPanel.jsx');
-  assert.match(overview, /longTermUnits\.length > 0 && <PropertyActiveLease/);
-  assert.match(overview, /units=\{longTermUnits\}/);
-  assert.match(actions, /hasLongTermUnits \? \[leaseAction\] : \[\]/);
+  assert.doesNotMatch(page, /<PropertyActiveLease/);
+  assert.match(overview, /longTermUnits\.length > 0 && \([\s\S]*<PropertyActiveLease property=\{leaseProperty\}/);
+  assert.doesNotMatch(overview, /PropertyMarketRent|PropertyLeasingPipeline/);
+  assert.match(actions, /const canCreateLease = hasLongTermUnits \|\| \(units\.length === 0 && isDetachedSingleUnitType\(property\?\.propertyType\)\)/);
+  assert.match(actions, /label: 'Create a lease'/);
+  assert.match(actions, /new URLSearchParams\(\{ propertyId: String\(propertyId\) \}\)/);
   assert.match(actions, /units\.filter\(unit => rentalMode\(unit\) !== 'shortTerm'\)/);
   assert.equal(propertyModeLabel({ units: [{ rentalMode: 'shortTerm' }, { rentalMode: 'longTerm' }] }), 'Mixed');
   assert.equal(rentalMode({}), 'longTerm');

@@ -1,3 +1,4 @@
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 import ThemeAdaptiveDrawer from 'components/drawers/shared/ThemeAdaptiveDrawer';
 import { useState, useEffect, useRef } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
@@ -144,7 +145,7 @@ export default function TenantMessageDrawer({ open, onClose, tenant, property })
 
         const unit = property?.units?.[0];
         const propertyName = property?.name?.trim() || property?.streetAddress?.trim() || 'Property';
-        const isMultiUnit = property?.propertyType?.toLowerCase() !== 'singlefamily';
+        const isMultiUnit = !isDetachedSingleUnitType(property?.propertyType);
         const title = isMultiUnit && unit?.name ? `${propertyName} - ${unit.name}` : propertyName;
 
         const result = await dispatch(

@@ -74,7 +74,7 @@ function TabState({ loading, error, onRetry, children }) {
 function InfoField({ label, value, href }) {
   return (
     <Box minWidth={0}>
-      <Typography variant="caption" color="text.secondary" fontWeight={700}>{label}</Typography>
+      <Typography variant="caption" color="text.secondary" fontWeight={700} display="block">{label}</Typography>
       <Typography component={href && value ? 'a' : 'p'} href={href && value ? href : undefined} sx={{ mt: 0.35, mb: 0, color: href && value ? 'primary.main' : value ? 'text.primary' : 'text.disabled', fontWeight: 600, wordBreak: 'break-word' }}>
         {value || 'Not added'}
       </Typography>
@@ -111,8 +111,8 @@ function ResidencyTrack({ lease, propertyName, unitName }) {
 }
 
 export default function RenterProfilePage() {
-  const { renterId } = useParams();
-  const numericRenterId = Number(renterId);
+  const { tenantId } = useParams();
+  const numericRenterId = Number(tenantId);
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = renterProfileTabFromSearch(searchParams);

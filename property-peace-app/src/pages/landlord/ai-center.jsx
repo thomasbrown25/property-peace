@@ -747,14 +747,14 @@ export default function AICenter() {
             </Stack>
             <Button
               fullWidth
-              variant="outlined"
+              variant="contained"
               startIcon={<PlusOutlined />}
               onClick={handleNewChat}
               sx={{
                 justifyContent: 'flex-start',
-                borderColor: alpha(NAVY, 0.18),
-                color: NAVY,
-                bgcolor: '#fff',
+                color: '#fff',
+                bgcolor: NAVY,
+                '&:hover': { bgcolor: '#0b2f4f' },
                 textTransform: 'none',
                 fontWeight: 750
               }}
@@ -1214,13 +1214,13 @@ export default function AICenter() {
             </Stack>
             <Button
               fullWidth
-              variant="outlined"
+              variant="contained"
               startIcon={<PlusOutlined />}
               onClick={() => {
                 handleNewChat();
                 setMobilePanelOpen(false);
               }}
-              sx={{ mb: 2, justifyContent: 'flex-start', textTransform: 'none' }}
+              sx={{ mb: 2, justifyContent: 'flex-start', textTransform: 'none', bgcolor: NAVY, color: '#fff', '&:hover': { bgcolor: '#0b2f4f' } }}
             >
               New conversation
             </Button>

@@ -13,7 +13,7 @@ import { useAppTheme } from '../../theme/AppTheme';
 import ShortStayCollectionSection from './ShortStayCollectionSection';
 
 type Route = RouteProp<PropertiesStackParamList, 'ShortStayOwner'>;
-const fields: { key: Exclude<keyof ListingForm, 'lodgingTaxRatePercent' | 'attestLodgingTaxResponsibility'>; label: string; keyboard?: 'decimal-pad' | 'number-pad'; multiline?: boolean; hint?: string; maxLength?: number }[] = [
+const fields: { key: Exclude<keyof ListingForm, 'lodgingTaxRatePercent' | 'attestLodgingTaxResponsibility' | 'bookingAcceptancePreference'>; label: string; keyboard?: 'decimal-pad' | 'number-pad'; multiline?: boolean; hint?: string; maxLength?: number }[] = [
   { key: 'publicTitle', label: 'Public title (100 characters)', maxLength: 100 },
   { key: 'publicSummary', label: 'Public summary (1,200 characters)', multiline: true, maxLength: 1200 },
   { key: 'nightlyBasePrice', label: 'Base nightly rate', keyboard: 'decimal-pad' },
@@ -321,7 +321,7 @@ export default function ShortStayOwnerScreen() {
       if (zone.timeZoneId) {
         const draft = await shortStayAPI.getListing(unitId);
         if (request !== loadGeneration.current) return;
-        setForm(draft ? { nightlyBasePrice: String(draft.nightlyBasePrice), weekendNightlyRate: draft.weekendNightlyRate == null ? '' : String(draft.weekendNightlyRate), weeklyDiscountPercent: String(draft.weeklyDiscountPercent ?? 0), monthlyDiscountPercent: String(draft.monthlyDiscountPercent ?? 0), minimumNights: String(draft.minimumNights), capacity: String(draft.capacity), cleaningFee: String(draft.cleaningFee), checkInTime: draft.checkInTime?.slice(0, 5) || '', checkOutTime: draft.checkOutTime?.slice(0, 5) || '', houseRules: draft.houseRules || '', amenities: draft.amenities || '', cancellationPolicy: draft.cancellationPolicy || '', publicTitle: draft.publicTitle || '', publicSummary: draft.publicSummary || '', lodgingTaxRatePercent: draft.lodgingTaxRatePercent == null ? '' : String(draft.lodgingTaxRatePercent), attestLodgingTaxResponsibility: draft.lodgingTaxRatePercent != null && Boolean(draft.taxPolicyAttestedAtUtc && draft.taxPolicyAttestedByUserId) } : emptyListing());
+        setForm(draft ? { bookingAcceptancePreference: draft.bookingAcceptancePreference ?? 'RequireOwnerApproval', nightlyBasePrice: String(draft.nightlyBasePrice), weekendNightlyRate: draft.weekendNightlyRate == null ? '' : String(draft.weekendNightlyRate), weeklyDiscountPercent: String(draft.weeklyDiscountPercent ?? 0), monthlyDiscountPercent: String(draft.monthlyDiscountPercent ?? 0), minimumNights: String(draft.minimumNights), capacity: String(draft.capacity), cleaningFee: String(draft.cleaningFee), checkInTime: draft.checkInTime?.slice(0, 5) || '', checkOutTime: draft.checkOutTime?.slice(0, 5) || '', houseRules: draft.houseRules || '', amenities: draft.amenities || '', cancellationPolicy: draft.cancellationPolicy || '', publicTitle: draft.publicTitle || '', publicSummary: draft.publicSummary || '', lodgingTaxRatePercent: draft.lodgingTaxRatePercent == null ? '' : String(draft.lodgingTaxRatePercent), attestLodgingTaxResponsibility: draft.lodgingTaxRatePercent != null && Boolean(draft.taxPolicyAttestedAtUtc && draft.taxPolicyAttestedByUserId) } : emptyListing());
         setSavedTax(draft);
         setListingLoaded(true);
         setHasDraft(Boolean(draft));
@@ -384,6 +384,11 @@ export default function ShortStayOwnerScreen() {
     {savedZone && listingLoaded && <>
       <Text style={[styles.section, { color: colors.text }]}>2. Listing draft</Text>
       <Text style={{ color: colors.muted }}>Draft details only — not a monthly rental listing and not published.</Text>
+      <Text style={[styles.section, { color: colors.text }]}>Booking acceptance preference (owner setup only)</Text>
+      <Text style={{ color: colors.muted }}>A future paid direct booking preference only. This does not enable guest bookings, collect payment or confirm reservations.</Text>
+      {(['RequireOwnerApproval', 'AutoConfirmAfterVerifiedPayment'] as const).map(value => <TouchableOpacity key={value} accessibilityRole="radio" accessibilityLabel={value === 'RequireOwnerApproval' ? 'Require owner approval' : 'Automatically confirm after verified payment'} accessibilityState={{ selected: form.bookingAcceptancePreference === value }} onPress={() => setForm(current => ({ ...current, bookingAcceptancePreference: value }))} style={styles.taxCheckbox}>
+        <Text style={{ color: colors.text }}>{form.bookingAcceptancePreference === value ? '◉' : '○'} {value === 'RequireOwnerApproval' ? 'Require owner approval (default)' : 'Automatically confirm after verified payment'}</Text>
+      </TouchableOpacity>)}
       <Text style={{ color: colors.muted }}>Publicly visible to guests if published. Do not include access codes or private addresses. Plain text only.</Text>
       {fields.map(field => <Field key={field.key} label={field.label} value={form[field.key]} onChangeText={value => setForm(current => ({ ...current, [field.key]: value }))} hint={field.hint} keyboardType={field.keyboard} multiline={field.multiline} maxLength={field.maxLength} />)}
       <Text style={{ color: colors.muted }}>Pricing priority: a date-specific nightly override replaces the base or weekend rate. Otherwise Friday and Saturday use the optional weekend rate; other nights use the base rate. A nonzero weekly discount applies to stays of 7+ nights. At 28+ nights, a nonzero monthly discount supersedes the weekly discount (they never stack). Set a discount to 0 to turn it off. Discounts apply to the nightly subtotal before fees and estimated tax.</Text>

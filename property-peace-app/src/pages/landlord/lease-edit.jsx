@@ -1,3 +1,4 @@
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 import { useEffect, useMemo, useState, useRef, useCallback, memo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -324,7 +325,7 @@ export default function LeaseEditPage() {
 
         // Check if property is single family
         const propertyType = property?.propertyType?.toLowerCase();
-        const isPropertySingleFamily = propertyType === 'singlefamily' || propertyType === 'single-family';
+        const isPropertySingleFamily = isDetachedSingleUnitType(propertyType);
 
         // Update lease (preserve organizationId so it is never sent as null)
         const organizationId = currentLease?.organizationId ?? currentLease?.OrganizationId ?? property?.organizationId ?? getActiveOrganizationId(user);
@@ -654,7 +655,7 @@ export default function LeaseEditPage() {
   const isSingleFamilyProperty = useMemo(() => {
     if (!currentProperty) return false;
     const propertyType = currentProperty.propertyType?.toLowerCase();
-    return propertyType === 'singlefamily' || propertyType === 'single-family';
+    return isDetachedSingleUnitType(propertyType);
   }, [currentProperty]);
 
   const unitOptions = useMemo(() => {

@@ -1,5 +1,6 @@
 import type { Property, Unit } from '../../api/propertyAPI';
 import { unitRentalMode, type RentalMode } from './rentalMode.ts';
+import { propertyTypeKey } from './propertyType.ts';
 
 const get = (item: Record<string, any>, key: string) => item[key] ?? item[key[0].toUpperCase() + key.slice(1)];
 const text = (value: unknown) => value == null ? '' : String(value);
@@ -11,7 +12,7 @@ export const emptyProperty = (): PropertyForm => ({ name: '', address: '', city:
 export const prefillProperty = (property: Property): PropertyForm => ({
   name: text(get(property, 'name')), address: text(get(property, 'streetAddress') ?? get(property, 'address')),
   city: text(get(property, 'city')), state: text(get(property, 'state')), zipCode: text(get(property, 'zipCode')),
-  propertyType: ['multiunit', '1'].includes(text(get(property, 'propertyType')).toLowerCase()) ? 'multiUnit' : 'singleFamily', yearBuilt: text(get(property, 'yearBuilt')),
+  propertyType: propertyTypeKey(get(property, 'propertyType')), yearBuilt: text(get(property, 'yearBuilt')),
 });
 const multiTypes = ['multiUnit', 'smallMultiFamily', 'apartmentBuilding', 'other'];
 const singleTypes = ['singleFamily', 'townhouse', 'condominium'];
@@ -50,7 +51,7 @@ export const propertyPayload = (form: PropertyForm, original?: Property, initial
   ...(!original && multiTypes.includes(form.propertyType) && initialUnitCount !== undefined ? { unitCount: initialUnitCount } : {}),
   ...(!original ? { rentalMode: form.rentalMode ?? 'LongTerm' } : {}),
   name: form.name.trim(), streetAddress: form.address.trim(), city: form.city.trim(), state: form.state.trim(), zipCode: form.zipCode.trim(),
-  propertyType: multiTypes.includes(form.propertyType) ? 'multiUnit' : 'singleFamily',
+  propertyType: form.propertyType,
   yearBuilt: form.yearBuilt.trim() ? Number(form.yearBuilt) : null,
 });
 
@@ -85,7 +86,7 @@ export const unitPayload = (form: UnitForm, propertyId: string | number, origina
   ...(!original ? { rentalMode: form.rentalMode ?? 'LongTerm' } : {}),
   amenities: original ? get(original, 'amenities') ?? [] : [], includedUtility: original ? get(original, 'includedUtility') ?? [] : [],
 });
-// The property service creates Unit 1 (single-family) or Unit 1..N (multi-unit)
+// The property service creates Unit 1 (single-unit) or Unit 1..N (multi-unit)
 // in the same transaction as the property. Never POST a new unit for these drafts.
 const untouchedInitialUnit = (unit: UnitForm, index: number) =>
   [String(index + 1), `Unit ${index + 1}`].includes(unit.name.trim()) &&
@@ -94,7 +95,7 @@ const untouchedInitialUnit = (unit: UnitForm, index: number) =>
 
 export const createPropertyErrors = (form: PropertyForm, units: UnitForm[]): string[] => [
   ...(multiTypes.includes(form.propertyType) && !units.length ? ['Add at least one unit for a multi-unit property'] : []),
-  ...(singleTypes.includes(form.propertyType) && units.length > 1 ? ['Single-family properties have only one unit'] : []),
+  ...(singleTypes.includes(form.propertyType) && units.length > 1 ? ['Single-unit properties have only one unit'] : []),
   ...units.flatMap((unit, index) => {
     if (untouchedInitialUnit(unit, index)) return [];
     // Backend-created rows may be filled in later; optional fields still need valid numbers.

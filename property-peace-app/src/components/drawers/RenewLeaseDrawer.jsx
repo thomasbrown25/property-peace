@@ -1,3 +1,4 @@
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 import ThemeAdaptiveDrawer from 'components/drawers/shared/ThemeAdaptiveDrawer';
 import PropTypes from 'prop-types';
 import { useEffect, useMemo, useState } from 'react';
@@ -118,7 +119,7 @@ export default function RenewLeaseDrawer({ unitsByProperty = {}, onRenewSuccess 
       try {
         const property = properties.find((p) => Number(p.id) === Number(values.propertyId));
         const propertyType = property?.propertyType?.toLowerCase();
-        const isPropertySingleFamily = propertyType === 'singlefamily' || propertyType === 'single-family';
+        const isPropertySingleFamily = isDetachedSingleUnitType(propertyType);
 
         // Create a NEW lease (not updating existing one)
         const payload = {
@@ -201,7 +202,7 @@ export default function RenewLeaseDrawer({ unitsByProperty = {}, onRenewSuccess 
   const isSingleFamilyProperty = useMemo(() => {
     if (!currentProperty) return false;
     const propertyType = currentProperty.propertyType?.toLowerCase();
-    return propertyType === 'singlefamily' || propertyType === 'single-family';
+    return isDetachedSingleUnitType(propertyType);
   }, [currentProperty]);
 
   const unitOptions = useMemo(() => {

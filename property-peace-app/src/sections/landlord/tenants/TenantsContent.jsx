@@ -1,10 +1,10 @@
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 import { useEffect, useMemo, useState } from 'react';
 import {
   alpha,
   Avatar,
   Box,
   Button,
-  Checkbox,
   Chip,
   CircularProgress,
   IconButton,
@@ -12,7 +12,6 @@ import {
   Menu,
   MenuItem,
   OutlinedInput,
-  Pagination,
   Select,
   Stack,
   Tooltip,
@@ -25,12 +24,13 @@ import {
   DownOutlined,
   EditOutlined,
   HomeOutlined,
+  LeftOutlined,
   MailOutlined,
   MoreOutlined,
   PhoneOutlined,
   PlusOutlined,
+  RightOutlined,
   SearchOutlined,
-  SendOutlined,
   UserOutlined
 } from '@ant-design/icons';
 import { useDispatch, useSelector } from 'react-redux';
@@ -51,8 +51,8 @@ import { selectTenants } from 'store/tenant/tenant.selector';
 import { deleteTenant } from 'store/tenant/tenant.action';
 import { formatPhoneInput } from 'utils/formatters';
 import { renterProfileRoute } from 'utils/renterWorkspace';
+import { paginateTenants } from './tenantPagination.mjs';
 
-const PAGE_SIZE = 10;
 const NAVY = '#061e35';
 
 const read = (object, camel, pascal) => object?.[camel] ?? object?.[pascal];
@@ -85,7 +85,7 @@ function getPropertyDisplay(tenant) {
   const unitName = read(tenant, 'unitName', 'UnitName');
   const propertyType = String(read(tenant, 'propertyType', 'PropertyType') || '').toLowerCase();
   if (!propertyName) return null;
-  if (propertyType === 'singlefamily' || !unitName) return propertyName;
+  if (isDetachedSingleUnitType(propertyType) || !unitName) return propertyName;
   return `${propertyName} · ${unitName}`;
 }
 
@@ -94,34 +94,32 @@ function formatDate(value) {
   return date ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null;
 }
 
+const portalChipSx = { bgcolor: NAVY, color: '#fff', fontWeight: 650 };
+
 function PortalStatus({ tenant, tenantInvites }) {
   const tenantId = getId(tenant);
   const email = read(tenant, 'email', 'Email');
 
   if (hasAccount(tenant)) {
-    return <Chip label="Portal active" color="success" size="small" sx={{ fontWeight: 650 }} />;
+    return <Chip label="Active" color="success" size="small" sx={{ bgcolor: 'success.main', '&.MuiChip-colorSuccess': { color: '#fff' }, fontWeight: 650 }} />;
   }
   if (email && tenantInvites[tenantId]) {
-    return <Chip label="Invite pending" color="warning" size="small" sx={{ fontWeight: 650 }} />;
+    return <Chip label="Invite pending" color="warning" size="small" sx={{ color: '#fff', fontWeight: 650 }} />;
   }
   if (email) {
-    return <Chip label="Ready to invite" color="primary" variant="outlined" size="small" sx={{ fontWeight: 650 }} />;
+    return <Chip label="Ready to invite" size="small" sx={portalChipSx} />;
   }
-  return (
-    <Chip label="Email needed" size="small" variant="outlined" sx={{ color: 'text.secondary', borderColor: 'divider', fontWeight: 600 }} />
-  );
+  return <Chip label="Email needed" size="small" sx={portalChipSx} />;
 }
 
-function TenantRow({ tenant, tenantInvites, selected, onSelect, onOpen, onActions }) {
+function TenantRow({ tenant, tenantInvites, onOpen, onActions, onAddToLease }) {
   const theme = useTheme();
-  const tenantId = getId(tenant);
   const fullName = getFullName(tenant);
   const email = read(tenant, 'email', 'Email');
   const phone = read(tenant, 'phoneNumber', 'PhoneNumber') || read(tenant, 'phone', 'Phone');
   const propertyDisplay = getPropertyDisplay(tenant);
   const leaseStart = formatDate(read(tenant, 'leaseStartDate', 'LeaseStartDate'));
   const leaseEnd = formatDate(read(tenant, 'leaseEndDate', 'LeaseEndDate'));
-  const canInvite = !hasAccount(tenant) && Boolean(email);
   const initials =
     fullName === 'Unnamed tenant'
       ? '?'
@@ -133,6 +131,7 @@ function TenantRow({ tenant, tenantInvites, selected, onSelect, onOpen, onAction
           .toUpperCase();
 
   const handleKeyDown = (event) => {
+    if (event.target !== event.currentTarget) return;
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
       onOpen(tenant);
@@ -149,7 +148,7 @@ function TenantRow({ tenant, tenantInvites, selected, onSelect, onOpen, onAction
         px: { xs: 1.5, md: 2 },
         py: { xs: 1.5, md: 1.35 },
         display: { xs: 'block', md: 'grid' },
-        gridTemplateColumns: '42px minmax(210px, 1.45fr) minmax(190px, 1.25fr) minmax(210px, 1.35fr) minmax(125px, .8fr) 42px',
+        gridTemplateColumns: 'minmax(210px, 1.45fr) minmax(190px, 1.25fr) minmax(210px, 1.35fr) minmax(125px, .8fr) 42px',
         gap: { xs: 1.25, md: 1.5 },
         alignItems: 'center',
         cursor: 'pointer',
@@ -159,17 +158,6 @@ function TenantRow({ tenant, tenantInvites, selected, onSelect, onOpen, onAction
         '&:focus-visible': { outline: `2px solid ${alpha(theme.palette.primary.main, 0.45)}`, outlineOffset: -2 }
       }}
     >
-      <Box sx={{ display: { xs: 'none', md: 'block' } }} onClick={(event) => event.stopPropagation()}>
-        <Tooltip
-          title={!email ? 'Add an email address before inviting' : hasAccount(tenant) ? 'Portal account already active' : ''}
-          disableHoverListener={canInvite}
-        >
-          <span>
-            <Checkbox size="small" checked={selected} onChange={(event) => onSelect(event, tenantId)} disabled={!canInvite} />
-          </span>
-        </Tooltip>
-      </Box>
-
       <Stack direction="row" spacing={1.25} alignItems="center" minWidth={0}>
         <Avatar
           sx={{
@@ -190,7 +178,6 @@ function TenantRow({ tenant, tenantInvites, selected, onSelect, onOpen, onAction
             </Typography>
             {!isActiveTenant(tenant) && <Chip size="small" label="Archived" sx={{ height: 20, fontSize: '0.65rem' }} />}
           </Stack>
-          <Typography sx={{ mt: 0.25, fontSize: '0.72rem', color: 'text.secondary' }}>Tenant record #{tenantId}</Typography>
         </Box>
       </Stack>
 
@@ -220,11 +207,20 @@ function TenantRow({ tenant, tenantInvites, selected, onSelect, onOpen, onAction
               </Typography>
             </Stack>
           </>
+        ) : hasLease(tenant) ? (
+          <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>Lease assigned</Typography>
         ) : (
-          <>
-            <Typography sx={{ fontSize: '0.8rem', fontWeight: 650, color: 'text.secondary' }}>Unassigned</Typography>
-            <Typography sx={{ mt: 0.35, fontSize: '0.7rem', color: 'warning.main', fontWeight: 650 }}>Add to a lease when ready</Typography>
-          </>
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={(event) => {
+              event.stopPropagation();
+              onAddToLease(tenant);
+            }}
+            sx={{ textTransform: 'none', fontWeight: 650 }}
+          >
+            Add to lease
+          </Button>
         )}
       </Box>
 
@@ -276,9 +272,9 @@ export default function TenantsContent({ embedded = false }) {
   const [leaseFilter, setLeaseFilter] = useState('all');
   const [accessFilter, setAccessFilter] = useState('all');
   const [sort, setSort] = useState('name');
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(0);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [tenantInvites, setTenantInvites] = useState({});
-  const [selectedTenantIds, setSelectedTenantIds] = useState(new Set());
   const [sendingInvite, setSendingInvite] = useState({});
   const [actionMenuAnchor, setActionMenuAnchor] = useState(null);
   const [actionMenuTenant, setActionMenuTenant] = useState(null);
@@ -324,8 +320,7 @@ export default function TenantsContent({ embedded = false }) {
   }, [tenants]);
 
   useEffect(() => {
-    setPage(1);
-    setSelectedTenantIds(new Set());
+    setPage(0);
   }, [search, recordStatus, propertyFilter, leaseFilter, accessFilter, sort]);
 
   const propertyOptions = useMemo(() => {
@@ -372,10 +367,7 @@ export default function TenantsContent({ embedded = false }) {
     });
   }, [accessFilter, leaseFilter, propertyFilter, recordStatus, search, sort, tenantInvites, tenants]);
 
-  const pageCount = Math.ceil(filteredTenants.length / PAGE_SIZE);
-  const paginatedTenants = filteredTenants.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  const eligibleOnPage = paginatedTenants.filter((tenant) => !hasAccount(tenant) && read(tenant, 'email', 'Email'));
-  const allEligibleSelected = eligibleOnPage.length > 0 && eligibleOnPage.every((tenant) => selectedTenantIds.has(getId(tenant)));
+  const { page: visiblePage, pageCount, rows: paginatedTenants, start, end } = paginateTenants(filteredTenants, page, itemsPerPage);
   const hasFilters =
     search || recordStatus !== 'active' || propertyFilter !== 'all' || leaseFilter !== 'all' || accessFilter !== 'all' || sort !== 'name';
 
@@ -420,33 +412,6 @@ export default function TenantsContent({ embedded = false }) {
     }
   };
 
-  const handleBulkInvite = async () => {
-    const selected = filteredTenants.filter(
-      (tenant) => selectedTenantIds.has(getId(tenant)) && !hasAccount(tenant) && read(tenant, 'email', 'Email')
-    );
-    for (const tenant of selected) await handleSendInvite(tenant);
-    setSelectedTenantIds(new Set());
-  };
-
-  const toggleTenantSelection = (event, tenantId) => {
-    event.stopPropagation();
-    setSelectedTenantIds((current) => {
-      const next = new Set(current);
-      if (next.has(tenantId)) next.delete(tenantId);
-      else next.add(tenantId);
-      return next;
-    });
-  };
-
-  const toggleSelectAll = (event) => {
-    event.stopPropagation();
-    setSelectedTenantIds((current) => {
-      const next = new Set(current);
-      if (allEligibleSelected) eligibleOnPage.forEach((tenant) => next.delete(getId(tenant)));
-      else eligibleOnPage.forEach((tenant) => next.add(getId(tenant)));
-      return next;
-    });
-  };
 
   const handleConfirmRemove = async () => {
     if (!tenantToRemove) return;
@@ -489,7 +454,7 @@ export default function TenantsContent({ embedded = false }) {
               />
               <Button
                 variant="contained"
-                color="success"
+                color="primary"
                 startIcon={<PlusOutlined />}
                 onClick={() => drawer.openTenantAddDrawer()}
                 sx={managementPageHeaderActionSx}
@@ -598,18 +563,6 @@ export default function TenantsContent({ embedded = false }) {
                 </Button>
               )}
             </Stack>
-            {selectedTenantIds.size > 0 && (
-              <Button
-                variant="contained"
-                color="success"
-                size="small"
-                startIcon={<SendOutlined />}
-                onClick={handleBulkInvite}
-                sx={{ textTransform: 'none', fontWeight: 700 }}
-              >
-                Send {selectedTenantIds.size} invite{selectedTenantIds.size === 1 ? '' : 's'}
-              </Button>
-            )}
           </Stack>
       </Box>
 
@@ -626,7 +579,7 @@ export default function TenantsContent({ embedded = false }) {
         <Box
           sx={{
             display: { xs: 'none', md: 'grid' },
-            gridTemplateColumns: '42px minmax(210px, 1.45fr) minmax(190px, 1.25fr) minmax(210px, 1.35fr) minmax(125px, .8fr) 42px',
+            gridTemplateColumns: 'minmax(210px, 1.45fr) minmax(190px, 1.25fr) minmax(210px, 1.35fr) minmax(125px, .8fr) 42px',
             gap: 1.5,
             px: 2,
             py: 1.15,
@@ -634,13 +587,6 @@ export default function TenantsContent({ embedded = false }) {
             alignItems: 'center'
           }}
         >
-          <Checkbox
-            size="small"
-            checked={allEligibleSelected}
-            indeterminate={selectedTenantIds.size > 0 && !allEligibleSelected}
-            onChange={toggleSelectAll}
-            disabled={eligibleOnPage.length === 0}
-          />
           {['Tenant', 'Home & lease', 'Contact', 'Portal access', ''].map((label) => (
             <Typography
               key={label || 'actions'}
@@ -669,7 +615,7 @@ export default function TenantsContent({ embedded = false }) {
             </Typography>
             <Button
               variant="contained"
-              color="success"
+              color="primary"
               startIcon={<PlusOutlined />}
               onClick={() => drawer.openTenantAddDrawer()}
               sx={{ textTransform: 'none', fontWeight: 700 }}
@@ -695,23 +641,38 @@ export default function TenantsContent({ embedded = false }) {
               key={getId(tenant)}
               tenant={tenant}
               tenantInvites={tenantInvites}
-              selected={selectedTenantIds.has(getId(tenant))}
-              onSelect={toggleTenantSelection}
               onOpen={(item) => {
                 const route = renterProfileRoute(getId(item));
                 if (route) navigate(route);
+              }}
+              onAddToLease={(item) => {
+                setAddToLeaseTenant(item);
+                setAddToLeaseDrawerOpen(true);
               }}
               onActions={handleActions}
             />
           ))
         )}
 
-        {pageCount > 1 && (
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems="center" justifyContent="space-between" sx={{ p: 2 }}>
-            <Typography sx={{ fontSize: '0.76rem', color: 'text.secondary' }}>
-              Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filteredTenants.length)} of {filteredTenants.length}
+        {!isLoading && filteredTenants.length > 0 && (
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems="center" justifyContent="space-between"
+            sx={{ px: 2, py: 1.5, borderTop: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
+            <Typography variant="body2" color="text.secondary">
+              Showing {start}–{end} of {filteredTenants.length} tenants
             </Typography>
-            <Pagination count={pageCount} page={page} onChange={(_, value) => setPage(value)} color="primary" shape="rounded" />
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems="center">
+              <Typography variant="body2" color="text.secondary">Items per page</Typography>
+              <Select size="small" value={itemsPerPage} onChange={(event) => { setItemsPerPage(Number(event.target.value)); setPage(0); }}
+                inputProps={{ 'aria-label': 'Tenant items per page' }} sx={{ height: 32, minWidth: 72 }}>
+                {[10, 20, 50, 100].map((size) => <MenuItem key={size} value={size}>{size}</MenuItem>)}
+              </Select>
+              <Stack direction="row" spacing={1}>
+                <Button size="small" variant="outlined" startIcon={<LeftOutlined />} onClick={() => setPage(visiblePage - 1)}
+                  disabled={visiblePage === 0} sx={{ minWidth: 92 }}>Previous</Button>
+                <Button size="small" variant="outlined" endIcon={<RightOutlined />} onClick={() => setPage(visiblePage + 1)}
+                  disabled={visiblePage >= pageCount - 1} sx={{ minWidth: 72 }}>Next</Button>
+              </Stack>
+            </Stack>
           </Stack>
         )}
       </Box>

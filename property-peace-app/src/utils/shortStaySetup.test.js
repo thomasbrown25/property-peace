@@ -15,7 +15,7 @@ test('local dates reject rollover, timestamps and impossible dates; ranges use e
 
 test('draft and rate validation use actual API contract and cent precision', () => {
   assert.deepEqual(listingPayload({ nightlyBasePrice: '101.25', minimumNights: '2', capacity: '4', cleaningFee: '0', checkInTime: '15:00', checkOutTime: '', houseRules: '', amenities: '', cancellationPolicy: '' }), {
-    nightlyBasePrice: 101.25, weekendNightlyRate: null, weeklyDiscountPercent: 0, monthlyDiscountPercent: 0, minimumNights: 2, capacity: 4, cleaningFee: 0, lodgingTaxRatePercent: null, attestLodgingTaxResponsibility: false, checkInTime: '15:00', checkOutTime: null, houseRules: '', amenities: '', cancellationPolicy: ''
+    bookingAcceptancePreference: 'RequireOwnerApproval', nightlyBasePrice: 101.25, weekendNightlyRate: null, weeklyDiscountPercent: 0, monthlyDiscountPercent: 0, minimumNights: 2, capacity: 4, cleaningFee: 0, lodgingTaxRatePercent: null, attestLodgingTaxResponsibility: false, checkInTime: '15:00', checkOutTime: null, houseRules: '', amenities: '', cancellationPolicy: ''
   });
   assert.throws(() => listingPayload({ nightlyBasePrice: '1.234', minimumNights: '1', capacity: '1', cleaningFee: '0' }));
   assert.deepEqual(ratePayload('2026-03-01', '99.50'), { nightlyRate: 99.5 });

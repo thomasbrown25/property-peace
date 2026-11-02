@@ -1,3 +1,5 @@
+import { propertyTypeOptions } from 'utils/models';
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 import ThemeAdaptiveDrawer from 'components/drawers/shared/ThemeAdaptiveDrawer';
 import PropTypes from 'prop-types';
 import { useEffect, useState } from 'react';
@@ -45,10 +47,9 @@ import { selectProperty } from 'store/property/property.selector';
 import { addOrUpdateUnit } from 'store/unit/unit.action';
 
 // constants
-const propertyTypes = [
-  { id: 1, value: 'singleFamily', label: 'Single-Family' },
-  { id: 2, value: 'multiUnit', label: 'Multi-Unit Home (Apartment Complex)' }
-];
+const propertyTypes = propertyTypeOptions.filter((option) =>
+  ['singleFamily', 'multiUnit', 'townhouse', 'condominium', 'smallMultiFamily', 'apartmentBuilding', 'other'].includes(option.value)
+);
 
 const getInitialValues = (property) => {
   // Normalize propertyType to camelCase format
@@ -62,16 +63,12 @@ const getInitialValues = (property) => {
     } else if (lowerType === 'multiunit' || lowerType === 'multi-unit') {
       propertyType = 'multiUnit';
     }
-    // If already in camelCase format, keep it as is
-    // Otherwise, default to singleFamily
-    if (propertyType !== 'singleFamily' && propertyType !== 'multiUnit') {
-      propertyType = 'singleFamily';
-    }
+    propertyType = propertyTypes.find((option) => option.value.toLowerCase() === propertyType.toLowerCase())?.value || propertyType;
   }
 
   // For single family properties, get bedrooms, baths, squareFeet, and isOccupied from the unit
   const unit = property?.units?.[0];
-  const isSingleFamily = propertyType === 'singleFamily';
+  const isSingleFamily = isDetachedSingleUnitType(propertyType);
 
   return merge(
     {
@@ -154,7 +151,7 @@ export default function PropertyEditDrawer({ onUpdateSuccess }) {
         await updateProperty(propertyPayload, mainImage);
 
         // If single family property, also update the unit
-        const isSingleFamily = values.propertyType === 'singleFamily';
+        const isSingleFamily = isDetachedSingleUnitType(values.propertyType);
         if (isSingleFamily && selectedProperty?.units?.[0]?.id) {
           const unit = selectedProperty.units[0];
           const unitPayload = {
@@ -393,7 +390,7 @@ export default function PropertyEditDrawer({ onUpdateSuccess }) {
                   </Grid>
 
                   {/* Single-family unit details */}
-                  {values.propertyType === 'singleFamily' && (
+                  {isDetachedSingleUnitType(values.propertyType) && (
                     <>
                       <Grid size={4}>
                         <FormInput label="Bedrooms" placeholder="Ex. 3" {...getFieldProps('bedrooms')} />

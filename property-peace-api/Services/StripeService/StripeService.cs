@@ -848,7 +848,8 @@ namespace brownstone_hub_api.Services.StripeService
                         // Format property name similar to RentCollectionService
                         // For single family: just property name
                         // For multi-unit: property name – unit name
-                        var propertyName = leaseWithProperty.Unit.Property.PropertyType.ToString().ToLower() == "singlefamily"
+                        var propertyName = leaseWithProperty.Unit.Property.PropertyType is Enums.EPropertyType.SingleFamily or
+                            Enums.EPropertyType.Townhouse or Enums.EPropertyType.Condominium
                             ? leaseWithProperty.Unit.Property.Name
                             : !string.IsNullOrEmpty(leaseWithProperty.Unit.Name)
                                 ? $"{leaseWithProperty.Unit.Property.Name} – {leaseWithProperty.Unit.Name}"
@@ -1111,7 +1112,8 @@ namespace brownstone_hub_api.Services.StripeService
                     if (lease.Unit?.Property != null)
                     {
                         var landlordId = lease.Unit.Property.LandlordId;
-                        var propertyName = lease.Unit.Property.PropertyType.ToString().ToLower() == "singlefamily"
+                        var propertyName = lease.Unit.Property.PropertyType is Enums.EPropertyType.SingleFamily or
+                            Enums.EPropertyType.Townhouse or Enums.EPropertyType.Condominium
                             ? lease.Unit.Property.Name
                             : !string.IsNullOrEmpty(lease.Unit.Name)
                                 ? $"{lease.Unit.Property.Name} – {lease.Unit.Name}"

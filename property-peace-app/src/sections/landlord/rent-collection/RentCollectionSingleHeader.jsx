@@ -1,3 +1,4 @@
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 import { Box, Stack, Typography, Chip, alpha, useTheme, Avatar, Divider } from '@mui/material';
 import { DollarOutlined, UserOutlined, MailOutlined, PhoneOutlined } from '@ant-design/icons';
 import { formatRentStatus, getRentStatusColor } from 'utils/formatters';
@@ -8,7 +9,7 @@ export default function RentCollectionSingleHeader({ rent }) {
 
   // Determine display name
   const displayName =
-    rent?.propertyType?.toLowerCase() === 'singlefamily'
+    isDetachedSingleUnitType(rent?.propertyType)
       ? rent?.propertyName
       : rent?.unitName
       ? `${rent?.propertyName} - ${rent?.unitName}`

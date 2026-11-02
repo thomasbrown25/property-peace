@@ -69,6 +69,7 @@ export default function RegisterLandlord() {
           {...{
             initialFirstName: draft.firstName,
             initialLastName: draft.lastName,
+            initialEmail: draft.email,
             initialPhoneNumber: draft.phoneNumber,
             initialOrganizationName: draft.organizationName,
             googleProfile

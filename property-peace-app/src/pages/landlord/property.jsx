@@ -48,6 +48,7 @@ import MainCard from 'components/MainCard';
 import Avatar from 'components/@extended/Avatar';
 import useFetchProperty from 'hooks/useFetchProperty';
 import { getPropertyTypeLabel, parseDecimalToCurrency, formatDate, formatCurrency } from 'utils/formatters';
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 import { getNextDueDate } from 'utils/helper-methods';
 import useFetchRentCollection from 'hooks/useFetchRentCollection';
 import useFetchMaintenances from 'hooks/useFetchMaintenances';
@@ -90,7 +91,6 @@ import DocumentsTab from 'sections/landlord/property/DocumentsTab';
 import ExpensesTab from 'sections/landlord/property/ExpensesTab';
 import OverviewTab from 'sections/landlord/property/OverviewTab';
 import PropertyOverview from 'sections/landlord/property/PropertyOverview';
-import PropertyScheduledLeases from 'sections/landlord/property/PropertyScheduledLeases';
 import LandlordMaintenanceDrawer from 'components/drawers/LandlordMaintenanceDrawer';
 import { bankAccountAPI } from 'api';
 import axiosServices from 'utils/axios';
@@ -100,7 +100,6 @@ import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
 import FeatureReadinessNotice from 'components/feature-readiness/FeatureReadinessNotice';
 import useFeatureReadiness from 'hooks/useFeatureReadiness';
 import { FEATURE_KEYS } from 'utils/featureReadiness';
-import PropertyLeasingPipeline from 'components/leasing-pipeline/PropertyLeasingPipeline';
 import { recordRecentlyViewedProperty } from 'utils/recentlyViewedProperties';
 import useAuth from 'hooks/useAuth';
 import { rentalMode, modeLabel, propertyModeLabel } from 'utils/rentalMode';
@@ -555,7 +554,7 @@ function SummaryTab({ property, onRefresh, onImageUpload, uploading }) {
 
               {/* Property Details: Units (for multi-unit) or Beds, Bath, Sqft (for single-family) */}
               {(() => {
-                const isMultiUnit = property?.propertyType === 'multiUnit' || property?.propertyType === 'MultiUnit';
+                const isMultiUnit = !isDetachedSingleUnitType(property?.propertyType);
                 const unitsCount = property?.units?.length || 0;
                 
                 if (isMultiUnit && unitsCount > 0) {
@@ -809,7 +808,7 @@ function SummaryTab({ property, onRefresh, onImageUpload, uploading }) {
       </Grid>
 
       {/* Leasing Information Section - Only show for single-family properties */}
-      {property?.propertyType !== 'multiUnit' && rentalMode(property?.units?.[0]) !== 'shortTerm' && (
+      {isDetachedSingleUnitType(property?.propertyType) && rentalMode(property?.units?.[0]) !== 'shortTerm' && (
       <MainCard
         sx={{
           mt: 3,
@@ -1472,7 +1471,7 @@ function PropertyDetailsTab({ property, onRefresh }) {
                   size="small"
                   label={leaseStatusLabel}
                   color={leaseStatusColor}
-                  variant="outlined"
+                  variant={leaseStatusColor === 'success' ? 'filled' : 'outlined'}
                   sx={{ width: 'fit-content' }}
                 />
               ) : (
@@ -1500,8 +1499,8 @@ function PropertyDetailsTab({ property, onRefresh }) {
                     <Chip
                       size="small"
                       label="Active"
-                      color="warning"
-                      variant="outlined"
+                      color="success"
+                      variant="filled"
                       sx={{ width: 'fit-content' }}
                     />
                   )}
@@ -1925,7 +1924,7 @@ function UnitsTab({ property, onRefresh, onOpenBulkCreate }) {
   const navigate = useNavigate();
   const theme = useTheme();
   const units = property?.units || [];
-  const isMultiUnit = property?.propertyType === 'multiUnit';
+  const isMultiUnit = !isDetachedSingleUnitType(property?.propertyType);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'occupied', 'vacant'
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -2590,7 +2589,7 @@ export default function Property() {
   };
 
   const theme = useTheme();
-  const isSingleFamily = selectedProperty?.propertyType?.toLowerCase() === 'singlefamily';
+  const isSingleFamily = isDetachedSingleUnitType(selectedProperty?.propertyType);
   const longTermUnits = (selectedProperty?.units ?? selectedProperty?.Units ?? []).filter(unit => rentalMode(unit) !== 'shortTerm');
   const downMD = useMediaQuery(theme => theme.breakpoints.down('md'));
 
@@ -2623,25 +2622,14 @@ export default function Property() {
           />
         </AnimateIn>
 
-        {/* Desktop/tablet leasing progress — directly below the header overview */}
-        {longTermUnits.length > 0 && <Box sx={{ mt: 2, display: { xs: 'none', sm: 'block' } }}>
-          <PropertyLeasingPipeline
-            propertyId={propertyId}
-            units={longTermUnits}
-            onCreateListing={() => navigate('/landlord/listings/add')}
-          />
-        </Box>}
-
-        {/* Property Overview Columns */}
+        {/* Property Overview */}
         <Box sx={{ mt: 3 }}>
           <AnimateIn direction="bottom" delay={200} distance={120}>
             <PropertyOverview
               property={selectedProperty}
               propertyId={propertyId}
               rentRecords={rentRecords}
-              onCreateListing={() => navigate('/landlord/listings/add')}
             />
-            {longTermUnits.length > 0 && <PropertyScheduledLeases property={{ ...selectedProperty, units: longTermUnits, Units: longTermUnits }} propertyId={propertyId} />}
           </AnimateIn>
         </Box>
       {/* Confirmation Dialog */}

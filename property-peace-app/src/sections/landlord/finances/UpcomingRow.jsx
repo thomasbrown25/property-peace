@@ -97,7 +97,7 @@ export default function UpcomingRow({ entry, onRecord, onToggle, onDelete, busy 
               label={entry.isPaused ? 'Paused' : entry.frequency || 'Active'}
               size="small"
               color={entry.isPaused ? 'warning' : 'success'}
-              variant="outlined"
+              variant={entry.isPaused ? 'outlined' : 'filled'}
               sx={{ height: 20, fontSize: '0.65rem' }}
             />
           </Stack>

@@ -2213,6 +2213,47 @@ namespace brownstone_hub_api.Migrations
                     b.ToTable("ExpoPushTokens", "communication");
                 });
 
+            modelBuilder.Entity("brownstone_hub_api.Models.ExtendedStayAgreement", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long>("CreatedByUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateOnly>("EndDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("OccupantName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<long>("OrganizationId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateOnly>("StartDate")
+                        .HasColumnType("date");
+
+                    b.Property<long>("UnitId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UnitId", "StartDate", "EndDate");
+
+                    b.ToTable("ExtendedStayAgreements", "listing", t =>
+                        {
+                            t.HasCheckConstraint("CK_ExtendedStayAgreements_Dates", "[EndDate] > [StartDate]");
+                        });
+                });
+
             modelBuilder.Entity("brownstone_hub_api.Models.Feedback", b =>
                 {
                     b.Property<long>("Id")
@@ -10148,6 +10189,13 @@ namespace brownstone_hub_api.Migrations
                         .HasMaxLength(4000)
                         .HasColumnType("nvarchar(4000)");
 
+                    b.Property<string>("BookingAcceptancePreference")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(48)
+                        .HasColumnType("nvarchar(48)")
+                        .HasDefaultValue("RequireOwnerApproval");
+
                     b.Property<string>("CancellationPolicy")
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
@@ -10227,6 +10275,8 @@ namespace brownstone_hub_api.Migrations
 
                     b.ToTable("ShortStayListings", "listing", t =>
                         {
+                            t.HasCheckConstraint("CK_ShortStayListings_BookingAcceptancePreference", "[BookingAcceptancePreference] IN ('RequireOwnerApproval', 'AutoConfirmAfterVerifiedPayment')");
+
                             t.HasCheckConstraint("CK_ShortStayListings_Capacity", "[Capacity] >= 1");
 
                             t.HasCheckConstraint("CK_ShortStayListings_CleaningFee", "[CleaningFee] >= 0");
@@ -13814,6 +13864,17 @@ namespace brownstone_hub_api.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ExtendedStayAgreement", b =>
+                {
+                    b.HasOne("brownstone_hub_api.Models.Unit", "Unit")
+                        .WithMany()
+                        .HasForeignKey("UnitId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Unit");
                 });
 
             modelBuilder.Entity("brownstone_hub_api.Models.Feedback", b =>

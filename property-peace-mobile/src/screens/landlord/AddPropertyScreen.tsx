@@ -16,8 +16,9 @@ import { BulkCreateUncertainError, buildingErrors, bulkCreateWithReconciliation,
 import { useAppTheme } from '../../theme/AppTheme';
 import { unitRentalMode } from '../../features/properties/rentalMode';
 import { propertyRentalMode } from '../../features/properties/rentalMode';
+import { isSingleUnitProperty } from '../../features/properties/propertyType';
 
-const types = [['singleFamily', 'Single-family'], ['townhouse', 'Townhouse'], ['condominium', 'Condominium'], ['smallMultiFamily', 'Small multi-family'], ['apartmentBuilding', 'Apartment building'], ['other', 'Other multi-unit']] as const;
+const types = [['singleFamily', 'Single-family'], ['townhouse', 'Townhouse'], ['condominium', 'Condominium'], ['multiUnit', 'Multi-unit'], ['smallMultiFamily', 'Small multi-family'], ['apartmentBuilding', 'Apartment building'], ['other', 'Other multi-unit']] as const;
 type Route = RouteProp<PropertiesStackParamList, 'AddProperty'>;
 
 export default function AddPropertyScreen() {
@@ -113,7 +114,7 @@ export default function AddPropertyScreen() {
   const updateUnit = (index: number, key: keyof UnitForm, value: string | boolean) => {
     setError(''); setUnits(current => current.map((unit, i) => i === index ? { ...unit, [key]: value } : unit));
   };
-  const multiUnit = !['singleFamily', 'townhouse', 'condominium'].includes(form.propertyType);
+  const multiUnit = !isSingleUnitProperty(form.propertyType);
   const draftUnits = isCreating && !multiUnit ? [emptyUnit('1', form.rentalMode)] : isCreating && multiUnit && unitMode === 'bulk' ? bulkUnitDrafts(bulkCount, form.rentalMode) : isCreating ? units.map(unit => ({ ...unit, rentalMode: form.rentalMode ?? 'LongTerm' })) : units;
   const next = () => {
     const issues = step === 0 ? locationErrors(form) : buildingErrors(form);

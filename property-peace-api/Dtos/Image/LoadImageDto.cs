@@ -11,5 +11,6 @@ namespace brownstone_hub_api.Dtos.Image
         public DateTime CreatedAt { get; set; }
         /// <summary>True when this image is the listing's cover photo (used only for ListingImage).</summary>
         public bool IsCoverPhoto { get; set; }
+        public int DisplayOrder { get; set; }
     }
 }

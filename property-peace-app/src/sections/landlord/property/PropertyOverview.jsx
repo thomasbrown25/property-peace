@@ -1,15 +1,13 @@
-import { Grid, Stack, useMediaQuery, useTheme } from '@mui/material';
+import { Grid, useMediaQuery, useTheme } from '@mui/material';
 import PropertyStory from './PropertyStory';
 import PropertyCurrentTenant from './PropertyCurrentTenant';
 import PropertyActiveLease from './PropertyActiveLease';
 import PropertyQuickActionsPanel from './PropertyQuickActionsPanel';
-import PropertyMarketRent from './PropertyMarketRent';
 import PropertyMonthlyRent from './PropertyMonthlyRent';
 import PropertyUnitsAtAGlance from './PropertyUnitsAtAGlance';
-import PropertyLeasingPipeline from 'components/leasing-pipeline/PropertyLeasingPipeline';
 import { rentalMode } from 'utils/rentalMode';
 
-export default function PropertyOverview({ property, propertyId, rentRecords = [], onCreateListing }) {
+export default function PropertyOverview({ property, propertyId, rentRecords = [] }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const units = property?.units || property?.Units || [];
@@ -19,38 +17,30 @@ export default function PropertyOverview({ property, propertyId, rentRecords = [
 
   return (
     <Grid container spacing={2.5}>
-      {isMobile && (
-        <Grid size={12}>
-          <PropertyQuickActionsPanel property={property} propertyId={propertyId} mobile />
-        </Grid>
-      )}
-
-      {/* Left column: units at a glance (multi-unit) + activity timeline */}
-      <Grid size={{ xs: 12, md: 8 }} sx={{ display: isMobile && !isMultiUnit ? 'none' : 'block' }}>
-        <Stack spacing={2.5}>
-          {isMultiUnit && (
-            <PropertyUnitsAtAGlance property={property} propertyId={propertyId} />
-          )}
-          {!isMobile && <PropertyStory property={property} propertyId={propertyId} />}
-        </Stack>
-      </Grid>
-
-      {/* Right column: rent summary + lease + quick actions + market rent */}
-      <Grid size={{ xs: 12, md: 4 }}>
-        <Stack spacing={2.5}>
-          {longTermUnits.length > 0 && (isMultiUnit ? (
+      {longTermUnits.length > 0 && (
+        <Grid size={{ xs: 12, md: 4 }} sx={{ '& > .MuiCard-root': { height: '100%' } }}>
+          {isMultiUnit ? (
             <PropertyMonthlyRent property={leaseProperty} rentRecords={rentRecords} />
           ) : (
             <PropertyCurrentTenant property={leaseProperty} rentRecords={rentRecords} />
-          ))}
-          {isMobile && longTermUnits.length > 0 && (
-            <PropertyLeasingPipeline propertyId={propertyId} units={longTermUnits} onCreateListing={onCreateListing} />
           )}
-          {longTermUnits.length > 0 && <PropertyActiveLease property={leaseProperty} />}
-          {!isMobile && <PropertyQuickActionsPanel property={property} propertyId={propertyId} />}
-          {longTermUnits.length > 0 && <PropertyMarketRent property={leaseProperty} />}
-          {isMobile && <PropertyStory property={property} propertyId={propertyId} />}
-        </Stack>
+        </Grid>
+      )}
+      {longTermUnits.length > 0 && (
+        <Grid size={{ xs: 12, md: 4 }} sx={{ '& > .MuiCard-root': { height: '100%' } }}>
+          <PropertyActiveLease property={leaseProperty} />
+        </Grid>
+      )}
+      <Grid size={{ xs: 12, md: 4 }}>
+        <PropertyQuickActionsPanel property={property} propertyId={propertyId} mobile={isMobile} />
+      </Grid>
+      {isMultiUnit && (
+        <Grid size={12}>
+          <PropertyUnitsAtAGlance property={property} propertyId={propertyId} />
+        </Grid>
+      )}
+      <Grid size={12}>
+        <PropertyStory property={property} propertyId={propertyId} />
       </Grid>
     </Grid>
   );

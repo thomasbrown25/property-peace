@@ -1,3 +1,4 @@
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 import { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 
@@ -147,8 +148,7 @@ export default function PaymentLeaseConfirmation({ tenant, selectedProperty, sel
   }
 
   // Format property display
-  const propertyDisplay = lease.unit?.property?.propertyType?.toLowerCase() === 'singlefamily' || 
-                          lease.propertyType?.toLowerCase() === 'singlefamily'
+  const propertyDisplay = isDetachedSingleUnitType(lease.unit?.property?.propertyType || lease.propertyType)
     ? lease.propertyName || lease.unit?.property?.name
     : lease.unitName
       ? `${lease.propertyName || lease.unit?.property?.name} – ${lease.unitName}`

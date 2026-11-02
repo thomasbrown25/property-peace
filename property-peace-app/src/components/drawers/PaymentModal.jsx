@@ -1,3 +1,4 @@
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 import ThemeAdaptiveDrawer from 'components/drawers/shared/ThemeAdaptiveDrawer';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -128,7 +129,7 @@ function LandlordPaymentForm({ rent, onSuccess, onClose }) {
 
   // Format property display
   const propertyDisplay =
-    rent?.propertyType?.toLowerCase() === 'singlefamily'
+    isDetachedSingleUnitType(rent?.propertyType)
       ? rent?.propertyName
       : rent?.unitName
         ? `${rent?.propertyName} – ${rent?.unitName}`
@@ -622,7 +623,7 @@ function PaymentSummary({ rent, amount, setAmount, disabled = false, showPropert
   const unitName = rent?.unitName || rent?.UnitName || '';
   const normalizedPropertyType = String(rent?.propertyType || rent?.PropertyType || '').toLowerCase().replace(/[^a-z0-9]/g, '');
   const normalizedUnitName = String(unitName).toLowerCase().replace(/[^a-z0-9]/g, '');
-  const isSingleFamily = normalizedPropertyType === 'singlefamily' || normalizedUnitName === 'unit1';
+  const isSingleFamily = isDetachedSingleUnitType(normalizedPropertyType) || normalizedUnitName === 'unit1';
   const { rentDue, rentDueIsOverdue } = normalizeRentBalance(rent);
   const totalDue = isTotalPayment
     ? (rent?.totalAmountDue ?? 0)
@@ -910,7 +911,7 @@ function TenantPaymentForm({ rent, onSuccess, onClose }) {
     ? rent?.unitName
       ? `${rent?.propertyName || ''} – ${rent?.unitName}`.trim()
       : rent?.propertyName || 'N/A'
-    : rent?.propertyType?.toLowerCase() === 'singlefamily'
+    : isDetachedSingleUnitType(rent?.propertyType)
       ? rent?.propertyName
       : rent?.unitName
         ? `${rent?.propertyName} – ${rent?.unitName}`

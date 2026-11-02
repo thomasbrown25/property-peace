@@ -1,3 +1,4 @@
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
@@ -95,7 +96,7 @@ export default function useLandlordSetupSteps(onClose) {
   const firstPropertyIsSingleFamily = useMemo(() => {
     const firstProperty = activeProperties[0];
     const propertyType = firstProperty?.propertyType || firstProperty?.PropertyType || '';
-    return propertyType.toString().toLowerCase() === 'singlefamily';
+    return isDetachedSingleUnitType(propertyType);
   }, [activeProperties]);
 
   const hasPaymentAccount = Boolean(
@@ -208,7 +209,7 @@ export default function useLandlordSetupSteps(onClose) {
         group: 'Portfolio',
         title: 'Add units',
         description: firstPropertyIsSingleFamily
-          ? 'Single-family properties are ready to manage without extra units.'
+          ? 'Single-unit properties are ready to manage without extra units.'
           : 'Set up the unit or units tenants will occupy.',
         completed: allUnits.length > 0 || firstPropertyIsSingleFamily,
         required: true,

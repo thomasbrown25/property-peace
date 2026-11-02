@@ -16,6 +16,75 @@ public sealed class TenantDocumentRepositoryTests : IDisposable
     public void Dispose() => _context.Dispose();
 
     [Fact]
+    public void LeaseUploadPrivacy_DefaultsPrivateAndIsMappedToResponse()
+    {
+        typeof(brownstone_hub_api.Controllers.TenantDocumentController)
+            .GetMethod(nameof(brownstone_hub_api.Controllers.TenantDocumentController.UploadDocuments))!
+            .GetParameters().Last().DefaultValue.Should().Be(true);
+        typeof(brownstone_hub_api.Controllers.TenantDocumentController)
+            .GetMethod(nameof(brownstone_hub_api.Controllers.TenantDocumentController.UploadLeaseDocument))!
+            .GetParameters().Last().DefaultValue.Should().Be(true);
+        typeof(brownstone_hub_api.Services.TenantDocumentService.ITenantDocumentService)
+            .GetMethod(nameof(brownstone_hub_api.Services.TenantDocumentService.ITenantDocumentService.AddLeaseDocuments))!
+            .GetParameters().Last().DefaultValue.Should().Be(true);
+        MapperFactory.Create().Map<LoadTenantDocumentDto>(new TenantDocument { IsPrivate = true })
+            .IsPrivate.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task LeaseUploadPrivacy_PersistsAndReturnsVisibilityForLeaseLevelDocuments()
+    {
+        var repo = new TenantDocumentRepository(_context, MapperFactory.Create(), NullLogger<TenantDocumentRepository>.Instance);
+        var privateDocument = new AddTenantDocumentDto
+        {
+            LeaseId = 10, FileName = "private.pdf", BlobName = "private", BlobUrl = "https://example/private",
+            IsPrivate = true
+        };
+        var sharedDocument = new AddTenantDocumentDto
+        {
+            LeaseId = 10, FileName = "shared.pdf", BlobName = "shared", BlobUrl = "https://example/shared",
+            IsPrivate = false
+        };
+        (await repo.AddTenantDocument(privateDocument, 1)).IsPrivate.Should().BeTrue();
+        (await repo.AddTenantDocument(sharedDocument, 1)).IsPrivate.Should().BeFalse();
+        _context.ChangeTracker.Clear();
+        var saved = _context.TenantDocuments.ToList();
+        saved.Single(d => d.FileName == "private.pdf").IsPrivate.Should().BeTrue();
+        saved.Single(d => d.FileName == "shared.pdf").IsPrivate.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task TenantReads_RequireOwnTenantOrSharedLeaseDocumentAndExactOrganization()
+    {
+        _context.Users.Add(new User { Id = 100, Email = "owner@example.com" });
+        _context.Properties.Add(new Property { Id = 1, Name = "Home", LandlordId = 100, OrganizationId = 1 });
+        _context.Units.Add(new Unit { Id = 1, PropertyId = 1 });
+        _context.Leases.Add(new Lease { Id = 10, UnitId = 1, OrganizationId = 1 });
+        _context.Tenants.AddRange(
+            new Tenant { Id = 30, UserId = 200, Firstname = "Me", Lastname = "Here", Email = "me@example.com", OrganizationId = 1 },
+            new Tenant { Id = 31, UserId = 201, Firstname = "Other", Lastname = "Here", Email = "other@example.com", OrganizationId = 1 });
+        _context.TenantLeases.AddRange(new TenantLease { LeaseId = 10, TenantId = 30 }, new TenantLease { LeaseId = 10, TenantId = 31 });
+        _context.TenantDocuments.AddRange(
+            Doc(1, 30, 10, 1), Doc(2, 31, 10, 1), Doc(3, null, 10, 1),
+            Doc(4, null, 10, 1, isPrivate: true), Doc(5, 30, 10, 2),
+            Doc(6, 30, 10, 1, isPrivate: true));
+        await _context.SaveChangesAsync();
+        var repo = new TenantDocumentRepository(_context, MapperFactory.Create(), NullLogger<TenantDocumentRepository>.Instance);
+
+        (await repo.GetTenantDocumentById(1, 1, 200, true)).Should().NotBeNull();
+        foreach (var id in new long[] { 2, 4, 5, 6 })
+            (await repo.GetTenantDocumentById(id, 1, 200, true)).Should().BeNull();
+        (await repo.GetTenantDocumentById(3, 1, 200, true)).Should().NotBeNull();
+        (await repo.GetTenantDocumentById(3, null, 200, true)).Should().BeNull();
+        (await repo.GetTenantDocumentsByTenantId(30, 1, 200, true)).Select(d => d.Id)
+            .Should().BeEquivalentTo(new long[] { 1, 3 });
+        (await repo.GetTenantDocumentsByTenantId(30, 1, 201, true)).Should().BeEmpty();
+        (await repo.GetTenantDocumentsByTenantId(30, null, 200, true)).Should().BeEmpty();
+        (await repo.GetLeaseAgreementByLeaseId(10, 1, 200, true)).Should().BeNull();
+        (await repo.GetTenantDocumentById(4, 1, null, false)).Should().NotBeNull();
+    }
+
+    [Fact]
     public async Task UpsertLeaseAgreement_RejectsTenantOrLeaseOutsideOrganization()
     {
         _context.Leases.Add(new Lease { Id = 10, UnitId = 1, OrganizationId = 1 });

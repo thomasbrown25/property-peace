@@ -1,4 +1,5 @@
 import type { PayReadiness, TenantCharge, TenantLease, TenantPayment, TenantRent } from '../../api/tenantPaymentsAPI';
+import { isSingleUnitProperty } from '../properties/propertyType.ts';
 
 export function chargeDate(value?: string | null): string {
   const day = value?.match(/^(\d{4}-\d{2}-\d{2})(?:T|$)/)?.[1];
@@ -15,9 +16,8 @@ export function chargeBalanceLabel(charge: TenantCharge): string {
 
 export function leaseHomeLabel(lease: TenantLease): string {
   const property = lease.propertyName?.trim() || 'Your property';
-  const singleFamily = lease.propertyType?.replace(/[\s_-]/g, '').toLowerCase() === 'singlefamily';
   const unit = lease.unitName?.trim();
-  return unit && !singleFamily ? `${property} · ${unit}` : property;
+  return unit && !isSingleUnitProperty(lease.propertyType) ? `${property} · ${unit}` : property;
 }
 
 export function rentIsLate(rent: TenantRent | null): boolean {

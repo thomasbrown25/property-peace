@@ -28,7 +28,32 @@ test('mobile More keeps Calendar reachable when the centered desktop links are h
   assert.match(mobile, /flattenedLandlordItems\.map/);
 });
 
-test('top bar keeps the logo, mounts the four-link landlord navigation, and places search before messages', () => {
+test('desktop More follows the primary links and exposes Properties with the former landlord destinations', () => {
+  const navigation = source('../layout/Dashboard/Header/HeaderContent/LandlordPrimaryNavigation.jsx');
+  const more = source('../layout/Dashboard/Header/HeaderContent/TopNavigation.jsx');
+  const pages = source('../menu-items/pages.js');
+  assert.match(navigation, /landlordPrimaryLinks\.map\([\s\S]*?<TopNavigation \/>/);
+  assert.match(more, /primaryDestinations = new Set\(landlordPrimaryLinks\.map/);
+  assert.match(more, /landlordPagesForInventory\(pages, shortTermOnly\)/);
+  assert.match(pages, /title: 'Properties',[\s\S]*?url: '\/landlord\/properties'/);
+  assert.match(more, /if \(primaryDestinations\.has\(item\.url\)\) return \[\]/);
+  assert.match(more, /id: 'tenants', title: 'Tenants'[\s\S]*?\/landlord\/leases\?tab=tenants/);
+  assert.match(more, /aria-expanded=\{Boolean\(anchor\)\}/);
+  assert.match(more, /maxHeight: 'calc\(100dvh - 88px\)'/);
+  assert.match(more, /minHeight: 34, py: 0\.5/);
+  assert.match(navigation, /color: 'inherit'/);
+  assert.match(more, /component="button"[\s\S]*?color: 'inherit'/);
+  assert.match(more, /fontWeight: moreSelected \? 700 : 500/);
+  assert.match(more, /component="span"[\s\S]*?'&::after': \{[\s\S]*?bottom: -6,[\s\S]*?opacity: moreSelected \? 1 : 0/);
+  assert.match(more, /disabled=\{item\.disabled \|\| trialExpired\}/);
+  for (const title of ['Leases', 'Percy', 'Checklists', 'Maintenance', 'Vendors', 'Team', 'Announcements', 'Online Payments', 'Finances', 'Tax Center', 'Reports']) {
+    assert.ok(pages.includes(`title: '${title}'`), `Missing former sidebar destination: ${title}`);
+  }
+  assert.match(more, /Support/);
+  assert.match(more, /Settings/);
+});
+
+test('top bar keeps the logo, mounts the landlord navigation, and places search before messages', () => {
   const content = source('../layout/Dashboard/Header/HeaderContent/index.jsx');
   const search = source('../layout/Dashboard/Header/HeaderContent/MobileSearch.jsx');
   const field = source('../layout/Dashboard/Header/HeaderContent/Search.jsx');

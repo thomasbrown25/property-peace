@@ -7,6 +7,7 @@ import { setProperty } from 'store/property/property.action';
 import { useDrawer } from 'contexts/DrawerContext';
 import { formatCurrency } from 'utils/formatters';
 import { normalizeRentBalance } from 'utils/rentBalance';
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 import { isHighPriorityMaintenanceRequest } from 'utils/maintenanceStatus';
 import { differenceInDays } from 'date-fns';
 import placeholderImage from 'assets/images/placeholder-house.png';
@@ -48,7 +49,7 @@ export default function PropertyCard({ property, rentRecords = [] }) {
   } = property ?? {};
 
   const propertyId = id;
-  const isSingleFamily = ['singlefamily', 'single-family'].includes((propertyType || '').toLowerCase());
+  const isSingleFamily = isDetachedSingleUnitType(propertyType);
   const isMultiUnit = !isSingleFamily && units.length > 1;
 
   const firstUnit = units[0];

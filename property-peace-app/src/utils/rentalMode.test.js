@@ -4,6 +4,8 @@ import { initialUnitCount, missingInitialUnits, modeLabel, propertyModeLabel, ta
 
 test('creation seeds one API-managed single-family unit and no multi-unit placeholders', () => {
   assert.equal(initialUnitCount('singleFamily'), 1);
+  assert.equal(initialUnitCount('Townhouse'), 1);
+  assert.equal(initialUnitCount('condominium'), 1);
   assert.equal(initialUnitCount('multiUnit', [{ name: '101' }, { name: '102' }]), 2);
   assert.deepEqual(missingInitialUnits([{ name: 'Unit 1' }], [{ id: 12, name: 'Unit 1' }]), []);
   assert.deepEqual(missingInitialUnits([{ name: 'Unit 1' }], []), [{ name: 'Unit 1' }]);

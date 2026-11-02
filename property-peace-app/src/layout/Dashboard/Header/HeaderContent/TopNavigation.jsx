@@ -1,84 +1,121 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Box, Button, Divider, ListSubheader, Menu, MenuItem } from '@mui/material';
+import { Box, Divider, ListSubheader, Menu, MenuItem } from '@mui/material';
 import DownOutlined from '@ant-design/icons/DownOutlined';
-import useAuth from 'hooks/useAuth';
 import { useSubscriptionStatus } from 'hooks/useSubscription';
 import pages from 'menu-items/pages';
-import { tenantPages, adminPages } from 'menu-items';
 import { landlordPagesForInventory } from 'menu-items/landlordInventory';
 import useLandlordInventoryMenu from 'menu-items/useLandlordInventoryMenu';
+import { landlordPrimaryLinks } from 'utils/landlordPrimaryNavigation';
 
-// Reuse the same role-aware destinations as the former sidebar, including
-// short-stay inventory filtering and expired-trial restrictions.
+const primaryDestinations = new Set(landlordPrimaryLinks.map(({ to }) => to));
+const tenantsItem = { id: 'tenants', title: 'Tenants', type: 'item', url: '/landlord/leases?tab=tenants' };
+
+// The desktop overflow uses the former landlord sidebar's grouped destinations.
+// Tenants is a tab of Leases rather than a separate route in the current app.
 export default function TopNavigation() {
-  const { user } = useAuth();
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const { status: subscriptionStatus } = useSubscriptionStatus();
+  const shortTermOnly = useLandlordInventoryMenu(true);
   const [anchor, setAnchor] = useState(null);
-  const roles = (Array.isArray(user?.Roles) ? user.Roles : Array.isArray(user?.roles) ? user.roles : [])
-    .map((role) => String(role).toLowerCase().trim());
-  const isAdmin = roles.includes('admin');
-  const isTenant = roles.includes('tenant');
-  const isLandlord = roles.includes('landlord');
-  const shortTermOnly = useLandlordInventoryMenu(isLandlord && !isTenant && !isAdmin);
-  const groups = isAdmin ? [adminPages] : isTenant ? tenantPages : landlordPagesForInventory(pages, shortTermOnly);
-  const trialExpired = !isAdmin && !isTenant && subscriptionStatus?.isTrialActive &&
+  const groups = landlordPagesForInventory(pages, shortTermOnly).map((group) => ({
+    ...group,
+    children: (group.children || []).flatMap((item) => {
+      if (primaryDestinations.has(item.url)) return [];
+      return item.id === 'leases' ? [item, tenantsItem] : [item];
+    })
+  })).filter((group) => group.children.length);
+  const trialExpired = subscriptionStatus?.isTrialActive &&
     (subscriptionStatus.trialDaysRemaining == null || subscriptionStatus.trialDaysRemaining <= 0);
+  const isSelected = (item) => item.id === 'tenants'
+    ? pathname === '/landlord/tenants' || (pathname === '/landlord/leases' && new URLSearchParams(search).get('tab') === 'tenants')
+    : item.id === 'leases'
+      ? (pathname === '/landlord/leases' && new URLSearchParams(search).get('tab') !== 'tenants') || pathname.startsWith('/landlord/leases/')
+      : pathname === item.url || pathname.startsWith(`${item.url}/`);
+  const moreSelected = groups.some((group) => group.children.some(isSelected));
 
-  useEffect(() => setAnchor(null), [pathname]);
+  useEffect(() => setAnchor(null), [pathname, search]);
 
   return (
     <>
-      <Button
-        aria-label="Navigate to a page"
-        aria-controls={anchor ? 'dashboard-navigation-menu' : undefined}
+      <Box
+        component="button"
+        type="button"
+        aria-label="More landlord pages"
+        aria-controls={anchor ? 'landlord-more-navigation' : undefined}
         aria-haspopup="menu"
         aria-expanded={Boolean(anchor)}
-        onClick={(event) => setAnchor(event.currentTarget)}
-        endIcon={<DownOutlined style={{ fontSize: 11 }} />}
-        sx={{ flexShrink: 0, color: 'inherit', fontWeight: 600, textTransform: 'none', minWidth: 0, px: { xs: 0.5, sm: 1 } }}
+        onClick={(event) => setAnchor((current) => current ? null : event.currentTarget)}
+        sx={(theme) => ({
+          display: 'inline-flex',
+          alignItems: 'center',
+          alignSelf: 'stretch',
+          px: 0.25,
+          border: 0,
+          background: 'none',
+          cursor: 'pointer',
+          fontFamily: 'inherit',
+          color: 'inherit',
+          fontSize: { md: 13, lg: 14 },
+          fontWeight: moreSelected ? 700 : 500,
+          lineHeight: 1,
+          transition: 'color 150ms ease',
+          '&:hover': { color: 'inherit' },
+          '&:focus-visible': { outline: `2px solid ${theme.palette.primary.main}`, outlineOffset: -6, borderRadius: 1 }
+        })}
       >
-        Navigate
-      </Button>
+        <Box
+          component="span"
+          sx={(theme) => ({
+            position: 'relative',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 0.5,
+            '&::after': {
+              content: '""',
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              bottom: -6,
+              height: 2,
+              backgroundColor: theme.palette.mode === 'dark' ? 'common.white' : '#061e35',
+              opacity: moreSelected ? 1 : 0
+            }
+          })}
+        >
+          More <DownOutlined style={{ fontSize: 11 }} />
+        </Box>
+      </Box>
       <Menu
-        id="dashboard-navigation-menu"
+        id="landlord-more-navigation"
         anchorEl={anchor}
         open={Boolean(anchor)}
         onClose={() => setAnchor(null)}
-        slotProps={{ paper: { sx: { width: 300, maxWidth: 'calc(100vw - 24px)', maxHeight: 'min(70vh, 580px)', mt: 1 } } }}
+        slotProps={{ paper: { sx: { width: 270, maxWidth: 'calc(100vw - 24px)', maxHeight: 'calc(100dvh - 88px)', mt: 1 } } }}
       >
         {groups.map((group, index) => (
           <Box key={group.id}>
-            {index > 0 && <Divider sx={{ my: 0.5 }} />}
-            {group.title && <ListSubheader sx={{ lineHeight: '32px', fontWeight: 700 }}>{group.title}</ListSubheader>}
-            {(group.children || []).filter((item) => item.type === 'item' && item.url).map((item) => (
+            {index > 0 && <Divider sx={{ my: 0.25 }} />}
+            {group.title && <ListSubheader sx={{ lineHeight: '28px', fontWeight: 700 }}>{group.title}</ListSubheader>}
+            {group.children.map((item) => (
               <MenuItem
                 key={item.id}
                 component={Link}
                 to={item.url}
-                disabled={item.disabled || (trialExpired && item.id !== 'subscription' && item.url !== '/landlord/subscription')}
-                selected={pathname === item.url || pathname.startsWith(`${item.url}/`)}
+                disabled={item.disabled || trialExpired}
+                selected={isSelected(item)}
+                aria-current={isSelected(item) ? 'page' : undefined}
                 onClick={() => setAnchor(null)}
-                sx={{ minHeight: 40, whiteSpace: 'normal' }}
+                sx={{ minHeight: 34, py: 0.5, whiteSpace: 'normal' }}
               >
                 {item.title}
               </MenuItem>
             ))}
           </Box>
         ))}
-        {!isAdmin && (
-          <>
-            <Divider sx={{ my: 0.5 }} />
-            {!isTenant && (
-              <MenuItem component={Link} to="/landlord/support/ticket" onClick={() => setAnchor(null)}>Support</MenuItem>
-            )}
-            <MenuItem component={Link} to={isTenant ? '/tenant/settings' : '/landlord/settings'}
-              selected={pathname.startsWith(isTenant ? '/tenant/settings' : '/landlord/settings')} onClick={() => setAnchor(null)}>
-              Settings
-            </MenuItem>
-          </>
-        )}
+        <Divider sx={{ my: 0.25 }} />
+        <MenuItem component={Link} to="/landlord/support/ticket" onClick={() => setAnchor(null)} sx={{ minHeight: 34, py: 0.5 }}>Support</MenuItem>
+        <MenuItem component={Link} to="/landlord/settings" selected={pathname.startsWith('/landlord/settings')} onClick={() => setAnchor(null)} sx={{ minHeight: 34, py: 0.5 }}>Settings</MenuItem>
       </Menu>
     </>
   );

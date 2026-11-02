@@ -5,6 +5,7 @@ import { formatCurrency } from 'utils/formatters';
 import useFetchRentCollection from 'hooks/useFetchRentCollection';
 import { useNavigate } from 'react-router';
 import { normalizeRentBalance } from 'utils/rentBalance';
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 
 /**
  * HouseholdCard Component
@@ -12,7 +13,7 @@ import { normalizeRentBalance } from 'utils/rentBalance';
  */
 export default function HouseholdCard({ property, tenants = [], onViewLease, onEditHousehold }) {
   const navigate = useNavigate();
-  const isSingleUnitPortfolio = property?.isSingleUnitPortfolio || property?.propertyType === 'singleFamily';
+  const isSingleUnitPortfolio = property?.isSingleUnitPortfolio || isDetachedSingleUnitType(property?.propertyType);
 
   // Fetch rent collection data for this property
   const { rentRecords, loading } = useFetchRentCollection(property?.id);

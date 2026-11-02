@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import {
-  Box, Button, CircularProgress, Dialog, IconButton, Stack, TextField, Typography
+  Box, Button, CircularProgress, Dialog, IconButton, MenuItem, Stack, TextField, Typography
 } from '@mui/material';
 import { ArrowLeftOutlined, EnvironmentOutlined, HomeOutlined, RightOutlined, CloseOutlined } from '@ant-design/icons';
 import { selectCurrentUser } from 'store/user/user.selector';
 import usePlacesSuggestions from 'hooks/usePlacesSuggestions';
+import useFetchProperties from 'hooks/useFetchProperties';
 import { parseListingAddress } from './listing-address.mjs';
 
 const blankAddress = { streetAddress: '', unit: '', city: '', state: '', zipCode: '', country: 'US' };
@@ -24,22 +25,27 @@ export default function ListingCreatePage({ propertyMode = false, onContinue } =
     if (!userId) return null;
     try {
       const value = JSON.parse(localStorage.getItem(draftKey));
-      return value?.address ? value : null;
+      return propertyMode ? (value?.address ? value : null) : (value?.propertyId ? value : null);
     } catch { return null; }
   });
   const [address, setAddress] = useState(saved?.address || blankAddress);
   const [rentalMode, setRentalMode] = useState(saved?.rentalMode || '');
+  const [selectedPropertyId, setSelectedPropertyId] = useState(saved?.propertyId || '');
+  const { properties, isLoading: propertiesLoading, propertiesError, propertiesLoadedAt, propertiesRefetch } = useFetchProperties();
+  const selectedProperty = !propertyMode && properties.find((property) => String(property.id) === String(selectedPropertyId));
+  const propertiesReady = Boolean(propertiesLoadedAt) && !propertiesLoading && !propertiesError;
   useEffect(() => {
     if (!userId) return;
     try {
       const stored = JSON.parse(localStorage.getItem(draftKey));
-      if (stored?.address) {
+      if (propertyMode ? stored?.address : stored?.propertyId) {
         setSaved(stored);
-        setAddress(stored.address);
+        setAddress(stored.address || blankAddress);
         setRentalMode(stored.rentalMode || '');
+        setSelectedPropertyId(stored.propertyId || '');
       }
     } catch { /* Ignore malformed drafts. */ }
-  }, [draftKey, userId]);
+  }, [draftKey, propertyMode, userId]);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalStep, setModalStep] = useState('search');
   const [candidate, setCandidate] = useState(blankAddress);
@@ -47,7 +53,7 @@ export default function ListingCreatePage({ propertyMode = false, onContinue } =
   const [resolving, setResolving] = useState(false);
   const { value, setValue, suggestions, loading, clear, toPlaceDetails, resetSession } = usePlacesSuggestions({ debounceMs: 250, region: 'us' });
   const requestedStep = params.get('step');
-  const propertyStep = (requestedStep === 'place' || (propertyMode && requestedStep === 'rental')) && address.streetAddress;
+  const propertyStep = (requestedStep === 'place' || (propertyMode && requestedStep === 'rental')) && (propertyMode ? address.streetAddress : selectedProperty);
   const step = requestedStep === 'address' || propertyStep
     ? requestedStep : propertyMode ? (saved?.address ? (saved.step === 'rental' ? 'rental' : 'place') : 'address') : 'welcome';
   const firstName = (currentUser?.firstname ?? currentUser?.Firstname ?? currentUser?.firstName ?? '').trim() || 'there';
@@ -55,8 +61,8 @@ export default function ListingCreatePage({ propertyMode = false, onContinue } =
   const go = (next) => setParams(next === 'welcome' ? {} : { step: next });
   const close = () => navigate(propertyMode ? '/landlord/properties' : '/landlord/listings');
   const saveAndExit = () => {
-    if (step !== 'welcome' && address.streetAddress) {
-      const draft = { address, rentalMode, step };
+    if (step !== 'welcome' && (propertyMode ? address.streetAddress : selectedPropertyId)) {
+      const draft = { address, rentalMode, propertyId: selectedPropertyId, step };
       if (userId) localStorage.setItem(draftKey, JSON.stringify(draft));
       setSaved(draft);
     }
@@ -65,6 +71,7 @@ export default function ListingCreatePage({ propertyMode = false, onContinue } =
   const startNew = () => {
     setAddress(blankAddress);
     setRentalMode('');
+    setSelectedPropertyId('');
     if (userId) localStorage.removeItem(draftKey);
     setSaved(null);
     go('address');
@@ -128,18 +135,16 @@ export default function ListingCreatePage({ propertyMode = false, onContinue } =
             <Box sx={{ width: 50, height: 50, display: 'grid', placeItems: 'center', border: '1px solid #dce3df', borderRadius: 2, fontSize: 25 }}><HomeOutlined /></Box>
             <Box sx={{ flex: 1 }}>Create a new listing</Box><RightOutlined />
           </Box>
-          {saved && <Box component="button" onClick={() => { setAddress(saved.address); go(saved.step || 'address'); }} sx={{ width: '100%', display: 'flex', justifyContent: 'space-between', bgcolor: 'transparent', color: 'inherit', border: 0, borderBottom: '1px solid #e4e7e5', py: 2.5, textAlign: 'left', cursor: 'pointer', font: 'inherit', fontWeight: 650 }}>Continue saved address <RightOutlined /></Box>}
+          {saved && <Box component="button" onClick={() => { setAddress(saved.address || blankAddress); setSelectedPropertyId(saved.propertyId || ''); go(saved.step || 'address'); }} sx={{ width: '100%', display: 'flex', justifyContent: 'space-between', bgcolor: 'transparent', color: 'inherit', border: 0, borderBottom: '1px solid #e4e7e5', py: 2.5, textAlign: 'left', cursor: 'pointer', font: 'inherit', fontWeight: 650 }}>Continue saved listing <RightOutlined /></Box>}
         </Box>
       )}
 
       {step === 'address' && (
         <Box component="main" sx={{ maxWidth: 1140, mx: 'auto', px: { xs: 3, md: 5 }, pt: { xs: 5, md: '10vh' }, display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 0.95fr' }, alignItems: 'center', gap: { xs: 5, md: 9 } }}>
           <Box>
-            {!propertyMode && <Typography sx={{ fontSize: 14, fontWeight: 700, color: 'success.dark', mb: 2 }}>STEP 1 · YOUR ADDRESS</Typography>}
-            <Typography component="h1" sx={{ fontSize: { xs: 36, md: 51 }, lineHeight: 1.12, letterSpacing: '-0.045em', fontWeight: 760, mb: 2 }}>{propertyMode ? 'Where is your property?' : 'Set up your Property Peace listing'}</Typography>
-            <Typography sx={{ color: '#53646c', fontSize: 17, lineHeight: 1.65, maxWidth: 475, mb: 5 }}>{propertyMode ? 'Start with the street address. We’ll help you find it, then you can check the details before moving on.' : "Let's start with the location. Search for your property's street address, then confirm the details before we move on."}</Typography>
-            {!propertyMode && <Typography component="label" htmlFor="listing-address-trigger" sx={{ display: 'block', fontWeight: 700, mb: 1.3 }}>Street address</Typography>}
-            <Box component="button" id="listing-address-trigger" aria-label={propertyMode ? 'Street address' : undefined} onClick={openSearch} sx={{ width: '100%', maxWidth: 495, py: 2.1, px: 2.2, border: '1px solid #b8c6c2', borderRadius: 2, bgcolor: '#fff', display: 'flex', alignItems: 'center', gap: 1.5, textAlign: 'left', color: address.streetAddress ? '#172b3d' : '#687b80', cursor: 'pointer', font: 'inherit', '&:hover': { borderColor: 'success.dark' }, '&:focus-visible': { outline: '2px solid', outlineColor: 'success.dark' } }}><EnvironmentOutlined />{address.streetAddress || 'Enter your street address'}</Box>
+            <Typography component="h1" sx={{ fontSize: { xs: 36, md: 51 }, lineHeight: 1.12, letterSpacing: '-0.045em', fontWeight: 760, mb: 2 }}>{propertyMode ? 'Where is your property?' : propertiesReady && !properties.length ? 'Add a property first' : 'Set up your Property Peace listing'}</Typography>
+            <Typography sx={{ color: '#53646c', fontSize: 17, lineHeight: 1.65, maxWidth: 475, mb: 5 }}>{propertyMode ? 'Start with the street address. We’ll help you find it, then you can check the details before moving on.' : propertiesReady && !properties.length ? 'To create a listing, add your property to Property Peace first. Once it’s added, come back here to create its listing.' : 'Choose an existing property to create a listing for.'}</Typography>
+            {propertyMode ? <Box component="button" id="listing-address-trigger" aria-label="Street address" onClick={openSearch} sx={{ width: '100%', maxWidth: 495, py: 2.1, px: 2.2, border: '1px solid #b8c6c2', borderRadius: 2, bgcolor: '#fff', display: 'flex', alignItems: 'center', gap: 1.5, textAlign: 'left', color: address.streetAddress ? '#172b3d' : '#687b80', cursor: 'pointer', font: 'inherit', '&:hover': { borderColor: 'success.dark' }, '&:focus-visible': { outline: '2px solid', outlineColor: 'success.dark' } }}><EnvironmentOutlined />{address.streetAddress || 'Enter your street address'}</Box> : propertiesError ? <Stack alignItems="flex-start" spacing={2}><Typography role="alert">We couldn’t load your properties. Try again.</Typography><Button onClick={propertiesRefetch}>Retry</Button></Stack> : propertiesLoading || !propertiesLoadedAt ? <CircularProgress aria-label="Loading properties" /> : properties.length ? <Stack spacing={2} sx={{ maxWidth: 495 }}><TextField select fullWidth label="Select property" value={selectedProperty ? String(selectedPropertyId) : ''} onChange={(event) => setSelectedPropertyId(event.target.value)}><MenuItem value="" disabled>Choose a property</MenuItem>{properties.map((property) => <MenuItem key={property.id} value={String(property.id)}>{property.name || property.streetAddress || `Property ${property.id}`}{property.name && property.streetAddress ? ` · ${property.streetAddress}` : ''}</MenuItem>)}</TextField><Button variant="contained" disabled={!selectedProperty} onClick={() => { if (userId) localStorage.setItem(draftKey, JSON.stringify({ propertyId: selectedPropertyId, step: 'place' })); go('place'); }} sx={primaryButton}>Next</Button></Stack> : <Button variant="contained" onClick={() => navigate('/landlord/properties/add')} sx={primaryButton}>Add property</Button>}
             {propertyMode ? null : <Button startIcon={<ArrowLeftOutlined />} sx={{ mt: 4, textTransform: 'none', color: '#53646c' }} onClick={() => go('welcome')}>Back</Button>}
           </Box>
           <Box component="img" src="/listing-onboarding-home.png" alt="Residential building and landscaped courtyard" sx={{ width: '100%', height: { xs: 230, md: 475 }, objectFit: 'cover', borderRadius: 3, objectPosition: 'center' }} />
@@ -159,10 +164,9 @@ export default function ListingCreatePage({ propertyMode = false, onContinue } =
             </Box>
           ) : (
           <Box component="main" sx={{ maxWidth: 1060, mx: 'auto', px: 3, pt: { xs: 10, md: '18vh' }, pb: 140 }}>
-            <Typography sx={{ fontSize: 14, fontWeight: 700, color: 'success.dark', mb: 2 }}>STEP 2 · YOUR PLACE</Typography>
             <Typography component="h1" sx={{ fontSize: { xs: 37, md: 56 }, lineHeight: 1.13, letterSpacing: '-0.045em', fontWeight: 760, mb: 2 }}>Tell us about your place</Typography>
-            <Typography sx={{ color: '#53646c', fontSize: 18, maxWidth: 540, lineHeight: 1.6 }}>Your address is confirmed. Next, you'll add the details that make this place yours.</Typography>
-            <Box sx={{ mt: 5, p: 3, maxWidth: 520, border: '1px solid #e2e8e5', borderRadius: 2.5, display: 'flex', gap: 2, alignItems: 'flex-start' }}><EnvironmentOutlined style={{ fontSize: 21, marginTop: 3 }} /><Box><Typography fontWeight={700}>{address.streetAddress}{address.unit ? `, ${address.unit}` : ''}</Typography><Typography color="text.secondary">{address.city}, {address.state} {address.zipCode}</Typography><Button onClick={openSearch} sx={{ p: 0, mt: 1, minWidth: 0, textTransform: 'none', color: 'success.dark' }}>Edit address</Button></Box></Box>
+            <Typography sx={{ color: '#53646c', fontSize: 18, maxWidth: 540, lineHeight: 1.6 }}>You selected this property for your listing.</Typography>
+            <Box sx={{ mt: 5, p: 3, maxWidth: 520, border: '1px solid #e2e8e5', borderRadius: 2.5, display: 'flex', gap: 2, alignItems: 'flex-start' }}><EnvironmentOutlined style={{ fontSize: 21, marginTop: 3 }} /><Box><Typography fontWeight={700}>{selectedProperty?.name || selectedProperty?.streetAddress}</Typography><Typography color="text.secondary">{selectedProperty?.streetAddress}{selectedProperty?.city ? `, ${selectedProperty.city}` : ''}</Typography><Button onClick={() => go('address')} sx={{ p: 0, mt: 1, minWidth: 0, textTransform: 'none', color: 'success.dark' }}>Change property</Button></Box></Box>
           </Box>
           )}
         </>
@@ -172,7 +176,7 @@ export default function ListingCreatePage({ propertyMode = false, onContinue } =
         <Box component="main" sx={{ maxWidth: 690, mx: 'auto', px: 3, pt: { xs: 8, md: '15vh' }, pb: 145 }}>
           <Typography component="h1" sx={{ fontSize: { xs: 32, md: 43 }, lineHeight: 1.17, letterSpacing: '-0.035em', fontWeight: 750, mb: 5 }}>What type of rental describes your place best?</Typography>
           <Stack spacing={2} role="radiogroup" aria-label="Rental type">
-            {[['shortTerm', 'Short-term leasing'], ['longTerm', 'Long-term leasing']].map(([mode, label]) => (
+            {[['shortTerm', 'Short-term leasing (Airbnb style)'], ['longTerm', 'Long-term leasing']].map(([mode, label]) => (
               <Box key={mode} component="button" role="radio" aria-checked={rentalMode === mode} onClick={() => setRentalMode(mode)} sx={{ width: '100%', minHeight: 92, px: 3, border: '2px solid', borderColor: rentalMode === mode ? '#061e35' : '#d6deda', borderRadius: 2, bgcolor: rentalMode === mode ? '#f4f8f6' : '#fff', color: '#172b3d', textAlign: 'left', font: 'inherit', fontSize: 20, fontWeight: 650, cursor: 'pointer', '&:hover': { borderColor: '#061e35' }, '&:focus-visible': { outline: '3px solid #6baf93', outlineOffset: 2 } }}>{label}</Box>
             ))}
           </Stack>

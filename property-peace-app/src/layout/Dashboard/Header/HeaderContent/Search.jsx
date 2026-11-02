@@ -69,7 +69,7 @@ export default function Search({ autoFocus = false, onResultSelect }) {
         navigate(`/landlord/property/${id}`);
         break;
       case 'tenant':
-        navigate(`/landlord/renters/${id}`);
+        navigate(`/landlord/tenants/${id}`);
         break;
       case 'lease':
         navigate(`/landlord/leases/${id}`);

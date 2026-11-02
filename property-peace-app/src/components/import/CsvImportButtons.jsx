@@ -30,6 +30,7 @@ import { parseCSV, aiMapCsvRowsWithAgent, IMPORT_FIELD_DEFINITIONS } from 'utils
 import { getAllTenants } from 'store/tenant/tenant.action';
 import { addVendor, getVendors } from 'store/vendor/vendor.action';
 import { addOrUpdateUnit } from 'store/unit/unit.action';
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 import { getProperties } from 'store/property/property.action';
 import { geocodeAddress, fetchPropertyImageFromAddress, buildFullAddress } from 'utils/propertyImportAddress';
 
@@ -620,8 +621,7 @@ export function PropertyCsvImportButton({ buttonProps }) {
         for (const item of items) {
           const { propertyType, propertyName, streetAddress, city, state, zipCode, beds, baths, squareFeet } = item.values;
           const mappedType = mapPropertyTypeToBackend(propertyType);
-          const isSingleFamilyType = ['singleFamily', 'townhouse', 'condominium'].includes(mappedType);
-          const backendPropertyType = isSingleFamilyType ? 'singleFamily' : 'multiUnit';
+          const backendPropertyType = mappedType;
 
           try {
             let finalStreet = String(streetAddress || '').trim();
@@ -659,8 +659,14 @@ export function PropertyCsvImportButton({ buttonProps }) {
               continue;
             }
 
+            const seededId = (created.units || created.Units || [])[0]?.id ?? (created.units || created.Units || [])[0]?.Id;
+            if (isDetachedSingleUnitType(backendPropertyType) && !seededId) {
+              errors.push(`Row ${item.rowIndex}: Property created but its seeded unit was unavailable; review it before retrying`);
+              successCount++;
+              continue;
+            }
             const unitResult = await dispatch(addOrUpdateUnit({
-              id: 0,
+              id: isDetachedSingleUnitType(backendPropertyType) ? seededId : 0,
               name: 'Unit 1',
               bedrooms: beds,
               baths,
