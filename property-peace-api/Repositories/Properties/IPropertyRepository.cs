@@ -12,6 +12,7 @@ namespace brownstone_hub_api.Repositories.Properties
         Task<LoadPropertyDto> UpdateProperty(UpdatePropertyDto updatePropertyDto, CancellationToken cancellationToken);
         Task<LoadPropertyDto?> UpdatePropertyForMutationAsync(UpdatePropertyDto updatePropertyDto, long organizationId, CancellationToken cancellationToken);
         Task<LoadPropertyDto?> GetPropertyById(long propertyId);
+        Task<LoadPropertyDto?> GetPropertyForCalendarAsync(long propertyId, long landlordId);
         Task<LoadPropertyDto?> GetPropertyById(long propertyId, long organizationId);
         Task<LoadPropertyDto?> GetPropertyByIdForMutationAsync(long propertyId, long organizationId, CancellationToken cancellationToken);
         Task<LoadPropertyDto?> GetInactivePropertyByIdForMutationAsync(long propertyId, long organizationId, CancellationToken cancellationToken);

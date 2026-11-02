@@ -27,6 +27,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TablePagination,
   Paper,
   useTheme,
   Checkbox
@@ -81,6 +82,8 @@ export default function DocumentsTab({ property, onRefresh }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [unitFilter, setUnitFilter] = useState('all');
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [documentToDelete, setDocumentToDelete] = useState(null);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
@@ -351,6 +354,13 @@ export default function DocumentsTab({ property, onRefresh }) {
 
     return filtered;
   }, [groupedDocuments, categoryFilter, unitFilter, searchQuery]);
+
+  useEffect(() => setPage(0), [searchQuery, categoryFilter, unitFilter, rowsPerPage, property?.id]);
+  useEffect(() => {
+    if (page > 0 && page * rowsPerPage >= filteredDocuments.length) {
+      setPage(Math.max(0, Math.ceil(filteredDocuments.length / rowsPerPage) - 1));
+    }
+  }, [filteredDocuments.length, page, rowsPerPage]);
 
   const handleDeleteDocument = async () => {
     if (!documentToDelete) return;
@@ -711,7 +721,7 @@ export default function DocumentsTab({ property, onRefresh }) {
 
       {/* Documents List */}
       {filteredDocuments.length === 0 ? (
-        <MainCard>
+        <MainCard sx={property ? { minHeight: { xs: 260, sm: 360 } } : undefined}>
           <Box sx={{ textAlign: 'center', py: 6 }}>
             <FileTextOutlined style={{ fontSize: 64, color: 'rgba(0,0,0,0.12)' }} />
             <Typography variant="h6" color="text.secondary" sx={{ mt: 2 }}>
@@ -729,7 +739,8 @@ export default function DocumentsTab({ property, onRefresh }) {
               boxShadow: (t) => `0 4px 20px ${alpha(t.palette.primary.main, 0.15)}`,
               border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
               borderRadius: 2,
-              overflow: 'hidden'
+              overflow: 'hidden',
+              ...(property ? { minHeight: { xs: 260, sm: 360 } } : {})
             }}
           >
             <Table size="medium">
@@ -771,7 +782,7 @@ export default function DocumentsTab({ property, onRefresh }) {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {filteredDocuments.map((group) => {
+                {filteredDocuments.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((group) => {
                   const document = group.document; // Representative document
                   const unit = group.unit;
                   // Use category label for property files, document type for tenant documents
@@ -944,7 +955,9 @@ export default function DocumentsTab({ property, onRefresh }) {
               </TableBody>
             </Table>
           </TableContainer>
-        </MainCard>
+          <TablePagination component="div" count={filteredDocuments.length} page={page} onPageChange={(_, nextPage) => setPage(nextPage)}
+            rowsPerPage={rowsPerPage} onRowsPerPageChange={event => { setRowsPerPage(Number(event.target.value)); setPage(0); }} rowsPerPageOptions={[10, 25, 50]} />
+          </MainCard>
       )}
 
       {/* Upload Dialog */}

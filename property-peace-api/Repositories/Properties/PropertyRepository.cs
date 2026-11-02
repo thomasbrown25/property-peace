@@ -130,6 +130,19 @@ namespace brownstone_hub_api.Repositories.Properties
         public Task<LoadPropertyDto?> GetPropertyById(long propertyId) =>
             GetPropertyByIdInternal(propertyId, organizationId: null, CancellationToken.None);
 
+        // Calendar needs only property identity and unit labels, not the full property graph.
+        public Task<LoadPropertyDto?> GetPropertyForCalendarAsync(long propertyId, long landlordId) =>
+            _context.Properties.AsNoTracking()
+                .Where(p => p.Id == propertyId && p.LandlordId == landlordId && !p.IsDeleted)
+                .Select(p => new LoadPropertyDto
+                {
+                    Id = p.Id,
+                    LandlordId = p.LandlordId,
+                    Name = p.Name,
+                    Units = p.Units.Select(u => new brownstone_hub_api.Dtos.Unit.LoadUnitDto { Id = u.Id, Name = u.Name }).ToList()
+                })
+                .FirstOrDefaultAsync();
+
         public Task<LoadPropertyDto?> GetPropertyById(long propertyId, long organizationId) =>
             GetPropertyByIdInternal(propertyId, organizationId, CancellationToken.None);
 

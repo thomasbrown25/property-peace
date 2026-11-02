@@ -60,8 +60,9 @@ import {
 import { getFutureExpensesAction, deleteFutureExpenseAction } from 'store/future-expense/future-expense.action';
 import { openSnackbar } from 'api/snackbar';
 import ConfirmationDialog from 'components/dialogs/ConfirmationDialog';
+import PropertyFinanceTable from './PropertyFinanceTable';
 
-export default function ExpensesTab({ propertyId, property }) {
+export default function ExpensesTab({ propertyId, property, payments, combined = false }) {
   const dispatch = useDispatch();
   const theme = useTheme();
   const { user } = useAuth();
@@ -71,6 +72,7 @@ export default function ExpensesTab({ propertyId, property }) {
   const futureExpenses = useSelector(selectFutureExpenses);
   
   const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('all');
   const [expenseModalOpen, setExpenseModalOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -142,11 +144,13 @@ export default function ExpensesTab({ propertyId, property }) {
     fetchFutureExpenses();
   }, [dispatch, user?.id, user?.Id, propertyId]);
 
+  const categories = useMemo(() => [...new Set((allExpenses || []).map(expense => expense.category).filter(Boolean))].sort(), [allExpenses]);
+
   // Filter expenses by search term
   const filteredExpenses = useMemo(() => {
     if (!allExpenses || allExpenses.length === 0) return [];
     
-    let filtered = allExpenses;
+    let filtered = categoryFilter === 'all' ? [...allExpenses] : allExpenses.filter(expense => expense.category === categoryFilter);
     
     if (search) {
       const searchLower = search.toLowerCase();
@@ -162,7 +166,7 @@ export default function ExpensesTab({ propertyId, property }) {
       const dateB = new Date(b.expenseDate || 0);
       return dateB - dateA;
     });
-  }, [allExpenses, search]);
+  }, [allExpenses, search, categoryFilter]);
 
   // Pagination calculations
   const totalPages = Math.ceil(filteredExpenses.length / itemsPerPage);
@@ -175,7 +179,7 @@ export default function ExpensesTab({ propertyId, property }) {
   // Reset to first page when items per page changes
   useEffect(() => {
     setPage(0);
-  }, [itemsPerPage]);
+  }, [itemsPerPage, search, categoryFilter]);
 
   const handlePageChange = (newPage) => {
     setPage(newPage);
@@ -304,6 +308,10 @@ export default function ExpensesTab({ propertyId, property }) {
 
   return (
     <Box>
+      {combined && <PropertyFinanceTable propertyId={propertyId} payments={payments || []} expenses={allExpenses || []}
+        onAddExpense={handleAddExpense} onEditExpense={handleEditExpense} onDeleteExpense={handleDelete}
+        onMarkAsPaid={handleMarkAsPaid} />}
+      {!combined && <>
       {/* Header with Add Button */}
       <AnimateIn direction="bottom" delay={100} distance={120}>
         <MainCard
@@ -378,7 +386,13 @@ export default function ExpensesTab({ propertyId, property }) {
             boxShadow: (t) => `0 0 20px ${alpha(t.palette.primary.main, 0.15)}`
           }}
         >
-          <Box sx={{ mb: 2 }}>
+          <Box sx={{ mb: 2, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+            <FormControl size="small" sx={{ minWidth: 170 }}>
+              <Select value={categoryFilter} onChange={event => setCategoryFilter(event.target.value)} inputProps={{ 'aria-label': 'Filter expenses by category' }}>
+                <MenuItem value="all">All categories</MenuItem>
+                {categories.map(category => <MenuItem key={category} value={category}>{category}</MenuItem>)}
+              </Select>
+            </FormControl>
             <TextField
               size="small"
               placeholder="Search expenses..."
@@ -597,6 +611,7 @@ export default function ExpensesTab({ propertyId, property }) {
           )}
         </MainCard>
       </AnimateIn>
+      </>}
 
       {/* Future & Recurring Expenses Section */}
       <AnimateIn direction="bottom" delay={400} distance={120}>

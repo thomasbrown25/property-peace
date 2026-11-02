@@ -1,12 +1,14 @@
 import { useState, useEffect, useMemo } from 'react';
+import { isDetachedSingleUnitType } from 'utils/propertyType';
+import { rentalMode } from 'utils/rentalMode';
 import {
-  alpha, Box, Button, Chip,
-  Stack, Typography, useTheme, useMediaQuery
+  alpha, Box, Button, Chip, Divider, Menu, MenuItem,
+  Stack, Typography, useTheme
 } from '@mui/material';
 import {
-  HomeOutlined, EnvironmentOutlined, EditOutlined,
-  ToolOutlined, DollarOutlined, FileTextOutlined, MessageOutlined,
-  DeleteOutlined
+  HomeOutlined, EnvironmentOutlined, DollarOutlined, ThunderboltOutlined,
+  EditOutlined, FileAddOutlined, FileTextOutlined, ToolOutlined,
+  UploadOutlined, DeleteOutlined
 } from '@ant-design/icons';
 import { getPropertyTypeLabel, formatCurrency } from 'utils/formatters';
 import { useNavigate } from 'react-router-dom';
@@ -43,8 +45,8 @@ export default function PropertyHeader({ property, onEdit, onDelete, onDeactivat
   const theme = useTheme();
   const navigate = useNavigate();
   const drawer = useDrawer();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [imageError, setImageError] = useState(false);
+  const [actionsAnchor, setActionsAnchor] = useState(null);
 
   const propertyId = property?.id || property?.Id;
 
@@ -60,6 +62,12 @@ export default function PropertyHeader({ property, onEdit, onDelete, onDeactivat
 
   // Unit / lease data
   const units = property?.units || property?.Units || [];
+  const hasLongTermUnits = units.some(unit => rentalMode(unit) !== 'shortTerm');
+  const canCreateLease = hasLongTermUnits || (units.length === 0 && isDetachedSingleUnitType(property?.propertyType));
+  const runAction = (action) => {
+    setActionsAnchor(null);
+    action();
+  };
   const firstUnit = units[0];
   const unitStatus = (firstUnit?.status || firstUnit?.Status || '').toLowerCase();
 
@@ -219,28 +227,44 @@ export default function PropertyHeader({ property, onEdit, onDelete, onDeactivat
           </Stack>
         </Box>
 
-        {/* Buttons column */}
-        {!isMobile && (
-          <Stack justifyContent="flex-start" spacing={1.25} sx={{ px: 2.5, py: 2.5, flexShrink: 0 }}>
-            <Button
-              variant="outlined"
-              startIcon={<EditOutlined style={{ fontSize: 13 }} />}
-              onClick={() => onEdit?.(property)}
-              sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 1.5, px: 3, fontSize: '0.875rem', whiteSpace: 'nowrap', borderColor: softDivider }}
-            >
-              Edit details
-            </Button>
-            <Button
-              variant="outlined"
-              color="error"
-              startIcon={<DeleteOutlined style={{ fontSize: 13 }} />}
-              onClick={() => onDelete?.()}
-              sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 1.5, px: 3, fontSize: '0.875rem', whiteSpace: 'nowrap' }}
-            >
-              Delete property
-            </Button>
-          </Stack>
-        )}
+        {/* Property actions, available on desktop and mobile */}
+        <Stack justifyContent="flex-start" spacing={1.25} sx={{ px: 2.5, py: 2.5, flexShrink: 0 }}>
+          <Button
+            variant="outlined"
+            startIcon={<ThunderboltOutlined style={{ fontSize: 13 }} />}
+            onClick={(event) => setActionsAnchor(event.currentTarget)}
+            aria-haspopup="menu"
+            aria-controls={actionsAnchor ? 'property-actions-menu' : undefined}
+            aria-expanded={Boolean(actionsAnchor)}
+            sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 1.5, px: 3, fontSize: '0.875rem', whiteSpace: 'nowrap', borderColor: softDivider }}
+          >
+            Actions
+          </Button>
+          <Menu id="property-actions-menu" anchorEl={actionsAnchor} open={Boolean(actionsAnchor)} onClose={() => setActionsAnchor(null)}>
+            <MenuItem onClick={() => runAction(() => onEdit?.(property))}>
+              <EditOutlined style={{ marginRight: 12 }} /> Edit property
+            </MenuItem>
+            <MenuItem disabled={!canCreateLease} onClick={() => runAction(() => drawer.openLeaseAddDrawer(null, property))}>
+              <FileAddOutlined style={{ marginRight: 12 }} /> Create a lease
+            </MenuItem>
+            <MenuItem onClick={() => runAction(() => navigate('/landlord/leases'))}>
+              <FileTextOutlined style={{ marginRight: 12 }} /> View leases
+            </MenuItem>
+            <MenuItem disabled={!hasLongTermUnits} onClick={() => runAction(() => drawer.openPaymentAddDrawer())}>
+              <DollarOutlined style={{ marginRight: 12 }} /> Record a payment
+            </MenuItem>
+            <MenuItem onClick={() => runAction(() => drawer.openMaintenanceAddDrawer({ propertyId, propertyName: property?.name }))}>
+              <ToolOutlined style={{ marginRight: 12 }} /> Create maintenance ticket
+            </MenuItem>
+            <MenuItem onClick={() => runAction(() => navigate('/landlord/documents'))}>
+              <UploadOutlined style={{ marginRight: 12 }} /> Upload document
+            </MenuItem>
+            <Divider />
+            <MenuItem sx={{ color: 'error.main' }} onClick={() => runAction(() => onDelete?.())}>
+              <DeleteOutlined style={{ marginRight: 12 }} /> Delete property
+            </MenuItem>
+          </Menu>
+        </Stack>
       </Stack>
 
       {/* ── Metrics bar ── */}

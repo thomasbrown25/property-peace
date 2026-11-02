@@ -6,7 +6,7 @@ const source = (name) => readFileSync(new URL(name, import.meta.url), 'utf8');
 test('property page omits the scheduled leases section while retaining the overview', () => {
   const page = source('../../../pages/landlord/property.jsx');
   assert.doesNotMatch(page, /PropertyScheduledLeases/);
-  assert.match(page, /<PropertyOverview[\s\S]*?property=\{selectedProperty\}/);
+  assert.match(page, /<PropertyRecordsTabs[\s\S]*?property=\{selectedProperty\}/);
 });
 
 test('permission denial does not invite unauthorized creation or show a retry warning', () => {

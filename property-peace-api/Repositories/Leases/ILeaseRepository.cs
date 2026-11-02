@@ -23,6 +23,7 @@ namespace brownstone_hub_api.Repositories.Leases
         Task<List<LoadLeaseDto>> GetLeasesByLandlordId(long landlordId, bool isActive = true);
         Task<List<LoadLeaseDto>> GetLeasesByOrganizationId(long organizationId, bool isActive = true);
         Task<List<LoadLeaseDto>> GetLeasesByPropertyId(long propertyId, bool isActive = true, long? organizationId = null);
+        Task<List<LoadLeaseDto>> GetLeasesForCalendarAsync(long propertyId, DateTime startDate, DateTime endDate);
         Task<LoadLeaseDto> GetActiveLease(long propertyId, long? organizationId = null);
         Task<List<LoadLeaseDto>> GetLeasesByTenantUserId(long tenantUserId);
         Task<int> DeleteLeasesByPropertyId(long propertyId);

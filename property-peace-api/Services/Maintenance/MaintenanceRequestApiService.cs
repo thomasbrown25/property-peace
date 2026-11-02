@@ -425,7 +425,7 @@ public sealed partial class MaintenanceRequestApiService(
         request.ActivityEvents.Where(x => actor is null || (!actor.IsTenant && !actor.IsVendor) || x.Visibility == MaintenanceActivityVisibility.Participants)
             .OrderBy(x => x.Id).Select(x => new MaintenanceActivityEventDto(x.Id, x.EventType, x.SubjectType, x.SubjectId,
                 x.Visibility, x.Summary, x.OccurredAtUtc)).ToArray(),
-        AsUtc(request.CreatedAt), AsUtc(request.UpdatedAt),
+        request.Priority, AsUtc(request.CreatedAt), AsUtc(request.UpdatedAt),
         Math.Max(0, (timeProvider.GetUtcNow() - AsUtc(request.CreatedAt)).TotalHours),
         new MaintenanceSlaStatusDto(timeProvider.GetUtcNow(),
             request.AcknowledgeByUtc.HasValue && request.AcknowledgeByUtc.Value < timeProvider.GetUtcNow(),

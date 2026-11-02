@@ -1814,6 +1814,29 @@ namespace brownstone_hub_api.Repositories.Leases
             }
         }
 
+        // Fetch only leases overlapping the displayed window; avoid images, agreements and fee graphs.
+        public Task<List<LoadLeaseDto>> GetLeasesForCalendarAsync(long propertyId, DateTime startDate, DateTime endDate) =>
+            _context.Leases.AsNoTracking()
+                .Where(l => l.Unit.PropertyId == propertyId && !l.IsDeleted && !l.Unit.Property.IsDeleted &&
+                    (!l.EndDate.HasValue || l.EndDate >= startDate) &&
+                    (!l.StartDate.HasValue || l.StartDate <= endDate))
+                .Select(l => new LoadLeaseDto
+                {
+                    Id = l.Id,
+                    PropertyId = l.Unit.PropertyId,
+                    UnitId = l.UnitId,
+                    StartDate = l.StartDate,
+                    EndDate = l.EndDate,
+                    IsActive = l.IsActive,
+                    RentAmount = l.RentAmount,
+                    RentDueDay = l.RentDueDay,
+                    Tenants = l.TenantLeases.Select(tl => new LoadTenantDto
+                    {
+                        Firstname = tl.Tenant.Firstname,
+                        Lastname = tl.Tenant.Lastname
+                    }).ToList()
+                }).ToListAsync();
+
         public async Task<List<LoadLeaseDto>> GetLeasesByPropertyId(long propertyId, bool isActive = true, long? organizationId = null)
         {
             try

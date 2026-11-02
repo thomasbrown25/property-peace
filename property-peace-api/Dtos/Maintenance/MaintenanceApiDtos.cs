@@ -45,6 +45,7 @@ public sealed record MaintenanceRequestDetailDto(
     IReadOnlyList<MaintenanceCompletionDto> Completions,
     IReadOnlyList<MaintenanceAttachmentDto> Attachments,
     IReadOnlyList<MaintenanceActivityEventDto> Activities,
+    EMaintenancePriority Priority,
     DateTimeOffset CreatedAtUtc,
     DateTimeOffset UpdatedAtUtc,
     double AgeHours,
