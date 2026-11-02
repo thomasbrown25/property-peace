@@ -1,3 +1,4 @@
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 import { useState, useEffect, useMemo } from 'react';
 import PropTypes from 'prop-types';
 
@@ -144,8 +145,7 @@ export default function PaymentEntryForm({ lease, paymentData, onPaymentDataChan
   // Format property display
   const propertyDisplay = useMemo(() => {
     if (!lease) return null;
-    const isSingleFamily = lease.unit?.property?.propertyType?.toLowerCase() === 'singlefamily' ||
-                          lease.propertyType?.toLowerCase() === 'singlefamily';
+    const isSingleFamily = isDetachedSingleUnitType(lease.unit?.property?.propertyType || lease.propertyType);
     if (isSingleFamily) {
       return lease.propertyName || lease.unit?.property?.name;
     }

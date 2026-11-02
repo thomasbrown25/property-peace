@@ -42,7 +42,9 @@ export function getOwnerNextStep({ reminders = [], properties = [], propertiesLo
     return {
       title: reminder.title,
       label: 'Scheduled for today',
-      href: reminder.type === 'maintenance' ? '/landlord/maintenances' : '/landlord/dashboard?tab=tasks'
+      href: reminder.type === 'rent' && reminder.leaseId != null && reminder.leaseId !== ''
+        ? `/landlord/leases/${encodeURIComponent(reminder.leaseId)}`
+        : reminder.type === 'maintenance' ? '/landlord/maintenances' : '/landlord/dashboard?tab=tasks'
     };
   }
   if (propertiesLoading || propertiesError) return null;

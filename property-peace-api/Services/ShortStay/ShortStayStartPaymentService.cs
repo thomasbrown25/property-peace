@@ -81,6 +81,11 @@ public sealed class ShortStayStartPaymentService(DataContext db, IHttpContextAcc
                     u.Property.Organization!.IsActive && !u.Property.Organization.IsDeleted &&
                     db.ShortStayListings.Any(l => l.UnitId == u.Id && l.Status == ShortStayListingStatus.Published), ct);
             if (unit is null) return new(409, Reason: "listing_unavailable");
+            // Approval-required listings cannot take payment until the approval workflow exists.
+            // Do not let a future booking-gate toggle silently auto-confirm these reservations.
+            if (!await db.ShortStayListings.AsNoTracking().AnyAsync(l => l.UnitId == r.UnitId &&
+                l.BookingAcceptancePreference == ShortStayBookingAcceptancePreference.AutoConfirmAfterVerifiedPayment, ct))
+                return new(503, Reason: "owner_approval_not_available");
             if (guest == unit.Property.LandlordId || await db.OrganizationMembers.AnyAsync(m => m.OrganizationId == r.OrganizationId && m.UserId == guest && m.IsActive, ct))
                 return new(403, Reason: "self_booking_prohibited");
             if (unit.Property.LandlordId != r.PayeeUserId) return new(503, Reason: "payee_unavailable");

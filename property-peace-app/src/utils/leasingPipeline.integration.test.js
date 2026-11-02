@@ -16,15 +16,11 @@ test('pipeline hook is tenant-scoped, resource-scoped, fail-closed, and uses can
   assert.match(api, /\/api\/leasing-pipeline\/applications\/\$\{applicationId\}/);
 });
 
-test('all three real detail surfaces mount the reusable panel with direct resource identity', async () => {
-  const [property, overview, listing, applications] = await Promise.all([
-    source('../pages/landlord/property.jsx'),
-    source('../sections/landlord/property/PropertyOverview.jsx'),
+test('listing and application detail surfaces still mount the reusable leasing panel', async () => {
+  const [listing, applications] = await Promise.all([
     source('../pages/landlord/listing-detail.jsx'),
     source('../pages/landlord/applications.jsx')
   ]);
-  assert.match(property, /<PropertyLeasingPipeline[\s\S]*propertyId=[\s\S]*units=/);
-  assert.match(overview, /<PropertyLeasingPipeline[\s\S]*propertyId=[\s\S]*units=/);
   assert.match(listing, /<LeasingPipelinePanel resourceType="listing" resourceId=\{id\}/);
   assert.match(
     applications,
@@ -32,39 +28,38 @@ test('all three real detail surfaces mount the reusable panel with direct resour
   );
 });
 
-test('property page places leasing progress directly under the header overview on desktop and after the tenant summary on mobile', async () => {
-  const [property, overview] = await Promise.all([
-    source('../pages/landlord/property.jsx'),
-    source('../sections/landlord/property/PropertyOverview.jsx')
-  ]);
-  const headerIndex = property.indexOf('<PropertyHeader');
-  const desktopPipelineIndex = property.indexOf('<PropertyLeasingPipeline', headerIndex);
-  const overviewColumnsIndex = property.indexOf('<PropertyOverview', headerIndex);
-  const tenantIndex = overview.indexOf('<PropertyCurrentTenant');
-  const mobilePipelineIndex = overview.indexOf('{isMobile && (', tenantIndex);
-  const activeLeaseIndex = overview.indexOf('<PropertyActiveLease', tenantIndex);
-
-  assert.ok(headerIndex >= 0, 'property header overview should be mounted');
-  assert.ok(desktopPipelineIndex > headerIndex, 'desktop leasing progress should follow the header overview');
-  assert.ok(overviewColumnsIndex > desktopPipelineIndex, 'overview columns should follow desktop leasing progress');
-  assert.match(property.slice(desktopPipelineIndex - 100, desktopPipelineIndex), /display: \{ xs: 'none', sm: 'block' \}/);
-  assert.ok(tenantIndex >= 0 && mobilePipelineIndex > tenantIndex, 'mobile leasing progress should follow the tenant summary');
-  assert.match(overview.slice(mobilePipelineIndex, activeLeaseIndex), /<PropertyLeasingPipeline/);
-  assert.ok(activeLeaseIndex > mobilePipelineIndex, 'active lease should follow mobile leasing progress');
-});
-
-test('property create-listing action opens the standalone onboarding page', async () => {
-  const [property, overview, propertyPipeline, panel] = await Promise.all([
+test('property detail places tenant, lease, and actions in three columns above full-width activity', async () => {
+  const [property, overview, lease] = await Promise.all([
     source('../pages/landlord/property.jsx'),
     source('../sections/landlord/property/PropertyOverview.jsx'),
+    source('../sections/landlord/property/PropertyActiveLease.jsx')
+  ]);
+  assert.match(property, /<PropertyOverview[\s\S]*rentRecords=\{rentRecords\}/);
+  assert.doesNotMatch(property, /<PropertyActiveLease/);
+  assert.doesNotMatch(property, /<PropertyLeasingPipeline/);
+  const tenantIndex = overview.indexOf('<PropertyCurrentTenant');
+  const leaseIndex = overview.indexOf('<PropertyActiveLease');
+  const actionsIndex = overview.indexOf('<PropertyQuickActionsPanel');
+  const activityIndex = overview.indexOf('<PropertyStory');
+  assert.ok(tenantIndex > 0 && leaseIndex > tenantIndex && actionsIndex > leaseIndex && activityIndex > actionsIndex);
+  assert.match(overview, /longTermUnits\.length > 0 && \([\s\S]*<Grid size=\{\{ xs: 12, md: 4 \}\} sx=\{\{ '& > \.MuiCard-root': \{ height: '100%' \} \}\}>[\s\S]*<PropertyCurrentTenant/);
+  assert.match(overview, /longTermUnits\.length > 0 && \([\s\S]*<Grid size=\{\{ xs: 12, md: 4 \}\} sx=\{\{ '& > \.MuiCard-root': \{ height: '100%' \} \}\}>\s*<PropertyActiveLease property=\{leaseProperty\}/);
+  assert.match(overview, /<Grid size=\{\{ xs: 12, md: 4 \}\}>\s*<PropertyQuickActionsPanel/);
+  assert.match(overview, /<Grid size=\{12\}>\s*<PropertyStory/);
+  assert.doesNotMatch(overview, /PropertyMarketRent|PropertyLeasingPipeline/);
+  assert.match(lease, /No active lease on this property\./);
+  assert.match(lease, /justifyContent="space-between"[\s\S]*variant="contained"[\s\S]*bgcolor: '#061E35'[\s\S]*Create a lease/);
+});
+
+test('property page retains its listing onboarding drawer without rendering leasing progress', async () => {
+  const [property, propertyPipeline, panel] = await Promise.all([
+    source('../pages/landlord/property.jsx'),
     source('../components/leasing-pipeline/PropertyLeasingPipeline.jsx'),
     source('../components/leasing-pipeline/LeasingPipelinePanel.jsx')
   ]);
 
   assert.match(property, /import ListingAddWorkflowDrawer from 'components\/drawers\/ListingAddWorkflowDrawer'/);
-  assert.match(property, /<PropertyOverview[\s\S]*onCreateListing=\{\(\) => navigate\('\/landlord\/listings\/add'\)\}/);
-  assert.match(property, /<PropertyLeasingPipeline[\s\S]*onCreateListing=\{\(\) => navigate\('\/landlord\/listings\/add'\)\}/);
-  assert.match(overview, /<PropertyLeasingPipeline[\s\S]*onCreateListing=\{onCreateListing\}/);
+  assert.doesNotMatch(property, /<PropertyLeasingPipeline/);
   assert.match(propertyPipeline, /<LeasingPipelinePanel[\s\S]*onCreateListing=\{onCreateListing\}/);
   assert.match(panel, /pipeline\.primaryAction\?\.code === 'createListing'[\s\S]*onCreateListing\(\)/);
 });
@@ -190,7 +185,7 @@ test('pipeline hook exposes a stable fail-closed exact-key revalidation', async 
   assert.match(hook, /revalidate/);
 });
 
-test('lease detail wires authoritative signer status and labels only tracked completion', async () => {
+test('lease detail wires authoritative signer status and only requested checklist completion', async () => {
   const [leasePage, detail] = await Promise.all([
     source('../pages/landlord/lease.jsx'),
     source('../sections/landlord/leases/LeaseDetailView.jsx')
@@ -203,15 +198,24 @@ test('lease detail wires authoritative signer status and labels only tracked com
   assert.match(leasePage, /moveInReadiness=\{moveInReadiness\}/);
   assert.match(leasePage, /getChecklistsByLease\(leaseId\)/);
   assert.match(leasePage, /checklists: leaseChecklists/);
-  assert.match(detail, /const signatureAgreementAction = step\.key === 'signatures' && !complete/);
-  assert.match(detail, /onViewAgreement/);
-  assert.match(detail, /onClick=\{signatureAgreementAction\}/);
+  assert.match(detail, /agreement: \{ label: hasAgreement \? 'View agreement' : 'Build agreement'/);
+  assert.match(detail, /const cardAction = \(step\.key === 'checklist' \|\| step\.key === 'move-out'\)/);
+  assert.doesNotMatch(detail, /signatureAgreementAction/);
+  assert.match(detail, /action\?\.onClick && !\(step\.key === 'signatures' && complete\)/);
+  assert.match(detail, /onClick=\{cardAction\}/);
   assert.match(detail, /onKeyDown=\{\(event\) => \{/);
   assert.match(detail, /event\.stopPropagation\(\)/);
   assert.match(detail, /label: 'Open signatures', onClick: onOpenSignature/);
+  assert.match(leasePage, /onOpenSignature=\{handleOpenSignatures\}/);
+  assert.match(leasePage, /const handleOpenSignatures = async \(\) => \{/);
+  assert.match(leasePage, /await handleSignLandlord\(\)/);
+  assert.doesNotMatch(leasePage, /Enter your email address to receive a signing link/);
+  assert.doesNotMatch(leasePage, /setSendSignatureDialogOpen\(true\)/);
   assert.doesNotMatch(detail, /label: 'Keys'/);
-  assert.match(detail, /All tracked steps complete/);
-  assert.match(detail, /Tracked steps complete/);
+  assert.match(detail, /Lease checklist/);
+  assert.match(detail, /buildLeaseChecklistCards\(\{ readiness, lease, checklists \}\)/);
+  assert.match(leasePage, /leaseChecklists=\{leaseChecklists\}/);
+  assert.doesNotMatch(detail, /Setup in progress|Tracked steps complete/);
   assert.doesNotMatch(detail, /Move-in setup is ready/);
   assert.match(detail, /direction=\{\{ xs: 'column', sm: 'row' \}\}/);
 });

@@ -51,7 +51,7 @@ export function tenantDirectoryRoute() {
 
 export function renterProfileRoute(renterId) {
   const id = positiveId(renterId);
-  return id ? `/landlord/renters/${id}` : null;
+  return id ? `/landlord/tenants/${id}` : null;
 }
 
 export function applicationsForRenter(applications, renter) {

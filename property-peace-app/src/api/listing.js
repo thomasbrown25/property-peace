@@ -94,6 +94,10 @@ const listingApi = {
     const response = await axiosServices.put(`/api/listingimage/${id}/set-cover?listingId=${listingId}`);
     return response.data;
   },
+  reorderListingImages: async (listingId, imageIds) => {
+    const response = await axiosServices.put(`/api/listingimage/${listingId}/order`, { imageIds });
+    return response.data;
+  },
 };
 
 export default listingApi;

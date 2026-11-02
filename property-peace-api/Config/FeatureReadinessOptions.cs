@@ -35,10 +35,14 @@ public sealed class FeatureReadinessOptions
     public Dictionary<string, List<long>> PilotOrganizations { get; set; } =
         new(StringComparer.OrdinalIgnoreCase);
 
+    // E-signature is not a rollout switch. Operational provider and authorization
+    // checks still determine whether a request may invoke DocuSign.
     public FeatureReadinessState GetState(string feature) =>
-        Features.TryGetValue(feature, out var state) && Enum.IsDefined(state)
-            ? state
-            : FeatureReadinessState.Unavailable;
+        feature.Equals(FeatureKeys.ESignature, StringComparison.OrdinalIgnoreCase)
+            ? FeatureReadinessState.Available
+            : Features.TryGetValue(feature, out var state) && Enum.IsDefined(state)
+                ? state
+                : FeatureReadinessState.Unavailable;
 
     public bool IsPilotOrganization(string feature, long organizationId) =>
         PilotOrganizations.FirstOrDefault(entry =>

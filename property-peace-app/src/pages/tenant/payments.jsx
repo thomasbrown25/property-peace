@@ -1,3 +1,4 @@
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 
 // material-ui
@@ -113,7 +114,7 @@ function shouldShowLeaseUnitName(lease) {
     .replace(/[^a-z0-9]/g, '');
   const normalizedUnitName = String(unitName).toLowerCase().replace(/[^a-z0-9]/g, '');
 
-  return Boolean(unitName) && normalizedPropertyType !== 'singlefamily' && normalizedUnitName !== 'unit1';
+  return Boolean(unitName) && !isDetachedSingleUnitType(normalizedPropertyType) && normalizedUnitName !== 'unit1';
 }
 
 function LeaseListItem({ lease, selected, onClick }) {

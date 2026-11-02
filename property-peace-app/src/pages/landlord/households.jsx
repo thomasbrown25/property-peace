@@ -24,6 +24,7 @@ import TenantAddDrawer from 'components/drawers/TenantAddDrawer';
 import HouseholdCard from 'components/cards/HouseholdCard';
 import useFetchAllTenants from 'hooks/useFetchAllTenants';
 import { selectTenants } from 'store/tenant/tenant.selector';
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 
 export default function HouseholdsPage() {
   const drawer = useDrawer();
@@ -57,7 +58,7 @@ export default function HouseholdsPage() {
             name: t.propertyName,
             unitName: t.unitName,
             isActive: t.isActive,
-            isSingleUnitPortfolio: t.propertyType?.toLowerCase() === 'singlefamily'
+            isSingleUnitPortfolio: isDetachedSingleUnitType(t.propertyType)
           },
           tenants: [],
           createdAt: t.createdAt

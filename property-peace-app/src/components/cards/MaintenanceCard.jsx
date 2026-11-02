@@ -1,3 +1,4 @@
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 import PropTypes from 'prop-types';
 import { useState, useMemo } from 'react';
 
@@ -55,7 +56,7 @@ export default function MaintenanceCard({ request, onEdit, onDelete, onPreview, 
 
   const { id, title, propertyName, unitName, propertyType, status, priority, createdAt } = request ?? {};
 
-  const isMultiUnit = propertyType?.toLowerCase() !== 'singlefamily' && unitName;
+  const isMultiUnit = !isDetachedSingleUnitType(propertyType) && unitName;
 
   const createdText = useMemo(() => {
     if (!createdAt) return '—';

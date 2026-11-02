@@ -123,7 +123,7 @@ public sealed class ShortStayHoldTests
             f.Db.Units.Add(new Unit { Id = 10, PropertyId = 7, OrganizationId = 20, RentalMode = ERentalMode.ShortTerm });
             f.Db.OrganizationMembers.Add(new OrganizationMember { OrganizationId = 20, UserId = 42, Role = "Owner", IsActive = true, CanManageProperties = true });
             f.Db.BankAccounts.Add(new BankAccount { Id = 30, OrganizationId = 20, StripeAccountId = "acct_owned", IsActive = true });
-            f.Db.ShortStayListings.Add(new ShortStayListing { UnitId = 10, Status = ShortStayListingStatus.Published, NightlyBasePrice = 75m, CleaningFee = 15m, MinimumNights = 1, Capacity = 2, LodgingTaxRatePercent = 10, TaxPolicyAttestedAtUtc = Now.AddDays(-1).UtcDateTime, TaxPolicyAttestedByUserId = 42 });
+            f.Db.ShortStayListings.Add(new ShortStayListing { UnitId = 10, Status = ShortStayListingStatus.Published, BookingAcceptancePreference = ShortStayBookingAcceptancePreference.AutoConfirmAfterVerifiedPayment, NightlyBasePrice = 75m, CleaningFee = 15m, MinimumNights = 1, Capacity = 2, LodgingTaxRatePercent = 10, TaxPolicyAttestedAtUtc = Now.AddDays(-1).UtcDateTime, TaxPolicyAttestedByUserId = 42 });
             f.Db.ShortStayIcalSubscriptions.Add(new ShortStayIcalSubscription { UnitId = 10, OrgId = 20, Enabled = true, EncryptedUrl = "secret", UrlFingerprint = "fingerprint", LastSuccessAtUtc = Now.UtcDateTime });
             await f.Db.SaveChangesAsync();
             f.Http.User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, "5")], "test"));
@@ -161,6 +161,20 @@ public sealed class ShortStayHoldTests
         f.Http.Items["UserId"] = 42L;
         Assert.Equal(403, (await f.Payment().Start(hold.Code, default)).StatusCode);
         Assert.Equal(0, f.Gateway.Creates);
+    }
+    [Fact]
+    public async Task Manual_approval_preference_does_not_start_payment_or_create_provider_intent()
+    {
+        await using var f = await Fixture.Create();
+        var hold = (await f.Service().Create(10, new(Arrival, Arrival.AddDays(2), 2, "manual-approval"), default)).Hold!;
+        f.Db.ShortStayListings.Single().BookingAcceptancePreference = ShortStayBookingAcceptancePreference.RequireOwnerApproval;
+        await f.Db.SaveChangesAsync();
+        var result = await f.Payment().Start(hold.Code, default);
+        Assert.Equal(503, result.StatusCode);
+        Assert.Equal("owner_approval_not_available", result.Reason);
+        Assert.Equal(0, f.Gateway.Creates);
+        f.Db.ChangeTracker.Clear();
+        Assert.Equal(ShortStayReservationStatus.Held, (await f.Db.ShortStayReservations.SingleAsync()).Status);
     }
     [Fact]
     public async Task Payment_persists_pending_and_authorized_replay_recovers_secret()

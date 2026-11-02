@@ -133,6 +133,9 @@ public sealed class ShortStayCalendarService(DataContext db, IHttpContextAccesso
             if (await db.ShortStayOccupancyClaims.AnyAsync(c => c.UnitId == unitId &&
                 c.Date >= request.StartDate && c.Date < request.EndDate, token))
                 return Error<ShortStayBlockDto>("Block overlaps a held or confirmed night", 409);
+            if (await db.Set<ExtendedStayAgreement>().AnyAsync(a => a.UnitId == unitId &&
+                a.StartDate < request.EndDate && a.EndDate > request.StartDate, token))
+                return Error<ShortStayBlockDto>("Block overlaps an extended-stay agreement", 409);
             var block = new ShortStayBlock { UnitId = unitId, StartDate = request.StartDate, EndDate = request.EndDate, Reason = request.Reason };
             db.ShortStayBlocks.Add(block);
             // Save here to return the generated block id within the transaction.

@@ -31,9 +31,11 @@ public class ImageRepository<TEntity, TLoadDto, TAddDto> : IImageRepository<TEnt
 
     public async Task<List<TLoadDto>> GetImagesByRefId(long refId)
     {
-        var images = await _dbSet
-            .Where(x => x.RefId == refId)
-            .ToListAsync();
+        var query = _dbSet.Where(x => x.RefId == refId);
+        var images = typeof(TEntity) == typeof(brownstone_hub_api.Models.ListingImage)
+            ? await query.OrderByDescending(x => EF.Property<bool>(x, "IsCoverPhoto"))
+                .ThenBy(x => EF.Property<int>(x, "DisplayOrder")).ThenBy(x => x.Id).ToListAsync()
+            : await query.ToListAsync();
 
         return _mapper.Map<List<TLoadDto>>(images);
     }

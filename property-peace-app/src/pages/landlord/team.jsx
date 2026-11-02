@@ -14,7 +14,6 @@ import {
   Divider,
   FormControl,
   FormHelperText,
-  Grid,
   IconButton,
   InputAdornment,
   Menu,
@@ -37,14 +36,12 @@ import {
   MoreOutlined,
   PlusOutlined,
   ReloadOutlined,
-  SafetyCertificateOutlined,
   SearchOutlined,
-  TeamOutlined,
-  UserOutlined
+  TeamOutlined
 } from '@ant-design/icons';
 
 import ManagementPageHeader from 'components/headers/ManagementPageHeader';
-import { managementPageHeaderActionSx } from 'components/headers/managementPageHeaderStyles';
+import { creationActionSx } from 'components/headers/managementPageHeaderStyles';
 import CreateOrganizationDialog from 'components/organization/CreateOrganizationDialog';
 import useAuth from 'hooks/useAuth';
 import { openSnackbar } from 'api/snackbar';
@@ -128,46 +125,6 @@ function formatDate(value) {
 
 function roleDetail(role) {
   return ROLE_DETAILS[role] || ROLE_DETAILS.Viewer;
-}
-
-function SummaryCard({ label, value, helper, icon, color, active, onClick }) {
-  const theme = useTheme();
-  return (
-    <Box
-      component="button"
-      type="button"
-      onClick={onClick}
-      sx={{
-        width: '100%',
-        minHeight: 112,
-        p: 2,
-        borderRadius: 2.5,
-        textAlign: 'left',
-        cursor: 'pointer',
-        font: 'inherit',
-        color: 'text.primary',
-        bgcolor: active ? alpha(color, theme.palette.mode === 'dark' ? 0.13 : 0.055) : 'background.paper',
-        border: `1px solid ${active ? alpha(color, 0.52) : alpha(theme.palette.divider, 0.16)}`,
-        boxShadow: active ? `0 8px 24px ${alpha(color, 0.12)}` : `0 4px 18px ${alpha('#061e35', 0.05)}`,
-        transition: 'transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease',
-        '&:hover': { transform: 'translateY(-2px)', borderColor: alpha(color, 0.42), boxShadow: `0 10px 28px ${alpha(color, 0.12)}` },
-        '&:focus-visible': { outline: `3px solid ${alpha(color, 0.25)}`, outlineOffset: 2 }
-      }}
-    >
-      <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1.5}>
-        <Box>
-          <Typography
-            sx={{ fontSize: '0.7rem', fontWeight: 750, letterSpacing: 0.65, textTransform: 'uppercase', color: 'text.secondary' }}
-          >
-            {label}
-          </Typography>
-          <Typography sx={{ mt: 0.55, fontSize: '1.45rem', lineHeight: 1.15, fontWeight: 750 }}>{value}</Typography>
-          <Typography sx={{ mt: 0.55, fontSize: '0.75rem', color: 'text.secondary' }}>{helper}</Typography>
-        </Box>
-        <Avatar sx={{ width: 38, height: 38, bgcolor: alpha(color, 0.12), color }}>{icon}</Avatar>
-      </Stack>
-    </Box>
-  );
 }
 
 function RoleChip({ role }) {
@@ -640,8 +597,6 @@ export default function Team() {
       });
   }, [allPeople, roleFilter, search, status]);
 
-  const owners = normalizedMembers.filter((member) => member.role === 'Owner').length;
-  const managers = normalizedMembers.filter((member) => member.role === 'Manager').length;
   const filtered = Boolean(search || status !== 'all' || roleFilter !== 'all');
 
   const confirmAndRun = async (message, action, successMessage) => {
@@ -668,20 +623,19 @@ export default function Team() {
         actions={
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
             <Button
-              variant="outlined"
+              variant="contained"
               startIcon={<PlusOutlined />}
               onClick={() => setCreateOrganizationOpen(true)}
-              sx={managementPageHeaderActionSx}
+              sx={creationActionSx}
             >
               Create organization
             </Button>
             {canManage && (
               <Button
                 variant="contained"
-                color="success"
                 startIcon={<PlusOutlined />}
                 onClick={() => setInviteOpen(true)}
-                sx={managementPageHeaderActionSx}
+                sx={creationActionSx}
               >
                 Add team member
               </Button>
@@ -689,53 +643,6 @@ export default function Team() {
           </Stack>
         }
       />
-
-      <Grid container spacing={1.5} sx={{ mb: 2.5 }}>
-        <Grid size={{ xs: 6, lg: 3 }}>
-          <SummaryCard
-            label="Team members"
-            value={normalizedMembers.length}
-            helper="People with organization access"
-            icon={<TeamOutlined />}
-            color={theme.palette.success.main}
-            active={status === 'active'}
-            onClick={() => setStatus((value) => (value === 'active' ? 'all' : 'active'))}
-          />
-        </Grid>
-        <Grid size={{ xs: 6, lg: 3 }}>
-          <SummaryCard
-            label="Pending invites"
-            value={normalizedInvites.length}
-            helper="Waiting for acceptance"
-            icon={<MailOutlined />}
-            color={theme.palette.warning.main}
-            active={status === 'invited'}
-            onClick={() => setStatus((value) => (value === 'invited' ? 'all' : 'invited'))}
-          />
-        </Grid>
-        <Grid size={{ xs: 6, lg: 3 }}>
-          <SummaryCard
-            label="Managers"
-            value={managers}
-            helper="Day-to-day operations access"
-            icon={<SafetyCertificateOutlined />}
-            color={theme.palette.primary.main}
-            active={roleFilter === 'Manager'}
-            onClick={() => setRoleFilter((value) => (value === 'Manager' ? 'all' : 'Manager'))}
-          />
-        </Grid>
-        <Grid size={{ xs: 6, lg: 3 }}>
-          <SummaryCard
-            label="Owners"
-            value={owners}
-            helper="Full access and billing"
-            icon={<UserOutlined />}
-            color={theme.palette.secondary.main}
-            active={roleFilter === 'Owner'}
-            onClick={() => setRoleFilter((value) => (value === 'Owner' ? 'all' : 'Owner'))}
-          />
-        </Grid>
-      </Grid>
 
       {!canManage && !loading && (
         <Alert severity="info" sx={{ mb: 2 }}>

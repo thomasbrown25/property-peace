@@ -82,6 +82,8 @@ import { FEATURE_KEYS } from 'utils/featureReadiness';
 import { buildLeaseMoveInReadiness, deriveExactLeaseSigners, selectCurrentSignatureStatus, validateExactLeaseSigners } from 'utils/leaseMoveIn';
 import { normalizeRentBalance } from 'utils/rentBalance';
 import { leaseById } from 'utils/leaseById.mjs';
+import { buildChecklistWorkspacePath } from 'utils/checklistPortfolio';
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 
 // E-Signature Status Labels
 const SIGNATURE_STATUS_LABELS = {
@@ -822,7 +824,7 @@ export default function LeasePage() {
   const isSingleUnitType = useMemo(() => {
     const propertyType = property?.propertyType || lease?.propertyType || lease?.PropertyType || '';
     const normalizedType = propertyType?.toLowerCase() || '';
-    return ['singlefamily', 'townhouse', 'condominium'].includes(normalizedType);
+    return isDetachedSingleUnitType(normalizedType);
   }, [property?.propertyType, lease?.propertyType, lease?.PropertyType]);
 
   // Build the header display text
@@ -1206,36 +1208,39 @@ export default function LeasePage() {
     }
   };
 
-  const handleSignLandlord = async () => {
-    if (!eSignatureReadiness.canInvoke) return;
-    if (!lease?.id) return;
-    
-    if (!signatureForm.landlordEmail) {
-      openSnackbar({
-        open: true,
-        message: 'Please provide your email address',
-        variant: 'alert',
-        alert: { color: 'warning' }
-      });
+  const handleOpenSignatures = async () => {
+    if (!eSignatureReadiness.canInvoke || !lease?.id || sendingLeaseForSignature) return;
+    if (landlordHasSigned) {
+      openSnackbar({ open: true, message: 'You have already signed. Tenant signatures must be completed by tenants in their own accounts.', variant: 'alert', alert: { color: 'info' } });
       return;
     }
+    await handleSignLandlord();
+  };
+
+  const handleSignLandlord = async () => {
+    if (!eSignatureReadiness.canInvoke || !lease?.id) return;
+    if (!user?.email) {
+      openSnackbar({ open: true, message: 'Sign in with an email address to sign this lease.', variant: 'alert', alert: { color: 'error' } });
+      return;
+    }
+    setSendingLeaseForSignature(true);
+    setLandlordSigningUrl(null);
+    setEmbeddedSigningOpen(true);
 
     // Get landlord name from user object or use email as fallback
     const landlordName = user?.firstName && user?.lastName 
       ? `${user.firstName} ${user.lastName}`
-      : user?.email || signatureForm.landlordEmail;
+      : user.email;
 
     try {
       const response = await axiosServices.post(`/api/lease/${lease.id}/sign-landlord`, {
         leaseId: lease.id,
-        landlordEmail: signatureForm.landlordEmail,
+        landlordEmail: user.email,
         landlordName: landlordName,
-        tenantSigners: [], // Empty - landlord only
-        emailSubject: signatureForm.emailSubject || null,
-        emailMessage: signatureForm.emailMessage || null,
-        expirationDays: signatureForm.expirationDays,
+        tenantSigners: [],
+        expirationDays: 30,
         requireAllSigners: true,
-        useEmbeddedSigning: true // Request embedded signing for in-app experience
+        useEmbeddedSigning: true
       });
 
       if (response.data.success) {
@@ -1250,52 +1255,30 @@ export default function LeasePage() {
             variant: 'alert',
             alert: { color: 'success' }
           });
-        } else if (response.data.data?.signerUrls && signatureForm.landlordEmail) {
-          // Fallback to regular signing URL
-          const url = response.data.data.signerUrls[signatureForm.landlordEmail];
-          if (url) {
-            setLandlordSigningUrl(url);
-            window.open(url, '_blank');
-            openSnackbar({
-              open: true,
-              message: 'Signing link opened. Please sign the lease.',
-              variant: 'alert',
-              alert: { color: 'success' }
-            });
-          } else {
-            openSnackbar({
-              open: true,
-              message: 'Lease sent for your signature. Please check your email for the signing link.',
-              variant: 'alert',
-              alert: { color: 'success' }
-            });
-          }
         } else {
-          openSnackbar({
-            open: true,
-            message: 'Lease sent for your signature. Please check your email for the signing link.',
-            variant: 'alert',
-            alert: { color: 'success' }
-          });
+          setEmbeddedSigningOpen(false);
+          openSnackbar({ open: true, message: 'In-app signing is unavailable. No signing link was sent.', variant: 'alert', alert: { color: 'error' } });
         }
-        setSendSignatureDialogOpen(false);
-        // Don't reload immediately - wait for signing to complete
       } else {
+        setEmbeddedSigningOpen(false);
         openSnackbar({
           open: true,
-          message: response.data.message || 'Failed to send lease for signature',
+          message: response.data.message || 'Unable to open the signing session',
           variant: 'alert',
           alert: { color: 'error' }
         });
       }
     } catch (error) {
-      console.error('Error sending lease for landlord signature:', error);
+      setEmbeddedSigningOpen(false);
+      console.error('Error opening in-app landlord signature:', error);
       openSnackbar({
         open: true,
-        message: error?.response?.data?.message || 'Error sending lease for signature',
+        message: error?.response?.data?.message || error?.message || 'Unable to open the signing session',
         variant: 'alert',
         alert: { color: 'error' }
       });
+    } finally {
+      setSendingLeaseForSignature(false);
     }
   };
 
@@ -1667,6 +1650,7 @@ export default function LeasePage() {
         leaseDocuments={leaseDocuments}
         leaseAgreement={leaseAgreement}
         moveInReadiness={moveInReadiness}
+        leaseChecklists={leaseChecklists}
         eSignatureReadiness={eSignatureReadiness}
         handleEndLeaseClick={handleEndLeaseClick}
         handleReopenLeaseClick={handleReopenLeaseClick}
@@ -1675,26 +1659,17 @@ export default function LeasePage() {
         onViewAgreement={handleViewLeaseAgreement}
         onUploadDocument={() => setDocumentUploadDrawerOpen(true)}
         onEditTerms={() => { dispatch(setLease(lease)); drawer.openLeaseEditDrawer(); }}
-        onOpenSignature={() => setSendSignatureDialogOpen(true)}
-        onConfigureRent={() => {
-          if (!leaseId || !propertyId) {
-            navigate('/landlord/leases');
+        onOpenSignature={handleOpenSignatures}
+        onViewChecklists={(type = 'move-in') => {
+          const checklistType = type === 'move-out' ? 41 : 40;
+          const existing = leaseChecklists?.find((item) => String(item.leaseId ?? item.LeaseId) === String(leaseId) && Number(item.checklistType ?? item.ChecklistType) === checklistType);
+          if (existing) {
+            navigate(buildChecklistWorkspacePath(existing));
             return;
           }
-          const unitId = lease?.unit?.id ?? lease?.unit?.Id ?? lease?.unitId ?? lease?.UnitId;
-          const params = new URLSearchParams({ leaseId: String(leaseId), propertyId: String(propertyId) });
-          if (unitId) params.set('unitId', String(unitId));
-          navigate(`/landlord/leases/build-lease-agreement/rent-deposit-fees?${params.toString()}`);
+          const params = new URLSearchParams({ propertyId: String(propertyId) });
+          navigate(`/landlord/leases/${leaseId}/checklists/${type}/new?${params}`, { state: { propertyId } });
         }}
-        onCustomizeConditionReport={() => navigate('/landlord/customize-move-in-report', {
-          state: {
-            fromLeaseId: lease?.id ?? lease?.Id,
-            propertyName: propertyDisplay,
-            unitBedrooms: lease?.unit?.bedrooms ?? lease?.unit?.Bedrooms,
-            unitBaths: lease?.unit?.bathrooms ?? lease?.unit?.Bathrooms
-          }
-        })}
-        onViewChecklists={() => navigate('/landlord/checklists')}
         onAddTenant={() => {
           if (property) dispatch(setProperty(property));
           if (lease?.unit) dispatch(setUnit(lease.unit));
@@ -1768,7 +1743,7 @@ export default function LeasePage() {
             <Typography variant="body2" color="text.secondary">
               {landlordHasSigned
                 ? 'Review and confirm the tenant signers and expiration days. The system will automatically generate and send the email to tenants.'
-                : 'Enter your email address to receive a signing link. You must sign the lease before sending it to tenants.'}
+                : 'Your signature opens in this app; no emailed link is needed.'}
             </Typography>
 
             {!landlordHasSigned ? (

@@ -4,7 +4,9 @@ import {
   deriveExactLeaseSigners,
   selectCurrentSignatureStatus,
   validateExactLeaseSigners,
-  buildLeaseMoveInReadiness
+  buildLeaseMoveInReadiness,
+  buildLeaseChecklistCards,
+  sortLeaseChecklistSteps
 } from './leaseMoveIn.js';
 
 describe('selectCurrentSignatureStatus', () => {
@@ -56,6 +58,67 @@ describe('validateExactLeaseSigners', () => {
   });
 });
 
+describe('sortLeaseChecklistSteps', () => {
+  it('places completed cards on the left, keeping the relative order within both groups', () => {
+    const steps = [
+      { key: 'tenants', status: 'pending' },
+      { key: 'agreement', status: 'complete' },
+      { key: 'signatures', status: 'unavailable' },
+      { key: 'checklist', status: 'complete' },
+      { key: 'move-out', status: 'pending' }
+    ];
+    assert.deepEqual(sortLeaseChecklistSteps(steps).map((step) => step.key),
+      ['agreement', 'checklist', 'tenants', 'signatures', 'move-out']);
+    assert.deepEqual(steps.map((step) => step.key),
+      ['tenants', 'agreement', 'signatures', 'checklist', 'move-out']);
+  });
+});
+
+describe('buildLeaseChecklistCards', () => {
+  const now = new Date('2026-01-01T12:00:00');
+  const readiness = { steps: [
+    { key: 'tenants', status: 'complete', detail: '1 assigned' },
+    { key: 'agreement', status: 'complete', detail: 'Agreement on file' },
+    { key: 'signatures', status: 'pending', detail: 'Landlord signature required' },
+    { key: 'rent-deposit', status: 'pending' },
+    { key: 'condition-report', status: 'complete' },
+    { key: 'checklist', status: 'unavailable', detail: 'Checklist records unavailable' }
+  ] };
+  const lease = { id: 136, endDate: '2026-04-02' };
+
+  it('renders only the four requested cards and does not call unavailable evidence complete', () => {
+    const result = buildLeaseChecklistCards({ readiness, lease, now });
+    assert.deepEqual(result.steps.map((step) => step.label), [
+      'Tenants on lease', 'Lease agreement created', 'Lease agreement signed', 'Move-in checklist complete'
+    ]);
+    assert.equal(result.completed, 2);
+    assert.equal(result.totalTrackable, 4);
+    assert.equal(result.progress, 50);
+    assert.equal(result.steps[2].detail, 'Landlord signature required');
+  });
+
+  it('shows move-out starting on the 90-day alert date and uses only completed records for this lease', () => {
+    const atBoundary = { ...lease, endDate: '2026-04-01' };
+    const records = [
+      { id: 1, leaseId: 135, checklistType: 41, isCompleted: true },
+      { id: 2, leaseId: 136, checklistType: 40, isCompleted: true },
+      { id: 3, leaseId: 136, checklistType: 41, isCompleted: false }
+    ];
+    const result = buildLeaseChecklistCards({ readiness, lease: atBoundary, checklists: records, now });
+    assert.equal(result.steps.at(-1).label, 'Move-out checklist complete');
+    assert.equal(result.steps.at(-1).status, 'pending');
+    assert.equal(result.totalTrackable, 5);
+    assert.equal(buildLeaseChecklistCards({ readiness, lease: atBoundary, checklists: [...records, { id: 4, leaseId: 136, checklistType: 41, completedAt: '2026-03-31' }], now }).steps.at(-1).status, 'complete');
+  });
+
+  it('keeps move-out visible after expiration and unavailable when records fail to load', () => {
+    const result = buildLeaseChecklistCards({ readiness, lease: { ...lease, endDate: '2025-12-31' }, now });
+    assert.equal(result.steps.at(-1).status, 'unavailable');
+    assert.equal(result.totalTrackable, 5);
+    assert.equal(buildLeaseChecklistCards({ readiness, lease: { id: 136 }, checklists: [], now }).steps.length, 4);
+  });
+});
+
 describe('buildLeaseMoveInReadiness', () => {
   const completeInput = {
     lease: {
@@ -94,6 +157,15 @@ describe('buildLeaseMoveInReadiness', () => {
       tenants: [{ Id: 4, Firstname: 'Ada', Email: 'ada@example.com' }]
     });
     assert.equal(tenantUnsigned.steps.find((step) => step.key === 'signatures').status, 'pending');
+  });
+
+  it('identifies exactly which party still needs to sign', () => {
+    const unsigned = buildLeaseMoveInReadiness({ ...completeInput, lease: { ...completeInput.lease, LeaseAgreement: {} }, tenants: [{ Id: 4, Email: 'ada@example.com' }] });
+    assert.equal(unsigned.steps.find((step) => step.key === 'signatures').detail, 'Landlord and tenant signatures required');
+    const landlordOnly = buildLeaseMoveInReadiness({ ...completeInput, tenants: [{ Id: 4, Email: 'ada@example.com' }] });
+    assert.equal(landlordOnly.steps.find((step) => step.key === 'signatures').detail, 'Tenant signature required');
+    const tenantOnly = buildLeaseMoveInReadiness({ ...completeInput, lease: { ...completeInput.lease, LeaseAgreement: {} } });
+    assert.equal(tenantOnly.steps.find((step) => step.key === 'signatures').detail, 'Landlord signature required');
   });
 
   it('requires exact completed signer evidence before trusting an overall completed envelope', () => {

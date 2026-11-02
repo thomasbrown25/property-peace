@@ -1,3 +1,4 @@
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 import { Grid, Stack, Typography, Box, CardContent, useTheme, alpha, useMediaQuery } from '@mui/material';
 import { DollarOutlined, ToolOutlined, HomeOutlined } from '@ant-design/icons';
 import { parseDecimalToCurrency } from 'utils/formatters';
@@ -195,7 +196,7 @@ export default function PropertyMetrics({ property, rentRecords, maintenances })
     console.log('PropertyMetrics: Rent Due clicked', { propertyId: property.id, propertyType: property?.propertyType, totalUnits });
 
     // For single unit properties (single family homes), try to navigate to specific lease rent collection
-    const isSingleUnit = property?.propertyType?.toLowerCase() === 'singlefamily' || totalUnits === 1;
+    const isSingleUnit = isDetachedSingleUnitType(property?.propertyType) || totalUnits === 1;
     
     if (isSingleUnit) {
       // Check if there's a lease in the first unit

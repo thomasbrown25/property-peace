@@ -1,3 +1,4 @@
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 import { Box, Typography, Grid, Stack, TextField, Button, Chip, Paper, Divider, Tabs, Tab, IconButton, alpha } from '@mui/material';
 import {
   UserOutlined,
@@ -18,7 +19,7 @@ export default function RentCard({ rent, onSendReminder }) {
   const modal = useModal();
   const { rentDue, overdueAmount } = normalizeRentBalance(rent);
   const propertyDisplay =
-    rent.propertyType?.toLowerCase() === 'singlefamily' ? rent.propertyName : `${rent.propertyName} – ${rent.unitName}`;
+    isDetachedSingleUnitType(rent.propertyType) ? rent.propertyName : `${rent.propertyName} – ${rent.unitName}`;
 
   // Handle multiple tenants - join with commas
   const tenantsDisplay = () => {

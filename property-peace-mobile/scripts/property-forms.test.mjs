@@ -6,8 +6,14 @@ import { readFileSync } from 'node:fs';
 test('create property maps UI choices to backend DTO, trims address, and validates', () => {
   const draft = { ...emptyProperty(), name: ' Maple ', address: ' 1 Main ', city: ' Austin ', state: ' TX ', zipCode: ' 78701 ', propertyType: 'townhouse', yearBuilt: '1999' };
   assert.deepEqual(propertyErrors(draft), []);
-  assert.deepEqual(propertyPayload(draft), { name: 'Maple', streetAddress: '1 Main', city: 'Austin', state: 'TX', zipCode: '78701', propertyType: 'singleFamily', yearBuilt: 1999, rentalMode: 'LongTerm' });
-  assert.equal(propertyPayload({ ...draft, propertyType: 'apartmentBuilding' }).propertyType, 'multiUnit');
+  assert.deepEqual(propertyPayload(draft), { name: 'Maple', streetAddress: '1 Main', city: 'Austin', state: 'TX', zipCode: '78701', propertyType: 'townhouse', yearBuilt: 1999, rentalMode: 'LongTerm' });
+  for (const type of ['singleFamily', 'townhouse', 'condominium', 'multiUnit', 'smallMultiFamily', 'apartmentBuilding', 'other']) {
+    assert.equal(propertyPayload({ ...draft, propertyType: type }).propertyType, type);
+    assert.equal(prefillProperty({ propertyType: type.toUpperCase() }).propertyType, type);
+    assert.equal(propertyErrors({ ...draft, propertyType: type }).length, 0);
+  }
+  assert.equal(prefillProperty({ propertyType: '3' }).propertyType, 'condominium');
+  assert.ok(propertyErrors(prefillProperty({ propertyType: 'Unrecognized' })).some(error => /property type/i.test(error)));
   assert.ok(propertyErrors({ ...draft, address: '', yearBuilt: 'xx' }).length > 0);
 });
 test('edit prefills from API casing and preserves DTO fields rather than erasing them', () => {

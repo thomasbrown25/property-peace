@@ -18,6 +18,7 @@ const validPhone = (value) => Boolean(value && parsePhoneNumberFromString(value,
 export default function LandlordPersonalInfoStep({
   initialFirstName = '',
   initialLastName = '',
+  initialEmail = '',
   initialPhoneNumber = '',
   initialOrganizationName = '',
   googleProfile = false,
@@ -70,6 +71,11 @@ export default function LandlordPersonalInfoStep({
                     Google profile
                   </Typography>
                   <Typography fontWeight={600}>{[initialFirstName.trim(), initialLastName.trim()].filter(Boolean).join(' ')}</Typography>
+                  {initialEmail && (
+                    <Typography variant="body2" color="text.secondary">
+                      {initialEmail}
+                    </Typography>
+                  )}
                 </Box>
               )}
               {!googleHasName && nameFields.length > 0 && (
@@ -174,6 +180,7 @@ export default function LandlordPersonalInfoStep({
 LandlordPersonalInfoStep.propTypes = {
   initialFirstName: PropTypes.string,
   initialLastName: PropTypes.string,
+  initialEmail: PropTypes.string,
   initialPhoneNumber: PropTypes.string,
   initialOrganizationName: PropTypes.string,
   googleProfile: PropTypes.bool,

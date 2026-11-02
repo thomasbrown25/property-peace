@@ -4,20 +4,22 @@ import { landlordPrimaryLinks, activeLandlordPrimaryLink } from './landlordPrima
 
 test('owner header presents four working destinations in reference order', () => {
   assert.deepEqual(landlordPrimaryLinks, [
-    { label: 'Today', to: '/landlord/dashboard' },
+    { label: 'Dashboard', to: '/landlord/dashboard' },
     { label: 'Calendar', to: '/landlord/calendar' },
     { label: 'Listings', to: '/landlord/listings' },
-    { label: 'Properties', to: '/landlord/properties' }
+    { label: 'Bookings', to: '/landlord/bookings' }
   ]);
 });
 
 test('selects only the current workspace, including nested listings and property details', () => {
-  assert.equal(activeLandlordPrimaryLink('/landlord/dashboard', ''), 'Today');
-  assert.equal(activeLandlordPrimaryLink('/landlord/dashboard', '?tab=overview'), 'Today');
+  assert.equal(activeLandlordPrimaryLink('/landlord/dashboard', ''), 'Dashboard');
+  assert.equal(activeLandlordPrimaryLink('/landlord/dashboard', '?tab=overview'), 'Dashboard');
   assert.equal(activeLandlordPrimaryLink('/landlord/calendar', ''), 'Calendar');
   assert.equal(activeLandlordPrimaryLink('/landlord/dashboard', '?tab=calendar'), 'Calendar');
   assert.equal(activeLandlordPrimaryLink('/landlord/dashboard', '?tab=tasks'), null);
   assert.equal(activeLandlordPrimaryLink('/landlord/listings/123', ''), 'Listings');
-  assert.equal(activeLandlordPrimaryLink('/landlord/properties/123', ''), 'Properties');
+  assert.equal(activeLandlordPrimaryLink('/landlord/bookings', ''), 'Bookings');
+  assert.equal(activeLandlordPrimaryLink('/landlord/bookings/123', ''), 'Bookings');
+  assert.equal(activeLandlordPrimaryLink('/landlord/properties/123', ''), null);
   assert.equal(activeLandlordPrimaryLink('/landlord/settings', ''), null);
 });

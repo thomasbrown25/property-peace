@@ -154,6 +154,33 @@ public class FeatureReadinessServiceTests
         result.CanInvoke.Should().BeFalse();
     }
 
+    [Theory]
+    [InlineData(FeatureReadinessState.Unavailable)]
+    [InlineData(FeatureReadinessState.ConfigurationRequired)]
+    [InlineData(FeatureReadinessState.Pilot)]
+    [InlineData(FeatureReadinessState.Suspended)]
+    public async Task ESignature_IgnoresLegacyRolloutState_WhenProviderAndOrganizationAreReady(FeatureReadinessState legacyState)
+    {
+        var service = CreateService(
+            legacyState,
+            organizationId: 17,
+            feature: FeatureKeys.ESignature,
+            providerSettings: new Dictionary<string, string?>
+            {
+                ["DocuSign:IntegrationKey"] = "integration",
+                ["DocuSign:UserId"] = "user",
+                ["DocuSign:AccountId"] = "account",
+                ["DocuSign:PrivateKeyContent"] = "test-private-key-material"
+            });
+
+        var result = await service.GetAsync(42, 17, FeatureKeys.ESignature);
+
+        result.State.Should().Be(FeatureReadinessState.Available);
+        result.GlobalGateEnabled.Should().BeTrue();
+        result.ProviderConfigured.Should().BeTrue();
+        result.CanInvoke.Should().BeTrue();
+    }
+
     [Fact]
     public async Task ESignature_DeniesConfiguration_WhenPrivateKeyPathDoesNotExist()
     {

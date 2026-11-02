@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 using brownstone_hub_api.Models;
 
 namespace brownstone_hub_api.Dtos.ShortStay;
@@ -6,6 +7,8 @@ namespace brownstone_hub_api.Dtos.ShortStay;
 // Persistence-facing draft contract only; no guest/booking endpoint is exposed.
 public sealed class ShortStayListingDraftDto
 {
+    [JsonConverter(typeof(JsonStringEnumConverter<ShortStayBookingAcceptancePreference>))]
+    public ShortStayBookingAcceptancePreference BookingAcceptancePreference { get; set; } = ShortStayBookingAcceptancePreference.RequireOwnerApproval;
     [Range(1, long.MaxValue)]
     public long UnitId { get; set; }
     [Range(typeof(decimal), "0.01", "9999999999999999.99")]

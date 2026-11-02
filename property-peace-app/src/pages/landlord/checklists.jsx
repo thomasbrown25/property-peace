@@ -32,7 +32,7 @@ import {
   RightOutlined,
   SearchOutlined
 } from '@ant-design/icons';
-import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import { Link as RouterLink, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { addChecklist, getChecklistsByLandlord, getChecklistsByLease } from 'api/checklist';
 import { findLinkedChecklist, getLeaseOptions, leaseDates, suggestLeaseId } from 'utils/checklistLeaseOptions.mjs';
@@ -78,6 +78,10 @@ const limitedFloorOptions = createFilterOptions({ limit: 5 });
 
 export default function ChecklistsPage() {
   const navigate = useNavigate();
+  const { leaseId: contextLeaseId, createType: routeCreateType } = useParams();
+  const [searchParams] = useSearchParams();
+  const standalone = Boolean(contextLeaseId);
+  const contextPropertyId = searchParams.get('propertyId');
   const theme = useTheme();
   const { user, isInitialized } = useAuth();
   const { properties, isLoading: propertiesLoading } = useFetchProperties();
@@ -91,8 +95,8 @@ export default function ChecklistsPage() {
   const [type, setType] = useState('all');
   const [status, setStatus] = useState('all');
   const [sort, setSort] = useState({ key: 'created', direction: 'desc' });
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const [createType, setCreateType] = useState('');
+  const [pickerOpen, setPickerOpen] = useState(standalone);
+  const [createType, setCreateType] = useState(standalone && ['move-in', 'move-out'].includes(routeCreateType) ? routeCreateType : '');
   const [floorCount, setFloorCount] = useState(null);
   const [floorPlan, setFloorPlan] = useState([]);
   const [roomNameOverrides, setRoomNameOverrides] = useState({});
@@ -116,6 +120,10 @@ export default function ChecklistsPage() {
     () => (properties || []).map((property) => ({ ...property, label: getPropertyLabel(property) })),
     [properties]
   );
+  useEffect(() => {
+    if (!standalone || !contextPropertyId || propertiesLoading) return;
+    setSelectedProperty(propertyOptions.find((property) => String(property.id) === String(contextPropertyId)) || null);
+  }, [standalone, contextPropertyId, propertiesLoading, propertyOptions]);
   const needsUnit = isMultiUnitProperty(selectedProperty);
   const unitOptions = useMemo(() => units.map((unit) => ({ ...unit, label: unit.name || `Unit ${unit.id}` })), [units]);
 
@@ -206,9 +214,24 @@ export default function ChecklistsPage() {
   }, [pickerOpen, selectedProperty?.id, leaseRetry]);
 
   const leaseOptions = useMemo(() => getLeaseOptions(leases, needsUnit ? selectedUnit?.id : null), [leases, needsUnit, selectedUnit?.id]);
+  const contextLease = standalone ? leases.find((lease) => String(lease.id) === String(contextLeaseId)) : null;
+  const contextUnitId = contextLease?.unitId ?? contextLease?.UnitId;
+  useEffect(() => {
+    if (!standalone || leasesLoading || !contextLease || (needsUnit && (unitsLoading || !units.length))) return;
+    if (needsUnit) {
+      const matchingUnit = unitOptions.find((unit) => String(unit.id) === String(contextUnitId));
+      if (!matchingUnit) return;
+      if (String(selectedUnit?.id) !== String(matchingUnit.id)) {
+        setSelectedUnit(matchingUnit);
+        return;
+      }
+    }
+    setSelectedLeaseId(contextLease.id);
+    setLeaseDecision('linked');
+  }, [standalone, leasesLoading, contextLease, needsUnit, unitsLoading, units, unitOptions, contextUnitId, selectedUnit?.id]);
   const suggestedLeaseId = useMemo(() => suggestLeaseId(leaseOptions, checklists, createType), [leaseOptions, checklists, createType]);
   const shownLeaseId = leaseDecision === 'unanswered' ? suggestedLeaseId : selectedLeaseId;
-  const shownLease = leaseOptions.find(({ lease }) => String(lease.id) === String(shownLeaseId))?.lease;
+  const shownLease = standalone ? contextLease : leaseOptions.find(({ lease }) => String(lease.id) === String(shownLeaseId))?.lease;
   const leaseContextReady = Boolean(selectedProperty && (!needsUnit || selectedUnit));
 
   const handleLeaseSelection = async (leaseId) => {
@@ -285,7 +308,7 @@ export default function ChecklistsPage() {
   };
 
   const createChecklist = async () => {
-    if (!createType || !selectedProperty || (needsUnit && !selectedUnit) || !isValidFloorPlan(floorCount, floorPlan) || !visibleRoomNames.length || !validRoomNames || creating || leasesLoading || leasesError || checklistsLoading || checklistsError || leaseChecking || (leaseOptions.length > 0 && leaseDecision === 'unanswered')) return;
+    if (!createType || !selectedProperty || (needsUnit && !selectedUnit) || (standalone && (!contextLease || String(selectedLeaseId) !== String(contextLeaseId) || leaseDecision !== 'linked')) || !isValidFloorPlan(floorCount, floorPlan) || !visibleRoomNames.length || !validRoomNames || creating || leasesLoading || leasesError || checklistsLoading || checklistsError || leaseChecking || (!standalone && leaseOptions.length > 0 && leaseDecision === 'unanswered')) return;
     setCreating(true);
     setCreateError('');
     try {
@@ -343,8 +366,13 @@ export default function ChecklistsPage() {
     }
   };
 
+  const CreationContainer = standalone ? Box : ThemeAdaptiveDrawer;
+  const leaveCreation = () => standalone ? navigate(`/landlord/leases/${contextLeaseId}`) : closeCreateDrawer();
+
   return (
     <Box sx={{ pb: 3 }}>
+      {!standalone && (
+        <>
       <Box sx={{ display: { xs: 'none', md: 'block' } }}>
         <PageBreadcrumbs items={[{ label: 'Dashboard', path: '/landlord/dashboard' }, { label: 'Checklists' }]} />
       </Box>
@@ -366,10 +394,9 @@ export default function ChecklistsPage() {
         </Box>
         <Button
           variant="contained"
-          color="success"
           startIcon={<PlusOutlined />}
           onClick={() => setPickerOpen(true)}
-          sx={{ alignSelf: { xs: 'flex-start', sm: 'center' }, textTransform: 'none', fontWeight: 700, boxShadow: 'none' }}
+          sx={{ alignSelf: { xs: 'flex-start', sm: 'center' }, bgcolor: '#061e35', color: '#fff', '&:hover': { bgcolor: '#0b2f4f' }, textTransform: 'none', fontWeight: 700, boxShadow: 'none' }}
         >
           Create checklist
         </Button>
@@ -554,9 +581,8 @@ export default function ChecklistsPage() {
               ) : (
                 <Button
                   variant="contained"
-                  color="success"
                   onClick={() => setPickerOpen(true)}
-                  sx={{ textTransform: 'none', fontWeight: 700 }}
+                  sx={{ bgcolor: '#061e35', color: '#fff', '&:hover': { bgcolor: '#0b2f4f' }, textTransform: 'none', fontWeight: 700 }}
                 >
                   Create checklist
                 </Button>
@@ -682,22 +708,24 @@ export default function ChecklistsPage() {
           )}
         </Box>
       </Box>
+        </>
+      )}
 
-      <ThemeAdaptiveDrawer
-        anchor="right"
-        open={pickerOpen}
-        onClose={closeCreateDrawer}
-        PaperProps={{ sx: { width: { xs: '100%', sm: 480 }, bgcolor: 'background.paper', backgroundImage: 'none' } }}
+      <CreationContainer
+        {...(standalone ? { sx: { maxWidth: 800, mx: 'auto', bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: 2, overflow: 'hidden' } } : {
+          anchor: 'right', open: pickerOpen, onClose: closeCreateDrawer,
+          PaperProps: { sx: { width: { xs: '100%', sm: 480 }, bgcolor: 'background.paper', backgroundImage: 'none' } }
+        })}
       >
         <Stack sx={{ height: '100%' }}>
           <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ px: 3, py: 2.5, borderBottom: 1, borderColor: 'divider' }}>
             <Box>
               <Typography variant="h4" fontWeight={750}>Create checklist</Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                Choose the inspection type and the home it belongs to.
+                {standalone ? `For lease #${contextLeaseId} · ${selectedProperty ? getPropertyLabel(selectedProperty) : 'Loading home…'}` : 'Choose the inspection type and the home it belongs to.'}
               </Typography>
             </Box>
-            <IconButton aria-label="Close create checklist" onClick={closeCreateDrawer} disabled={creating}><CloseOutlined /></IconButton>
+            <IconButton aria-label="Close create checklist" onClick={leaveCreation} disabled={creating}><CloseOutlined /></IconButton>
           </Stack>
           <Stack spacing={2.25} sx={{ flex: 1, overflowY: 'auto', px: 3, py: 3 }}>
             <Autocomplete
@@ -706,6 +734,7 @@ export default function ChecklistsPage() {
               width="100%"
               value={checklistTypeOptions.find((option) => option.value === createType) || null}
               onChange={(_, option) => setCreateType(option?.value || '')}
+              disabled={standalone}
               isOptionEqualToValue={(option, value) => option.value === value.value}
               getOptionLabel={(option) => option?.label || ''}
               disablePortal={false}
@@ -720,7 +749,7 @@ export default function ChecklistsPage() {
                 isOptionEqualToValue={(option, value) => String(option.id) === String(value.id)}
                 getOptionLabel={(option) => option?.label || ''}
                 loading={propertiesLoading}
-                disabled={propertiesLoading}
+                disabled={propertiesLoading || standalone}
                 disablePortal={false}
                 renderOption={(props, option) => {
                   const { key, ...optionProps } = props;
@@ -759,7 +788,7 @@ export default function ChecklistsPage() {
                   isOptionEqualToValue={(option, value) => String(option.id) === String(value.id)}
                   getOptionLabel={(option) => option?.label || ''}
                   loading={unitsLoading}
-                  disabled={unitsLoading || unitOptions.length === 0}
+                  disabled={unitsLoading || unitOptions.length === 0 || standalone}
                   disablePortal={false}
                 />
                 {unitsLoading && (
@@ -777,6 +806,10 @@ export default function ChecklistsPage() {
                 )}
               </Stack>
             )}
+            {standalone && !contextPropertyId && <Alert severity="error">Property context is missing. Return to the lease and try again.</Alert>}
+            {standalone && contextPropertyId && !propertiesLoading && !selectedProperty && <Alert severity="error">This property is not available to your account.</Alert>}
+            {standalone && selectedProperty && !leasesLoading && !leasesError && !contextLease && <Alert severity="error">This lease does not belong to the selected property. Return to the lease and try again.</Alert>}
+            {standalone && contextLease && needsUnit && !unitsLoading && units.length > 0 && !unitOptions.some((unit) => String(unit.id) === String(contextUnitId)) && <Alert severity="error">The lease unit is not available for this property.</Alert>}
             {leaseContextReady && (
               <Stack spacing={0.9} component="section" aria-label="Checklist lease">
                 {leasesLoading || checklistsLoading ? (
@@ -784,7 +817,14 @@ export default function ChecklistsPage() {
                 ) : leasesError ? (
                   <Alert severity="error" action={<Button size="small" onClick={() => setLeaseRetry((value) => value + 1)}>Retry</Button>}>{leasesError}</Alert>
                 ) : checklistsError ? (
-                  <Alert severity="error">Could not check linked checklists. Refresh this page before creating.</Alert>
+                  <Alert severity="error" action={<Button size="small" onClick={loadChecklists}>Retry</Button>}>Could not check linked checklists. Retry before creating.</Alert>
+                ) : standalone ? (
+                  contextLease ? (
+                    <Stack spacing={0.35}>
+                      <Typography variant="subtitle2" fontWeight={700}>Lease #{contextLease.id}</Typography>
+                      <Typography variant="body2" color="text.secondary">{leaseDates(contextLease)}</Typography>
+                    </Stack>
+                  ) : <Alert severity="error">Lease not found for this property.</Alert>
                 ) : leaseOptions.length > 0 ? (
                   <>
                     <Typography variant="subtitle2" fontWeight={700}>
@@ -923,7 +963,7 @@ export default function ChecklistsPage() {
             {createError && <Alert severity="error">{createError}</Alert>}
           </Stack>
           <Stack direction="row" spacing={1} justifyContent="flex-end" sx={{ px: 3, py: 2.5, borderTop: 1, borderColor: 'divider' }}>
-            <Button onClick={closeCreateDrawer} disabled={creating} sx={{ textTransform: 'none' }}>
+            <Button onClick={leaveCreation} disabled={creating} sx={{ textTransform: 'none' }}>
               Cancel
             </Button>
             <Button
@@ -931,14 +971,14 @@ export default function ChecklistsPage() {
               color="success"
               startIcon={creating ? <CircularProgress size={16} color="inherit" /> : <PlusOutlined />}
               onClick={createChecklist}
-              disabled={creating || !createType || !selectedProperty || (needsUnit && (!selectedUnit || unitsLoading)) || leasesLoading || Boolean(leasesError) || checklistsLoading || Boolean(checklistsError) || leaseChecking || (leaseOptions.length > 0 && leaseDecision === 'unanswered') || (leaseDecision === 'linked' && !shownLease) || !isValidFloorPlan(floorCount, floorPlan) || !visibleRoomNames.length || !validRoomNames}
+              disabled={creating || !createType || !selectedProperty || (needsUnit && (!selectedUnit || unitsLoading)) || leasesLoading || Boolean(leasesError) || checklistsLoading || Boolean(checklistsError) || leaseChecking || (standalone && (!contextLease || leaseDecision !== 'linked' || String(selectedLeaseId) !== String(contextLeaseId))) || (!standalone && leaseOptions.length > 0 && leaseDecision === 'unanswered') || (leaseDecision === 'linked' && !shownLease) || !isValidFloorPlan(floorCount, floorPlan) || !visibleRoomNames.length || !validRoomNames}
               sx={{ textTransform: 'none', fontWeight: 700 }}
             >
               Create checklist
             </Button>
           </Stack>
         </Stack>
-      </ThemeAdaptiveDrawer>
+      </CreationContainer>
     </Box>
   );
 }

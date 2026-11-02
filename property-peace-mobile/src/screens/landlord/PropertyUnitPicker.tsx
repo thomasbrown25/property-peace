@@ -2,9 +2,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import PropertyAPI, { type Property, type Unit } from '../../api/propertyAPI';
 import { useAppTheme } from '../../theme/AppTheme';
+import { isMultiUnitProperty } from '../../features/properties/propertyType';
 
 const idOf = (item: Property | Unit) => item.id ?? item.Id;
-export const multiUnit = (property?: Property) => ['multiunit', 'multifamily'].includes(String(property?.propertyType ?? property?.PropertyType ?? '').toLowerCase());
+export const multiUnit = (property?: Property) => isMultiUnitProperty(property?.propertyType ?? property?.PropertyType);
 export function PropertyUnitPicker({ propertyId, unitId, onChange, disabled = false }: { propertyId: number | null; unitId: number | null; onChange: (propertyId: number | null, unitId: number | null, property?: Property) => void; disabled?: boolean }) {
   const { colors } = useAppTheme();
   const [properties, setProperties] = useState<Property[]>([]);

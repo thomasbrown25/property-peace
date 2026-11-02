@@ -67,3 +67,10 @@ test('property page uses scoped API responses and reserves neutral color for zer
   assert.match(page, /titleColor=\{openRepairs !== null && openRepairs > 0 \?/);
   assert.match(api, /propertyId=\$\{encodeURIComponent\(String\(propertyId\)\)\}/);
 });
+
+test('property detail reserves bottom-dock clearance for every tab and safe-area size', () => {
+  const page = readFileSync(new URL('../src/screens/landlord/PropertyDetailScreen.tsx', import.meta.url), 'utf8');
+  assert.match(page, /const insets = useSafeAreaInsets\(\)/);
+  assert.match(page, /contentContainerStyle=\{\[styles\.content, \{ paddingBottom: 72 \+ Math\.max\(insets\.bottom, 10\) \+ 30 \}\]\}/);
+  assert.match(page, /const darkStyles = StyleSheet\.create\(\{\s*\.\.\.lightStyles,/);
+});

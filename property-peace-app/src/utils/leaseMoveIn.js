@@ -68,6 +68,51 @@ const isChecklistComplete = (record) => {
   return Boolean(firstDefined(record?.completedAt, record?.CompletedAt, record?.isCompleted, record?.IsCompleted)) || status === 'completed' || status === 'complete';
 };
 
+// Keep the checklist's natural order within each status group without mutating its source.
+export function sortLeaseChecklistSteps(steps) {
+  return [
+    ...steps.filter((step) => step.status === 'complete'),
+    ...steps.filter((step) => step.status !== 'complete')
+  ];
+}
+
+export function buildLeaseChecklistCards({ readiness, lease = {}, checklists, now = new Date() } = {}) {
+  const requested = [
+    ['tenants', 'Tenants on lease'],
+    ['agreement', 'Lease agreement created'],
+    ['signatures', 'Lease agreement signed'],
+    ['checklist', 'Move-in checklist complete']
+  ];
+  const steps = requested.map(([key, label]) => ({
+    ...(readiness?.steps?.find((step) => step.key === key) ?? { status: 'unavailable', detail: 'Lease records unavailable' }),
+    key, label
+  }));
+  const endValue = firstDefined(lease?.endDate, lease?.EndDate);
+  const endDay = typeof endValue === 'string' ? endValue.slice(0, 10) : endValue instanceof Date ? endValue.toISOString().slice(0, 10) : '';
+  const validEndDay = /^\d{4}-\d{2}-\d{2}$/.test(endDay) && !Number.isNaN(Date.parse(endDay));
+  if (validEndDay) {
+    const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+    const daysUntilEnd = (Date.parse(`${endDay}T00:00:00Z`) - today) / 86400000;
+    // The first lease-expiration alert is scheduled for 90 days before the end date.
+    if (daysUntilEnd <= 90) {
+      const id = firstDefined(lease?.id, lease?.Id);
+      const complete = Array.isArray(checklists) && id != null && checklists.some((record) => {
+        const recordLeaseId = firstDefined(record?.leaseId, record?.LeaseId);
+        const type = firstDefined(record?.checklistType, record?.ChecklistType);
+        return recordLeaseId != null && String(recordLeaseId) === String(id) &&
+          (type === 41 || String(type).toLowerCase() === 'moveoutchecklist') && isChecklistComplete(record);
+      });
+      steps.push({
+        key: 'move-out', label: 'Move-out checklist complete',
+        status: complete ? 'complete' : Array.isArray(checklists) ? 'pending' : 'unavailable',
+        detail: complete ? 'Completed checklist on file' : Array.isArray(checklists) ? 'No completed checklist on file' : 'Checklist records unavailable'
+      });
+    }
+  }
+  const completed = steps.filter((step) => step.status === 'complete').length;
+  return { steps, completed, totalTrackable: steps.length, progress: completed / steps.length * 100, ready: completed === steps.length };
+}
+
 export function buildLeaseMoveInReadiness({
   lease = {},
   tenants = [],
@@ -172,7 +217,9 @@ export function buildLeaseMoveInReadiness({
       detail: allSignaturesComplete
         ? 'Landlord and every tenant signed'
         : envelopeNeedsSignerReview ? 'Completion recorded; verify current tenant signer set'
-          : currentTenants.length === 0 ? 'Requires assigned tenants' : landlordSigned ? 'Waiting for tenant signatures' : 'Landlord signature required'
+          : currentTenants.length === 0 ? 'Requires assigned tenants'
+            : !landlordSigned && !savedTenantEvidence ? 'Landlord and tenant signatures required'
+              : !landlordSigned ? 'Landlord signature required' : 'Tenant signature required'
     },
     {
       key: 'rent-deposit',

@@ -1,3 +1,4 @@
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 import { useState, useEffect, useMemo } from 'react';
 import {
   Box,
@@ -307,7 +308,7 @@ export default function ChecklistTab() {
       }
     }
     
-    return <Chip label="Active" color="primary" size="small" icon={<ClockCircleOutlined />} />;
+    return <Chip label="Active" color="success" size="small" icon={<ClockCircleOutlined />} />;
   };
 
   return (
@@ -778,7 +779,7 @@ export default function ChecklistTab() {
                   // Get property type from properties list to determine if multi-unit
                   const property = properties?.find(p => p.id === checklist.propertyId);
                   const propertyType = property?.propertyType;
-                  const isMultiUnit = propertyType?.toLowerCase() !== 'singlefamily' && !!unitName;
+                  const isMultiUnit = !isDetachedSingleUnitType(propertyType) && !!unitName;
 
                   return (
                     <TableRow

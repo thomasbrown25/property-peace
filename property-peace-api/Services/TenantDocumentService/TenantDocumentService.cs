@@ -77,7 +77,7 @@ namespace brownstone_hub_api.Services.TenantDocumentService
             DateTime? expirationDate,
             bool isRequired,
             long? leaseId,
-            bool isPrivate = false)
+            bool isPrivate = true)
         {
             try
             {
@@ -168,7 +168,7 @@ namespace brownstone_hub_api.Services.TenantDocumentService
             List<IFormFile> files,
             string? description,
             ETenantDocumentType documentType,
-            bool isPrivate = false)
+            bool isPrivate = true)
         {
             try
             {

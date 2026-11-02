@@ -68,6 +68,7 @@ export default function DeletePropertyModal({ open, onClose, propertyId, propert
         alert: { color: 'success' }
       });
       navigate('/landlord/properties');
+      handleClose();
     } catch (error) {
       openSnackbar({
         open: true,
@@ -77,7 +78,6 @@ export default function DeletePropertyModal({ open, onClose, propertyId, propert
       });
     } finally {
       setDeleting(false);
-      onClose();
     }
   };
 

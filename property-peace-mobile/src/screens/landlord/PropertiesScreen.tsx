@@ -19,6 +19,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { PropertiesStackParamList } from '../../navigation/types';
 import PropertyAPI, { Property } from '../../api/propertyAPI';
 import { filterPropertiesForList } from '../../features/properties/propertiesList';
+import { isMultiUnitProperty } from '../../features/properties/propertyType';
 import { useAppTheme } from '../../theme/AppTheme';
 
 
@@ -190,7 +191,7 @@ function PropertyRow({ property, onPress }: { property: Property; onPress: () =>
   const maintenanceText = summary.highMaint > 0
     ? `${summary.highMaint} high priority maintenance`
     : '';
-  const isMultiUnit = stringValue(property.propertyType, property.PropertyType).toLowerCase() === 'multiunit';
+  const isMultiUnit = isMultiUnitProperty(property.propertyType ?? property.PropertyType);
   const statusLabel = isMultiUnit
     ? summary.total === 0 ? 'No units yet'
       : summary.occupied === summary.total ? `Occupied ${summary.occupied}/${summary.total}`

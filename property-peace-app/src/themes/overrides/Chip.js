@@ -51,14 +51,12 @@ export default function Chip(theme) {
           '&.MuiChip-colorSecondary': getColor({ color: 'secondary', theme }),
           '&.MuiChip-colorError': getColor({ color: 'error', theme }),
           '&.MuiChip-colorInfo': getColor({ color: 'info', theme }),
-          '&.MuiChip-colorSuccess': {
-            ...getColor({ color: 'success', theme }),
-            color: theme.palette.common.black,
-            '& .MuiChip-icon': {
-              color: theme.palette.common.black
-            },
-            '& .MuiChip-deleteIcon': {
-              color: theme.palette.common.black
+          '&.MuiChip-colorSuccess': getColor({ color: 'success', theme }),
+          '&.MuiChip-filled.MuiChip-colorSuccess': {
+            backgroundColor: theme.palette.success.main,
+            color: theme.palette.common.white,
+            '& .MuiChip-icon, & .MuiChip-deleteIcon': {
+              color: theme.palette.common.white
             }
           },
           '&.MuiChip-colorWarning': getColor({ color: 'warning', theme })

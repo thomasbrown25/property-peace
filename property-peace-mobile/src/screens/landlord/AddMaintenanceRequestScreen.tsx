@@ -8,11 +8,12 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import PropertyAPI, { Property, Unit } from '../../api/propertyAPI';
 import MaintenanceAPI, { newIdempotencyKey, type LocalMedia } from '../../api/maintenanceAPI';
 import { useAppTheme } from '../../theme/AppTheme';
+import { isMultiUnitProperty } from '../../features/properties/propertyType';
 import MaintenanceAgentIntakeScreen from './MaintenanceAgentIntakeScreen';
 
 const idOf = (item: any) => Number(item?.id ?? item?.Id);
 const labelOf = (item: any) => String(item?.name ?? item?.Name ?? item?.streetAddress ?? item?.StreetAddress ?? 'Unnamed');
-const isMultiUnit = (item: Property) => String(item.propertyType ?? item.PropertyType ?? '').toLowerCase() === 'multiunit';
+const isMultiUnit = (item: Property) => isMultiUnitProperty(item.propertyType ?? item.PropertyType);
 
 export default function AddMaintenanceRequestScreen() {
   const [manual, setManual] = useState(false);

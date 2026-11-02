@@ -1,3 +1,4 @@
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -145,7 +146,7 @@ export default function PaymentAddWorkflow() {
   const isSingleFamilyProperty = useMemo(() => {
     if (!selectedProperty) return false;
     const propertyType = selectedProperty.propertyType?.toLowerCase();
-    return propertyType === 'singlefamily' || propertyType === 'single-family';
+    return isDetachedSingleUnitType(propertyType);
   }, [selectedProperty]);
 
   // Check if property is multi-unit

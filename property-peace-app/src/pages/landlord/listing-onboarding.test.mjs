@@ -19,6 +19,20 @@ test('Google address components populate editable confirmation fields', async ()
   assert.deepEqual(parsed, { streetAddress: '123 Main Street', unit: '', city: 'Austin', state: 'TX', zipCode: '78701', country: 'US' });
 });
 
+test('Google ZIP+4 details prefill only the five-digit ZIP in address confirmation', async () => {
+  const { parseListingAddress } = await import('./listing-address.mjs');
+  for (const postalCode of ['28205', '28205-6227']) {
+    for (const legacy of [false, true]) {
+      const valueKey = legacy ? 'long_name' : 'longText';
+      const parsed = parseListingAddress({ addressComponents: [
+        { types: ['postal_code'], [valueKey]: postalCode },
+        { types: ['postal_code_suffix'], [valueKey]: '6227' }
+      ] });
+      assert.equal(parsed.zipCode, '28205');
+    }
+  }
+});
+
 test('legacy Google details and subpremise are supported without fabricated values', async () => {
   const { parseListingAddress } = await import('./listing-address.mjs');
   assert.deepEqual(parseListingAddress({ addressComponents: [

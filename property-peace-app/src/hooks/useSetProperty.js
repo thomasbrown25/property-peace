@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { setLease } from 'store/lease/lease.action';
 import { setProperty, setPropertyIds } from 'store/property/property.action';
 import { selectProperties } from 'store/property/property.selector';
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 
 export default function useSetProperty(propertyId) {
   const dispatch = useDispatch();
@@ -15,7 +16,7 @@ export default function useSetProperty(propertyId) {
         dispatch(setProperty(found));
         dispatch(setPropertyIds([found.id]));
 
-        if (found?.propertyType === 'singleFamily' && found?.units?.length === 1) {
+        if (isDetachedSingleUnitType(found?.propertyType) && found?.units?.length === 1) {
           dispatch(setLease(found?.units[0]?.lease || {}));
         }
       }

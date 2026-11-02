@@ -1,3 +1,4 @@
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 // material-ui
 import {
   Box,
@@ -114,7 +115,7 @@ const LeaseOverviewCard = ({ lease, rentRecord, boxShadow }) => {
             <Typography variant="subtitle1" fontWeight="bold">
               {lease?.propertyName}
             </Typography>
-            {lease?.propertyType?.toLowerCase() !== 'singlefamily' && lease?.unitName && (
+            {!isDetachedSingleUnitType(lease?.propertyType) && lease?.unitName && (
               <Chip
                 label={lease.unitName}
                 variant="outlined"

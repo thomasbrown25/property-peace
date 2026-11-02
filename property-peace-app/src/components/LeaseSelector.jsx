@@ -1,3 +1,4 @@
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 import { useState, useEffect, useRef } from 'react';
 import { FormControl, Select, MenuItem, Box, Typography, CircularProgress, Stack } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
@@ -76,7 +77,7 @@ const LeaseSelector = ({ sx = {} }) => {
     const propertyType = (lease.propertyType || lease.PropertyType || lease.unit?.property?.propertyType || '')
       .toLowerCase()
       .replace(/[^a-z]/g, '');
-    return propertyType === 'singlefamily' || propertyType === 'singleunit';
+    return isDetachedSingleUnitType(propertyType);
   };
 
   // Format lease display: "Property Name - Unit Name" for multi-unit properties only

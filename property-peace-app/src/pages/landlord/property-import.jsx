@@ -25,6 +25,7 @@ import useCreateProperty from 'hooks/useCreateProperty';
 import useAuth from 'hooks/useAuth';
 import { useSubscriptionStatus } from 'hooks/useSubscription';
 import { addOrUpdateUnit } from 'store/unit/unit.action';
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 import { getProperties } from 'store/property/property.action';
 import { openSnackbar } from 'api/snackbar';
 import { geocodeAddress, fetchPropertyImageFromAddress, buildFullAddress } from 'utils/propertyImportAddress';
@@ -317,8 +318,7 @@ export default function PropertyImportPage() {
 
         const { propertyType, roomRentals, streetAddress, city, state, zipCode, beds, baths } = validation;
 
-        const isSingleFamilyType = ['singleFamily', 'townhouse', 'condominium'].includes(propertyType);
-        const backendPropertyType = isSingleFamilyType ? 'singleFamily' : 'multiUnit';
+        const backendPropertyType = propertyType;
 
         const remainingSlots = subscriptionStatus?.remainingUnitSlots ?? Infinity;
         if (remainingSlots !== null && remainingSlots <= 0) {
@@ -362,8 +362,14 @@ export default function PropertyImportPage() {
             continue;
           }
 
+          const seededId = (created.units || created.Units || [])[0]?.id ?? (created.units || created.Units || [])[0]?.Id;
+          if (isDetachedSingleUnitType(backendPropertyType) && !seededId) {
+            errors.push(`Row ${rowIndex}: Property created but its seeded unit was unavailable; review it before retrying`);
+            successCount++;
+            continue;
+          }
           const unitPayload = {
-            id: 0,
+            id: isDetachedSingleUnitType(backendPropertyType) ? seededId : 0,
             name: 'Unit 1',
             bedrooms: beds,
             baths,

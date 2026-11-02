@@ -56,6 +56,9 @@ public sealed class ShortStayQuoteService(DataContext db, IHttpContextAccessor c
                 o.StartDate < request.CheckOut && o.EndDate > request.CheckIn)
             .Select(o => new ShortStayOccupiedRange(o.StartDate, o.EndDate, "Airbnb")).ToListAsync(ct);
         owner.AddRange(imported);
+        owner.AddRange(await db.Set<ExtendedStayAgreement>().AsNoTracking().Where(a => a.UnitId == unitId &&
+            a.StartDate < request.CheckOut && a.EndDate > request.CheckIn)
+            .Select(a => new ShortStayOccupiedRange(a.StartDate, a.EndDate, "ExtendedStayAgreement")).ToListAsync(ct));
         var claims = await db.ShortStayOccupancyClaims.AsNoTracking()
             .Where(c => c.UnitId == unitId && c.Reservation.OrganizationId == orgId &&
                 c.Date >= request.CheckIn && c.Date < request.CheckOut)

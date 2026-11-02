@@ -4,7 +4,7 @@ import KeyboardArrowDown from '@mui/icons-material/KeyboardArrowDown';
 import { Button, Menu, MenuItem, Stack, Tooltip } from '@mui/material';
 
 import ManagementPageHeader from 'components/headers/ManagementPageHeader';
-import { managementPageHeaderActionSx } from 'components/headers/managementPageHeaderStyles';
+import { creationActionSx, managementPageHeaderActionSx } from 'components/headers/managementPageHeaderStyles';
 
 export default function FinancesHeader({ onAddExpense, onRecordPayment, exportState }) {
   const [anchorEl, setAnchorEl] = useState(null);
@@ -43,13 +43,12 @@ export default function FinancesHeader({ onAddExpense, onRecordPayment, exportSt
           </Tooltip>
           <Button
             variant="contained"
-            color="success"
             startIcon={<PlusOutlined />}
             endIcon={<KeyboardArrowDown />}
             aria-haspopup="menu"
             aria-expanded={addMenuOpen ? 'true' : undefined}
             onClick={(event) => setAnchorEl(event.currentTarget)}
-            sx={managementPageHeaderActionSx}
+            sx={creationActionSx}
           >
             Add
           </Button>

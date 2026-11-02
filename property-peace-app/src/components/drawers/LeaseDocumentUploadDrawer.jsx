@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Box,
   Button,
+  Checkbox,
   CircularProgress,
   Divider,
   FormControl,
@@ -10,8 +11,7 @@ import {
   IconButton,
   InputLabel,
   MenuItem,
-  Radio,
-  RadioGroup,
+
   Select,
   Stack,
   TextField,
@@ -41,7 +41,7 @@ export default function LeaseDocumentUploadDrawer({ open, onClose, leaseId, tena
   const [file, setFile] = useState(null);
   const [documentTitle, setDocumentTitle] = useState('');
   const [documentType, setDocumentType] = useState(DOCUMENT_TYPE_OPTIONS[0].value);
-  const [shareWithTenants, setShareWithTenants] = useState(true);
+  const [tenantVisible, setTenantVisible] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
 
@@ -49,7 +49,7 @@ export default function LeaseDocumentUploadDrawer({ open, onClose, leaseId, tena
     setFile(null);
     setDocumentTitle('');
     setDocumentType(DOCUMENT_TYPE_OPTIONS[0].value);
-    setShareWithTenants(true);
+    setTenantVisible(false);
     setDragActive(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
   }, []);
@@ -107,20 +107,18 @@ export default function LeaseDocumentUploadDrawer({ open, onClose, leaseId, tena
 
     setUploading(true);
     try {
-      const isPrivate = !shareWithTenants;
+      const isPrivate = !tenantVisible;
       const documentTypeApiValue = getDocumentTypeApiValue(documentType);
       const leaseIdNumber = Number.parseInt(leaseId, 10);
 
-      if (tenants.length === 0) {
+      if (!tenantVisible || tenants.length === 0) {
         await tenantDocumentAPI.uploadLeaseDocuments(leaseId, [file], {
           description: documentTitle.trim(),
           documentType: documentTypeApiValue,
           isPrivate
         });
       } else {
-        const tenantIds = shareWithTenants
-          ? tenants.map((tenant) => tenant.id || tenant.Id).filter(Boolean)
-          : [tenants[0].id || tenants[0].Id];
+        const tenantIds = tenants.map((tenant) => tenant.id || tenant.Id).filter(Boolean);
 
         for (const tenantId of tenantIds) {
           await tenantDocumentAPI.uploadTenantDocuments(tenantId, [file], {
@@ -158,7 +156,7 @@ export default function LeaseDocumentUploadDrawer({ open, onClose, leaseId, tena
     }
   };
 
-  const hasTenants = tenants.length > 0;
+
   const dropBorder = dragActive ? theme.palette.primary.main : alpha(theme.palette.primary.main, 0.5);
 
   return (
@@ -305,17 +303,9 @@ export default function LeaseDocumentUploadDrawer({ open, onClose, leaseId, tena
             Tenant access
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-            {hasTenants
-              ? 'Choose whether tenants on this lease can view the document.'
-              : 'Choose whether future tenants added to this lease can view the document.'}
+            Check to make this document available to tenants on this lease. Unchecked documents stay landlord-only.
           </Typography>
-          <RadioGroup
-            value={shareWithTenants ? 'shared' : 'private'}
-            onChange={(event) => setShareWithTenants(event.target.value === 'shared')}
-          >
-            <FormControlLabel value="shared" control={<Radio />} label="Share with tenants" />
-            <FormControlLabel value="private" control={<Radio />} label="Keep private" />
-          </RadioGroup>
+          <FormControlLabel control={<Checkbox checked={tenantVisible} onChange={(event) => setTenantVisible(event.target.checked)} />} label="Tenant visible" />
         </FormControl>
       </Stack>
 

@@ -1,3 +1,5 @@
+import { isDetachedSingleUnitType } from 'utils/propertyType';
+import { visibleTenantDocuments } from './tenantDocumentVisibility.mjs';
 import { useState, useEffect, useMemo } from 'react';
 import {
   Box,
@@ -117,7 +119,7 @@ function getLeaseLabel(lease) {
   const propertyType = lease?.unit?.property?.propertyType || lease?.propertyType || lease?.PropertyType;
   const normalizedPropertyType = String(propertyType || '').toLowerCase().replace(/[^a-z0-9]/g, '');
   const normalizedUnitName = String(unit || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-  return normalizedPropertyType === 'singlefamily' || !unit || normalizedUnitName === 'unit1' ? property : `${property} · ${unit}`;
+  return isDetachedSingleUnitType(normalizedPropertyType) || !unit || normalizedUnitName === 'unit1' ? property : `${property} · ${unit}`;
 }
 
 function LeaseFilterItem({ lease, selected, mobile, onClick }) {
@@ -128,7 +130,7 @@ function LeaseFilterItem({ lease, selected, mobile, onClick }) {
   const propertyType = lease?.unit?.property?.propertyType || lease?.propertyType || lease?.PropertyType;
   const normalizedPropertyType = String(propertyType || '').toLowerCase().replace(/[^a-z0-9]/g, '');
   const normalizedUnitName = String(unitName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-  const showUnitName = unitName && normalizedPropertyType !== 'singlefamily' && normalizedUnitName !== 'unit1';
+  const showUnitName = unitName && !isDetachedSingleUnitType(normalizedPropertyType) && normalizedUnitName !== 'unit1';
 
   return (
     <Box
@@ -266,7 +268,7 @@ export default function TenantDocuments() {
       });
 
       const seenDocuments = new Set();
-      const allDocuments = [...tenantDocuments, ...leaseAgreements].filter((document) => {
+      const allDocuments = [...visibleTenantDocuments(tenantDocuments), ...leaseAgreements].filter((document) => {
         const documentId = document.id ?? document.Id;
         const identity = documentId ? `id-${documentId}` : `blob-${document.blobName ?? document.BlobName}`;
         if (seenDocuments.has(identity)) return false;
@@ -336,6 +338,7 @@ export default function TenantDocuments() {
         documentType: uploadForm.documentType,
         expirationDate: uploadForm.expirationDate ? uploadForm.expirationDate.toISOString() : null,
         isRequired: false,
+        isPrivate: false,
         leaseId: selectedLeaseId || null
       });
       if (response.success) {

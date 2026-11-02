@@ -404,7 +404,10 @@ public class AutoMapperProfile : Profile
                 .ThenBy(tenantLease => tenantLease.TenantId)
                 .Select(tenantLease => (tenantLease.Tenant.Firstname + " " + tenantLease.Tenant.Lastname).Trim())
                 .FirstOrDefault()))
-            .ForMember(dest => dest.IsSingleUnitProperty, opt => opt.MapFrom(src => src.Lease.Unit.Property.PropertyType == EPropertyType.SingleFamily));
+            .ForMember(dest => dest.IsSingleUnitProperty, opt => opt.MapFrom(src =>
+                src.Lease.Unit.Property.PropertyType == EPropertyType.SingleFamily ||
+                src.Lease.Unit.Property.PropertyType == EPropertyType.Townhouse ||
+                src.Lease.Unit.Property.PropertyType == EPropertyType.Condominium));
 
         // Notifications
         CreateMap<Notification, NotificationDto>();

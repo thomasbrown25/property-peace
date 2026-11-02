@@ -333,7 +333,7 @@ namespace brownstone_hub_api.Services.AIFollowUpService
                         var daysOverdue = (today - lastDueDate).Days;
 
                         // Determine if property is multi-unit
-                        var isMultiUnit = string.Equals(lease.PropertyType, "MultiUnit", StringComparison.OrdinalIgnoreCase);
+                        var isMultiUnit = PropertyTypeClassification.IsMultiUnit(lease.PropertyType);
 
                         return new Dictionary<string, object>
                         {
@@ -355,7 +355,7 @@ namespace brownstone_hub_api.Services.AIFollowUpService
 
                         // Determine if property is multi-unit
                         var tenantIsMultiUnit = !string.IsNullOrEmpty(tenant.PropertyType) && 
-                                                string.Equals(tenant.PropertyType, "MultiUnit", StringComparison.OrdinalIgnoreCase);
+                                                PropertyTypeClassification.IsMultiUnit(tenant.PropertyType);
 
                         return new Dictionary<string, object>
                         {
@@ -371,7 +371,7 @@ namespace brownstone_hub_api.Services.AIFollowUpService
                         if (leaseForSigning == null) return null;
 
                         // Determine if property is multi-unit
-                        var leaseSigningIsMultiUnit = string.Equals(leaseForSigning.PropertyType, "MultiUnit", StringComparison.OrdinalIgnoreCase);
+                        var leaseSigningIsMultiUnit = PropertyTypeClassification.IsMultiUnit(leaseForSigning.PropertyType);
 
                         return new Dictionary<string, object>
                         {
@@ -397,7 +397,7 @@ namespace brownstone_hub_api.Services.AIFollowUpService
                         var depositOwed = leaseForDeposit.DepositAmount - totalDepositsReceived;
 
                         // Determine if property is multi-unit
-                        var depositIsMultiUnit = string.Equals(leaseForDeposit.PropertyType, "MultiUnit", StringComparison.OrdinalIgnoreCase);
+                        var depositIsMultiUnit = PropertyTypeClassification.IsMultiUnit(leaseForDeposit.PropertyType);
 
                         return new Dictionary<string, object>
                         {

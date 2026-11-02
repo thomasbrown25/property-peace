@@ -1,3 +1,4 @@
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 import { useState, useEffect, useRef, useCallback, useMemo, Fragment } from 'react';
 import { formatCurrency } from 'utils/formatters';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -688,7 +689,7 @@ export default function Messages() {
         }
         const property = properties?.find((p) => p.id === tenant.propertyId);
         const propertyName = property?.name?.trim() || property?.streetAddress?.trim() || tenant.propertyName || 'Property';
-        const isMultiUnit = tenant.propertyType?.toLowerCase() !== 'singlefamily';
+        const isMultiUnit = !isDetachedSingleUnitType(tenant.propertyType);
         const conversationTitle = isMultiUnit && tenant.unitName ? `${propertyName} - ${tenant.unitName}` : propertyName;
         const conversationData = {
           Title: conversationTitle,
@@ -1154,7 +1155,6 @@ export default function Messages() {
             )}
             <Button
               variant="contained"
-              color="success"
               size="small"
               startIcon={<PlusOutlined />}
               onClick={() => {
@@ -1169,7 +1169,9 @@ export default function Messages() {
                 boxShadow: 'none',
                 minHeight: 34,
                 px: { xs: 1.25, sm: 1.5 },
-                color: '#061E35',
+                bgcolor: '#061e35',
+                color: '#fff',
+                '&:hover': { bgcolor: '#0b2f4f' },
                 fontSize: '0.8rem'
               }}
             >
@@ -1467,7 +1469,7 @@ export default function Messages() {
                       <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 360 }}>
                         Add your first tenant to start secure conversations and keep property context together.
                       </Typography>
-                      <Button variant="contained" onClick={() => drawer.openTenantAddDrawer()}>
+                      <Button variant="contained" onClick={() => drawer.openTenantAddDrawer()} sx={{ bgcolor: '#061e35', color: '#fff', '&:hover': { bgcolor: '#0b2f4f' } }}>
                         Add tenant
                       </Button>
                     </Stack>
@@ -1489,7 +1491,7 @@ export default function Messages() {
                           setTenantSearchQuery('');
                           dispatch(setSelectedConversation(null));
                         }}
-                        sx={{ textTransform: 'none' }}
+                        sx={{ textTransform: 'none', bgcolor: '#061e35', color: '#fff', '&:hover': { bgcolor: '#0b2f4f' } }}
                       >
                         Start a message
                       </Button>
@@ -1881,7 +1883,7 @@ export default function Messages() {
                                   <MenuItem
                                     onClick={() => {
                                       setActionMenuAnchor(null);
-                                      navigate(`/landlord/renters/${t.id}`);
+                                      navigate(`/landlord/tenants/${t.id}`);
                                     }}
                                   >
                                     <UserOutlined style={{ marginRight: 8 }} />
@@ -2435,7 +2437,7 @@ export default function Messages() {
                           setIsNewConversation(true);
                           setTenantSearchQuery('');
                         }}
-                        sx={{ mt: 0.5, textTransform: 'none' }}
+                        sx={{ mt: 0.5, textTransform: 'none', bgcolor: '#061e35', color: '#fff', '&:hover': { bgcolor: '#0b2f4f' } }}
                       >
                         New message
                       </Button>

@@ -45,7 +45,7 @@ import {
 import { format } from 'date-fns';
 
 import ManagementPageHeader from 'components/headers/ManagementPageHeader';
-import { managementPageHeaderActionSx } from 'components/headers/managementPageHeaderStyles';
+import { creationActionSx } from 'components/headers/managementPageHeaderStyles';
 import { announcementAPI } from 'api';
 import AnnouncementFilters from 'sections/announcements/AnnouncementFilters';
 import { formatDateAndTime } from 'utils/formatters';
@@ -481,10 +481,9 @@ export default function AnnouncementsPage() {
         actions={
           <Button
             variant="contained"
-            color="success"
             startIcon={<PlusOutlined />}
             onClick={() => navigate('/landlord/announcements/selection')}
-            sx={managementPageHeaderActionSx}
+            sx={creationActionSx}
           >
             New announcement
           </Button>
@@ -651,10 +650,9 @@ export default function AnnouncementsPage() {
             </Typography>
             <Button
               variant="contained"
-              color="success"
               startIcon={<PlusOutlined />}
               onClick={() => navigate('/landlord/announcements/selection')}
-              sx={{ textTransform: 'none' }}
+              sx={creationActionSx}
             >
               Create announcement
             </Button>

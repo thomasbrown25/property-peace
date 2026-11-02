@@ -1,3 +1,4 @@
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 import { useEffect, useState, useMemo } from 'react';
 import {
   Box,
@@ -282,13 +283,13 @@ export default function RentCollection() {
       switch (sortField) {
         case 'property': {
           const aDisplay =
-            a.propertyType?.toLowerCase() === 'singlefamily'
+            isDetachedSingleUnitType(a.propertyType)
               ? a.propertyName
               : a.unitName
                 ? `${a.propertyName} – ${a.unitName}`
                 : a.propertyName;
           const bDisplay =
-            b.propertyType?.toLowerCase() === 'singlefamily'
+            isDetachedSingleUnitType(b.propertyType)
               ? b.propertyName
               : b.unitName
                 ? `${b.propertyName} – ${b.unitName}`

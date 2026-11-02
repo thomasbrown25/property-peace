@@ -143,6 +143,9 @@ public sealed class ShortStayHoldService(DataContext db, IHttpContextAccessor co
                 .Select(s => new { s.LastSuccessAtUtc, s.ConsecutiveFailures, s.FailureCode, s.LastAttemptAtUtc }).ToListAsync(ct);
             occupied.AddRange(await db.ShortStayIcalOccurrences.AsNoTracking().Where(o => o.Subscription.UnitId == unitId && o.Subscription.OrgId == orgId && o.Subscription.Enabled &&
                 o.StartDate < request.CheckOut && o.EndDate > request.CheckIn).Select(o => new ShortStayOccupiedRange(o.StartDate, o.EndDate, "Airbnb")).ToListAsync(ct));
+            occupied.AddRange(await db.Set<ExtendedStayAgreement>().AsNoTracking().Where(a => a.UnitId == unitId &&
+                a.StartDate < request.CheckOut && a.EndDate > request.CheckIn)
+                .Select(a => new ShortStayOccupiedRange(a.StartDate, a.EndDate, "ExtendedStayAgreement")).ToListAsync(ct));
             var utc = now.UtcDateTime;
             var fresh = subscriptions.Count > 0 && subscriptions.All(s => s.LastSuccessAtUtc.HasValue && s.LastSuccessAtUtc <= utc &&
                 s.LastSuccessAtUtc >= utc.AddHours(-24) && s.ConsecutiveFailures == 0 && s.FailureCode == null &&

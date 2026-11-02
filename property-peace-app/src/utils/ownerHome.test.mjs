@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { getOwnerNextStep, getOwnerProperties, getPropertyMonthRent } from './ownerHome.js';
+import { buildTodayReminders } from './taskWorkspace.js';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const source = (path) => readFileSync(resolve(root, path), 'utf8');
@@ -13,6 +14,19 @@ test('next step uses actual today reminder, and never invents a booking action',
     title: 'Inspect water heater', label: 'Scheduled for today', href: '/landlord/maintenances'
   });
   assert.equal(getOwnerNextStep({ reminders: [], properties: [{ id: 'p1' }] }), null);
+});
+
+test('rent due Open targets the specific lease, with a safe fallback when its id is unavailable', () => {
+  assert.deepEqual(getOwnerNextStep({ reminders: [{ title: 'Rent due · Elm House', type: 'rent', leaseId: 'lease/30' }] }), {
+    title: 'Rent due · Elm House', label: 'Scheduled for today', href: '/landlord/leases/lease%2F30'
+  });
+  assert.equal(getOwnerNextStep({ reminders: [{ title: 'Rent due', type: 'rent' }] }).href, '/landlord/dashboard?tab=tasks');
+
+  const now = new Date(2026, 10, 1, 12);
+  const reminders = buildTodayReminders({ properties: [{ id: 1, name: '2325 W Arbors Dr', units: [
+    { id: 2, lease: { id: 42, isActive: true, startDate: '2026-01-01', endDate: '2027-01-01', rentDueDay: 1 } }
+  ] }] }, now);
+  assert.equal(getOwnerNextStep({ reminders }).href, '/landlord/leases/42');
 });
 
 test('empty, loading and failed property requests cannot claim the portfolio is empty', () => {

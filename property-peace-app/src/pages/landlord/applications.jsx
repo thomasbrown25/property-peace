@@ -130,48 +130,6 @@ const normalizeStatus = (status) => {
   return null;
 };
 
-function SummaryCard({ label, value, helper, icon, color, active, onClick }) {
-  const theme = useTheme();
-  return (
-    <Box
-      component="button"
-      type="button"
-      aria-pressed={active}
-      aria-label={`${label}: ${value}. Filter applications by this category.`}
-      onClick={onClick}
-      sx={{
-        width: '100%',
-        minHeight: 112,
-        p: 2,
-        borderRadius: 2.5,
-        border: `1px solid ${active ? alpha(color, 0.55) : alpha(theme.palette.divider, 0.16)}`,
-        bgcolor: active ? alpha(color, theme.palette.mode === 'dark' ? 0.12 : 0.055) : 'background.paper',
-        boxShadow: active ? `0 8px 24px ${alpha(color, 0.12)}` : `0 4px 18px ${alpha(NAVY, 0.05)}`,
-        color: 'text.primary',
-        textAlign: 'left',
-        cursor: 'pointer',
-        font: 'inherit',
-        transition: 'transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease',
-        '&:hover': { transform: 'translateY(-2px)', borderColor: alpha(color, 0.45), boxShadow: `0 10px 28px ${alpha(color, 0.12)}` },
-        '&:focus-visible': { outline: `3px solid ${alpha(color, 0.28)}`, outlineOffset: 2 }
-      }}
-    >
-      <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1.5}>
-        <Box>
-          <Typography
-            sx={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: 0.65, textTransform: 'uppercase', color: 'text.secondary' }}
-          >
-            {label}
-          </Typography>
-          <Typography sx={{ mt: 0.55, fontSize: '1.45rem', lineHeight: 1.15, fontWeight: 750 }}>{value}</Typography>
-          <Typography sx={{ mt: 0.55, fontSize: '0.75rem', color: 'text.secondary' }}>{helper}</Typography>
-        </Box>
-        <Avatar sx={{ width: 38, height: 38, bgcolor: alpha(color, 0.12), color }}>{icon}</Avatar>
-      </Stack>
-    </Box>
-  );
-}
-
 function ApplicationRow({ application, getStatusChip, onView, onStatus, onResend, onDelete }) {
   const theme = useTheme();
   const [anchorEl, setAnchorEl] = useState(null);
@@ -585,18 +543,6 @@ export default function ApplicationsPage({ hideHeader = false }) {
     drawer.openLeaseAddDrawer(handoff.applicationContext.unitId, handoff.property, handoff.applicationContext);
   }, [drawer, hasSuccessfulCurrentScope, scopedApplications, scopedProperties, selectedApplication]);
 
-  // Calculate overview stats
-  const overviewStats = useMemo(() => {
-    const total = scopedApplications.length;
-    const pending = scopedApplications.filter((a) => {
-      const status = normalizeStatus(a.status);
-      return status === 8 || status === 1 || status === 2; // Pending, Submitted, Under Review
-    }).length;
-    const approved = scopedApplications.filter((a) => normalizeStatus(a.status) === 3).length;
-    const rejected = scopedApplications.filter((a) => normalizeStatus(a.status) === 4).length;
-    return { total, pending, approved, rejected };
-  }, [scopedApplications]);
-
   // Handle view application
   const handleViewApplication = async (application) => {
     const applicationId = Number(application?.id ?? application?.Id);
@@ -971,53 +917,9 @@ export default function ApplicationsPage({ hideHeader = false }) {
         </Alert>
       )}
 
-      {/* Summary Cards */}
-      <Grid container spacing={1.5} sx={{ mb: 2.5 }}>
-        <Grid size={{ xs: 6, lg: 3 }}>
-          <SummaryCard
-            label="All applications"
-            value={overviewStats.total}
-            helper="Across the selected property"
-            icon={<FileTextOutlined />}
-            color={theme.palette.primary.main}
-            active={statusFilter === 'all'}
-            onClick={() => setStatusFilter('all')}
-          />
-        </Grid>
-        <Grid size={{ xs: 6, lg: 3 }}>
-          <SummaryCard
-            label="Needs review"
-            value={overviewStats.pending}
-            helper="Pending, submitted, or reviewing"
-            icon={<ClockCircleOutlined />}
-            color={theme.palette.warning.main}
-            active={statusFilter === 'review'}
-            onClick={() => setStatusFilter((value) => (value === 'review' ? 'all' : 'review'))}
-          />
-        </Grid>
-        <Grid size={{ xs: 6, lg: 3 }}>
-          <SummaryCard
-            label="Approved"
-            value={overviewStats.approved}
-            helper="Ready for the next leasing step"
-            icon={<CheckCircleOutlined />}
-            color={theme.palette.success.main}
-            active={statusFilter === '3'}
-            onClick={() => setStatusFilter((value) => (value === '3' ? 'all' : '3'))}
-          />
-        </Grid>
-        <Grid size={{ xs: 6, lg: 3 }}>
-          <SummaryCard
-            label="Rejected"
-            value={overviewStats.rejected}
-            helper="Applications not moving forward"
-            icon={<CloseCircleOutlined />}
-            color={theme.palette.error.main}
-            active={statusFilter === '4'}
-            onClick={() => setStatusFilter((value) => (value === '4' ? 'all' : '4'))}
-          />
-        </Grid>
-      </Grid>
+      <Typography sx={{ mb: 2.5, color: 'text.secondary', maxWidth: 760 }}>
+        Keep rental applications organized in one place. Review applicant details and status, then move approved applicants toward a lease.
+      </Typography>
 
       <Box data-testid="application-filters" sx={{ mb: 2 }}>
           <Stack direction={{ xs: 'column', lg: 'row' }} spacing={1.1} alignItems={{ lg: 'center' }}>
@@ -1152,7 +1054,7 @@ export default function ApplicationsPage({ hideHeader = false }) {
             </Typography>
             <Button
               variant="contained"
-              color="success"
+              color="primary"
               startIcon={<PlusOutlined />}
               onClick={() => drawer.openApplicationAddDrawer()}
               sx={{ textTransform: 'none', fontWeight: 700 }}

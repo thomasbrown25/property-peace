@@ -23,24 +23,34 @@ export default function PropertyActiveLease({ property }) {
       <MainCard
         title={
           <Typography variant="overline" fontWeight={700} sx={{ fontSize: '0.75rem', letterSpacing: 1, color: 'text.secondary' }}>
-            LEASE
+            CURRENT LEASE
           </Typography>
         }
         contentSX={{ pt: 1 }}
         sx={propertyAccentCardSx(theme.palette.primary.main, { '& .MuiCardHeader-root': { pb: 1 } })}
       >
-        <Typography variant="body2" color="text.secondary" sx={{ py: 1 }}>
-          No active lease on this property.
-        </Typography>
-        <Button
-          variant="outlined"
-          size="small"
-          fullWidth
-          onClick={() => drawer.openLeaseAddDrawer()}
-          sx={darkModeActionButtonSx(theme.palette.primary.main, { textTransform: 'none', fontWeight: 600, borderRadius: 1.5, mt: 1 })}
-        >
-          Create lease
-        </Button>
+        <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ xs: 'stretch', sm: 'center' }} justifyContent="space-between" spacing={2} sx={{ py: 1 }}>
+          <Typography variant="body2" color="text.secondary">
+            No active lease on this property.
+          </Typography>
+          <Button
+            variant="contained"
+            size="small"
+            onClick={() => drawer.openLeaseAddDrawer()}
+            sx={{
+              textTransform: 'none',
+              fontWeight: 600,
+              borderRadius: 1.5,
+              bgcolor: '#061E35',
+              color: '#fff',
+              whiteSpace: 'nowrap',
+              alignSelf: { xs: 'flex-start', sm: 'center' },
+              '&:hover': { bgcolor: '#0B3355' }
+            }}
+          >
+            Create a lease
+          </Button>
+        </Stack>
       </MainCard>
     );
   }
@@ -78,7 +88,7 @@ export default function PropertyActiveLease({ property }) {
     <MainCard
       title={
         <Typography variant="overline" fontWeight={700} sx={{ fontSize: '0.75rem', letterSpacing: 1, color: 'text.secondary' }}>
-          LEASE
+          CURRENT LEASE
         </Typography>
       }
       secondary={

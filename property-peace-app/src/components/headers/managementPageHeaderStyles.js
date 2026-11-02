@@ -20,3 +20,11 @@ export const managementPageHeaderActionSx = {
   fontWeight: 700,
   boxShadow: 'none'
 };
+
+// Keep create/add actions in the brand navy regardless of the active theme.
+export const creationActionSx = {
+  ...managementPageHeaderActionSx,
+  bgcolor: '#061e35',
+  color: '#fff',
+  '&:hover': { bgcolor: '#0b2f4f', color: '#fff' }
+};

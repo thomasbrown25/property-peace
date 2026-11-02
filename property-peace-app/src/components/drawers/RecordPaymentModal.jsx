@@ -1,3 +1,4 @@
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 import { useEffect, useState, useMemo } from 'react';
 import {
   Dialog,
@@ -81,7 +82,7 @@ export default function RecordPaymentModal({ open, onClose, onSuccess }) {
   const isSingleFamilyProperty = useMemo(() => {
     if (!selectedProperty) return false;
     const propertyType = selectedProperty.propertyType?.toLowerCase();
-    return propertyType === 'singlefamily' || propertyType === 'single-family';
+    return isDetachedSingleUnitType(propertyType);
   }, [selectedProperty]);
 
   // Find rent record for selected lease

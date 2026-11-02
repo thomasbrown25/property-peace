@@ -242,6 +242,7 @@ export function buildTodayReminders({ tasks = [], dashboardSummary = {}, propert
         reminders.push({
           id: `rent-${leaseId}-${now.getFullYear()}-${now.getMonth() + 1}`,
           type: 'rent',
+          leaseId,
           title: `Rent due · ${propertyName}`,
           date: startOfDay(now)
         });

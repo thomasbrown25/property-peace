@@ -19,6 +19,43 @@ namespace brownstone_hub_api.Tests.Services.Units;
 
 public sealed class ShortStayListingApiTests
 {
+    [Fact]
+    public async Task Owner_preference_defaults_to_manual_round_trips_and_legacy_put_preserves_it()
+    {
+        await using var f = await Fixture.Create();
+        var service = f.Service(20);
+        Assert.Equal(201, (await service.Put(10, Draft())).StatusCode);
+        Assert.Equal(ShortStayBookingAcceptancePreference.RequireOwnerApproval, (await service.Get(10)).Data!.BookingAcceptancePreference);
+        var automatic = Draft();
+        automatic.BookingAcceptancePreference = ShortStayBookingAcceptancePreference.AutoConfirmAfterVerifiedPayment;
+        Assert.Equal(200, (await service.Put(10, automatic)).StatusCode);
+        f.Db.ChangeTracker.Clear();
+        Assert.Equal(ShortStayBookingAcceptancePreference.AutoConfirmAfterVerifiedPayment, (await f.Db.ShortStayListings.SingleAsync()).BookingAcceptancePreference);
+        Assert.Equal(ShortStayBookingAcceptancePreference.AutoConfirmAfterVerifiedPayment, (await service.Get(10)).Data!.BookingAcceptancePreference);
+        Assert.Equal(200, (await service.Put(10, Draft())).StatusCode);
+        Assert.Equal(ShortStayBookingAcceptancePreference.AutoConfirmAfterVerifiedPayment, (await service.Get(10)).Data!.BookingAcceptancePreference);
+        var invalid = Draft();
+        invalid.BookingAcceptancePreference = (ShortStayBookingAcceptancePreference)99;
+        Assert.Equal(400, (await service.Put(10, invalid)).StatusCode);
+        Assert.Equal(ShortStayBookingAcceptancePreference.AutoConfirmAfterVerifiedPayment, (await service.Get(10)).Data!.BookingAcceptancePreference);
+        var manual = Draft();
+        manual.BookingAcceptancePreference = ShortStayBookingAcceptancePreference.RequireOwnerApproval;
+        Assert.Equal(200, (await service.Put(10, manual)).StatusCode);
+        Assert.Equal(ShortStayBookingAcceptancePreference.RequireOwnerApproval, (await service.Get(10)).Data!.BookingAcceptancePreference);
+    }
+    [Fact]
+    public void Owner_preference_uses_wire_strings_and_rejects_unknown_values()
+    {
+        var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+        options.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
+        var input = JsonSerializer.Deserialize<SaveShortStayListingDto>(
+            """{"bookingAcceptancePreference":"AutoConfirmAfterVerifiedPayment"}""", options)!;
+        Assert.Equal(ShortStayBookingAcceptancePreference.AutoConfirmAfterVerifiedPayment, input.BookingAcceptancePreference);
+        Assert.Contains("\"bookingAcceptancePreference\":\"AutoConfirmAfterVerifiedPayment\"",
+            JsonSerializer.Serialize(new ShortStayListingDraftDto { BookingAcceptancePreference = ShortStayBookingAcceptancePreference.AutoConfirmAfterVerifiedPayment }, options));
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<SaveShortStayListingDto>(
+            """{"bookingAcceptancePreference":"Unknown"}""", options));
+    }
     private static SaveShortStayListingDto Draft() => new() { NightlyBasePrice = 125, MinimumNights = 2,
         Capacity = 4, CleaningFee = 30, CheckInTime = new TimeOnly(15, 0), CheckOutTime = new TimeOnly(11, 0),
         HouseRules = "No smoking", Amenities = "Wi-Fi", CancellationPolicy = "Flexible" };

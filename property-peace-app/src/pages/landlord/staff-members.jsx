@@ -1084,7 +1084,7 @@ export default function StaffMembers() {
                             label={staff.isActive ? 'Active' : 'Inactive'}
                             color={staff.isActive ? 'success' : 'default'}
                             size="small"
-                            variant="outlined"
+                            variant={staff.isActive ? 'filled' : 'outlined'}
                           />
                         </TableCell>
                         <TableCell align="center">

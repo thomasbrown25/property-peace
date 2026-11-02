@@ -1,10 +1,11 @@
 export type ListingForm = {
+  bookingAcceptancePreference: 'RequireOwnerApproval' | 'AutoConfirmAfterVerifiedPayment';
   nightlyBasePrice: string; weekendNightlyRate: string; weeklyDiscountPercent: string; monthlyDiscountPercent: string; minimumNights: string; capacity: string; cleaningFee: string;
   checkInTime: string; checkOutTime: string; houseRules: string; amenities: string; cancellationPolicy: string;
   publicTitle: string; publicSummary: string;
   lodgingTaxRatePercent: string; attestLodgingTaxResponsibility: boolean;
 };
-export const emptyListing = (): ListingForm => ({ nightlyBasePrice: '', weekendNightlyRate: '', weeklyDiscountPercent: '0', monthlyDiscountPercent: '0', minimumNights: '1', capacity: '1', cleaningFee: '0', checkInTime: '', checkOutTime: '', houseRules: '', amenities: '', cancellationPolicy: '', publicTitle: '', publicSummary: '', lodgingTaxRatePercent: '', attestLodgingTaxResponsibility: false });
+export const emptyListing = (): ListingForm => ({ bookingAcceptancePreference: 'RequireOwnerApproval', nightlyBasePrice: '', weekendNightlyRate: '', weeklyDiscountPercent: '0', monthlyDiscountPercent: '0', minimumNights: '1', capacity: '1', cleaningFee: '0', checkInTime: '', checkOutTime: '', houseRules: '', amenities: '', cancellationPolicy: '', publicTitle: '', publicSummary: '', lodgingTaxRatePercent: '', attestLodgingTaxResponsibility: false });
 export const parseLodgingTaxRate = (value: string): number | null | undefined => {
   const trimmed = value.trim();
   if (!trimmed) return null;
@@ -46,8 +47,8 @@ export const listingPayload = (form: ListingForm) => {
   const checkInTime = time(form.checkInTime);
   const checkOutTime = time(form.checkOutTime);
   const lodgingTaxRatePercent = parseLodgingTaxRate(form.lodgingTaxRatePercent);
-  if (nightlyBasePrice === null || (form.weekendNightlyRate.trim() !== '' && weekendNightlyRate === null) || weeklyDiscountPercent === null || monthlyDiscountPercent === null || minimumNights === null || capacity === null || cleaningFee === null || checkInTime === undefined || checkOutTime === undefined || lodgingTaxRatePercent === undefined || (lodgingTaxRatePercent !== null) !== form.attestLodgingTaxResponsibility || form.houseRules.length > 4000 || form.amenities.length > 4000 || form.cancellationPolicy.length > 2000 || form.publicTitle.length > 100 || form.publicSummary.length > 1200) return null;
-  return { nightlyBasePrice, weekendNightlyRate, weeklyDiscountPercent, monthlyDiscountPercent, minimumNights, capacity, cleaningFee, checkInTime, checkOutTime,
+  if (!['RequireOwnerApproval', 'AutoConfirmAfterVerifiedPayment'].includes(form.bookingAcceptancePreference) || nightlyBasePrice === null || (form.weekendNightlyRate.trim() !== '' && weekendNightlyRate === null) || weeklyDiscountPercent === null || monthlyDiscountPercent === null || minimumNights === null || capacity === null || cleaningFee === null || checkInTime === undefined || checkOutTime === undefined || lodgingTaxRatePercent === undefined || (lodgingTaxRatePercent !== null) !== form.attestLodgingTaxResponsibility || form.houseRules.length > 4000 || form.amenities.length > 4000 || form.cancellationPolicy.length > 2000 || form.publicTitle.length > 100 || form.publicSummary.length > 1200) return null;
+  return { bookingAcceptancePreference: form.bookingAcceptancePreference, nightlyBasePrice, weekendNightlyRate, weeklyDiscountPercent, monthlyDiscountPercent, minimumNights, capacity, cleaningFee, checkInTime, checkOutTime,
     houseRules: form.houseRules.trim() || null, amenities: form.amenities.trim() || null, cancellationPolicy: form.cancellationPolicy.trim() || null,
     publicTitle: form.publicTitle, publicSummary: form.publicSummary,
     lodgingTaxRatePercent, attestLodgingTaxResponsibility: form.attestLodgingTaxResponsibility };

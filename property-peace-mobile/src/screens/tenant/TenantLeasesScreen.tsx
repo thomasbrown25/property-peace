@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import apiClient from '../../services/apiClient';
 import { createTenantPaymentsAPI, type TenantLease } from '../../api/tenantPaymentsAPI';
 import { leasesForView, tenantLeaseDate, tenantLeaseMoney, type LeaseView } from '../../features/leases/tenantLeaseModel';
+import { isSingleUnitProperty } from '../../features/properties/propertyType';
 import LandlordPageHeader from '../../components/LandlordPageHeader';
 import { useAppTheme } from '../../theme/AppTheme';
 import { useAppSelector } from '../../store/hooks';
@@ -63,10 +64,10 @@ export default function TenantLeasesScreen() {
         {!!error && !loading && <View style={styles.state} accessibilityRole="alert"><Text style={{ color: colors.text }}>Couldn’t load leases. {error}</Text><TouchableOpacity accessibilityRole="button" onPress={refresh} style={styles.retry}><Text style={{ color: colors.accent, fontWeight: '700' }}>Try again</Text></TouchableOpacity></View>}
       </View>}
       ItemSeparatorComponent={() => <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: colors.border }} />}
-      renderItem={({ item }) => <TouchableOpacity style={styles.row} accessibilityRole="button" accessibilityLabel={`View lease for ${item.propertyName || 'property'}${item.unitName ? `, ${item.unitName}` : ''}`}
+      renderItem={({ item }) => <TouchableOpacity style={styles.row} accessibilityRole="button" accessibilityLabel={`View lease for ${item.propertyName || 'property'}${item.unitName && !isSingleUnitProperty(item.propertyType) ? `, ${item.unitName}` : ''}`}
         onPress={() => navigation.navigate('TenantLeaseDetail', { leaseId: item.id })}>
         <Text style={[styles.rowTitle, { color: colors.text }]}>{item.propertyName || 'Property'}</Text>
-        <Text style={[styles.meta, { color: colors.muted }]}>{[item.unitName, item.name].filter(Boolean).join(' · ') || `Lease ${item.id}`}</Text>
+        <Text style={[styles.meta, { color: colors.muted }]}>{[!isSingleUnitProperty(item.propertyType) && item.unitName, item.name].filter(Boolean).join(' · ') || `Lease ${item.id}`}</Text>
         <Text style={[styles.meta, { color: item.isActive === true ? (dark ? '#75d995' : '#2f8f46') : colors.muted }, styles.status]}>{item.isActive === true ? 'Active' : 'Inactive'}</Text>
         <Ionicons name="chevron-forward" size={19} color={colors.muted} style={styles.chevron} />
       </TouchableOpacity>}
@@ -87,7 +88,7 @@ export function TenantLeaseDetailScreen() {
     {loading ? <ActivityIndicator style={styles.state} color={colors.accent} /> : error || !lease ? <View style={styles.state} accessibilityRole="alert"><Text style={[styles.emptyTitle, { color: colors.text }]}>{error ? 'Lease unavailable' : 'Lease not found'}</Text><Text style={[styles.caption, { color: colors.muted }]}>{error || 'This lease is no longer available to your account.'}</Text><TouchableOpacity accessibilityRole="button" style={styles.retry} onPress={refresh}><Text style={{ color: colors.accent, fontWeight: '700' }}>Try again</Text></TouchableOpacity></View> : <>
       <Text style={[styles.eyebrow, { color: colors.accent }]}>LEASE DETAILS</Text>
       <Text style={[styles.detailTitle, { color: colors.text }]} accessibilityRole="header">{lease.propertyName || 'Property'}</Text>
-      <Text style={[styles.caption, { color: colors.muted }]}>{[lease.unitName, lease.name].filter(Boolean).join(' · ') || `Lease ${lease.id}`}</Text>
+      <Text style={[styles.caption, { color: colors.muted }]}>{[!isSingleUnitProperty(lease.propertyType) && lease.unitName, lease.name].filter(Boolean).join(' · ') || `Lease ${lease.id}`}</Text>
       <View style={[styles.badge, { backgroundColor: lease.isActive === true ? (mode === 'dark' ? '#183d2d' : '#e5f5e9') : colors.surface }]}><Text style={{ color: lease.isActive === true ? (mode === 'dark' ? '#75d995' : '#2f8f46') : colors.text, fontWeight: '700' }}>{lease.isActive === true ? 'Active' : 'Inactive'}</Text></View>
       <View style={[styles.detailCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         {detail('Start date', tenantLeaseDate(lease.startDate))}

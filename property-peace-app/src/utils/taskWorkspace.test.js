@@ -120,6 +120,7 @@ test('buildTodayReminders combines open tasks, scheduled maintenance, and active
     result?.map((reminder) => reminder.title),
     ['Rent due · Elm House', 'Inspect Unit 4', 'Meet the plumber']
   );
+  assert.equal(result[0].leaseId, 30);
 });
 
 test('taskCategoryKey follows the backend task category enum used by Calendar and Tasks', () => {

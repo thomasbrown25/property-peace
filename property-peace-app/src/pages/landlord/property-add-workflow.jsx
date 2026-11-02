@@ -22,7 +22,6 @@ import {
   FormControl,
   FormLabel,
   Divider,
-  Avatar,
   Paper,
   Stepper,
   Step,
@@ -55,12 +54,12 @@ import axiosServices from 'utils/axios';
 import useFeatureReadiness from 'hooks/useFeatureReadiness';
 import { FEATURE_KEYS } from 'utils/featureReadiness';
 import { initialUnitCount } from 'utils/rentalMode';
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 import ListingCreatePage from './listing-create';
 
 const STEPS = {
   PROPERTY_TYPE_SELECTION: 1,
   ADDRESS: 2,
-  IMAGE: 3,
   ADD_UNITS: 4,
   NAME: 5,
   PROPERTY_TYPE: 6,
@@ -82,10 +81,6 @@ const getInitialValues = () => ({
   propertyType: '',
   rentalMode: 'longTerm',
   hasRoomRentals: null,
-  image: null,
-  useGoogleImage: false,
-  imageIsPlaceholder: false,
-  googleImageUrl: null,
   bankAccountId: null,
   addUnitsNow: null,
   creationMode: 'bulk',
@@ -123,7 +118,7 @@ function PropertyAddWorkflow({ onClose, initialAddress, onBackToRental }) {
   const { user } = useAuth();
   const { status: subscriptionStatus } = useSubscriptionStatus();
   const { createProperty, createLoading } = useCreateProperty();
-  const { fetchPhotosFromPlace, loading: fetchingPhoto } = useGooglePlacePhotos();
+  const { fetchPhotosFromPlace } = useGooglePlacePhotos();
   const { canInvoke: rentCanInvoke } = useFeatureReadiness(FEATURE_KEYS.onlineRentCollection);
 
   const [currentStep, setCurrentStep] = useState(STEPS.PROPERTY_TYPE_SELECTION);
@@ -132,12 +127,9 @@ function PropertyAddWorkflow({ onClose, initialAddress, onBackToRental }) {
   const [processing, setProcessing] = useState(false);
   const [createdProperty, setCreatedProperty] = useState(null);
 
-  // Google image state
-  const [googlePhotoUrl, setGooglePhotoUrl] = useState(null);
-  const [pendingPlace, setPendingPlace] = useState(null);
-  const [photoSource, setPhotoSource] = useState(null);
-  const [applyingGooglePhoto, setApplyingGooglePhoto] = useState(false);
+  // Keep the in-flight image lookup separate from Formik so creation can await it.
   const imageRequestRef = useRef(0);
+  const imageLookupRef = useRef(null);
   const [propertyRecordPrefill, setPropertyRecordPrefill] = useState(null);
   const [loadingPropertyRecordPrefill, setLoadingPropertyRecordPrefill] = useState(false);
   const addressInputRef = useRef(null);
@@ -175,26 +167,24 @@ function PropertyAddWorkflow({ onClose, initialAddress, onBackToRental }) {
   // Map current step to stepper step (exclude PROCESSING and SUCCESS)
   const getStepperStep = () => {
     const needsUnitsStep = ['smallMultiFamily', 'apartmentBuilding', 'other'].includes(values.propertyType);
-    const isSingleUnitType = ['singleFamily', 'townhouse', 'condominium'].includes(values.propertyType);
+    const isSingleUnitType = isDetachedSingleUnitType(values.propertyType);
     if (currentStep === STEPS.PROPERTY_TYPE_SELECTION) return 0;
     if (currentStep === STEPS.ADDRESS) return 1;
-    if (currentStep === STEPS.IMAGE) return 2;
-    if (currentStep === STEPS.SINGLE_UNIT_DETAILS) return 3;
-    if (currentStep === STEPS.ADD_UNITS) return 3;
+    if (currentStep === STEPS.SINGLE_UNIT_DETAILS || currentStep === STEPS.ADD_UNITS) return initialAddress ? 1 : 2;
     return 0;
   };
 
   // Get property steps based on property type
   const getPropertySteps = () => {
     const needsUnitsStep = ['smallMultiFamily', 'apartmentBuilding', 'other'].includes(values.propertyType);
-    const isSingleUnitType = ['singleFamily', 'townhouse', 'condominium'].includes(values.propertyType);
+    const isSingleUnitType = isDetachedSingleUnitType(values.propertyType);
     if (needsUnitsStep) {
-      return ['Property Type', 'Address', 'Image', 'Add Units'];
+      return initialAddress ? ['Property Type', 'Add Units'] : ['Property Type', 'Address', 'Add Units'];
     }
     if (isSingleUnitType) {
-      return ['Property Type', 'Address', 'Image', 'Property Details'];
+      return initialAddress ? ['Property Type', 'Property Details'] : ['Property Type', 'Address', 'Property Details'];
     }
-    return ['Property Type', 'Address', 'Image'];
+    return initialAddress ? ['Property Type'] : ['Property Type', 'Address'];
   };
 
   const formik = useFormik({
@@ -216,23 +206,26 @@ function PropertyAddWorkflow({ onClose, initialAddress, onBackToRental }) {
   const { values, setFieldValue, errors, touched, handleSubmit } = formik;
 
   const applyGooglePhoto = async (url, requestId) => {
-    if (!url || requestId !== imageRequestRef.current) return;
-    setApplyingGooglePhoto(true);
+    if (!url || requestId !== imageRequestRef.current) return null;
     try {
       const response = await fetch(url);
       if (!response.ok) throw new Error('Google photo unavailable');
       const blob = await response.blob();
       if (!blob.type.startsWith('image/')) throw new Error('Google photo is not an image');
-      if (requestId !== imageRequestRef.current) return;
-      setFieldValue('image', new File([blob], 'google-maps-photo.jpg', { type: blob.type }));
-      setFieldValue('useGoogleImage', true);
-      setFieldValue('imageIsPlaceholder', false);
-      setFieldValue('googleImageUrl', url);
+      if (requestId !== imageRequestRef.current) return null;
+      const file = new File([blob], 'google-maps-photo.jpg', { type: blob.type });
+      return file;
     } catch {
-      if (requestId === imageRequestRef.current) setGooglePhotoUrl(null);
-    } finally {
-      if (requestId === imageRequestRef.current) setApplyingGooglePhoto(false);
+      return null;
     }
+  };
+
+  const lookupPropertyImage = (place, address) => {
+    const requestId = ++imageRequestRef.current;
+    imageLookupRef.current = fetchPhotosFromPlace(place, address).then((result) =>
+      result?.url ? applyGooglePhoto(result.url, requestId) : null
+    );
+    return imageLookupRef.current;
   };
 
   // Initialize customUnits when switching to custom mode
@@ -317,38 +310,17 @@ function PropertyAddWorkflow({ onClose, initialAddress, onBackToRental }) {
   }, [showStripeOnboarding, rentCanInvoke]);
 
   // The standalone address modal bypasses the legacy address picker; look up
-  // imagery for its confirmed address before the image choice is shown.
+  // imagery for its confirmed address while the user completes the remaining steps.
   useEffect(() => {
     if (!initialAddress) return;
-    let active = true;
-    const requestId = ++imageRequestRef.current;
     const fullAddress = [initialAddress.streetAddress, initialAddress.city, initialAddress.state, initialAddress.zipCode].filter(Boolean).join(', ');
-    setGooglePhotoUrl(null);
-    setFieldValue('googleImageUrl', '');
-    fetchPhotosFromPlace(null, fullAddress).then((result) => {
-      if (!active || requestId !== imageRequestRef.current) return;
-      setGooglePhotoUrl(result?.url || null);
-      setPhotoSource(result?.source || null);
-      if (result?.url) void applyGooglePhoto(result.url, requestId);
-    });
-    return () => { active = false; imageRequestRef.current++; };
-  }, [initialAddress, fetchPhotosFromPlace, setFieldValue]);
+    lookupPropertyImage(null, fullAddress);
+    return () => { imageRequestRef.current++; };
+  }, [initialAddress, fetchPhotosFromPlace]);
 
   // Handler for when address is selected
-  const handleAddressSelected = async (address, place) => {
-    if (place) {
-      const requestId = ++imageRequestRef.current;
-      // Store place for potential re-fetching
-      setPendingPlace(place);
-      // Fetch Google image but don't show dialog - will show in step 2
-      const photoResult = await fetchPhotosFromPlace(place, address);
-      if (requestId === imageRequestRef.current && photoResult?.url) {
-        setGooglePhotoUrl(photoResult.url);
-        setPhotoSource(photoResult.source);
-        // Store in formik so it persists between steps
-        await applyGooglePhoto(photoResult.url, requestId);
-      }
-    }
+  const handleAddressSelected = (address, place) => {
+    lookupPropertyImage(place, address);
   };
 
 
@@ -386,7 +358,7 @@ function PropertyAddWorkflow({ onClose, initialAddress, onBackToRental }) {
   };
 
   const prefillSingleUnitDetailsFromRentcast = async () => {
-    const isSingleUnitPropertyType = ['singleFamily', 'townhouse', 'condominium'].includes(values.propertyType);
+    const isSingleUnitPropertyType = isDetachedSingleUnitType(values.propertyType);
     const addressIsComplete = values.streetAddress && values.city && values.state && values.zipCode;
 
     if (!isSingleUnitPropertyType || !addressIsComplete || loadingPropertyRecordPrefill) return;
@@ -429,6 +401,28 @@ function PropertyAddWorkflow({ onClose, initialAddress, onBackToRental }) {
     await setFieldValue('propertyType', propertyType);
   };
 
+  const advanceFromAddress = async () => {
+    const needsUnitsStep = ['smallMultiFamily', 'apartmentBuilding', 'other'].includes(values.propertyType);
+    const isSingleUnitType = isDetachedSingleUnitType(values.propertyType);
+    if (needsUnitsStep) {
+      if (!values.units || values.units.length === 0) {
+        setFieldValue('units', [{ name: '101', bedrooms: '', baths: '', hasRoomRentals: false }]);
+      } else {
+        setFieldValue('units', values.units.map((unit, index) => ({
+          ...unit,
+          name: unit.name || (100 + index + 1).toString()
+        })));
+      }
+      transitionToStep(STEPS.ADD_UNITS, 'left');
+    } else if (isSingleUnitType) {
+      await prefillSingleUnitDetailsFromRentcast();
+      transitionToStep(STEPS.SINGLE_UNIT_DETAILS, 'left');
+    } else {
+      transitionToStep(STEPS.PROCESSING, 'left');
+      handleCreateProperty();
+    }
+  };
+
   const handleNext = async () => {
     setError(null);
 
@@ -437,38 +431,17 @@ function PropertyAddWorkflow({ onClose, initialAddress, onBackToRental }) {
         setError('Please select a property type');
         return;
       }
-      transitionToStep(initialAddress ? STEPS.IMAGE : STEPS.ADDRESS, 'left');
+      if (initialAddress) await advanceFromAddress();
+      else transitionToStep(STEPS.ADDRESS, 'left');
     } else if (currentStep === STEPS.ADDRESS) {
       if (!values.streetAddress || !values.city || !values.state || !values.zipCode) {
         setError('Please fill in all address fields');
         return;
       }
-      transitionToStep(STEPS.IMAGE, 'left');
-      } else if (currentStep === STEPS.IMAGE) {
-      // Image is optional, check if we need to add units or property details (single-unit)
-      const needsUnitsStep = ['smallMultiFamily', 'apartmentBuilding', 'other'].includes(values.propertyType);
-      const isSingleUnitType = ['singleFamily', 'townhouse', 'condominium'].includes(values.propertyType);
-      if (needsUnitsStep) {
-        // Initialize units array if empty, pre-populate unit number
-        if (!values.units || values.units.length === 0) {
-          setFieldValue('units', [{ name: '101', bedrooms: '', baths: '', hasRoomRentals: false }]);
-        } else {
-          const updatedUnits = values.units.map((unit, index) => ({
-            ...unit,
-            name: unit.name || (100 + index + 1).toString()
-          }));
-          setFieldValue('units', updatedUnits);
-        }
-        transitionToStep(STEPS.ADD_UNITS, 'left');
-      } else if (isSingleUnitType) {
-        // Single-unit: pre-fill public-record details when available, then go to Property Details.
-        await prefillSingleUnitDetailsFromRentcast();
-        transitionToStep(STEPS.SINGLE_UNIT_DETAILS, 'left');
-      } else {
-        // Other property types, proceed directly to create property
-        transitionToStep(STEPS.PROCESSING, 'left');
-        handleCreateProperty();
+      if (!imageLookupRef.current) {
+        lookupPropertyImage(null, [values.streetAddress, values.city, values.state, values.zipCode].join(', '));
       }
+      await advanceFromAddress();
     } else if (currentStep === STEPS.SINGLE_UNIT_DETAILS) {
       // Validate beds and baths for single-unit
       const d = values.singleUnitDetails || {};
@@ -505,8 +478,7 @@ function PropertyAddWorkflow({ onClose, initialAddress, onBackToRental }) {
 
   const getPreviousStep = () => {
     if (currentStep === STEPS.ADDRESS) return STEPS.PROPERTY_TYPE_SELECTION;
-    if (currentStep === STEPS.IMAGE) return initialAddress ? STEPS.PROPERTY_TYPE_SELECTION : STEPS.ADDRESS;
-    if (currentStep === STEPS.ADD_UNITS || currentStep === STEPS.SINGLE_UNIT_DETAILS) return STEPS.IMAGE;
+    if (currentStep === STEPS.ADD_UNITS || currentStep === STEPS.SINGLE_UNIT_DETAILS) return initialAddress ? STEPS.PROPERTY_TYPE_SELECTION : STEPS.ADDRESS;
     return null;
   };
 
@@ -533,20 +505,20 @@ function PropertyAddWorkflow({ onClose, initialAddress, onBackToRental }) {
         setProcessing(false);
         // Go back to the appropriate step based on property type
         const needsUnitsStep = ['smallMultiFamily', 'apartmentBuilding', 'other'].includes(values.propertyType);
-        const isSingleUnitType = ['singleFamily', 'townhouse', 'condominium'].includes(values.propertyType);
+        const isSingleUnitType = isDetachedSingleUnitType(values.propertyType);
         if (needsUnitsStep) {
           transitionToStep(STEPS.ADD_UNITS, 'right');
         } else if (isSingleUnitType) {
           transitionToStep(STEPS.SINGLE_UNIT_DETAILS, 'right');
         } else {
-          transitionToStep(STEPS.IMAGE, 'right');
+          transitionToStep(initialAddress ? STEPS.PROPERTY_TYPE_SELECTION : STEPS.ADDRESS, 'right');
         }
         return;
       }
 
       // Get units to create based on property type
       let unitsToCreate = [];
-      if (['singleFamily', 'townhouse', 'condominium'].includes(values.propertyType)) {
+      if (isDetachedSingleUnitType(values.propertyType)) {
         // Single-unit: use Property Details step values (beds, baths, sqft)
         const d = values.singleUnitDetails || {};
         unitsToCreate = [{
@@ -587,25 +559,19 @@ function PropertyAddWorkflow({ onClose, initialAddress, onBackToRental }) {
         setProcessing(false);
         // Go back to the appropriate step based on property type
         const needsUnitsStep = ['smallMultiFamily', 'apartmentBuilding', 'other'].includes(values.propertyType);
-        const isSingleUnitType = ['singleFamily', 'townhouse', 'condominium'].includes(values.propertyType);
+        const isSingleUnitType = isDetachedSingleUnitType(values.propertyType);
         if (needsUnitsStep) {
           transitionToStep(STEPS.ADD_UNITS, 'right');
         } else if (isSingleUnitType) {
           transitionToStep(STEPS.SINGLE_UNIT_DETAILS, 'right');
         } else {
-          transitionToStep(STEPS.IMAGE, 'right');
+          transitionToStep(initialAddress ? STEPS.PROPERTY_TYPE_SELECTION : STEPS.ADDRESS, 'right');
         }
         return;
       }
 
-      // Map property type to backend values for unit creation logic
-      // singleFamily, townhouse, condominium -> singleFamily
-      // smallMultiFamily, apartmentBuilding, other -> multiUnit
-      const backendPropertyType = ['singleFamily', 'townhouse', 'condominium'].includes(values.propertyType)
-        ? 'singleFamily'
-        : ['smallMultiFamily', 'apartmentBuilding', 'other'].includes(values.propertyType)
-        ? 'multiUnit'
-        : values.propertyType; // fallback to original value
+      // Preserve the selected structural type; the API seeds detached single-unit types.
+      const backendPropertyType = values.propertyType;
 
       const payload = {
         name: values.propertyName?.trim() || null,
@@ -626,7 +592,14 @@ function PropertyAddWorkflow({ onClose, initialAddress, onBackToRental }) {
         } : {})
       };
 
-      const mainImage = values.image ? values.image : null;
+      // The lookup may still be running when the final step submits.
+      let mainImage = await imageLookupRef.current;
+      if (!mainImage) {
+        const response = await fetch(placeholderImage);
+        if (!response.ok) throw new Error('Property placeholder image unavailable');
+        const blob = await response.blob();
+        mainImage = new File([blob], 'placeholder-house.png', { type: blob.type || 'image/png' });
+      }
       const created = await createProperty(payload, mainImage, { suppressSuccessSnackbar: true });
       if (!created?.id) throw new Error('Property creation did not return a property; check your properties before retrying.');
       setCreatedProperty(created);
@@ -677,13 +650,13 @@ function PropertyAddWorkflow({ onClose, initialAddress, onBackToRental }) {
       setProcessing(false);
       // Go back to the appropriate step based on property type
       const needsUnitsStep = ['smallMultiFamily', 'apartmentBuilding', 'other'].includes(values.propertyType);
-      const isSingleUnitType = ['singleFamily', 'townhouse', 'condominium'].includes(values.propertyType);
+      const isSingleUnitType = isDetachedSingleUnitType(values.propertyType);
       if (needsUnitsStep) {
         transitionToStep(STEPS.ADD_UNITS, 'right');
       } else if (isSingleUnitType) {
         transitionToStep(STEPS.SINGLE_UNIT_DETAILS, 'right');
       } else {
-        transitionToStep(STEPS.IMAGE, 'right');
+        transitionToStep(initialAddress ? STEPS.PROPERTY_TYPE_SELECTION : STEPS.ADDRESS, 'right');
       }
       openSnackbar({
         open: true,
@@ -726,7 +699,7 @@ function PropertyAddWorkflow({ onClose, initialAddress, onBackToRental }) {
 
   // Helper functions to check property type
   const isMultiUnitType = ['smallMultiFamily', 'apartmentBuilding', 'other', 'multiUnit'].includes(values.propertyType);
-  const isSingleFamilyType = ['singleFamily', 'townhouse', 'condominium'].includes(values.propertyType);
+  const isSingleFamilyType = isDetachedSingleUnitType(values.propertyType);
 
   // Calculate total units to be created
   const totalUnitsToCreate = isMultiUnitType && values.addUnitsNow
@@ -749,9 +722,6 @@ function PropertyAddWorkflow({ onClose, initialAddress, onBackToRental }) {
                 </Button>
               ))}
             </Stack>}
-            {values.rentalMode === 'shortTerm' && (
-              <Alert severity="info" sx={{ mb: 3 }}>Set up your units now. Nightly pricing, listings and guest bookings are not available yet; monthly rent and bank onboarding do not apply.</Alert>
-            )}
             <Typography component="h1" sx={{ fontSize: { xs: 32, md: 43 }, lineHeight: 1.17, letterSpacing: '-0.035em', fontWeight: 750, mb: 4 }}>
               Which best describes your property?
             </Typography>
@@ -935,101 +905,6 @@ function PropertyAddWorkflow({ onClose, initialAddress, onBackToRental }) {
                 </Alert>
               )}
             </Stack>
-          </Box>
-        );
-
-      case STEPS.IMAGE:
-        return (
-          <Box sx={{ textAlign: 'center' }}>
-            <Typography variant="h4" fontWeight={600} gutterBottom sx={{ mb: 4 }}>
-              Property image
-            </Typography>
-            {(fetchingPhoto || applyingGooglePhoto) ? <Stack direction="row" spacing={1} alignItems="center" justifyContent="center" sx={{ mb: 3 }}><CircularProgress size={20} /><Typography>Adding a Google property image…</Typography></Stack> : null}
-            {values.useGoogleImage && <Typography sx={{ mb: 2 }}>Google image added automatically. You can replace it with your own.</Typography>}
-            {values.useGoogleImage && (googlePhotoUrl || values.googleImageUrl) && (
-              <Box sx={{ mb: 3, maxWidth: 600, mx: 'auto' }}>
-                <Box
-                  component="img"
-                  src={googlePhotoUrl || values.googleImageUrl}
-                  alt="Google property image"
-                  sx={{
-                    width: '100%',
-                    maxHeight: 300,
-                    objectFit: 'contain',
-                    borderRadius: 2,
-                    border: `1px solid ${alpha(theme.palette.divider, 0.2)}`
-                  }}
-                />
-              </Box>
-            )}
-            <Stack direction="row" spacing={2} justifyContent="center" alignItems="center" sx={{ mt: 4 }}>
-              {!(googlePhotoUrl || values.googleImageUrl) && !fetchingPhoto && !applyingGooglePhoto && !values.image ? (
-                <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                  Google image unavailable for this address.
-                </Typography>
-              ) : null}
-              <Button
-                variant={!values.useGoogleImage && values.image ? 'contained' : 'outlined'}
-                component="label"
-                sx={{ textTransform: 'none', px: 4 }}
-              >
-                Upload My Own
-                <input
-                  type="file"
-                  hidden
-                  accept="image/*"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      imageRequestRef.current++;
-                      setApplyingGooglePhoto(false);
-                      setFieldValue('image', file);
-                      setFieldValue('useGoogleImage', false);
-                      setFieldValue('imageIsPlaceholder', false);
-                    }
-                  }}
-                />
-              </Button>
-            </Stack>
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
-              <Button
-                variant="text"
-                onClick={async () => {
-                  imageRequestRef.current++;
-                  setApplyingGooglePhoto(false);
-                  setError(null);
-                  try {
-                    const response = await fetch(placeholderImage);
-                    const blob = await response.blob();
-                    const file = new File([blob], 'placeholder-house.png', { type: blob.type });
-                    setFieldValue('image', file);
-                    setFieldValue('useGoogleImage', false);
-                    setFieldValue('imageIsPlaceholder', true);
-                    handleNext();
-                  } catch (err) {
-                    console.error('Error loading placeholder image:', err);
-                    setError('Could not use placeholder. Please upload an image.');
-                  }
-                }}
-                sx={{ textTransform: 'none', px: 3 }}
-              >
-                Skip
-              </Button>
-            </Box>
-            {values.image && !values.useGoogleImage && !values.imageIsPlaceholder && (
-              <Box sx={{ mt: 3 }}>
-                <Avatar
-                  src={URL.createObjectURL(values.image)}
-                  alt="Property image"
-                  sx={{ width: 150, height: 150, mx: 'auto', border: `2px solid ${alpha(theme.palette.primary.main, 0.2)}` }}
-                />
-              </Box>
-            )}
-            {error && (
-              <Alert severity="error" sx={{ mt: 3 }}>
-                {error}
-              </Alert>
-            )}
           </Box>
         );
 
@@ -1500,10 +1375,10 @@ function PropertyAddWorkflow({ onClose, initialAddress, onBackToRental }) {
                   variant="contained"
                   color="primary"
                   onClick={handleNext}
-                  disabled={processing || (currentStep === STEPS.IMAGE && (fetchingPhoto || applyingGooglePhoto)) || (currentStep === STEPS.PROPERTY_TYPE_SELECTION && !values.propertyType)}
+                  disabled={processing || (currentStep === STEPS.PROPERTY_TYPE_SELECTION && !values.propertyType)}
                   sx={{ textTransform: 'none', px: 4, py: 1 }}
                 >
-                  {currentStep === STEPS.SINGLE_UNIT_DETAILS ? 'Create Property' : currentStep === STEPS.IMAGE ? 'Continue' : 'Next'}
+                  {currentStep === STEPS.SINGLE_UNIT_DETAILS ? 'Create Property' : 'Next'}
                 </Button>
               </Box>
             )}

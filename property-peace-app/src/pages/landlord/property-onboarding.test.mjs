@@ -33,7 +33,7 @@ test('add property page reuses the listing Google address modal without changing
   assert.match(onboarding, /setModalStep\('confirm'\)/);
   assert.match(onboarding, /onContinue\?\.\(\{ \.\.\.address, rentalMode \}\)/);
   assert.match(onboarding, /What type of rental describes your place best\?/);
-  assert.match(onboarding, /'Short-term leasing'/);
+  assert.match(onboarding, /'Short-term leasing \(Airbnb style\)'/);
   assert.match(onboarding, /'Long-term leasing'/);
   assert.match(onboarding, /step === 'rental' && !rentalMode/);
   assert.match(onboarding, /step === 'rental' \? 'place' : 'address'/);
@@ -43,15 +43,15 @@ test('add property page reuses the listing Google address modal without changing
   assert.match(onboarding, /pp-\$\{propertyMode \? 'property' : 'listing'\}-onboarding/);
 });
 
-test('confirmed address starts a Google image lookup for the property image step', () => {
+test('confirmed address starts a Google image lookup without an image step', () => {
   const page = read('./property-add-workflow.jsx');
   assert.match(page, /if \(!initialAddress\) return;/);
-  assert.match(page, /fetchPhotosFromPlace\(null, fullAddress\)/);
-  assert.match(page, /setGooglePhotoUrl\(result\?\.url \|\| null\)/);
-  assert.match(page, /if \(result\?\.url\) void applyGooglePhoto\(result.url, requestId\)/);
-  assert.match(page, /setFieldValue\('image', new File\(\[blob\]/);
-  assert.match(page, /Google image added automatically/);
-  assert.doesNotMatch(page, /Use Google Image/);
+  assert.match(page, /lookupPropertyImage\(null, fullAddress\)/);
+  assert.match(page, /imageLookupRef\.current = fetchPhotosFromPlace\(place, address\)/);
+  assert.match(page, /await imageLookupRef\.current/);
+  assert.match(page, /new File\(\[blob\], 'google-maps-photo\.jpg'/);
+  assert.match(page, /new File\(\[blob\], 'placeholder-house\.png'/);
+  assert.doesNotMatch(page, /STEPS\.IMAGE|case STEPS\.IMAGE|Upload My Own|Use Google Image/);
 });
 
 test('Google image lookup verifies Street View availability rather than accepting an error image', () => {
@@ -84,8 +84,8 @@ test('selecting a property type stays on the question until Next is clicked', ()
   assert.ok(selection, 'property-type selection handler exists');
   assert.match(selection[1], /setFieldValue\('propertyType', propertyType\)/);
   assert.doesNotMatch(selection[1], /transitionToStep|handleNext/);
-  assert.match(page, /if \(currentStep === STEPS\.PROPERTY_TYPE_SELECTION\) \{[\s\S]*?transitionToStep\(initialAddress \? STEPS\.IMAGE : STEPS\.ADDRESS, 'left'\)/);
-  assert.match(page, /onClick=\{handleNext\}[\s\S]*?disabled=\{processing \|\| \(currentStep === STEPS\.IMAGE && \(fetchingPhoto \|\| applyingGooglePhoto\)\) \|\| \(currentStep === STEPS\.PROPERTY_TYPE_SELECTION && !values\.propertyType\)\}/);
+  assert.match(page, /if \(currentStep === STEPS\.PROPERTY_TYPE_SELECTION\) \{[\s\S]*?if \(initialAddress\) await advanceFromAddress\(\)/);
+  assert.match(page, /onClick=\{handleNext\}[\s\S]*?disabled=\{processing \|\| \(currentStep === STEPS\.PROPERTY_TYPE_SELECTION && !values\.propertyType\)\}/);
   assert.match(page, /currentStep !== STEPS\.ADD_UNITS && \(/);
   assert.doesNotMatch(page, /currentStep !== STEPS\.ADD_UNITS && \(!onClose \|\| currentStep !== STEPS\.PROPERTY_TYPE_SELECTION\)/);
 });
@@ -94,7 +94,8 @@ test('confirmed property address continues to the creation workflow without repe
   const page = read('./property-add-workflow.jsx');
   assert.match(page, /initialAddress=\{confirmedAddress\}/);
   assert.match(page, /\[initialAddress.streetAddress, initialAddress.unit\]/);
-  assert.match(page, /initialAddress \? STEPS.IMAGE : STEPS.ADDRESS/);
+  assert.match(page, /if \(initialAddress\) await advanceFromAddress\(\);\s*else transitionToStep\(STEPS\.ADDRESS, 'left'\)/);
+  assert.match(page, /return initialAddress \? STEPS\.PROPERTY_TYPE_SELECTION : STEPS\.ADDRESS/);
   assert.match(page, /rentalMode: initialAddress.rentalMode \|\| 'longTerm'/);
   assert.match(page, /onClose && <Stack direction=\{\{ xs: 'column', sm: 'row' \}\}/);
   assert.match(page, /onClose && currentStep < STEPS.PROCESSING/);

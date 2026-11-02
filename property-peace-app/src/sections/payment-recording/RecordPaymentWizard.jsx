@@ -1,3 +1,4 @@
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 import { useState, useMemo } from 'react';
 import PropTypes from 'prop-types';
 
@@ -125,7 +126,7 @@ export default function RecordPaymentWizard({ onComplete }) {
   const isSingleFamilyProperty = useMemo(() => {
     if (!selectedProperty) return false;
     const propertyType = selectedProperty.propertyType?.toLowerCase();
-    return propertyType === 'singlefamily' || propertyType === 'single-family';
+    return isDetachedSingleUnitType(propertyType);
   }, [selectedProperty]);
 
   const validateStep = (step) => {

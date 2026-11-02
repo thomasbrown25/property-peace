@@ -1,3 +1,4 @@
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import PropTypes from 'prop-types';
@@ -704,7 +705,7 @@ export default function LeaseAgreementBuilder({ onComplete }) {
   const renderInfoBanner = () => {
     // Check if property is single unit (single family or has only one unit)
     const propertyType = property?.propertyType?.toLowerCase();
-    const isSingleFamily = propertyType === 'singlefamily' || propertyType === 'single-family';
+    const isSingleFamily = isDetachedSingleUnitType(propertyType);
     const totalUnits = property?.units?.length || 0;
     const isSingleUnitProperty = isSingleFamily || totalUnits === 1;
 

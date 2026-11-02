@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { createShortStaySetupLoader } from 'utils/shortStaySetupLoader';
-import { Alert, Box, Button, Checkbox, CircularProgress, Divider, FormControlLabel, Paper, Stack, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, Checkbox, CircularProgress, Divider, FormControlLabel, MenuItem, Paper, Stack, TextField, Typography } from '@mui/material';
 import { shortStayAPI } from 'api/shortStay';
 import { blockPayload, isLocalDate, listingPayload, ratePayload, rangeRatePayload, setupError } from 'utils/shortStaySetup';
 import { createPhotoGallery, validatePhotoSelection } from './short-stay-photos';
@@ -13,6 +13,7 @@ import { createInventorySnapshot } from './short-stay-inventory';
 import InventorySnapshotCard from './short-stay-inventory-card.jsx';
 
 const EMPTY_DRAFT = {
+  bookingAcceptancePreference: 'RequireOwnerApproval',
   nightlyBasePrice: '', weekendNightlyRate: '', weeklyDiscountPercent: '0', monthlyDiscountPercent: '0', minimumNights: '1', capacity: '1', cleaningFee: '0',
   checkInTime: '', checkOutTime: '', houseRules: '', amenities: '', cancellationPolicy: '', lodgingTaxRatePercent: '', publicTitle: '', publicSummary: ''
 };
@@ -189,6 +190,7 @@ function ShortStaySetupForUnit({ propertyId, unitId }) {
     <Box sx={{ maxWidth: 960, mx: 'auto', p: { xs: 2, md: 3 } }}>
       <Button onClick={() => navigate(`/landlord/property/${propertyId}`)}>Back to property</Button>
       <Typography variant="h4" sx={{ my: 2 }}>Short-stay owner setup</Typography>
+      {import.meta.env.DEV && verified && <Button variant="outlined" onClick={() => navigate(`/landlord/property/${propertyId}/unit/${unitId}/extended-stay-agreements`)}>Extended-stay agreement drafts (dev only)</Button>}
       <Alert severity="info" sx={{ mb: 2 }}>Owner setup only — guests cannot book yet.</Alert>
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>{error}</Alert>}
       {error && <Button disabled={busy || loading} onClick={refreshSetup} sx={{ mb: 2 }}>Retry loading setup</Button>}
@@ -231,6 +233,12 @@ function ShortStaySetupForUnit({ propertyId, unitId }) {
           <Typography variant="h6" gutterBottom>Listing draft</Typography>
           <Typography color="text.secondary" sx={{ mb: 2 }}>Private owner draft; this does not create a public lease listing or enable bookings.</Typography>
           <Stack spacing={2}>
+          <Typography variant="subtitle1">Booking acceptance preference (owner setup only)</Typography>
+          <Typography color="text.secondary">Choose how you would prefer a future paid direct booking to be accepted. This setting does not enable guest booking, collect payment, or confirm a reservation.</Typography>
+          <TextField select label="Booking acceptance preference" value={draft.bookingAcceptancePreference ?? 'RequireOwnerApproval'} onChange={(e) => setDraft((current) => ({ ...current, bookingAcceptancePreference: e.target.value }))} fullWidth>
+            <MenuItem value="RequireOwnerApproval">Require owner approval (default)</MenuItem>
+            <MenuItem value="AutoConfirmAfterVerifiedPayment">Automatically confirm after verified payment</MenuItem>
+          </TextField>
             <Typography variant="subtitle1">Public listing copy</Typography>
             <Typography color="text.secondary">Publicly visible to guests if this listing is published. Do not include access codes or private addresses. Plain text only.</Typography>
             {field('publicTitle', 'Public title', { inputProps: { maxLength: 100 }, helperText: `${draft.publicTitle?.length ?? 0}/100 characters` })}

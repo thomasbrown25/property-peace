@@ -238,7 +238,7 @@ export default function SmsNumberSettings() {
                     {status?.state || 'US'} {status?.areaCode ? `• Area code ${status.areaCode}` : ''} {status?.status ? `• ${status.status}` : ''}
                   </Typography>
                 </Box>
-                <Chip label="Active" color="success" variant="outlined" sx={{ fontWeight: 800 }} />
+                <Chip label="Active" color="success" variant="filled" sx={{ fontWeight: 800 }} />
               </Stack>
               <Divider />
               <Alert severity="info">

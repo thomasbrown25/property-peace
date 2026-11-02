@@ -29,6 +29,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 
 import LeaseAddDrawer from 'components/drawers/LeaseAddDrawer';
+import DeletePropertyModal from 'components/dialogs/DeletePropertyModal';
 import { PropertyCsvImportButton } from 'components/import/CsvImportButtons';
 import { managementPageHeaderActionSx } from 'components/headers/managementPageHeaderStyles';
 import PropertiesEmptyState from 'sections/landlord/properties/PropertiesEmptyState';
@@ -100,7 +101,7 @@ function formatMoney(value) {
   }).format(value || 0);
 }
 
-function PropertyRow({ property, onOpen, onAddLease }) {
+function PropertyRow({ property, onOpen, onAddLease, onDelete }) {
   const theme = useTheme();
   const navigate = useNavigate();
   const [anchorEl, setAnchorEl] = useState(null);
@@ -114,13 +115,6 @@ function PropertyRow({ property, onOpen, onAddLease }) {
   ].filter(Boolean).join(', ');
   const imageUrl = read(property, 'mainImageUrl', 'MainImageUrl') || read(property, 'images', 'Images')?.[0]?.blobUrl || placeholderImage;
   const occupancy = summary.units.length ? Math.round((summary.occupied / summary.units.length) * 100) : 0;
-  const statusLabel = summary.overdue
-    ? `${summary.overdue} overdue`
-    : summary.vacant
-      ? `${summary.vacant} vacant`
-      : summary.units.length
-        ? 'Fully occupied'
-        : 'No units';
   const statusColor = summary.overdue ? theme.palette.error.main : summary.vacant ? theme.palette.warning.main : theme.palette.success.main;
 
   const handleKeyDown = (event) => {
@@ -176,7 +170,6 @@ function PropertyRow({ property, onOpen, onAddLease }) {
           value={occupancy}
           sx={{ mt: 0.65, height: 5, borderRadius: 8, bgcolor: alpha(theme.palette.divider, 0.12), '& .MuiLinearProgress-bar': { borderRadius: 8, bgcolor: statusColor } }}
         />
-        <Typography sx={{ mt: 0.55, fontSize: '0.7rem', color: statusColor, fontWeight: 650 }}>{statusLabel}</Typography>
       </Box>
 
       <Box>
@@ -201,6 +194,8 @@ function PropertyRow({ property, onOpen, onAddLease }) {
           <MenuItem onClick={(event) => { event.stopPropagation(); setAnchorEl(null); onAddLease(property); }}>Add lease</MenuItem>
           <MenuItem onClick={(event) => { event.stopPropagation(); setAnchorEl(null); navigate(`/landlord/maintenances/add?propertyId=${propertyId}`); }}>Create maintenance ticket</MenuItem>
           <MenuItem onClick={(event) => { event.stopPropagation(); setAnchorEl(null); navigate(`/landlord/property/${propertyId}/settings`); }}>Property settings</MenuItem>
+          <Divider />
+          <MenuItem onClick={(event) => { event.stopPropagation(); setAnchorEl(null); onDelete(property); }} sx={{ color: 'error.main' }}>Delete property</MenuItem>
         </Menu>
       </Box>
     </Box>
@@ -222,6 +217,7 @@ export default function Properties() {
   const [attention, setAttention] = useState('all');
   const [sort, setSort] = useState('attention');
   const [page, setPage] = useState(1);
+  const [propertyToDelete, setPropertyToDelete] = useState(null);
 
   useEffect(() => {
     setPropertiesLoading(isLoading);
@@ -318,10 +314,9 @@ export default function Properties() {
             />
             <Button
               variant="contained"
-              color="success"
               startIcon={<PlusOutlined />}
               onClick={() => navigate('/landlord/properties/add')}
-              sx={{ textTransform: 'none', fontWeight: 700, boxShadow: 'none' }}
+              sx={{ textTransform: 'none', fontWeight: 700, boxShadow: 'none', bgcolor: '#061e35', color: '#fff', '&:hover': { bgcolor: '#0b2f4f' } }}
             >
               Add property
             </Button>
@@ -397,7 +392,7 @@ export default function Properties() {
           </Stack>
         ) : (
           paginatedProperties.map((property) => (
-            <PropertyRow key={getId(property)} property={property} onOpen={openProperty} onAddLease={addLease} />
+            <PropertyRow key={getId(property)} property={property} onOpen={openProperty} onAddLease={addLease} onDelete={setPropertyToDelete} />
           ))
         )}
 
@@ -412,6 +407,14 @@ export default function Properties() {
       </Box>
 
       <LeaseAddDrawer />
+      {propertyToDelete && (
+        <DeletePropertyModal
+          open
+          onClose={() => setPropertyToDelete(null)}
+          propertyId={getId(propertyToDelete)}
+          propertyName={read(propertyToDelete, 'name', 'Name') || read(propertyToDelete, 'streetAddress', 'StreetAddress')}
+        />
+      )}
     </Box>
   );
 }

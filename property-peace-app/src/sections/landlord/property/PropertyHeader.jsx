@@ -62,8 +62,6 @@ export default function PropertyHeader({ property, onEdit, onDelete, onDeactivat
   const units = property?.units || property?.Units || [];
   const firstUnit = units[0];
   const unitStatus = (firstUnit?.status || firstUnit?.Status || '').toLowerCase();
-  const isOccupied = unitStatus === 'occupied' || unitStatus === 'overdue'
-    || (!unitStatus && (property?.isOccupied || property?.IsOccupied));
 
   const firstLease = firstUnit?.lease || firstUnit?.Lease;
   const tenants = firstLease?.tenants || firstLease?.Tenants || [];
@@ -171,14 +169,8 @@ export default function PropertyHeader({ property, onEdit, onDelete, onDeactivat
               <HomeOutlined style={{ fontSize: 52, color: alpha(theme.palette.primary.main, 0.25) }} />
             </Box>
           )}
-          {/* Chips overlaid on image */}
+          {/* Property type and overdue status overlaid on image */}
           <Stack direction="row" spacing={0.75} sx={{ position: 'absolute', top: 10, left: 10, flexWrap: 'wrap' }}>
-            <Chip
-              label={isOccupied ? 'Occupied' : 'Vacant'}
-              size="small"
-              color={isOccupied ? 'success' : 'warning'}
-              sx={{ height: 22, fontSize: '0.7rem', fontWeight: 700, boxShadow: '0 1px 4px rgba(0,0,0,0.25)' }}
-            />
             {unitStatus === 'overdue' && (
               <Chip label="Overdue" size="small" color="error"
                 sx={{ height: 22, fontSize: '0.7rem', fontWeight: 700, boxShadow: '0 1px 4px rgba(0,0,0,0.25)' }} />
@@ -194,8 +186,8 @@ export default function PropertyHeader({ property, onEdit, onDelete, onDeactivat
           <Box>
             {addressLine && (
               <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mb: 0.5 }}>
-                <EnvironmentOutlined style={{ fontSize: 11, color: theme.palette.text.disabled }} />
-                <Typography sx={{ fontSize: '0.62rem', color: 'text.disabled', letterSpacing: 0.8, fontWeight: 700 }}>{addressLine}</Typography>
+                <EnvironmentOutlined style={{ fontSize: 11, color: theme.palette.mode === 'dark' ? theme.palette.text.primary : theme.palette.primary.main }} />
+                <Typography sx={{ fontSize: '0.62rem', color: theme.palette.mode === 'dark' ? 'text.primary' : 'primary.main', letterSpacing: 0.8, fontWeight: 700 }}>{addressLine}</Typography>
               </Stack>
             )}
             <Typography variant="h4" fontWeight={700} sx={{ lineHeight: 1.2, mb: 0.75 }}>{mainHeader}</Typography>

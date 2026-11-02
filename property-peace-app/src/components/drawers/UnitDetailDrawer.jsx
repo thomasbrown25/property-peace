@@ -212,7 +212,7 @@ export default function UnitDetailDrawer({ open, unit, property, onClose }) {
                     variant="outlined"
                     size="small"
                     fullWidth
-                    onClick={() => tenantId && navigate(`/landlord/renters/${tenantId}`)}
+                    onClick={() => tenantId && navigate(`/landlord/tenants/${tenantId}`)}
                     sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 1.5, fontSize: '0.78rem', borderColor: 'rgba(0,0,0,0.2)' }}
                   >
                     Profile

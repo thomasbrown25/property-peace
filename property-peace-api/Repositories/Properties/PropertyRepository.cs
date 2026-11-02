@@ -476,11 +476,13 @@ namespace brownstone_hub_api.Repositories.Properties
         {
             try
             {
-                var hasAnyNonSF = await _context.Properties
+                var hasAnyMultiUnit = await _context.Properties
                     .Where(p => p.OrganizationId == organizationId && !p.IsDeleted)
-                    .AnyAsync(p => p.PropertyType != EPropertyType.SingleFamily);
+                    .AnyAsync(p => p.PropertyType != EPropertyType.SingleFamily &&
+                                   p.PropertyType != EPropertyType.Townhouse &&
+                                   p.PropertyType != EPropertyType.Condominium);
 
-                return !hasAnyNonSF;
+                return !hasAnyMultiUnit;
             }
             catch (Exception ex)
             {

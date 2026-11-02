@@ -716,7 +716,7 @@ export function PaymentsSettingsContent({ rentPaymentAccess, headerActionElement
         fetchingSession ||
         openingBankManagement
       }
-      sx={{ whiteSpace: 'nowrap', width: { xs: '100%', sm: 'auto' } }}
+      sx={{ whiteSpace: 'nowrap', width: { xs: '100%', sm: 'auto' }, bgcolor: '#061e35', color: '#fff', '&:hover': { bgcolor: '#0b2f4f' } }}
     >
       {connecting
         ? 'Connecting…'

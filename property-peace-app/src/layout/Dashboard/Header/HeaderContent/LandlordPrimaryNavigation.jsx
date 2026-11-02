@@ -1,6 +1,7 @@
 import { Link as RouterLink, useLocation } from 'react-router-dom';
 import { Box } from '@mui/material';
 import { activeLandlordPrimaryLink, landlordPrimaryLinks } from 'utils/landlordPrimaryNavigation';
+import TopNavigation from './TopNavigation';
 
 // Centered page links, not dashboard tabs: each item goes to its own
 // destination and the current page is indicated with a quiet underline.
@@ -15,7 +16,7 @@ export default function LandlordPrimaryNavigation() {
         display: { xs: 'none', md: 'flex' },
         alignItems: 'center',
         justifyContent: 'center',
-        gap: { md: 2.5, lg: 3.5 },
+        gap: { md: 1.5, lg: 3 },
         position: 'absolute',
         left: '50%',
         transform: 'translateX(-50%)',
@@ -34,8 +35,8 @@ export default function LandlordPrimaryNavigation() {
             alignItems: 'center',
             alignSelf: 'stretch',
             px: 0.25,
-            color: active === label ? 'inherit' : (theme.palette.mode === 'dark' ? 'grey.300' : 'text.secondary'),
-            fontSize: 14,
+            color: 'inherit',
+            fontSize: { md: 13, lg: 14 },
             fontWeight: active === label ? 700 : 500,
             lineHeight: 1,
             textDecoration: 'none',
@@ -64,6 +65,7 @@ export default function LandlordPrimaryNavigation() {
           </Box>
         </Box>
       ))}
+      <TopNavigation />
     </Box>
   );
 }

@@ -408,8 +408,9 @@ namespace brownstone_hub_api.Services.TenantInviteService
 
                         // Get unit name if multi-unit property
                         if (tenantLease.Lease.Unit != null &&
-                            (propertyType.Equals("MultiUnit", StringComparison.OrdinalIgnoreCase) ||
-                             propertyType.Equals("Multi-Unit", StringComparison.OrdinalIgnoreCase)))
+                            (property.PropertyType is Enums.EPropertyType.MultiUnit or
+                                Enums.EPropertyType.SmallMultiFamily or Enums.EPropertyType.ApartmentBuilding or
+                                Enums.EPropertyType.Other))
                         {
                             unitName = tenantLease.Lease.Unit.Name ?? "";
                         }
@@ -425,8 +426,9 @@ namespace brownstone_hub_api.Services.TenantInviteService
 
                     // Get unit name if multi-unit property
                     if (tenantEntity.Unit != null &&
-                        (propertyType.Equals("MultiUnit", StringComparison.OrdinalIgnoreCase) ||
-                         propertyType.Equals("Multi-Unit", StringComparison.OrdinalIgnoreCase)))
+                        (property.PropertyType is Enums.EPropertyType.MultiUnit or
+                            Enums.EPropertyType.SmallMultiFamily or Enums.EPropertyType.ApartmentBuilding or
+                            Enums.EPropertyType.Other))
                     {
                         unitName = tenantEntity.Unit.Name ?? "";
                     }

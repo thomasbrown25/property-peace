@@ -115,6 +115,14 @@ public sealed class AirbnbIcalSyncService(
                 .Select(c => c.Date).ToListAsync(ct);
             if (events.Any(e => claimedDates.Any(date => e.StartDate <= date && date < e.EndDate)))
                 failure = "reservation_conflict";
+            if (failure is null)
+            {
+                var agreements = await db.Set<ExtendedStayAgreement>().AsNoTracking()
+                    .Where(a => a.UnitId == claim.UnitId && a.StartDate < last && a.EndDate > first)
+                    .Select(a => new { a.StartDate, a.EndDate }).ToListAsync(ct);
+                if (events.Any(e => agreements.Any(a => a.StartDate < e.EndDate && a.EndDate > e.StartDate)))
+                    failure = "agreement_conflict"; // Retain last good feed, mark stale; never silently overwrite occupancy.
+            }
         }
         if (failure is null && events is not null)
         {

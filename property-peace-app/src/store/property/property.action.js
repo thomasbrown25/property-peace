@@ -160,6 +160,7 @@ export const deleteProperty = (propertyId) => async (dispatch) => {
       type: PROPERTY_ACTION_TYPES.DELETE_PROPERTY_FAILED,
       payload: error?.response?.data?.errors || error?.message
     });
+    throw error;
   }
 };
 

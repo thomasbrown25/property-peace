@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { PropertiesStackParamList } from '../../navigation/types';
@@ -29,6 +30,7 @@ import { propertyOpenRepairs, propertyRentDue, propertyOverdueRent, propertyRent
 import { buildPropertyChecklistEntry, buildPropertyChecklistHistoryEntry } from '../../features/checklists/checklistNavigationModel';
 import { checklistSummary, recentPropertyChecklists } from '../../features/checklists/recentPropertyChecklists';
 import { useAppTheme } from '../../theme/AppTheme';
+import { isMultiUnitProperty, propertyTypeLabel } from '../../features/properties/propertyType';
 type PropertyDetailRoute = RouteProp<PropertiesStackParamList, 'PropertyDetail'>;
 
 type PropertyDetailNavigation = NativeStackNavigationProp<PropertiesStackParamList, 'PropertyDetail'>;
@@ -53,6 +55,7 @@ const monthlyRent = (value: number) => new Intl.NumberFormat('en-US', { style: '
 
 export default function PropertyDetailScreen() {
   const { mode, colors } = useAppTheme();
+  const insets = useSafeAreaInsets();
   const styles = mode === 'dark' ? darkStyles : lightStyles;
   const route = useRoute<PropertyDetailRoute>();
   const navigation = useNavigation<PropertyDetailNavigation>();
@@ -157,7 +160,7 @@ export default function PropertyDetailScreen() {
     const units = property.units || property.Units || [];
     const name = stringValue(property.name, property.Name, property.streetAddress, property.StreetAddress, 'Property');
     const street = stringValue(property.streetAddress, property.StreetAddress, property.address, property.Address);
-    const propertyType = stringValue(property.propertyType, property.PropertyType).toLowerCase();
+    const propertyType = propertyTypeLabel(property.propertyType ?? property.PropertyType);
     const imageUrl = stringValue(property.mainImageUrl, property.MainImageUrl, property.images?.[0]?.blobUrl, property.Images?.[0]?.BlobUrl);
     const firstUnit = units[0] || {};
     const beds = numberValue(firstUnit.bedrooms, firstUnit.Bedrooms, property.bedrooms, property.Bedrooms);
@@ -177,7 +180,7 @@ export default function PropertyDetailScreen() {
     navigation.setOptions({ title: details?.name || 'Property' });
   }, [navigation, details?.name]);
 
-  const isMultiUnit = stringValue(property?.propertyType, property?.PropertyType).toLowerCase() === 'multiunit';
+  const isMultiUnit = isMultiUnitProperty(property?.propertyType ?? property?.PropertyType);
   const hasLongTerm = Boolean(details?.longTermUnits.length);
   const visibleTab = (tab === 'units' && !isMultiUnit || tab === 'tenants' && !hasLongTerm) ? 'overview' : tab;
 
@@ -198,7 +201,7 @@ export default function PropertyDetailScreen() {
     <View style={styles.container}>
       <ScrollView
         style={styles.container}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: 72 + Math.max(insets.bottom, 10) + 30 }]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadProperty(); }} tintColor={mode === 'dark' ? colors.accent : '#2475cf'} />}
       >
       <View style={styles.heroCard}>
@@ -211,7 +214,7 @@ export default function PropertyDetailScreen() {
         )}
         <View style={styles.heroBody}>
           {!!details.street && <Text style={styles.address}>{details.street}</Text>}
-          {!!details.propertyType && <Text style={styles.propertyType}>{details.propertyType === 'multiunit' ? 'Multi-unit' : details.propertyType === 'singlefamily' ? 'Single-family' : details.propertyType}</Text>}
+          {!!details.propertyType && <Text style={styles.propertyType}>{details.propertyType}</Text>}
           <Text style={styles.propertyType} accessibilityLabel={`Rental mode ${details.rentalMode}`}>{details.rentalMode === 'Mixed' ? 'Mixed · long-term and short-term units' : details.rentalMode === 'Empty' ? 'No units yet' : details.rentalMode === 'ShortTerm' ? 'Short-term rentals' : 'Long-term rentals'}</Text>
           {(details.beds > 0 || details.baths > 0 || details.sqft > 0 || details.rent > 0) && (
             <View style={styles.propertyFacts}>

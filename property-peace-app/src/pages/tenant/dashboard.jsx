@@ -1,3 +1,4 @@
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MaintenanceAgentDrawer from './MaintenanceAgentDrawer';
@@ -851,7 +852,7 @@ export default function TenantDashboard() {
   const propertyType = (lease?.unit?.property?.propertyType || lease?.propertyType || lease?.PropertyType || '')
     .toLowerCase()
     .replace(/[^a-z]/g, '');
-  const isSingleFamily = propertyType === 'singlefamily' || propertyType === 'singleunit';
+  const isSingleFamily = isDetachedSingleUnitType(propertyType);
   const currentLeaseId = lease?.id || lease?.Id || selectedLeaseId;
   const selectedLeaseConversationWithDedicatedNumber = tenantConversations.find((conversation) => {
     const conversationLeaseId = conversation?.leaseId || conversation?.LeaseId;

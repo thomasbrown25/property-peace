@@ -570,6 +570,7 @@ services.AddScoped<brownstone_hub_api.Services.ShortStay.ShortStayCollectionServ
 services.AddScoped<brownstone_hub_api.Services.ShortStay.ShortStayCollectionReadinessService>();
 services.AddScoped<brownstone_hub_api.Services.ShortStay.AdminShortStayCollectionService>();
 services.AddScoped<brownstone_hub_api.Services.ShortStay.ShortStayCalendarService>();
+services.AddScoped<brownstone_hub_api.Services.ShortStay.ExtendedStayAgreementService>();
 services.AddScoped<brownstone_hub_api.Services.ShortStay.ShortStayQuoteService>();
 services.AddScoped<brownstone_hub_api.Services.ShortStay.ShortStayPublicService>();
 services.AddScoped<brownstone_hub_api.Services.ShortStay.ShortStayHoldService>();

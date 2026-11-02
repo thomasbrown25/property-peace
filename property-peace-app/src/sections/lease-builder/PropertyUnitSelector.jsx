@@ -1,3 +1,4 @@
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 import { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 
@@ -131,9 +132,7 @@ export default function PropertyUnitSelector({
   const [error, setError] = useState(null);
 
   // Check if property is single-family
-  const isSingleFamily = selectedProperty?.propertyType === 'singleFamily' || 
-                         selectedProperty?.propertyType === 'SingleFamily' ||
-                         selectedProperty?.PropertyType === 'SingleFamily';
+  const isSingleFamily = isDetachedSingleUnitType(selectedProperty?.propertyType || selectedProperty?.PropertyType);
 
   useEffect(() => {
     if (selectedProperty?.id) {
@@ -282,7 +281,7 @@ export default function PropertyUnitSelector({
                   {...params}
                   label="Unit *"
                   required
-                  helperText={isSingleFamily ? 'Single-family properties have Unit 1' : ''}
+                  helperText={isSingleFamily ? 'Single-unit properties have Unit 1' : ''}
                   InputProps={{
                     ...params.InputProps,
                     endAdornment: (
