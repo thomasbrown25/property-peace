@@ -10,6 +10,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   useWindowDimensions,
   View,
@@ -20,6 +21,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { logout } from '../../store/user/user.slice';
 import PropertyAPI, { Property } from '../../api/propertyAPI';
+import { filterPropertiesForList } from '../../features/properties/propertiesList';
 import { loadPortfolioRentalMode } from '../../features/properties/portfolioRentalMode';
 import type { PropertyRentalMode } from '../../features/properties/rentalMode';
 import MaintenanceAPI, { MaintenanceRequest } from '../../api/maintenanceAPI';
@@ -41,7 +43,7 @@ const darkLogo = require('../../../assets/property-peace-logo.png');
 
 type LoadStatus = 'loading' | 'success' | 'error';
 type HomeTab = 'Dashboard' | 'Properties' | 'Rent' | 'Maintenance' | 'Calendar';
-const homeTabs: HomeTab[] = ['Dashboard', 'Properties', 'Rent', 'Maintenance', 'Calendar'];
+const homeTabs: HomeTab[] = ['Dashboard', 'Calendar', 'Properties', 'Rent', 'Maintenance'];
 type RentMetrics = {
   expected: number;
   collected: number;
@@ -120,11 +122,13 @@ export default function DashboardScreen() {
   const { width: screenWidth } = useWindowDimensions();
   const { currentUser } = useAppSelector((state) => state.user);
   const [properties, setProperties] = useState<Property[]>([]);
+  const [propertySearch, setPropertySearch] = useState('');
   const [portfolioMode, setPortfolioMode] = useState<{ organizationId: string; mode: PropertyRentalMode | null } | null>(null);
   const [maintenance, setMaintenance] = useState<MaintenanceRequest[]>([]);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [maintenanceQuery, setMaintenanceQuery] = useState('');
   const [activeHomeTab, setActiveHomeTab] = useState<HomeTab>('Dashboard');
   const [rentMetrics, setRentMetrics] = useState<RentMetrics>({ expected: 0, collected: 0, remaining: 0, outstanding: 0, overdue: 0 });
   const [overdueByProperty, setOverdueByProperty] = useState<Map<string, number> | null>(null);
@@ -311,8 +315,12 @@ export default function DashboardScreen() {
         openRepairs,
         reason: `${openRepairs} open ${openRepairs === 1 ? 'repair' : 'repairs'}${scopedPortfolioMode === 'ShortTerm' && overdueAmount === 0 ? '' : ` · ${overdueAmount > 0 ? `${formatMoney(overdueAmount)} overdue rent` : 'Paid'}`}`,
       }];
-    }).slice(0, 5);
+    });
   }, [scopedProperties, scopedMaintenance, scopedOverdueByProperty, scopedPropertiesStatus, scopedMaintenanceStatus, scopedRentStatus, scopedPortfolioMode]);
+  const filteredAttentionProperties = useMemo(() => {
+    const matchingIds = new Set(filterPropertiesForList(scopedProperties, propertySearch).map(getPropertyId));
+    return attentionProperties.filter(item => matchingIds.has(getPropertyId(item.property)));
+  }, [attentionProperties, scopedProperties, propertySearch]);
 
   const collectionPct = scopedRentMetrics.expected > 0
     ? Math.min(Math.max((scopedRentMetrics.collected / scopedRentMetrics.expected) * 100, 0), 100)
@@ -322,15 +330,26 @@ export default function DashboardScreen() {
   const attentionDataAvailable = scopedMaintenanceStatus === 'success' && scopedConversationsStatus === 'success';
   const hasUnavailableData = [scopedPropertiesStatus, scopedMaintenanceStatus, scopedNotificationsStatus, scopedConversationsStatus, scopedRentStatus].includes('error');
   const currentDate = new Date();
-  const latestMaintenance = useMemo(
-    () => [...scopedMaintenance].filter(isOpenMaintenance).sort((a, b) => requestTime(b) - requestTime(a)).slice(0, 3),
+  const openMaintenance = useMemo(
+    () => [...scopedMaintenance].filter(isOpenMaintenance).sort((a, b) => requestTime(b) - requestTime(a)),
     [scopedMaintenance],
   );
+  const filteredMaintenance = useMemo(() => {
+    const query = maintenanceQuery.trim().toLowerCase();
+    if (!query) return openMaintenance;
+    return openMaintenance.filter(request => {
+      const id = getRequestId(request);
+      const property = scopedProperties.find(item => getPropertyId(item) === String(read(request, 'propertyId', 'PropertyId') ?? ''));
+      return [id, `MR-${id}`, request.title, request.Title, read(request, 'orderNumber', 'OrderNumber'),
+        read(request, 'propertyName', 'PropertyName'), read(request, 'propertyAddress', 'PropertyAddress'),
+        property?.name, property?.Name, property?.streetAddress, property?.StreetAddress, property?.address, property?.Address,
+      ].some(value => value != null && String(value).toLowerCase().includes(query));
+    });
+  }, [openMaintenance, maintenanceQuery, scopedProperties]);
   const recentNotifications = useMemo(
     () => [...scopedNotifications].sort((a, b) => notificationTime(b) - notificationTime(a)).slice(0, 5),
     [scopedNotifications],
   );
-  const latestNotifications = recentNotifications.slice(0, 3);
 
   const todayAtAGlance = (
     <View style={styles.todayCard}>
@@ -392,15 +411,28 @@ export default function DashboardScreen() {
         </ScrollView>
       </View>
 
-      {activeHomeTab === 'Dashboard' && <PropertyCollectionRail
-        properties={scopedProperties}
-        collections={scopedCollectionByProperty}
-        portfolio={scopedRentMetrics}
-        status={scopedPropertiesStatus === 'error' || scopedRentStatus === 'error' ? 'error' : scopedPropertiesStatus === 'loading' || scopedRentStatus === 'loading' ? 'loading' : 'success'}
-        onProperty={propertyId => navigation.navigate('Properties', { screen: 'PropertyDetail', params: { propertyId } })}
-        onRent={() => navigation.navigate('RentCollection')}
-        onRetry={loadDashboard}
-      />}
+      {activeHomeTab === 'Dashboard' && <>
+        {hasUnavailableData && (
+          <TouchableOpacity style={styles.warningCard} onPress={loadDashboard} activeOpacity={0.82} accessibilityLabel="Retry unavailable dashboard information">
+            <Ionicons name="cloud-offline-outline" size={22} color={mode === 'dark' ? '#f0ba72' : '#a45f12'} />
+            <View style={styles.warningCopy}>
+              <Text style={styles.warningTitle}>Some information is unavailable</Text>
+              <Text style={styles.warningText}>Tap to retry the missing dashboard sections.</Text>
+            </View>
+          </TouchableOpacity>
+        )}
+        <PropertyCollectionRail
+          properties={scopedProperties}
+          collections={scopedCollectionByProperty}
+          status={scopedPropertiesStatus === 'error' || scopedRentStatus === 'error' ? 'error' : scopedPropertiesStatus === 'loading' || scopedRentStatus === 'loading' ? 'loading' : 'success'}
+          onProperty={propertyId => navigation.navigate('Properties', { screen: 'PropertyDetail', params: { propertyId } })}
+          onRent={() => navigation.navigate('RentCollection')}
+          onAddProperty={() => navigation.navigate('Properties', { screen: 'AddProperty' })}
+          onMaintenance={() => navigation.navigate('Maintenance', { screen: 'MaintenanceList' })}
+          onLeases={() => navigation.navigate('Leases')}
+          onRetry={loadDashboard}
+        />
+      </>}
 
       <GlobalSearchModal visible={searchOpen} onClose={() => setSearchOpen(false)} onSelect={(type, id) => {
         const tabs = navigation.getParent();
@@ -464,7 +496,7 @@ export default function DashboardScreen() {
         </View>
       )}
 
-      {activeHomeTab === 'Calendar' ? <CalendarScreen embedded todayAtAGlance={todayAtAGlance} /> : <ScrollView
+      {activeHomeTab === 'Calendar' ? <CalendarScreen embedded todayAtAGlance={todayAtAGlance} /> : activeHomeTab !== 'Dashboard' && <ScrollView
         ref={scrollRef}
         contentContainerStyle={[styles.content, { paddingBottom: 120 }]}
         showsVerticalScrollIndicator={false}
@@ -507,25 +539,17 @@ export default function DashboardScreen() {
         </DashboardSection>
         )}
 
-        {activeHomeTab === 'Dashboard' && hasUnavailableData && (
-          <TouchableOpacity style={styles.warningCard} onPress={loadDashboard} activeOpacity={0.82} accessibilityLabel="Retry unavailable dashboard information">
-            <Ionicons name="cloud-offline-outline" size={22} color={mode === 'dark' ? '#f0ba72' : '#a45f12'} />
-            <View style={styles.warningCopy}>
-              <Text style={styles.warningTitle}>Some information is unavailable</Text>
-              <Text style={styles.warningText}>Tap to retry the missing dashboard sections.</Text>
-            </View>
-          </TouchableOpacity>
-        )}
-
         {activeHomeTab === 'Properties' && <DashboardSection borderless>
-          <View style={styles.cardHeader}>
-            <View style={styles.cardTitleWithIcon}>
-              <Ionicons name="home-outline" size={20} color={mode === 'dark' ? '#72b4ff' : '#2475cf'} />
-              <Text style={styles.cardTitle}>Properties</Text>
+          <View style={styles.propertyToolbar}>
+            <View style={[styles.propertySearchWrap, mode === 'dark' && { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]}>
+              <Ionicons name="search" size={19} color={mode === 'dark' ? colors.muted : '#64748b'} />
+              <TextInput value={propertySearch} onChangeText={setPropertySearch} placeholder="Search properties" placeholderTextColor={mode === 'dark' ? colors.muted : '#64748b'} style={[styles.propertySearchInput, { color: colors.text }]} accessibilityLabel="Search properties" returnKeyType="search" />
+              {!!propertySearch && <TouchableOpacity onPress={() => setPropertySearch('')} accessibilityRole="button" accessibilityLabel="Clear search" style={styles.propertyClearSearch}>
+                <Ionicons name="close-circle" size={19} color={mode === 'dark' ? colors.muted : '#94a3b8'} />
+              </TouchableOpacity>}
             </View>
-            <TouchableOpacity style={styles.cardLink} onPress={() => navigation.navigate('Properties', { screen: 'PropertiesList' })} accessibilityRole="button" accessibilityLabel="View all properties">
-              <Text style={styles.cardLinkText}>View all</Text>
-              <Ionicons name="arrow-forward" size={14} color={mode === 'dark' ? colors.muted : '#647585'} />
+            <TouchableOpacity style={[styles.propertyAdd, { backgroundColor: colors.accent }]} onPress={() => navigation.navigate('Properties', { screen: 'AddProperty' })} accessibilityRole="button" accessibilityLabel="Add property">
+              <Ionicons name="add" size={22} color={mode === 'dark' ? colors.background : '#fff'} />
             </TouchableOpacity>
           </View>
           {scopedPropertiesStatus === 'error' || scopedMaintenanceStatus === 'error' || scopedRentStatus === 'error' || (scopedRentStatus === 'success' && !scopedOverdueByProperty) ? (
@@ -534,8 +558,15 @@ export default function DashboardScreen() {
             <CardLoading />
           ) : attentionProperties.length === 0 ? (
             <Text style={styles.rentEmpty}>No active properties yet.</Text>
-          ) : attentionProperties.map((item) => (
+          ) : filteredAttentionProperties.length === 0 ? (
+            <Text style={styles.rentEmpty}>No matching properties.</Text>
+          ) : filteredAttentionProperties.map((item) => (
             <TouchableOpacity key={getPropertyId(item.property)} style={styles.attentionProperty} onPress={() => navigation.navigate('Properties', { screen: 'PropertyDetail', params: { propertyId: getPropertyId(item.property) } })} accessibilityRole="button" accessibilityLabel={`View ${item.name}, ${item.reason}`}>
+              {firstString(item.property.mainImageUrl, item.property.MainImageUrl, item.property.images?.[0]?.blobUrl, item.property.Images?.[0]?.BlobUrl) ? (
+                <Image source={{ uri: firstString(item.property.mainImageUrl, item.property.MainImageUrl, item.property.images?.[0]?.blobUrl, item.property.Images?.[0]?.BlobUrl) }} style={styles.propertyThumbnail} />
+              ) : (
+                <View style={[styles.propertyThumbnailFallback, { backgroundColor: mode === 'dark' ? colors.surface : '#eaf3ff' }]}><Ionicons name="home-outline" size={28} color={colors.accent} /></View>
+              )}
               <View style={styles.attentionCopy}>
                 <Text style={styles.attentionName} numberOfLines={1}>{item.name}</Text>
                 <Text style={styles.attentionReason}>
@@ -556,65 +587,32 @@ export default function DashboardScreen() {
         </DashboardSection>}
 
         {activeHomeTab === 'Maintenance' && <DashboardSection borderless>
-          <View style={styles.cardHeader}>
-            <View style={styles.cardTitleWithIcon}>
-              <Ionicons name="construct-outline" size={20} color={mode === 'dark' ? '#f0ba72' : '#b76a11'} />
-              <Text style={styles.cardTitle}>Maintenance</Text>
+          <View style={styles.maintenanceToolbar}>
+            <View style={[styles.maintenanceSearch, mode === 'dark' && { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]}>
+              <Ionicons name="search" size={19} color={mode === 'dark' ? colors.muted : '#64748b'} />
+              <TextInput value={maintenanceQuery} onChangeText={setMaintenanceQuery} placeholder="Search requests or property" placeholderTextColor={mode === 'dark' ? colors.muted : '#94a3b8'} style={[styles.maintenanceSearchInput, { color: colors.text }]} returnKeyType="search" accessibilityLabel="Search maintenance requests or property" />
+              {!!maintenanceQuery && <TouchableOpacity style={styles.maintenanceClear} accessibilityRole="button" accessibilityLabel="Clear maintenance search" onPress={() => setMaintenanceQuery('')}><Ionicons name="close-circle" size={19} color={mode === 'dark' ? colors.muted : '#94a3b8'} /></TouchableOpacity>}
             </View>
-            <TouchableOpacity style={styles.cardLink} onPress={() => navigation.navigate('Maintenance', { screen: 'MaintenanceList' })}>
-              <Text style={styles.cardLinkText}>View all</Text>
-              <Ionicons name="arrow-forward" size={14} color={mode === 'dark' ? colors.muted : '#647585'} />
+            <TouchableOpacity style={[styles.maintenanceAdd, { backgroundColor: colors.accent }]} onPress={() => navigation.navigate('Maintenance', { screen: 'AddMaintenanceRequest' })} accessibilityRole="button" accessibilityLabel="Add maintenance request">
+              <Ionicons name="add" size={24} color={mode === 'dark' ? colors.background : '#fff'} />
             </TouchableOpacity>
           </View>
           {scopedMaintenanceStatus === 'error' ? (
             <SectionError text="Maintenance requests are unavailable." onRetry={loadDashboard} />
           ) : scopedMaintenanceStatus === 'loading' ? (
             <CardLoading />
-          ) : latestMaintenance.length === 0 ? (
-            <EmptyState icon="checkmark-circle-outline" title="No current maintenance requests" text="New requests and their status will appear here." />
-          ) : latestMaintenance.map((request, index) => (
+          ) : filteredMaintenance.length === 0 ? (
+            maintenanceQuery.trim() ? <EmptyState icon="search-outline" title="No matching requests" text="Try another request ID, title, or property." /> : <EmptyState icon="checkmark-circle-outline" title="No current maintenance requests" text="New requests and their status will appear here." />
+          ) : filteredMaintenance.map((request, index) => (
             <MaintenanceRow
               key={getRequestId(request) || String(index)}
               request={request}
-              isLast={index === latestMaintenance.length - 1}
+              isLast={index === filteredMaintenance.length - 1}
               onPress={() => navigation.navigate('Maintenance', {
                 screen: 'LandlordMaintenanceDetail',
                 params: { requestId: getRequestId(request), listItem: request },
               })}
             />
-          ))}
-        </DashboardSection>}
-
-        {activeHomeTab === 'Dashboard' && <DashboardSection borderless>
-          <View style={styles.cardHeader}>
-            <View>
-              <Text style={styles.cardEyebrow}>RECENT</Text>
-              <Text style={styles.cardTitle}>Activity</Text>
-            </View>
-            <TouchableOpacity style={styles.cardLink} onPress={() => navigation.navigate('Notifications')}>
-              <Text style={styles.cardLinkText}>View all</Text>
-              <Ionicons name="arrow-forward" size={14} color={mode === 'dark' ? colors.muted : '#647585'} />
-            </TouchableOpacity>
-          </View>
-          {scopedNotificationsStatus === 'error' ? (
-            <SectionError text="Recent activity is unavailable." onRetry={loadDashboard} />
-          ) : scopedNotificationsStatus === 'loading' ? (
-            <CardLoading />
-          ) : latestNotifications.length === 0 ? (
-            <EmptyState icon="checkmark-circle-outline" title="No recent notifications" text="Portfolio updates will appear here." />
-          ) : latestNotifications.map((notification: any, index) => (
-            <View key={String(notification.id || notification.Id || index)} style={[styles.notificationRow, index === latestNotifications.length - 1 && styles.lastRow]}>
-              <View style={[styles.notificationDot,
-                paymentActivityTone(notification) === 'received' ? styles.notificationDotReceived
-                  : paymentActivityTone(notification) === 'pending' ? styles.notificationDotPending
-                  : paymentActivityTone(notification) === 'failed' ? styles.notificationDotFailed
-                  : (notification.isRead === false || notification.IsRead === false) && styles.notificationDotUnread,
-              ]} />
-              <View style={styles.notificationCopy}>
-                <Text style={styles.notificationTitle}>{notification.title || notification.Title || 'Notification'}</Text>
-                {!!(notification.message || notification.Message) && <Text style={styles.notificationMessage} numberOfLines={2}>{notification.message || notification.Message}</Text>}
-              </View>
-            </View>
           ))}
         </DashboardSection>}
       </ScrollView>}
@@ -803,6 +801,11 @@ const styles = StyleSheet.create({
   profileActionText: { color: '#20394d', fontSize: 15, fontWeight: '800' },
   destructiveText: { color: '#c2413b' },
   content: { paddingHorizontal: 24, paddingTop: 14, gap: 0 },
+  maintenanceToolbar: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 },
+  maintenanceSearch: { flex: 1, minWidth: 0, minHeight: 46, paddingHorizontal: 13, borderRadius: 10, backgroundColor: '#f1f5f9', flexDirection: 'row', alignItems: 'center', gap: 8 },
+  maintenanceSearchInput: { flex: 1, minWidth: 0, fontSize: 15, paddingVertical: 9 },
+  maintenanceClear: { width: 30, height: 44, alignItems: 'center', justifyContent: 'center' },
+  maintenanceAdd: { width: 46, height: 46, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   todayCard: { minHeight: 105, flexDirection: 'row', alignItems: 'center', paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#dce4e8' },
   dateBlock: { width: 76, alignItems: 'center', justifyContent: 'center', borderRightWidth: 1, borderRightColor: '#dce4e8' },
   dateMonth: { color: '#2475cf', fontSize: 11, fontWeight: '900', letterSpacing: 1.6 },
@@ -834,7 +837,14 @@ const styles = StyleSheet.create({
   rentDetailValue: { color: '#102d43', fontSize: 14, fontWeight: '900' },
   rentOverdue: { color: '#c2413b' },
   propertyPaid: { color: '#2f8f46' },
-  attentionProperty: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: 12, borderBottomWidth: 1, borderBottomColor: '#e9edf0', paddingVertical: 12 },
+  attentionProperty: { minHeight: 98, flexDirection: 'row', alignItems: 'center', gap: 12, borderBottomWidth: 1, borderBottomColor: '#e9edf0', paddingVertical: 12 },
+  propertyToolbar: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
+  propertySearchWrap: { flex: 1, minWidth: 0, minHeight: 46, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 13, backgroundColor: '#f1f5f9', borderRadius: 10 },
+  propertySearchInput: { flex: 1, minWidth: 0, fontSize: 15, paddingVertical: 10 },
+  propertyClearSearch: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  propertyAdd: { width: 46, height: 46, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  propertyThumbnail: { width: 74, height: 74, borderRadius: 9, backgroundColor: '#eaf3ff' },
+  propertyThumbnailFallback: { width: 74, height: 74, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
   attentionCopy: { flex: 1, minWidth: 0 },
   attentionName: { color: '#061e35', fontSize: 16, fontWeight: '800' },
   attentionReason: { color: '#536777', fontSize: 12, lineHeight: 18, marginTop: 4 },

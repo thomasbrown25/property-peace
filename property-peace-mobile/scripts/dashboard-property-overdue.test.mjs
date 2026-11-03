@@ -33,7 +33,7 @@ test('incomplete or inconsistent records never claim paid', () => {
 });
 test('dashboard rows replace unread count with overdue amount or paid and use rent response', () => {
   const screen = readFileSync(new URL('../src/screens/landlord/DashboardScreen.tsx', import.meta.url), 'utf8');
-  const rows = screen.slice(screen.indexOf('attentionProperties.map((item)'), screen.indexOf('</DashboardSection>', screen.indexOf('attentionProperties.map((item)')));
+  const rows = screen.slice(screen.indexOf('filteredAttentionProperties.map((item)'), screen.indexOf('</DashboardSection>', screen.indexOf('filteredAttentionProperties.map((item)')));
   assert.doesNotMatch(rows, /item\.unread|unread message/);
   assert.match(rows, /item\.overdueAmount > 0/);
   assert.match(rows, /Paid/);
