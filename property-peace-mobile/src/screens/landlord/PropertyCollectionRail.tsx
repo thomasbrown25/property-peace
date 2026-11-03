@@ -2,6 +2,7 @@ import React from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { Property } from '../../api/propertyAPI';
 import type { PropertyCollection } from '../../features/rentCollection/propertyCollection';
+import { dashboardPropertiesWithActiveLeases } from '../../features/properties/dashboardPropertyOrder';
 import { useAppTheme } from '../../theme/AppTheme';
 
 const money = (value: number) => new Intl.NumberFormat('en-US', {
@@ -26,18 +27,17 @@ type Props = {
 export default function PropertyCollectionRail({ properties, collections, status, onProperty, onRetry }: Props) {
   const { mode, colors } = useAppTheme();
   const dark = mode === 'dark';
-  const active = properties.filter(p => p.isActive !== false && p.IsActive !== false && String(p.id ?? p.Id ?? ''));
+  const active = dashboardPropertiesWithActiveLeases(properties.filter(p => p.isActive !== false && p.IsActive !== false && String(p.id ?? p.Id ?? '')));
   const ink = dark ? colors.text : '#061e35';
   const muted = dark ? colors.muted : '#657685';
   const accent = dark ? '#75d995' : '#2f8f46';
   return (
     <View style={[styles.shell, { borderColor: colors.border }]}>
       <View style={styles.collection}>
-        <Text style={[styles.columnLabel, { color: muted }]}>PROPERTIES · RENT COLLECTED</Text>
         <ScrollView nestedScrollEnabled showsVerticalScrollIndicator accessibilityLabel="Property rent collection cards" style={styles.list} contentContainerStyle={styles.listContent} refreshControl={<RefreshControl refreshing={status === 'loading'} onRefresh={onRetry} tintColor={accent} />}>
           {status === 'loading' ? <Text style={[styles.placeholder, { color: muted }]}>Loading properties…</Text>
             : status === 'error' || !collections ? <TouchableOpacity onPress={onRetry} accessibilityRole="button"><Text style={[styles.placeholder, { color: muted }]}>Rent data unavailable. Tap to retry.</Text></TouchableOpacity>
-            : active.length === 0 ? <Text style={[styles.placeholder, { color: muted }]}>No active properties yet.</Text>
+            : active.length === 0 ? <Text style={[styles.placeholder, { color: muted }]}>No properties with active leases yet.</Text>
             : active.map(property => {
               const id = String(property.id ?? property.Id);
               const item = collections.get(id);
@@ -68,8 +68,7 @@ export default function PropertyCollectionRail({ properties, collections, status
 const styles = StyleSheet.create({
   shell: { flex: 1, minHeight: 0, borderTopWidth: 1, borderBottomWidth: 1 },
   collection: { flex: 1, minHeight: 0, paddingHorizontal: 16, paddingTop: 13 },
-  columnLabel: { fontSize: 9, lineHeight: 13, fontWeight: '800', letterSpacing: 0.5 },
-  list: { flex: 1, marginTop: 10 },
+  list: { flex: 1 },
   listContent: { paddingBottom: 16, gap: 10 },
   card: { padding: 11, borderWidth: 1, borderRadius: 13, minHeight: 142 },
   name: { fontSize: 14, lineHeight: 17, fontWeight: '800' },

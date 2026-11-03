@@ -14,7 +14,7 @@ import {
   useTheme,
   CircularProgress
 } from '@mui/material';
-import { DeleteOutlined, CloseOutlined, FileTextOutlined, DollarOutlined, WarningOutlined } from '@ant-design/icons';
+import { DeleteOutlined, CloseOutlined } from '@ant-design/icons';
 import { useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { deleteProperty } from 'store/property/property.action';
@@ -23,17 +23,14 @@ import { openSnackbar } from 'api/snackbar';
 const deleteCheckboxes = [
   {
     id: 'documents',
-    icon: <FileTextOutlined />,
     label: 'Documents, Expenses, and Maintenance Requests for this property and all dependents (units, rooms) will be permanently deleted.'
   },
   {
     id: 'payments',
-    icon: <DollarOutlined />,
     label: 'Rent Payments, Leases, and Tenants will remain active and viewable.'
   },
   {
     id: 'irreversible',
-    icon: <WarningOutlined />,
     label: 'This action cannot be undone.',
     danger: true
   }
@@ -189,17 +186,16 @@ export default function DeletePropertyModal({ open, onClose, propertyId, propert
                 }
               }}
             >
-              {/* Icon */}
-              <Box
-                sx={{
-                  mt: 0.25,
-                  fontSize: 16,
-                  color: item.danger ? 'error.main' : 'text.secondary',
-                  flexShrink: 0
-                }}
-              >
-                {item.icon}
-              </Box>
+              <Checkbox
+                checked={checkedItems[item.id]}
+                color={item.danger ? 'error' : 'primary'}
+                size="small"
+                tabIndex={-1}
+                disableRipple
+                sx={{ p: 0, flexShrink: 0, alignSelf: 'flex-start' }}
+                onClick={(e) => e.stopPropagation()}
+                onChange={handleCheckboxChange(item.id)}
+              />
 
               {/* Label */}
               <Typography
@@ -211,17 +207,6 @@ export default function DeletePropertyModal({ open, onClose, propertyId, propert
                 {item.label}
               </Typography>
 
-              {/* Checkbox (non-interactive, driven by row click) */}
-              <Checkbox
-                checked={checkedItems[item.id]}
-                color={item.danger ? 'error' : 'primary'}
-                size="small"
-                tabIndex={-1}
-                disableRipple
-                sx={{ p: 0, flexShrink: 0, mt: 0.25 }}
-                onClick={(e) => e.stopPropagation()}
-                onChange={handleCheckboxChange(item.id)}
-              />
             </Box>
           ))}
         </Stack>

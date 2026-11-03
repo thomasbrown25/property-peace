@@ -19,6 +19,23 @@ test('collection groups per-lease current-month credits by property and refuses 
   assert.equal(propertyCollection({}), null);
 });
 
+test('dashboard shows only properties with a currently active lease, preserving their order', async () => {
+  const { dashboardPropertiesWithActiveLeasesFirst, dashboardPropertiesWithActiveLeases, hasActiveLease } = await import('../src/features/properties/dashboardPropertyOrder.ts');
+  const properties = [
+    { id: 1, units: [{ status: 'vacant', leases: [{ isActive: false }] }] },
+    { id: 2, units: [{ status: 'occupied' }] },
+    { id: 3, Units: [{ Status: 'notStarted', Leases: [{ IsActive: true }] }] },
+    { id: 4, Units: [{ Status: 'overdue' }] },
+    { id: 5, isOccupied: true, units: [{ status: 'draft' }] },
+    { id: 6, units: [{ status: 'vacant' }, { status: 'occupied' }] },
+  ];
+  const sorted = dashboardPropertiesWithActiveLeasesFirst(properties);
+  assert.deepEqual(sorted.map(property => property.id), [2, 4, 6, 1, 3, 5]);
+  assert.deepEqual(dashboardPropertiesWithActiveLeases(properties).map(property => property.id), [2, 4, 6]);
+  assert.deepEqual(properties.map(property => property.id), [1, 2, 3, 4, 5, 6]);
+  assert.equal(hasActiveLease({ id: 7 }), false);
+});
+
 test('dashboard property collection fills the available width and height without quick actions', () => {
   assert.match(screen, /<PropertyCollectionRail[\s\S]*?<GlobalSearchModal/);
   assert.match(rail, /shell: \{ flex: 1, minHeight: 0, borderTopWidth:/);
@@ -26,7 +43,9 @@ test('dashboard property collection fills the available width and height without
   assert.doesNotMatch(rail, /width: '50%'|Quick actions|GET THINGS DONE|onAddProperty|onMaintenance|onLeases|onRent\b/);
   assert.match(rail, /<ScrollView nestedScrollEnabled[\s\S]*?refreshControl=/);
   assert.match(rail, /onProperty\(id\)/);
-  assert.match(rail, /PROPERTIES · RENT COLLECTED/);
+  assert.doesNotMatch(rail, /PROPERTIES · RENT COLLECTED|columnLabel/);
+  assert.match(rail, /dashboardPropertiesWithActiveLeases\(properties\.filter/);
+  assert.match(rail, /No properties with active leases yet/);
   assert.match(rail, /No rent expected this month/);
   assert.match(model, /currentMonthCollected/);
 });

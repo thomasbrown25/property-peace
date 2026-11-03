@@ -383,6 +383,7 @@ namespace brownstone_hub_api.Repositories.Properties
                 var propertyDto = _mapper.Map<LoadPropertyDto>(property);
 
                 // Hard delete: actually remove the property from the database
+                await RemoveConnectPreparationPropertyAsync(propertyId, CancellationToken.None);
                 _context.Properties.Remove(property);
                 await _context.SaveChangesAsync();
 
@@ -402,9 +403,29 @@ namespace brownstone_hub_api.Repositories.Properties
                 p => p.Id == propertyId && !p.IsDeleted && p.OrganizationId == organizationId,
                 cancellationToken) ?? throw new KeyNotFoundException($"Property with ID {propertyId} not found");
             var propertyDto = _mapper.Map<LoadPropertyDto>(property);
+            await RemoveConnectPreparationPropertyAsync(propertyId, cancellationToken);
             _context.Properties.Remove(property);
             await _context.SaveChangesAsync(cancellationToken);
             return propertyDto;
+        }
+
+        private async Task RemoveConnectPreparationPropertyAsync(long propertyId, CancellationToken cancellationToken)
+        {
+            // These are editable onboarding selections, not payment or payout history.
+            // Stage cleanup alongside the property delete so SaveChanges is atomic.
+            var selections = await _context.StripeConnectPreparationProperties
+                .Include(x => x.Preparation)
+                .Where(x => x.PropertyId == propertyId)
+                .ToListAsync(cancellationToken);
+            var now = DateTimeOffset.UtcNow;
+            foreach (var preparation in selections.Select(x => x.Preparation).Distinct())
+            {
+                // A changed property scope must be reviewed and attested again.
+                preparation.AuthorityAttested = false;
+                preparation.AuthorityAttestedAt = null;
+                preparation.UpdatedAt = now;
+            }
+            _context.StripeConnectPreparationProperties.RemoveRange(selections);
         }
 
         public async Task<LoadPropertyDto> InactivateProperty(long propertyId)
