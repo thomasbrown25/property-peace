@@ -16,7 +16,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: "9.x"
+          dotnet-version: "10.x"
 
       - name: Run API unit tests
         run: dotnet test property-peace-api.Tests/property-peace-api.Tests.csproj --configuration Release --nologo
@@ -31,7 +31,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: "9.x"
+          dotnet-version: "10.x"
 
       - name: Build API
         run: dotnet build property-peace-api/property-peace-api.csproj --configuration Release --nologo

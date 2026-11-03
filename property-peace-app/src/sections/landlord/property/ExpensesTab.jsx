@@ -619,7 +619,10 @@ export default function ExpensesTab({ propertyId, property, payments, combined =
           sx={{
             mt: 3,
             bgcolor: (t) => alpha(t.palette.background.paper, 0.6),
-            boxShadow: (t) => `0 0 20px ${alpha(t.palette.primary.main, 0.15)}`
+            border: 'none',
+            boxShadow: 'none',
+            '&::before': { display: 'none' },
+            '&:hover': { border: 'none', boxShadow: 'none' }
           }}
         >
           <Accordion 
@@ -628,7 +631,8 @@ export default function ExpensesTab({ propertyId, property, payments, combined =
             sx={{
               boxShadow: 'none',
               '&:before': { display: 'none' },
-              border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+              border: 'none',
+              '&:hover': { border: 'none', boxShadow: 'none' },
               borderRadius: 2
             }}
           >

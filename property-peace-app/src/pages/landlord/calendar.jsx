@@ -854,7 +854,10 @@ export default function CalendarPage({ embedded = false }) {
       {/* Filter bar */}
       <Box sx={{ mb: 2, p: 1.5, border: (t) => `1px solid ${subtleBorder(t)}`, borderRadius: 2, bgcolor: 'background.paper' }}>
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} justifyContent="space-between" sx={{ mb: 1.25 }}>
-          <Stack direction="row" spacing={1} sx={{ overflowX: 'auto' }}>
+          <Stack direction="row" spacing={1} sx={{
+            overflowX: 'auto', overflowY: 'hidden',
+            scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' }
+          }}>
           <FormControl size="small" sx={{ width: { xs: '100%', sm: 'auto' }, minWidth: { sm: 160 } }}>
             <Select value={selectedProperty} onChange={e => setSelectedProperty(e.target.value)} displayEmpty
               sx={{ fontSize: '0.78rem', borderRadius: 1.5, height: 32 }}
