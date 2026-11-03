@@ -426,10 +426,6 @@ export default function DashboardScreen() {
           collections={scopedCollectionByProperty}
           status={scopedPropertiesStatus === 'error' || scopedRentStatus === 'error' ? 'error' : scopedPropertiesStatus === 'loading' || scopedRentStatus === 'loading' ? 'loading' : 'success'}
           onProperty={propertyId => navigation.navigate('Properties', { screen: 'PropertyDetail', params: { propertyId } })}
-          onRent={() => navigation.navigate('RentCollection')}
-          onAddProperty={() => navigation.navigate('Properties', { screen: 'AddProperty' })}
-          onMaintenance={() => navigation.navigate('Maintenance', { screen: 'MaintenanceList' })}
-          onLeases={() => navigation.navigate('Leases')}
           onRetry={loadDashboard}
         />
       </>}

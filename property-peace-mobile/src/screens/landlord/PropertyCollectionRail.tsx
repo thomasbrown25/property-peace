@@ -1,6 +1,5 @@
 import React from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import type { Property } from '../../api/propertyAPI';
 import type { PropertyCollection } from '../../features/rentCollection/propertyCollection';
 import { useAppTheme } from '../../theme/AppTheme';
@@ -21,14 +20,10 @@ type Props = {
   collections: Map<string, PropertyCollection> | null;
   status: 'loading' | 'success' | 'error';
   onProperty: (id: string) => void;
-  onRent: () => void;
-  onAddProperty: () => void;
-  onMaintenance: () => void;
-  onLeases: () => void;
   onRetry: () => void;
 };
 
-export default function PropertyCollectionRail({ properties, collections, status, onProperty, onRent, onAddProperty, onMaintenance, onLeases, onRetry }: Props) {
+export default function PropertyCollectionRail({ properties, collections, status, onProperty, onRetry }: Props) {
   const { mode, colors } = useAppTheme();
   const dark = mode === 'dark';
   const active = properties.filter(p => p.isActive !== false && p.IsActive !== false && String(p.id ?? p.Id ?? ''));
@@ -37,7 +32,7 @@ export default function PropertyCollectionRail({ properties, collections, status
   const accent = dark ? '#75d995' : '#2f8f46';
   return (
     <View style={[styles.shell, { borderColor: colors.border }]}>
-      <View style={[styles.left, { borderRightColor: colors.border }]}>
+      <View style={styles.collection}>
         <Text style={[styles.columnLabel, { color: muted }]}>PROPERTIES · RENT COLLECTED</Text>
         <ScrollView nestedScrollEnabled showsVerticalScrollIndicator accessibilityLabel="Property rent collection cards" style={styles.list} contentContainerStyle={styles.listContent} refreshControl={<RefreshControl refreshing={status === 'loading'} onRefresh={onRetry} tintColor={accent} />}>
           {status === 'loading' ? <Text style={[styles.placeholder, { color: muted }]}>Loading properties…</Text>
@@ -66,30 +61,13 @@ export default function PropertyCollectionRail({ properties, collections, status
             })}
         </ScrollView>
       </View>
-      <ScrollView style={styles.right} contentContainerStyle={styles.rightContent} showsVerticalScrollIndicator={false}>
-        <Text style={[styles.columnLabel, { color: muted }]}>GET THINGS DONE</Text>
-        <Text style={[styles.rightTitle, { color: ink }]}>Quick actions</Text>
-        {([
-          { label: 'Add property', icon: 'add-circle-outline', onPress: onAddProperty },
-          { label: 'View rent', icon: 'wallet-outline', onPress: onRent },
-          { label: 'Maintenance', icon: 'construct-outline', onPress: onMaintenance },
-          { label: 'Leases', icon: 'document-text-outline', onPress: onLeases },
-        ] as const).map(action => (
-          <TouchableOpacity key={action.label} style={[styles.action, { borderColor: colors.border, backgroundColor: colors.surface }]} onPress={action.onPress} accessibilityRole="button" accessibilityLabel={action.label}>
-            <Ionicons name={action.icon} size={19} color={dark ? colors.accent : '#2475cf'} />
-            <Text style={[styles.actionText, { color: ink }]} numberOfLines={2}>{action.label}</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  shell: { flex: 1, minHeight: 0, flexDirection: 'row', borderTopWidth: 1, borderBottomWidth: 1 },
-  left: { width: '50%', minHeight: 0, borderRightWidth: 1, paddingLeft: 12, paddingRight: 9, paddingTop: 13 },
-  right: { width: '50%', minHeight: 0 },
-  rightContent: { paddingHorizontal: 10, paddingTop: 16, paddingBottom: 12 },
+  shell: { flex: 1, minHeight: 0, borderTopWidth: 1, borderBottomWidth: 1 },
+  collection: { flex: 1, minHeight: 0, paddingHorizontal: 16, paddingTop: 13 },
   columnLabel: { fontSize: 9, lineHeight: 13, fontWeight: '800', letterSpacing: 0.5 },
   list: { flex: 1, marginTop: 10 },
   listContent: { paddingBottom: 16, gap: 10 },
@@ -104,7 +82,4 @@ const styles = StyleSheet.create({
   noRent: { fontSize: 11, marginTop: 13 },
   overdue: { fontSize: 11, marginTop: 7, fontWeight: '700' },
   placeholder: { fontSize: 12, lineHeight: 18, paddingVertical: 12 },
-  rightTitle: { fontSize: 18, lineHeight: 22, fontWeight: '900', marginTop: 10, marginBottom: 12 },
-  action: { minHeight: 52, borderWidth: 1, borderRadius: 12, marginBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 9 },
-  actionText: { flex: 1, fontSize: 12, fontWeight: '800' },
 });

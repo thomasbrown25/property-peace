@@ -19,16 +19,14 @@ test('collection groups per-lease current-month credits by property and refuses 
   assert.equal(propertyCollection({}), null);
 });
 
-test('dashboard property cards fill the available screen height beside quick actions', () => {
+test('dashboard property collection fills the available width and height without quick actions', () => {
   assert.match(screen, /<PropertyCollectionRail[\s\S]*?<GlobalSearchModal/);
-  assert.match(rail, /width: '50%'/);
-  assert.match(rail, /shell: \{ flex: 1, minHeight: 0/);
+  assert.match(rail, /shell: \{ flex: 1, minHeight: 0, borderTopWidth:/);
+  assert.match(rail, /collection: \{ flex: 1, minHeight: 0, paddingHorizontal:/);
+  assert.doesNotMatch(rail, /width: '50%'|Quick actions|GET THINGS DONE|onAddProperty|onMaintenance|onLeases|onRent\b/);
   assert.match(rail, /<ScrollView nestedScrollEnabled[\s\S]*?refreshControl=/);
   assert.match(rail, /onProperty\(id\)/);
-  for (const action of ['Add property', 'View rent', 'Maintenance', 'Leases']) {
-    assert.ok(rail.includes(`label: '${action}'`));
-  }
-  assert.doesNotMatch(rail, /<Text[^>]*>Rent collection<\/Text>/);
+  assert.match(rail, /PROPERTIES · RENT COLLECTED/);
   assert.match(rail, /No rent expected this month/);
   assert.match(model, /currentMonthCollected/);
 });
