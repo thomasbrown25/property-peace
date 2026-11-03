@@ -62,7 +62,9 @@ export default function PropertyOccupancyTab({ propertyId, property }) {
       </Stack>
       <Box sx={{ minHeight: { xs: 260, sm: 360 } }}>
         {error && <Alert severity="error" sx={{ mb: 2 }} action={<Button color="inherit" size="small" onClick={() => setRequestAttempt(attempt => attempt + 1)}>Retry</Button>}>{error}</Alert>}
-        {loading && <CircularProgress aria-label="Loading occupancy" />}
+        {loading && <Box sx={{ minHeight: { xs: 260, sm: 360 }, display: 'grid', placeItems: 'center' }}>
+          <CircularProgress aria-label="Loading occupancy" />
+        </Box>}
         {!loading && !error && <OccupancyTimelineGraph calendarData={calendar} windowStart={windowStart} windowMonthCount={12}
           fallbackPropertyName={property?.name} maxVisibleUnits={10} onMonthClick={(unit, month) => setSelection({ unit, month })} />}
       </Box>

@@ -1,4 +1,5 @@
 import type { Property } from '../../api/propertyAPI';
+import type { PropertyCollection } from '../rentCollection/propertyCollection';
 
 // The property-list API derives occupied/overdue from a current, started, active lease.
 // Do not use property-level IsOccupied here: a multi-unit property can have a lease
@@ -11,6 +12,12 @@ export function hasActiveLease(property: Property): boolean {
 
 export function dashboardPropertiesWithActiveLeases(properties: Property[]): Property[] {
   return properties.filter(hasActiveLease);
+}
+
+export function dashboardPropertiesWithExpectedRent(properties: Property[], collections: Map<string, PropertyCollection> | null): Property[] {
+  if (!collections) return [];
+  return dashboardPropertiesWithActiveLeases(properties).filter(property =>
+    (collections.get(String(property.id ?? property.Id ?? ''))?.expected ?? 0) > 0);
 }
 
 export function dashboardPropertiesWithActiveLeasesFirst(properties: Property[]): Property[] {

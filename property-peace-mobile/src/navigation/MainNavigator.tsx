@@ -159,7 +159,10 @@ function PropertiesNavigator() {
   return (
     <PropertiesStack.Navigator screenOptions={stackOptions}>
       <PropertiesStack.Screen name="PropertiesList" component={PropertiesScreen} options={{ headerShown: false }} />
-      <PropertiesStack.Screen name="PropertyDetail" component={PropertyDetailScreen} options={({ navigation }) => ({ title: 'Property', headerBackVisible: false, headerLeft: () => <PageBackButton inHeader onPress={() => navigation.popToTop()} /> })} />
+      <PropertiesStack.Screen name="PropertyDetail" component={PropertyDetailScreen} options={({ navigation }) => ({ title: 'Property', headerBackVisible: false, headerLeft: () => <PageBackButton inHeader onPress={() => {
+        navigation.popToTop();
+        navigation.getParent()?.navigate('Dashboard', { screen: 'DashboardHome', params: { homeTab: 'Properties' } });
+      }} /> })} />
       <PropertiesStack.Screen name="ShortStayOwner" component={ShortStayOwnerScreen} options={{ title: 'Short-stay owner setup' }} />
       <PropertiesStack.Screen name="TenantDetail" component={TenantDetailScreen} options={({ navigation }) => ({ title: 'Tenant', headerBackVisible: false, headerLeft: () => <PageBackButton inHeader onPress={() => navigation.goBack()} /> })} />
       <PropertiesStack.Screen name="PropertyMaintenance" component={MaintenanceScreen} options={{ headerShown: false }} />

@@ -153,6 +153,10 @@ export default function QuickActionsTabBar({ state, descriptors, navigation, aud
     if (route.state?.key && (route.state.index ?? 0) > 0) {
       navigation.dispatch({ ...StackActions.popToTop(), target: route.state.key });
     }
+    if (routeName === 'Properties' && audience === 'landlord') {
+      navigation.navigate('Dashboard', { screen: 'DashboardHome', params: { homeTab: 'Properties' } });
+      return;
+    }
     if (state.routes[state.index]?.key !== route.key) navigation.navigate(route.name);
   };
   const navigateItem = (item: MenuItem) => {

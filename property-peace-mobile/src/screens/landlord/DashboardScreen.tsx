@@ -16,7 +16,8 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import type { DashboardStackParamList } from '../../navigation/types';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { logout } from '../../store/user/user.slice';
@@ -116,6 +117,7 @@ export default function DashboardScreen() {
   const styles = useScreenStyles();
   const { mode, colors } = useAppTheme();
   const navigation = useNavigation<any>();
+  const route = useRoute<RouteProp<DashboardStackParamList, 'DashboardHome'>>();
   const moreDrawer = useMoreDrawer();
   const dispatch = useAppDispatch();
   const insets = useSafeAreaInsets();
@@ -130,6 +132,12 @@ export default function DashboardScreen() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [maintenanceQuery, setMaintenanceQuery] = useState('');
   const [activeHomeTab, setActiveHomeTab] = useState<HomeTab>('Dashboard');
+  useEffect(() => {
+    if (route.params?.homeTab === 'Properties') {
+      setActiveHomeTab('Properties');
+      navigation.setParams({ homeTab: undefined });
+    }
+  }, [route.params?.homeTab, navigation]);
   const [rentMetrics, setRentMetrics] = useState<RentMetrics>({ expected: 0, collected: 0, remaining: 0, outstanding: 0, overdue: 0 });
   const [overdueByProperty, setOverdueByProperty] = useState<Map<string, number> | null>(null);
   const [collectionByProperty, setCollectionByProperty] = useState<Map<string, PropertyCollection> | null>(null);
@@ -425,7 +433,7 @@ export default function DashboardScreen() {
           properties={scopedProperties}
           collections={scopedCollectionByProperty}
           status={scopedPropertiesStatus === 'error' || scopedRentStatus === 'error' ? 'error' : scopedPropertiesStatus === 'loading' || scopedRentStatus === 'loading' ? 'loading' : 'success'}
-          onProperty={propertyId => navigation.navigate('Properties', { screen: 'PropertyDetail', params: { propertyId } })}
+          onProperty={propertyId => navigation.getParent()?.navigate('Properties', { screen: 'PropertyDetail', params: { propertyId } })}
           onRetry={loadDashboard}
         />
       </>}
