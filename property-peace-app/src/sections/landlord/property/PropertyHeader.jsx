@@ -185,10 +185,11 @@ export default function PropertyHeader({ property, rentRecords = [], rentLoading
                   {yearBuilt > 0 && <Chip size="small" label={`Built ${yearBuilt}`} sx={glassChipSx} />}
                 </Stack>
               </Stack>
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25} flexWrap="wrap" useFlexGap>
-                <Button variant="outlined" startIcon={<EditOutlined />} onClick={() => onEdit?.(property)} sx={heroButtonSx}>
-                  Edit property
-                </Button>
+            </Stack>
+          </Grid>
+          <Grid size={{ xs: 12, md: 4.5 }}>
+            <Stack spacing={2} sx={{ height: '100%' }}>
+              <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
                 <Button
                   variant="outlined"
                   startIcon={<ThunderboltOutlined />}
@@ -200,105 +201,106 @@ export default function PropertyHeader({ property, rentRecords = [], rentLoading
                 >
                   Actions
                 </Button>
-              </Stack>
-            </Stack>
-          </Grid>
-          <Grid size={{ xs: 12, md: 4.5 }}>
-            <Box
-              sx={{
-                height: '100%',
-                p: { xs: 2, md: 2.5 },
-                borderRadius: 3,
-                bgcolor: 'rgba(255,255,255,0.14)',
-                border: '1px solid rgba(255,255,255,0.22)',
-                backdropFilter: 'blur(16px)'
-              }}
-            >
-              <Stack spacing={2.25}>
-                <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2}>
-                  <Box>
-                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.72)', textTransform: 'uppercase', letterSpacing: 0.7 }}>
-                      Monthly rent
-                    </Typography>
-                    <Typography variant="h3" fontWeight={900} sx={{ color: 'white', lineHeight: 1.1 }}>
-                      {monthlyRent > 0 ? formatCurrency(monthlyRent) : '—'}
-                      <Typography component="span" variant="h6" sx={{ color: 'rgba(255,255,255,0.74)', ml: 0.5 }}>
-                        /mo
+              </Box>
+              <Box
+                sx={{
+                  height: '100%',
+                  p: { xs: 2, md: 2.5 },
+                  borderRadius: 3,
+                  bgcolor: 'rgba(255,255,255,0.14)',
+                  border: '1px solid rgba(255,255,255,0.22)',
+                  backdropFilter: 'blur(16px)'
+                }}
+              >
+                <Stack spacing={2.25}>
+                  <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2}>
+                    <Box>
+                      <Typography
+                        variant="caption"
+                        sx={{ color: 'rgba(255,255,255,0.72)', textTransform: 'uppercase', letterSpacing: 0.7 }}
+                      >
+                        Monthly rent
                       </Typography>
-                    </Typography>
-                    {!hasLongTermUnits && (
-                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.72)' }}>
-                        No long-term rent scheduled
+                      <Typography variant="h3" fontWeight={900} sx={{ color: 'white', lineHeight: 1.1 }}>
+                        {monthlyRent > 0 ? formatCurrency(monthlyRent) : '—'}
+                        <Typography component="span" variant="h6" sx={{ color: 'rgba(255,255,255,0.74)', ml: 0.5 }}>
+                          /mo
+                        </Typography>
                       </Typography>
-                    )}
+                      {!hasLongTermUnits && (
+                        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.72)' }}>
+                          No long-term rent scheduled
+                        </Typography>
+                      )}
+                    </Box>
+                    <Box
+                      sx={{
+                        width: 48,
+                        height: 48,
+                        borderRadius: 2.5,
+                        display: 'grid',
+                        placeItems: 'center',
+                        bgcolor: 'rgba(255,255,255,0.18)',
+                        flexShrink: 0
+                      }}
+                    >
+                      <DollarOutlined style={{ fontSize: 22 }} />
+                    </Box>
+                  </Stack>
+                  <Divider sx={{ borderColor: 'rgba(255,255,255,0.16)' }} />
+                  <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 1.5 }}>
+                    <SummaryFact label="Expected this month" value={collectionValue(expected)} />
+                    <SummaryFact label="Collected this month" value={collectionValue(collected)} />
+                    <SummaryFact label="Remaining this month" value={collectionValue(remaining)} />
+                    <SummaryFact label="Past-due rent" value={collectionValue(pastDue)} />
+                    <SummaryFact
+                      label={isSingle ? 'Lease ends' : 'Units'}
+                      value={isSingle ? dateLabel(firstLease?.endDate ?? firstLease?.EndDate) : String(units.length)}
+                    />
+                    <SummaryFact
+                      label={isSingle ? 'Security deposit' : 'Occupied units'}
+                      value={
+                        isSingle
+                          ? (firstLease?.securityDeposit ?? firstLease?.SecurityDeposit) != null
+                            ? formatCurrency(firstLease.securityDeposit ?? firstLease.SecurityDeposit)
+                            : '—'
+                          : `${occupiedUnits} / ${units.length}`
+                      }
+                    />
                   </Box>
-                  <Box
-                    sx={{
-                      width: 48,
-                      height: 48,
-                      borderRadius: 2.5,
-                      display: 'grid',
-                      placeItems: 'center',
-                      bgcolor: 'rgba(255,255,255,0.18)',
-                      flexShrink: 0
-                    }}
-                  >
-                    <DollarOutlined style={{ fontSize: 22 }} />
+                  <Box>
+                    <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1} sx={{ mb: 0.75 }}>
+                      <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.84)' }}>
+                        Rent collection · {monthLabel}
+                      </Typography>
+                      <Typography variant="caption" fontWeight={800} sx={{ color: 'white' }}>
+                        {collectionAvailable && expected > 0 ? `${Math.round(percent)}%` : '—'}
+                      </Typography>
+                    </Stack>
+                    <LinearProgress
+                      aria-label={`Rent collection for ${monthLabel}`}
+                      variant={rentLoading ? 'indeterminate' : 'determinate'}
+                      value={collectionAvailable ? percent : 0}
+                      sx={{
+                        height: 8,
+                        borderRadius: 999,
+                        bgcolor: 'rgba(255,255,255,0.18)',
+                        '& .MuiLinearProgress-bar': { borderRadius: 999, bgcolor: 'success.light' }
+                      }}
+                    />
+                    <Typography variant="caption" sx={{ display: 'block', mt: 1, color: 'rgba(255,255,255,0.78)' }}>
+                      {rentLoading
+                        ? 'Loading rent collection…'
+                        : rentError
+                          ? 'Rent collection could not be loaded.'
+                          : expected > 0
+                            ? `${formatCurrency(collected)} of ${formatCurrency(expected)} collected`
+                            : 'No rent scheduled for this month.'}
+                    </Typography>
                   </Box>
                 </Stack>
-                <Divider sx={{ borderColor: 'rgba(255,255,255,0.16)' }} />
-                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 1.5 }}>
-                  <SummaryFact label="Expected this month" value={collectionValue(expected)} />
-                  <SummaryFact label="Collected this month" value={collectionValue(collected)} />
-                  <SummaryFact label="Remaining this month" value={collectionValue(remaining)} />
-                  <SummaryFact label="Past-due rent" value={collectionValue(pastDue)} />
-                  <SummaryFact
-                    label={isSingle ? 'Lease ends' : 'Units'}
-                    value={isSingle ? dateLabel(firstLease?.endDate ?? firstLease?.EndDate) : String(units.length)}
-                  />
-                  <SummaryFact
-                    label={isSingle ? 'Security deposit' : 'Occupied units'}
-                    value={
-                      isSingle
-                        ? (firstLease?.securityDeposit ?? firstLease?.SecurityDeposit) != null
-                          ? formatCurrency(firstLease.securityDeposit ?? firstLease.SecurityDeposit)
-                          : '—'
-                        : `${occupiedUnits} / ${units.length}`
-                    }
-                  />
-                </Box>
-                <Box>
-                  <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1} sx={{ mb: 0.75 }}>
-                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.84)' }}>
-                      Rent collection · {monthLabel}
-                    </Typography>
-                    <Typography variant="caption" fontWeight={800} sx={{ color: 'white' }}>
-                      {collectionAvailable && expected > 0 ? `${Math.round(percent)}%` : '—'}
-                    </Typography>
-                  </Stack>
-                  <LinearProgress
-                    aria-label={`Rent collection for ${monthLabel}`}
-                    variant={rentLoading ? 'indeterminate' : 'determinate'}
-                    value={collectionAvailable ? percent : 0}
-                    sx={{
-                      height: 8,
-                      borderRadius: 999,
-                      bgcolor: 'rgba(255,255,255,0.18)',
-                      '& .MuiLinearProgress-bar': { borderRadius: 999, bgcolor: 'success.light' }
-                    }}
-                  />
-                  <Typography variant="caption" sx={{ display: 'block', mt: 1, color: 'rgba(255,255,255,0.78)' }}>
-                    {rentLoading
-                      ? 'Loading rent collection…'
-                      : rentError
-                        ? 'Rent collection could not be loaded.'
-                        : expected > 0
-                          ? `${formatCurrency(collected)} of ${formatCurrency(expected)} collected`
-                          : 'No rent scheduled for this month.'}
-                  </Typography>
-                </Box>
-              </Stack>
-            </Box>
+              </Box>
+            </Stack>
           </Grid>
         </Grid>
       </Box>
