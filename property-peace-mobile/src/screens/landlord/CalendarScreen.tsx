@@ -15,7 +15,7 @@ import AddCalendarTaskModal from './AddCalendarTaskModal';
 type LoadState = 'loading' | 'ready' | 'error';
 const weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-export default function CalendarScreen() {
+export default function CalendarScreen({ embedded = false, todayAtAGlance }: { embedded?: boolean; todayAtAGlance?: React.ReactNode } = {}) {
   const navigation = useNavigation<any>();
   const { mode, colors } = useAppTheme();
   const insets = useSafeAreaInsets();
@@ -83,12 +83,14 @@ export default function CalendarScreen() {
   };
 
   return <View style={[styles.root, { backgroundColor: colors.background }]}>
-    <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+    {!embedded && <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
       <PageBackButton onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('DashboardHome')} />
       <Text style={[styles.heading, { color: colors.text }]} accessibilityRole="header">Calendar</Text>
       <Pressable onPress={() => setAddingTask(true)} accessibilityRole="button" accessibilityLabel="Add task" style={[styles.addButton, { backgroundColor: colors.accent }]}><Ionicons name="add" size={19} color="#fff" /><Text style={styles.addButtonText}>Add task</Text></Pressable>
-    </View>
-    <ScrollView contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom, 24) + 100 }]} refreshControl={<RefreshControl refreshing={refreshing} tintColor={colors.accent} onRefresh={() => { setRefreshing(true); void load(); }} />}>
+    </View>}
+    <ScrollView contentContainerStyle={[styles.content, { paddingTop: embedded ? 14 : 0, paddingBottom: Math.max(insets.bottom, 24) + 100 }]} refreshControl={<RefreshControl refreshing={refreshing} tintColor={colors.accent} onRefresh={() => { setRefreshing(true); void load(); }} />}>
+      {todayAtAGlance}
+      {embedded && <Pressable onPress={() => setAddingTask(true)} accessibilityRole="button" accessibilityLabel="Add task" style={[styles.addButton, styles.embeddedAdd, { backgroundColor: colors.accent }]}><Ionicons name="add" size={19} color="#fff" /><Text style={styles.addButtonText}>Add task</Text></Pressable>}
       <View style={styles.monthHeader}>
         <Text style={[styles.month, { color: colors.text }]}>{selected.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</Text>
         <View style={styles.monthActions}>
@@ -127,7 +129,7 @@ export default function CalendarScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 }, header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingBottom: 16, gap: 12 },
+  root: { flex: 1 }, embeddedAdd: { alignSelf: 'flex-end', marginTop: 16 }, header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingBottom: 16, gap: 12 },
   heading: { flex: 1, fontSize: 26, fontWeight: '800' }, addButton: { flexDirection: 'row', alignItems: 'center', gap: 3, minHeight: 44, borderRadius: 12, paddingHorizontal: 12 }, addButtonText: { color: '#fff', fontSize: 14, fontWeight: '700' }, todayButton: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 10, minHeight: 44, justifyContent: 'center' }, todayButtonText: { fontSize: 14, fontWeight: '700' },
   content: { paddingHorizontal: 20 }, monthHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, marginBottom: 16, gap: 8 }, month: { flexShrink: 1, fontSize: 20, fontWeight: '800' }, monthActions: { flexDirection: 'row', gap: 6 }, monthArrow: { width: 44, height: 44, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   calendar: { flexDirection: 'row', flexWrap: 'wrap', borderWidth: 1, borderRadius: 18, paddingHorizontal: 8, paddingVertical: 14 }, weekday: { width: '14.285%', textAlign: 'center', fontSize: 12, fontWeight: '700', paddingBottom: 8 }, cell: { width: '14.285%', height: 55, alignItems: 'center', justifyContent: 'center' }, dayCircle: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' }, dayNumber: { fontSize: 15, fontWeight: '700' }, eventDot: { width: 5, height: 5, borderRadius: 3, marginTop: 2 },

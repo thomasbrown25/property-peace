@@ -28,15 +28,20 @@ import ConversationAPI from '../../api/conversationAPI';
 import { ConversationSummary } from '../../features/messages/messagesModel';
 import RentCollectionAPI from '../../api/rentCollectionAPI';
 import { propertyOverdueAmounts } from '../../features/rentCollection/propertyOverdue';
+import { propertyCollection, type PropertyCollection } from '../../features/rentCollection/propertyCollection';
 import { displayStatus } from '../../features/maintenance/maintenanceModel';
 import { useAppTheme } from '../../theme/AppTheme';
 import { paymentActivityTone } from '../../features/notifications/paymentActivityTone';
 import GlobalSearchModal from '../../components/GlobalSearchModal';
+import PropertyCollectionRail from './PropertyCollectionRail';
+import CalendarScreen from './CalendarScreen';
 
 const lightLogo = require('../../../assets/property-peace-navbar-logo.png');
 const darkLogo = require('../../../assets/property-peace-logo.png');
 
 type LoadStatus = 'loading' | 'success' | 'error';
+type HomeTab = 'Dashboard' | 'Properties' | 'Rent' | 'Maintenance' | 'Calendar';
+const homeTabs: HomeTab[] = ['Dashboard', 'Properties', 'Rent', 'Maintenance', 'Calendar'];
 type RentMetrics = {
   expected: number;
   collected: number;
@@ -120,8 +125,10 @@ export default function DashboardScreen() {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [activeHomeTab, setActiveHomeTab] = useState<HomeTab>('Dashboard');
   const [rentMetrics, setRentMetrics] = useState<RentMetrics>({ expected: 0, collected: 0, remaining: 0, outstanding: 0, overdue: 0 });
   const [overdueByProperty, setOverdueByProperty] = useState<Map<string, number> | null>(null);
+  const [collectionByProperty, setCollectionByProperty] = useState<Map<string, PropertyCollection> | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [propertiesStatus, setPropertiesStatus] = useState<LoadStatus>('loading');
   const [maintenanceStatus, setMaintenanceStatus] = useState<LoadStatus>('loading');
@@ -157,6 +164,7 @@ export default function DashboardScreen() {
     setConversations([]);
     setRentMetrics({ expected: 0, collected: 0, remaining: 0, outstanding: 0, overdue: 0 });
     setOverdueByProperty(null);
+    setCollectionByProperty(null);
     setPropertiesStatus('loading');
     setMaintenanceStatus('loading');
     setNotificationsStatus('loading');
@@ -211,9 +219,11 @@ export default function DashboardScreen() {
     if (results[3].status === 'fulfilled') {
       setRentMetrics(normalizeRentMetrics(results[3].value));
       setOverdueByProperty(propertyOverdueAmounts(results[3].value));
+      setCollectionByProperty(propertyCollection(results[3].value));
       setRentStatus('success');
     } else {
       setOverdueByProperty(null);
+      setCollectionByProperty(null);
       setRentStatus('error');
     }
     if (results[4].status === 'fulfilled') {
@@ -249,6 +259,7 @@ export default function DashboardScreen() {
     ? rentMetrics
     : { expected: 0, collected: 0, remaining: 0, outstanding: 0, overdue: 0 };
   const scopedOverdueByProperty = dashboardScopeIsCurrent ? overdueByProperty : null;
+  const scopedCollectionByProperty = dashboardScopeIsCurrent ? collectionByProperty : null;
   const scopedPropertiesStatus: LoadStatus = dashboardScopeIsCurrent ? propertiesStatus : 'loading';
   const scopedMaintenanceStatus: LoadStatus = dashboardScopeIsCurrent ? maintenanceStatus : 'loading';
   const scopedNotificationsStatus: LoadStatus = dashboardScopeIsCurrent ? notificationsStatus : 'loading';
@@ -321,6 +332,29 @@ export default function DashboardScreen() {
   );
   const latestNotifications = recentNotifications.slice(0, 3);
 
+  const todayAtAGlance = (
+    <View style={styles.todayCard}>
+      <View style={styles.dateBlock}>
+        <Text style={styles.dateMonth}>{currentDate.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}</Text>
+        <Text style={styles.dateDay}>{currentDate.getDate()}</Text>
+        <Text style={styles.dateWeekday}>{currentDate.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase()}</Text>
+      </View>
+      <View style={styles.todayCopy}>
+        <View style={styles.todayTitleRow}>
+          <View style={[styles.focusDot, attentionCount > 0 && styles.focusDotActive]} />
+          <Text style={styles.todayTitle}>Today at a glance</Text>
+        </View>
+        <Text style={styles.todayText} numberOfLines={2}>
+          {attentionDataLoading ? 'Loading portfolio updates…' : !attentionDataAvailable ? 'Some portfolio attention data is unavailable.' : attentionCount > 0 ? <>
+            <Text style={portfolio.openMaintenance > 0 ? styles.todayRepairAttention : undefined}>{portfolio.openMaintenance} open {portfolio.openMaintenance === 1 ? 'repair' : 'repairs'}</Text>
+            {' · '}
+            <Text style={unreadMessages > 0 ? styles.todayUnreadAttention : undefined}>{unreadMessages} unread {unreadMessages === 1 ? 'message' : 'messages'}</Text>
+          </> : 'Nothing urgent across your portfolio.'}
+        </Text>
+      </View>
+    </View>
+  );
+
   return (
     <View style={styles.container}>
       <View style={[styles.topBar, { paddingTop: Math.max(insets.top + 10, 18) }]}>
@@ -347,6 +381,26 @@ export default function DashboardScreen() {
           </TouchableOpacity>
         </View>
       </View>
+
+      <View style={[styles.homeTabBar, { borderBottomColor: colors.border, backgroundColor: colors.background }]}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.homeTabStrip} accessibilityRole="tablist">
+          {homeTabs.map(tab => (
+            <TouchableOpacity key={tab} onPress={() => { setActiveHomeTab(tab); scrollRef.current?.scrollTo({ y: 0, animated: false }); }} accessibilityRole="tab" accessibilityState={{ selected: activeHomeTab === tab }} style={[styles.homeTab, activeHomeTab === tab && { borderBottomColor: mode === 'dark' ? '#75d995' : '#138a32' }]}>
+              <Text style={[styles.homeTabLabel, { color: activeHomeTab === tab ? colors.text : colors.muted }, activeHomeTab === tab && styles.homeTabSelected]}>{tab}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+
+      {activeHomeTab === 'Dashboard' && <PropertyCollectionRail
+        properties={scopedProperties}
+        collections={scopedCollectionByProperty}
+        portfolio={scopedRentMetrics}
+        status={scopedPropertiesStatus === 'error' || scopedRentStatus === 'error' ? 'error' : scopedPropertiesStatus === 'loading' || scopedRentStatus === 'loading' ? 'loading' : 'success'}
+        onProperty={propertyId => navigation.navigate('Properties', { screen: 'PropertyDetail', params: { propertyId } })}
+        onRent={() => navigation.navigate('RentCollection')}
+        onRetry={loadDashboard}
+      />}
 
       <GlobalSearchModal visible={searchOpen} onClose={() => setSearchOpen(false)} onSelect={(type, id) => {
         const tabs = navigation.getParent();
@@ -410,47 +464,14 @@ export default function DashboardScreen() {
         </View>
       )}
 
-      <ScrollView
+      {activeHomeTab === 'Calendar' ? <CalendarScreen embedded todayAtAGlance={todayAtAGlance} /> : <ScrollView
         ref={scrollRef}
         contentContainerStyle={[styles.content, { paddingBottom: 120 }]}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadDashboard(); }} tintColor={colors.accent} />}
       >
-        <View style={styles.todayCard}>
-          <View style={styles.dateBlock}>
-            <Text style={styles.dateMonth}>{currentDate.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}</Text>
-            <Text style={styles.dateDay}>{currentDate.getDate()}</Text>
-            <Text style={styles.dateWeekday}>{currentDate.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase()}</Text>
-          </View>
-          <View style={styles.todayCopy}>
-            <View style={styles.todayTitleRow}>
-              <View style={[styles.focusDot, attentionCount > 0 && styles.focusDotActive]} />
-              <Text style={styles.todayTitle}>Today at a glance</Text>
-            </View>
-            <Text style={styles.todayText} numberOfLines={2}>
-              {attentionDataLoading
-                ? 'Loading portfolio updates…'
-                : !attentionDataAvailable
-                  ? 'Some portfolio attention data is unavailable.'
-                  : attentionCount > 0
-                    ? <>
-                        <Text style={portfolio.openMaintenance > 0 ? styles.todayRepairAttention : undefined}>
-                          {portfolio.openMaintenance} open {portfolio.openMaintenance === 1 ? 'repair' : 'repairs'}
-                        </Text>
-                        {' · '}
-                        <Text style={unreadMessages > 0 ? styles.todayUnreadAttention : undefined}>
-                          {unreadMessages} unread {unreadMessages === 1 ? 'message' : 'messages'}
-                        </Text>
-                      </>
-                    : 'Nothing urgent across your portfolio.'}
-            </Text>
-          </View>
-          <TouchableOpacity style={styles.todayArrow} onPress={() => navigation.navigate('Calendar')} accessibilityRole="button" accessibilityLabel="View calendar">
-            <Ionicons name="arrow-forward" size={18} color={mode === 'dark' ? colors.text : '#0b3558'} />
-          </TouchableOpacity>
-        </View>
 
-        {(scopedPortfolioMode !== 'ShortTerm' || scopedRentMetrics.expected > 0 || scopedRentMetrics.collected > 0 || scopedRentMetrics.overdue > 0 || scopedRentMetrics.outstanding > 0) && (
+        {activeHomeTab === 'Rent' && (
         <DashboardSection borderless>
           <View style={styles.cardHeader}>
             <Text style={[styles.cardTitle, styles.rentProgressHeading]}>{currentDate.toLocaleDateString('en-US', { month: 'long' })} rent</Text>
@@ -486,7 +507,7 @@ export default function DashboardScreen() {
         </DashboardSection>
         )}
 
-        {hasUnavailableData && (
+        {activeHomeTab === 'Dashboard' && hasUnavailableData && (
           <TouchableOpacity style={styles.warningCard} onPress={loadDashboard} activeOpacity={0.82} accessibilityLabel="Retry unavailable dashboard information">
             <Ionicons name="cloud-offline-outline" size={22} color={mode === 'dark' ? '#f0ba72' : '#a45f12'} />
             <View style={styles.warningCopy}>
@@ -496,7 +517,7 @@ export default function DashboardScreen() {
           </TouchableOpacity>
         )}
 
-        <DashboardSection borderless>
+        {activeHomeTab === 'Properties' && <DashboardSection borderless>
           <View style={styles.cardHeader}>
             <View style={styles.cardTitleWithIcon}>
               <Ionicons name="home-outline" size={20} color={mode === 'dark' ? '#72b4ff' : '#2475cf'} />
@@ -532,9 +553,9 @@ export default function DashboardScreen() {
               <Ionicons name="arrow-forward" size={19} color={mode === 'dark' ? colors.text : '#0b3558'} />
             </TouchableOpacity>
           ))}
-        </DashboardSection>
+        </DashboardSection>}
 
-        <DashboardSection borderless>
+        {activeHomeTab === 'Maintenance' && <DashboardSection borderless>
           <View style={styles.cardHeader}>
             <View style={styles.cardTitleWithIcon}>
               <Ionicons name="construct-outline" size={20} color={mode === 'dark' ? '#f0ba72' : '#b76a11'} />
@@ -562,9 +583,9 @@ export default function DashboardScreen() {
               })}
             />
           ))}
-        </DashboardSection>
+        </DashboardSection>}
 
-        <DashboardSection borderless>
+        {activeHomeTab === 'Dashboard' && <DashboardSection borderless>
           <View style={styles.cardHeader}>
             <View>
               <Text style={styles.cardEyebrow}>RECENT</Text>
@@ -595,8 +616,8 @@ export default function DashboardScreen() {
               </View>
             </View>
           ))}
-        </DashboardSection>
-      </ScrollView>
+        </DashboardSection>}
+      </ScrollView>}
     </View>
   );
 }
@@ -747,6 +768,11 @@ function useScreenStyles() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#ffffff' },
+  homeTabBar: { borderBottomWidth: 1 },
+  homeTabStrip: { paddingHorizontal: 12 },
+  homeTab: { minHeight: 52, paddingHorizontal: 14, justifyContent: 'center', borderBottomWidth: 3, borderBottomColor: 'transparent' },
+  homeTabLabel: { fontSize: 15, fontWeight: '500' },
+  homeTabSelected: { fontWeight: '700' },
   topBar: { minHeight: 72, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingBottom: 12, backgroundColor: '#ffffff' },
   logo: { position: 'absolute', width: 148, height: 42, left: '50%', marginLeft: -74, bottom: 13 },
   compactLogo: { width: 112, marginLeft: -56 },
