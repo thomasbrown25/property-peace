@@ -15,7 +15,7 @@ import { selectAllPayments } from 'store/payment/payment.selector';
 import { selectMaintenanceRequests } from 'store/maintenance/maintenance.selector';
 import { format, parseISO, formatDistanceToNow } from 'date-fns';
 import { formatCurrency } from 'utils/formatters';
-import { darkModeActionButtonSx, propertyAccentCardSx } from './propertyAccentSx';
+import { darkModeActionButtonSx } from './propertyAccentSx';
 
 const MAINT_STATUS_META = {
   reported:     { label: 'Reported',     color: 'error' },
@@ -452,7 +452,12 @@ export default function PropertyStory({ property, propertyId }) {
         </Stack>
       }
       contentSX={{ pt: 1.5 }}
-      sx={propertyAccentCardSx(theme.palette.warning.main, { '& .MuiCardHeader-root': { pb: 1 } })}
+      border={false}
+      sx={{
+        border: 'none',
+        '&:hover': { border: 'none', boxShadow: 'none' },
+        '& .MuiCardHeader-root': { pb: 1 }
+      }}
     >
       {/* Type filter pills */}
       <Box sx={{ mb: 2 }}>{filterButtons}</Box>

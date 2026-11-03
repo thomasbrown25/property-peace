@@ -199,8 +199,15 @@ export default function DashboardLayout() {
                 height: 'auto !important'
               }
             }}>
-              <Box sx={{ 
-                flex: 1, 
+              {/* Keep page gutters separate from the header and footer. */}
+              <Box data-testid="main-app-page-content" sx={{
+                width: '100%',
+                maxWidth: isAddPropertyPage ? 'none' : 1120,
+                mx: 'auto',
+                px: isAddPropertyPage ? 0 : { xs: 0, sm: 1, md: 2, lg: 3 },
+                boxSizing: 'border-box',
+                minWidth: 0,
+                flex: 1,
                 minHeight: 'auto !important',
                 height: 'auto !important',
                 display: 'flex', 

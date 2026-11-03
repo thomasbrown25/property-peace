@@ -7,6 +7,7 @@ import pages from 'menu-items/pages';
 import { landlordPagesForInventory } from 'menu-items/landlordInventory';
 import useLandlordInventoryMenu from 'menu-items/useLandlordInventoryMenu';
 import { landlordPrimaryLinks } from 'utils/landlordPrimaryNavigation';
+import { groupLandlordMoreNavigation } from 'utils/landlordMoreNavigation';
 
 const primaryDestinations = new Set(landlordPrimaryLinks.map(({ to }) => to));
 const tenantsItem = { id: 'tenants', title: 'Tenants', type: 'item', url: '/landlord/leases?tab=tenants' };
@@ -18,13 +19,13 @@ export default function TopNavigation() {
   const { status: subscriptionStatus } = useSubscriptionStatus();
   const shortTermOnly = useLandlordInventoryMenu(true);
   const [anchor, setAnchor] = useState(null);
-  const groups = landlordPagesForInventory(pages, shortTermOnly).map((group) => ({
+  const groups = groupLandlordMoreNavigation(landlordPagesForInventory(pages, shortTermOnly).map((group) => ({
     ...group,
     children: (group.children || []).flatMap((item) => {
       if (primaryDestinations.has(item.url)) return [];
       return item.id === 'leases' ? [item, tenantsItem] : [item];
     })
-  })).filter((group) => group.children.length);
+  })));
   const trialExpired = subscriptionStatus?.isTrialActive &&
     (subscriptionStatus.trialDaysRemaining == null || subscriptionStatus.trialDaysRemaining <= 0);
   const isSelected = (item) => item.id === 'tenants'

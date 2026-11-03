@@ -49,6 +49,16 @@ public class BackgroundServiceCancellationTests
         await worker.StopAsync(CancellationToken.None);
 
         Assert.NotNull(worker.ExecuteTask);
-        await worker.ExecuteTask!;
+        try
+        {
+            await worker.ExecuteTask!;
+        }
+        catch (OperationCanceledException) when (worker.ExecuteTask!.IsCanceled)
+        {
+            // .NET 10 schedules ExecuteAsync on the thread pool. An immediate stop
+            // may cancel that task before the worker body has started.
+        }
+
+        Assert.False(worker.ExecuteTask!.IsFaulted);
     }
 }

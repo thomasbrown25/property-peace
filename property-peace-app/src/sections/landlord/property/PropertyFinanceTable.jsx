@@ -5,6 +5,13 @@ import MainCard from 'components/MainCard';
 import { formatCurrency, formatDate } from 'utils/formatters';
 import { combinePropertyFinances } from './propertyFinances.mjs';
 
+const financeSurfaceSx = {
+  border: 'none',
+  boxShadow: 'none',
+  '&::before': { display: 'none' },
+  '&:hover': { border: 'none', boxShadow: 'none' }
+};
+
 export default function PropertyFinanceTable({ propertyId, payments, expenses, onAddExpense, onEditExpense, onDeleteExpense, onMarkAsPaid }) {
   const [query, setQuery] = useState('');
   const [kind, setKind] = useState('all');
@@ -23,7 +30,7 @@ export default function PropertyFinanceTable({ propertyId, payments, expenses, o
   useEffect(() => setPage(0), [propertyId, query, kind, rowsPerPage]);
   return (
     <Box sx={{ mb: 3 }}>
-      <MainCard sx={{ mb: 3 }}>
+      <MainCard sx={{ ...financeSurfaceSx, mb: 3 }}>
         <Stack direction="row" gap={4} flexWrap="wrap">
           <Box><Typography variant="body2" color="text.secondary">Total Income</Typography>
             <Typography variant="h4" fontWeight={700} color="success.main">{formatCurrency(totalIncome)}</Typography></Box>
@@ -31,16 +38,16 @@ export default function PropertyFinanceTable({ propertyId, payments, expenses, o
             <Typography variant="h4" fontWeight={700} color="error.main">{formatCurrency(totalExpenses)}</Typography></Box>
         </Stack>
       </MainCard>
-      <MainCard>
+      <MainCard sx={financeSurfaceSx}>
         <Stack direction={{ xs: 'column', sm: 'row' }} gap={1.5} sx={{ mb: 2 }}>
           <TextField size="small" placeholder="Search finances..." inputProps={{ 'aria-label': 'Search finances' }}
-            value={query} onChange={event => setQuery(event.target.value)} sx={{ flex: 1, maxWidth: { sm: 350 } }} />
+            value={query} onChange={event => setQuery(event.target.value)} sx={{ flex: 1, minWidth: 0 }} />
           <FormControl size="small" sx={{ minWidth: 170 }}>
             <Select value={kind} onChange={event => setKind(event.target.value)} inputProps={{ 'aria-label': 'Filter finances by type' }}>
               <MenuItem value="all">All transactions</MenuItem><MenuItem value="income">Income</MenuItem><MenuItem value="expense">Expenses</MenuItem>
             </Select>
           </FormControl>
-          <Button variant="contained" startIcon={<PlusOutlined />} onClick={onAddExpense} sx={{ ml: { sm: 'auto' }, textTransform: 'none' }}>Add Expense</Button>
+          <Button variant="contained" startIcon={<PlusOutlined />} onClick={onAddExpense} sx={{ flexShrink: 0, whiteSpace: 'nowrap', textTransform: 'none' }}>Add Expense</Button>
         </Stack>
         <TableContainer sx={{ overflowX: 'auto', minHeight: { xs: 260, sm: 360 } }}>
           <Table size="small" aria-label="Property finances">

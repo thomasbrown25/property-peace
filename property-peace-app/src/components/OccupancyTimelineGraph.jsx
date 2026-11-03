@@ -334,6 +334,25 @@ function OccupancyTimelineGraph({ calendarData, year, loading, monthRange, windo
                               </Box>
                             }
                             arrow
+                            slotProps={{
+                              tooltip: {
+                                sx: {
+                                  bgcolor: '#fff',
+                                  color: '#061e35',
+                                  border: '1px solid #d9e1e8',
+                                  boxShadow: '0 4px 16px rgba(6, 30, 53, 0.16)',
+                                  px: 1.5,
+                                  py: 1,
+                                  '& .MuiTypography-root': { color: 'inherit' }
+                                }
+                              },
+                              arrow: {
+                                sx: {
+                                  color: '#fff',
+                                  '&::before': { border: '1px solid #d9e1e8' }
+                                }
+                              }
+                            }}
                           >
                             <Box
                               component={onMonthClick ? 'button' : 'div'}

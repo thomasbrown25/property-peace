@@ -2375,7 +2375,7 @@ export default function Property() {
   const propertyLoading = useSelector(selectPropertyLoading);
   const maintenanceLoading = useSelector(selectMaintenanceLoading);
 
-  const { rentRecords, loading: rentCollectionLoading } = useFetchRentCollection(propertyId);
+  const { rentRecords, loading: rentCollectionLoading, error: rentCollectionError } = useFetchRentCollection(propertyId);
   const { maintenances, historyMaintenances, loadError: maintenanceError, refetch: refetchMaintenances } = useFetchMaintenances(propertyId);
   
   // Get context to update property loading state
@@ -2613,6 +2613,9 @@ export default function Property() {
         <AnimateIn direction="bottom" delay={100} distance={120}>
           <PropertyHeader
             property={selectedProperty}
+            rentRecords={rentRecords}
+            rentLoading={rentCollectionLoading}
+            rentError={rentCollectionError}
             onEdit={drawer.openPropertyEditDrawer}
             onDelete={() => setDeletePropertyModalOpen(true)}
             onDeactivate={() => setOpenConfirm(true)}
@@ -2623,7 +2626,7 @@ export default function Property() {
         </AnimateIn>
 
         {/* Property Overview */}
-        <Box sx={{ mt: 3 }}>
+        <Box sx={{ mt: 0.5 }}>
           <AnimateIn direction="bottom" delay={200} distance={120}>
             <PropertyRecordsTabs
               property={selectedProperty}

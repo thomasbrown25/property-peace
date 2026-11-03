@@ -60,10 +60,12 @@ export default function PropertyOccupancyTab({ propertyId, property }) {
           <IconButton aria-label="Next 12 months" onClick={() => setWindowStart(start => addMonths(start, 12))}><RightOutlined /></IconButton>
         </Stack>
       </Stack>
-      {error && <Alert severity="error" sx={{ mb: 2 }} action={<Button color="inherit" size="small" onClick={() => setRequestAttempt(attempt => attempt + 1)}>Retry</Button>}>{error}</Alert>}
-      {loading && <CircularProgress aria-label="Loading occupancy" />}
-      {!loading && !error && <OccupancyTimelineGraph calendarData={calendar} windowStart={windowStart} windowMonthCount={12}
-        fallbackPropertyName={property?.name} maxVisibleUnits={10} onMonthClick={(unit, month) => setSelection({ unit, month })} />}
+      <Box sx={{ minHeight: { xs: 260, sm: 360 } }}>
+        {error && <Alert severity="error" sx={{ mb: 2 }} action={<Button color="inherit" size="small" onClick={() => setRequestAttempt(attempt => attempt + 1)}>Retry</Button>}>{error}</Alert>}
+        {loading && <CircularProgress aria-label="Loading occupancy" />}
+        {!loading && !error && <OccupancyTimelineGraph calendarData={calendar} windowStart={windowStart} windowMonthCount={12}
+          fallbackPropertyName={property?.name} maxVisibleUnits={10} onMonthClick={(unit, month) => setSelection({ unit, month })} />}
+      </Box>
       <Dialog open={Boolean(selection)} onClose={() => setSelection(null)} fullWidth maxWidth="sm" aria-labelledby="occupancy-month-title">
         <DialogTitle id="occupancy-month-title" sx={{ pr: 6 }}>
           {selection?.unit?.unitName || property?.name || 'Unit'} · {monthLabel}
