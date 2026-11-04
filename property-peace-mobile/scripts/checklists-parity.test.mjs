@@ -91,8 +91,8 @@ test('property detail requires unit selection for multi-unit properties', () => 
   });
 });
 
-test('More menu opens the dedicated checklist destination', () => {
-  assert.match(quickActionsSource, /label: 'Checklists',[^\n]*route: 'Checklists'/);
-  assert.match(quickActionsSource, /navigation\.navigate\(item\.route as never\)/);
+test('bottom dock opens the dedicated checklist destination', () => {
+  assert.match(quickActionsSource, /\['Dashboard', 'Team', 'Checklists', 'Reports', 'Messages'\]/);
+  assert.match(quickActionsSource, /openTabRoot\(route\.name\)/);
   assert.doesNotMatch(dashboardSource, /navigate\('Checklists',\s*\{\s*screen:\s*'ChecklistPropertySearch'\s*\}\)/);
 });

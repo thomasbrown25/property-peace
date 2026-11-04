@@ -8,9 +8,9 @@ test('tenant dock shows Leases immediately after Payments, before Maintenance an
   const [model, nav, dock] = await Promise.all([file('navigation/mainTabModel.ts'), file('navigation/MainNavigator.tsx'), file('navigation/QuickActionsTabBar.tsx')]);
   assert.match(model, /tenant: \[\s*\{ name: 'Payments', component: 'TenantPaymentsScreen' \},\s*\{ name: 'Leases', component: 'TenantLeasesNavigator' \},\s*\{ name: 'Maintenance', component: 'TenantMaintenanceNavigator' \},\s*\{ name: 'Messages', component: 'MessagesNavigator' \},\s*\{ name: 'Settings', component: 'SettingsScreen' \}/);
   assert.match(nav, /TenantPaymentsScreen:?(?: TenantPaymentsScreen)?[,\s]/);
-  assert.match(dock, /audience === 'landlord' && route\.name === 'Maintenance'/);
+  assert.match(dock, /\['Payments', 'Leases', 'Maintenance', 'Messages'\]/);
   assert.match(dock, /visibleRoutes\.map\(renderTab\)/);
-  assert.match(dock, /accessibilityLabel="Settings"/);
+  assert.match(dock, /accessibilityLabel="User"/);
   assert.match(dock, /label: 'Payments'[^\n]*route: 'Payments'/);
   assert.doesNotMatch(dock.slice(dock.indexOf('const tenantMenu:'), dock.indexOf('// Do not send a development/preview')), /webPath:/);
 });

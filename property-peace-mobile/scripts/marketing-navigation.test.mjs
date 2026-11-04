@@ -5,11 +5,12 @@ import { visibleMainTabsForAudience, mainTabIconNames } from '../src/navigation/
 
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8');
 
-test('landlord dock shows Marketing immediately after Tenants and keeps Maintenance off the dock', () => {
+test('Marketing remains available as a registered route but not in the landlord dock', async () => {
   assert.deepEqual(visibleMainTabsForAudience('landlord').map(tab => tab.name),
-    ['Dashboard', 'Properties', 'Tenants', 'Marketing', 'Notifications']);
+    ['Dashboard', 'Team', 'Checklists', 'Reports', 'Messages']);
   assert.deepEqual(mainTabIconNames('Marketing'), { active: 'megaphone', inactive: 'megaphone-outline' });
   assert.equal(visibleMainTabsForAudience('tenant').some(tab => tab.name === 'Marketing'), false);
+  assert.match(await read('../src/navigation/MainNavigator.tsx'), /name="Marketing" component=\{MarketingNavigator\}/);
 });
 
 test('Marketing contains two selectable list views with the existing listing and application flows', async () => {
@@ -32,7 +33,7 @@ test('landlord maintenance is accessible from the side menu and the route remain
   const bar = await read('../src/navigation/QuickActionsTabBar.tsx');
   assert.match(main, /name="Maintenance" component={MaintenanceNavigator} options=\{\{ tabBarButton: \(\) => null \}\}/);
   assert.match(bar, /label: 'Maintenance'[^\n]*route: 'Maintenance'/);
-  assert.match(bar, /'Applications', 'Maintenance'[^\n]*\.includes\(route.name\)/);
+  assert.match(bar, /\['Dashboard', 'Team', 'Checklists', 'Reports', 'Messages'\]/);
   assert.doesNotMatch(bar, /label: 'Listings'[^\n]*route: 'Listings'/);
   assert.doesNotMatch(bar, /label: 'Applications'[^\n]*route: 'Applications'/);
 });

@@ -43,8 +43,8 @@ const lightLogo = require('../../../assets/property-peace-navbar-logo.png');
 const darkLogo = require('../../../assets/property-peace-logo.png');
 
 type LoadStatus = 'loading' | 'success' | 'error';
-type HomeTab = 'Dashboard' | 'Properties' | 'Rent' | 'Maintenance' | 'Calendar';
-const homeTabs: HomeTab[] = ['Dashboard', 'Calendar', 'Properties', 'Rent', 'Maintenance'];
+type HomeTab = 'Dashboard' | 'Calendar' | 'Properties' | 'Rent' | 'Tenants' | 'Maintenances' | 'Leases';
+const homeTabs: HomeTab[] = ['Dashboard', 'Calendar', 'Properties', 'Rent', 'Tenants', 'Maintenances', 'Leases'];
 type RentMetrics = {
   expected: number;
   collected: number;
@@ -358,6 +358,7 @@ export default function DashboardScreen() {
     () => [...scopedNotifications].sort((a, b) => notificationTime(b) - notificationTime(a)).slice(0, 5),
     [scopedNotifications],
   );
+  const unreadNotifications = scopedNotifications.filter(item => item.isRead === false || item.IsRead === false).length;
 
   const todayAtAGlance = (
     <View style={styles.todayCard}>
@@ -395,14 +396,14 @@ export default function DashboardScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.headerButton}
-            onPress={() => navigation.getParent()?.navigate('Messages', { screen: 'MessagesList' })}
+            onPress={() => setOpenMenu(openMenu === 'notifications' ? null : 'notifications')}
             accessibilityRole="button"
-            accessibilityLabel={unreadMessages > 0 ? `Messages, ${unreadMessages} unread` : 'Messages'}
+            accessibilityLabel="Notifications"
           >
-            <Ionicons name="chatbubble-ellipses-outline" size={25} color={mode === 'dark' ? colors.text : '#0b3558'} />
-            {scopedConversationsStatus === 'success' && unreadMessages > 0 && (
+            <Ionicons name="notifications-outline" size={25} color={mode === 'dark' ? colors.text : '#0b3558'} />
+            {scopedNotificationsStatus === 'success' && unreadNotifications > 0 && (
               <View style={styles.messageBadge}>
-                <Text style={styles.messageBadgeText}>{unreadMessages > 99 ? '99+' : unreadMessages}</Text>
+                <Text style={styles.messageBadgeText}>{unreadNotifications > 99 ? '99+' : unreadNotifications}</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -412,7 +413,14 @@ export default function DashboardScreen() {
       <View style={[styles.homeTabBar, { borderBottomColor: colors.border, backgroundColor: colors.background }]}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.homeTabStrip} accessibilityRole="tablist">
           {homeTabs.map(tab => (
-            <TouchableOpacity key={tab} onPress={() => { setActiveHomeTab(tab); scrollRef.current?.scrollTo({ y: 0, animated: false }); }} accessibilityRole="tab" accessibilityState={{ selected: activeHomeTab === tab }} style={[styles.homeTab, activeHomeTab === tab && { borderBottomColor: mode === 'dark' ? '#75d995' : '#138a32' }]}>
+            <TouchableOpacity key={tab} onPress={() => {
+              if (tab === 'Tenants' || tab === 'Leases') {
+                navigation.getParent()?.navigate(tab);
+                return;
+              }
+              setActiveHomeTab(tab);
+              scrollRef.current?.scrollTo({ y: 0, animated: false });
+            }} accessibilityRole="tab" accessibilityState={{ selected: activeHomeTab === tab }} style={[styles.homeTab, activeHomeTab === tab && { borderBottomColor: mode === 'dark' ? '#75d995' : '#138a32' }]}>
               <Text style={[styles.homeTabLabel, { color: activeHomeTab === tab ? colors.text : colors.muted }, activeHomeTab === tab && styles.homeTabSelected]}>{tab}</Text>
             </TouchableOpacity>
           ))}
@@ -491,7 +499,7 @@ export default function DashboardScreen() {
                   </View>
                 ))}
               </ScrollView>
-              <TouchableOpacity style={styles.notificationsMenuFooter} onPress={() => { setOpenMenu(null); navigation.navigate('Notifications'); }} accessibilityRole="button" accessibilityLabel="View all notifications">
+              <TouchableOpacity style={styles.notificationsMenuFooter} onPress={() => { setOpenMenu(null); navigation.getParent()?.navigate('Notifications'); }} accessibilityRole="button" accessibilityLabel="View all notifications">
                 <Text style={styles.notificationsMenuLink}>View all</Text>
                 <Ionicons name="arrow-forward" size={16} color={mode === 'dark' ? colors.accent : '#2475cf'} />
               </TouchableOpacity>
@@ -590,7 +598,7 @@ export default function DashboardScreen() {
           ))}
         </DashboardSection>}
 
-        {activeHomeTab === 'Maintenance' && <DashboardSection borderless>
+        {activeHomeTab === 'Maintenances' && <DashboardSection borderless>
           <View style={styles.maintenanceToolbar}>
             <View style={[styles.maintenanceSearch, mode === 'dark' && { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]}>
               <Ionicons name="search" size={19} color={mode === 'dark' ? colors.muted : '#64748b'} />

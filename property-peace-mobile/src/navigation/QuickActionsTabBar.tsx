@@ -24,24 +24,22 @@ type MenuSection = { title: string; items: MenuItem[] };
 const landlordMenu: MenuSection[] = [
   { title: 'Leasing', items: [
     { label: 'Calendar', icon: 'calendar-outline', route: 'Dashboard', screen: 'Calendar' },
+    { label: 'Marketing', icon: 'megaphone-outline', route: 'Marketing' },
     { label: 'Leases', icon: 'document-text-outline', route: 'Leases' },
     { label: 'New lease', icon: 'add-circle-outline', route: 'Leases', screen: 'AddLease' },
   ] },
   { title: 'Property Operations', items: [
     { label: 'Maintenance', icon: 'construct-outline', route: 'Maintenance' },
     { label: 'Percy', icon: 'sparkles-outline', webPath: '/landlord/ai-center' },
-    { label: 'Checklists', icon: 'clipboard-outline', route: 'Checklists' },
     { label: 'Vendors', icon: 'people-outline', route: 'Vendors' },
   ] },
   { title: 'People & Communication', items: [
-    { label: 'Team', icon: 'people-circle-outline', route: 'Team' },
     { label: 'Announcements', icon: 'notifications-outline', route: 'Announcements' },
   ] },
   { title: 'Accounting', items: [
     { label: 'Online Payments', icon: 'card-outline', webPath: '/landlord/online-payments' },
     { label: 'Finances', icon: 'cash-outline', route: 'Finances' },
     { label: 'Tax Center', icon: 'receipt-outline', webPath: '/landlord/accounting/tax-center' },
-    { label: 'Reports', icon: 'bar-chart-outline', webPath: '/landlord/reports' },
   ] },
   { title: 'Account & Help', items: [
     { label: 'Settings', icon: 'settings-outline', route: 'Settings' },
@@ -167,13 +165,10 @@ export default function QuickActionsTabBar({ state, descriptors, navigation, aud
     }
   };
 
-  const visibleRoutes = state.routes.filter((route) => !(route.name === 'Leases' && audience !== 'tenant')
-    && !['Listings', 'Applications', 'Vendors', 'Team', 'Announcements', 'Finances'].includes(route.name)
-    && !(audience === 'landlord' && route.name === 'Maintenance')
-    && !(audience === 'landlord' && route.name === 'Messages')
-    && !(audience === 'tenant' && route.name === 'Notifications')
-    && !(audience === 'tenant' && route.name === 'Documents')
-    && !['Checklists', 'Settings'].includes(route.name));
+  const dockNames = audience === 'landlord'
+    ? ['Dashboard', 'Team', 'Checklists', 'Reports', 'Messages']
+    : ['Payments', 'Leases', 'Maintenance', 'Messages'];
+  const visibleRoutes = state.routes.filter((route) => dockNames.includes(route.name));
   const renderTab = (route: typeof visibleRoutes[number]) => {
     const index = state.routes.findIndex((item) => item.key === route.key);
     const selected = state.index === index;
@@ -201,7 +196,7 @@ export default function QuickActionsTabBar({ state, descriptors, navigation, aud
     <View pointerEvents="box-none" style={[styles.dockArea, { paddingBottom: Math.max(insets.bottom, 10) + 6 }]}>
       <View style={[styles.pill, { backgroundColor: mode === 'dark' ? 'rgba(24, 27, 31, 0.82)' : 'rgba(255, 255, 255, 0.88)', borderColor: mode === 'dark' ? 'rgba(255,255,255,0.28)' : '#e1e7eb', shadowOpacity: mode === 'dark' ? 0.22 : 0.12 }]} accessibilityRole="tablist">
         {visibleRoutes.map(renderTab)}
-        <Pressable style={styles.tab} accessibilityRole="tab" accessibilityLabel="Settings" accessibilityHint="Open your settings"
+        <Pressable style={styles.tab} accessibilityRole="tab" accessibilityLabel="User" accessibilityHint="Open your settings"
           accessibilityState={{ selected: state.routes[state.index]?.name === 'Settings' }}
           onPress={() => openTabRoot('Settings')}>
           {profileImageUrl ? <Image source={{ uri: profileImageUrl }} style={[styles.avatar, { borderColor: state.routes[state.index]?.name === 'Settings' ? colors.accent : colors.border }]} />

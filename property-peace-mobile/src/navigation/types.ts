@@ -33,6 +33,7 @@ export type MainTabParamList = {
   Notifications: undefined;
   Tenants: NavigatorScreenParams<TenantsStackParamList> | undefined;
   Team: undefined;
+  Reports: undefined;
   Vendors: NavigatorScreenParams<VendorsStackParamList> | undefined;
   Announcements: NavigatorScreenParams<AnnouncementsStackParamList> | undefined;
   Finances: undefined;

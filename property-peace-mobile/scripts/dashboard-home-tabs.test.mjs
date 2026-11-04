@@ -10,12 +10,12 @@ test('home tabs sit between the top navigation and collection rail', () => {
   const tabs = dashboard.indexOf('<View style={[styles.homeTabBar');
   const rail = dashboard.indexOf('<PropertyCollectionRail');
   assert.ok(topNav < tabs && tabs < rail);
-  assert.match(dashboard, /\['Dashboard', 'Calendar', 'Properties', 'Rent', 'Maintenance'\]/);
+  assert.match(dashboard, /\['Dashboard', 'Calendar', 'Properties', 'Rent', 'Tenants', 'Maintenances', 'Leases'\]/);
   assert.match(dashboard, /accessibilityState=\{\{ selected: activeHomeTab === tab \}\}/);
 });
 
 test('dashboard sections render only on their respective home tabs', () => {
-  for (const [tab, heading] of [['Rent', 'rentProgressHeading'], ['Properties', 'home-outline'], ['Maintenance', 'maintenanceToolbar']]) {
+  for (const [tab, heading] of [['Rent', 'rentProgressHeading'], ['Properties', 'home-outline'], ['Maintenances', 'maintenanceToolbar']]) {
     const marker = tab === 'Rent' ? `{activeHomeTab === 'Rent' && (` : `{activeHomeTab === '${tab}' && <DashboardSection borderless>`;
     const start = dashboard.indexOf(marker);
     assert.ok(start >= 0, `${tab} tab section missing`);

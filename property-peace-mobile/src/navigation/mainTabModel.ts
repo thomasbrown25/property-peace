@@ -2,6 +2,8 @@ export type MainAudience = 'landlord' | 'tenant' | 'unsupported';
 
 export type MainTabName =
   | 'Dashboard'
+  | 'Team'
+  | 'Reports'
   | 'Properties'
   | 'Checklists'
   | 'Maintenance'
@@ -15,6 +17,8 @@ export type MainTabName =
 
 export type MainTabComponentName =
   | 'DashboardScreen'
+  | 'TeamScreen'
+  | 'ReportsScreen'
   | 'PropertiesNavigator'
   | 'ChecklistsNavigator'
   | 'MaintenanceNavigator'
@@ -41,10 +45,10 @@ export type ResolvedVisibleMainTab<T> = Omit<VisibleMainTab, 'component'> & {
 const visibleTabsByAudience: Record<MainAudience, readonly VisibleMainTab[]> = {
   landlord: [
     { name: 'Dashboard', component: 'DashboardScreen', label: 'Home' },
-    { name: 'Properties', component: 'PropertiesNavigator' },
-    { name: 'Tenants', component: 'TenantsNavigator' },
-    { name: 'Marketing', component: 'MarketingNavigator' },
-    { name: 'Notifications', component: 'NotificationsScreen' },
+    { name: 'Team', component: 'TeamScreen' },
+    { name: 'Checklists', component: 'ChecklistsNavigator' },
+    { name: 'Reports', component: 'ReportsScreen' },
+    { name: 'Messages', component: 'MessagesNavigator' },
   ],
   tenant: [
     { name: 'Payments', component: 'TenantPaymentsScreen' },
@@ -58,6 +62,8 @@ const visibleTabsByAudience: Record<MainAudience, readonly VisibleMainTab[]> = {
 
 const icons: Partial<Record<MainTabName, { active: string; inactive: string }>> = {
   Dashboard: { active: 'home', inactive: 'home-outline' },
+  Team: { active: 'people', inactive: 'people-outline' },
+  Reports: { active: 'bar-chart', inactive: 'bar-chart-outline' },
   Properties: { active: 'business', inactive: 'business-outline' },
   Checklists: { active: 'clipboard', inactive: 'clipboard-outline' },
   Maintenance: { active: 'construct', inactive: 'construct-outline' },

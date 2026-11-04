@@ -15,10 +15,10 @@ function sections(name, nextName) {
 
 test('landlord side menu keeps every destination in a workflow section and order', () => {
   assert.deepEqual(sections('landlordMenu', 'tenantMenu'), [
-    { title: 'Leasing', labels: ['Calendar', 'Leases', 'New lease'] },
-    { title: 'Property Operations', labels: ['Maintenance', 'Percy', 'Checklists', 'Vendors'] },
-    { title: 'People & Communication', labels: ['Team', 'Announcements'] },
-    { title: 'Accounting', labels: ['Online Payments', 'Finances', 'Tax Center', 'Reports'] },
+    { title: 'Leasing', labels: ['Calendar', 'Marketing', 'Leases', 'New lease'] },
+    { title: 'Property Operations', labels: ['Maintenance', 'Percy', 'Vendors'] },
+    { title: 'People & Communication', labels: ['Announcements'] },
+    { title: 'Accounting', labels: ['Online Payments', 'Finances', 'Tax Center'] },
     { title: 'Account & Help', labels: ['Settings', 'Support'] },
   ]);
 });

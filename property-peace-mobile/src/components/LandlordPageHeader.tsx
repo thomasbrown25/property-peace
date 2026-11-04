@@ -71,9 +71,9 @@ export default function LandlordPageHeader({ title, onMessage, logo = false }: {
         {!isTenant && <TouchableOpacity style={[styles.action, mode === 'dark' && { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => setSearchOpen(true)} accessibilityRole="button" accessibilityLabel="Search properties, tenants, and leases">
           <Ionicons name="search-outline" size={25} color={colors.text} />
         </TouchableOpacity>}
-        <TouchableOpacity style={[styles.action, mode === 'dark' && { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={onMessage ?? (() => tabs?.navigate('Messages', { screen: 'MessagesList' }))} accessibilityRole="button" accessibilityLabel={onMessage ? 'New message' : unreadMessages > 0 ? `Messages, ${unreadMessages} unread` : 'Messages'}>
-          <Ionicons name="chatbubble-ellipses-outline" size={25} color={colors.text} />
-          {unreadMessages > 0 && <View style={styles.messageBadge}><Text style={styles.messageBadgeText}>{unreadMessages > 99 ? '99+' : unreadMessages}</Text></View>}
+        <TouchableOpacity style={[styles.action, mode === 'dark' && { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={isTenant ? onMessage ?? (() => tabs?.navigate('Messages', { screen: 'MessagesList' })) : () => tabs?.navigate('Notifications')} accessibilityRole="button" accessibilityLabel={isTenant ? onMessage ? 'New message' : unreadMessages > 0 ? `Messages, ${unreadMessages} unread` : 'Messages' : 'Notifications'}>
+          <Ionicons name={isTenant ? 'chatbubble-ellipses-outline' : 'notifications-outline'} size={25} color={colors.text} />
+          {isTenant && unreadMessages > 0 && <View style={styles.messageBadge}><Text style={styles.messageBadgeText}>{unreadMessages > 99 ? '99+' : unreadMessages}</Text></View>}
         </TouchableOpacity>
       </View>
     </View>
