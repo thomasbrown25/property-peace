@@ -6,6 +6,7 @@ import OccupancyTimelineGraph from 'components/OccupancyTimelineGraph';
 import { getUnitAvailabilityCalendar } from 'api/property-portfolio';
 import useAuth from 'hooks/useAuth';
 import { daysInOccupancyMonth } from './occupancyDays.mjs';
+import { readOccupancyCalendar, storeOccupancyCalendar } from './occupancyCalendarCache.mjs';
 
 export default function PropertyOccupancyTab({ propertyId, property }) {
   const { user } = useAuth();
@@ -21,6 +22,13 @@ export default function PropertyOccupancyTab({ propertyId, property }) {
     setSelection(null);
     setCalendar(null);
     if (!landlordId || !propertyId) return;
+    const cached = readOccupancyCalendar(landlordId, propertyId, windowStart);
+    if (cached) {
+      setCalendar(cached);
+      setLoading(false);
+      setError('');
+      return;
+    }
     let cancelled = false;
     const controller = new AbortController();
     let timeoutId;
@@ -34,7 +42,9 @@ export default function PropertyOccupancyTab({ propertyId, property }) {
         if (cancelled) return;
         if (!Array.isArray(data?.units)) throw new Error('Invalid calendar response');
         // Keep the view property-scoped even if an API response includes other properties.
-        setCalendar({ ...data, units: data.units.filter(unit => String(unit.propertyId) === String(propertyId)) });
+        const scoped = { ...data, units: data.units.filter(unit => String(unit.propertyId) === String(propertyId)) };
+        storeOccupancyCalendar(landlordId, propertyId, windowStart, scoped);
+        setCalendar(scoped);
       })
       .catch(() => { if (!cancelled) setError(controller.signal.aborted ? 'Occupancy is taking too long to load. Please retry.' : 'Occupancy could not be loaded. Please try again later.'); })
       .finally(() => { clearTimeout(timeoutId); if (!cancelled) setLoading(false); });

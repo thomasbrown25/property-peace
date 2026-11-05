@@ -15,8 +15,13 @@ public sealed partial class MaintenanceRequestApiService
         if (actor is null) return Unauthorized<MaintenanceAssignmentDto>();
         var request = await ManagerRequest(id, actor.UserId, cancellationToken);
         if (request is null) return NotFound<MaintenanceAssignmentDto>();
-        if (request.Status is EMaintenanceStatus.Resolved or EMaintenanceStatus.Cancelled or EMaintenanceStatus.InProgress)
+        if (request.Status is EMaintenanceStatus.Resolved or EMaintenanceStatus.Cancelled)
             return Conflict<MaintenanceAssignmentDto>("maintenance.assignment_invalid_state", "This request cannot be assigned in its current state.");
+        // A manager may return an in-progress request to assignment, but cannot silently
+        // redirect an issued or running work order to a different assignee.
+        if (request.Status == EMaintenanceStatus.InProgress && request.WorkOrders.Any(order =>
+                order.Status is MaintenanceWorkOrderStatus.Issued or MaintenanceWorkOrderStatus.InProgress))
+            return Conflict<MaintenanceAssignmentDto>("maintenance.assignment_active_work_order", "Cancel the active work order before reassigning this request.");
         if (!Enum.IsDefined(command.AssignedToType) || command.AssignedToType is EAssignedToType.Unassigned or EAssignedToType.OneTimeContact)
             return BadRequest<MaintenanceAssignmentDto>("A supported assignee type is required.");
 

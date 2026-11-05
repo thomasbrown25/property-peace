@@ -229,7 +229,7 @@ export default function AddressAutocompleteInput({
           accessibilityLabel="Street address"
         />
         {!disabled && (state.loading || resolving) && (
-          <ActivityIndicator style={styles.loader} size="small" color={dark ? colors.accent : '#1976d2'} />
+          <ActivityIndicator style={styles.loader} size="small" color={dark ? colors.accent : '#0b3558'} />
         )}
       </View>
       {showSuggestions && (

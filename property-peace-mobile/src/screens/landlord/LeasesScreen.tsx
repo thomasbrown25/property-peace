@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
   errorTitle: { color: '#8d2923', fontSize: 16, fontWeight: '700' },
   errorText: { color: '#704c48', fontSize: 14, lineHeight: 20, marginTop: 4 },
   retryButton: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center', paddingHorizontal: 4 },
-  retryText: { color: '#2475cf', fontSize: 15, fontWeight: '700' },
+  retryText: { color: '#0b3558', fontSize: 15, fontWeight: '700' },
   emptyContainer: { paddingVertical: 46, alignItems: 'center' },
   emptyText: { fontSize: 18, fontWeight: '700', color: '#102d43', marginTop: 12, marginBottom: 6 },
   emptySubtext: { fontSize: 14, color: '#697887', textAlign: 'center', lineHeight: 20 },

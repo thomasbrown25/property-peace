@@ -105,7 +105,7 @@ export default function SimpleDrawer({ visible, onClose, navigation }: SimpleDra
             {menuItems.map((item) => (
               <TouchableOpacity key={item.id} style={[styles.menuItem, dark && { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => navigateToScreen(item.route)} activeOpacity={0.78}>
                 <View style={[styles.menuIconWrap, dark && { backgroundColor: colors.background }]}>
-                  <Ionicons name={item.icon} size={20} color={dark ? colors.accent : '#2475cf'} />
+                  <Ionicons name={item.icon} size={20} color={dark ? colors.accent : '#0b3558'} />
                 </View>
                 <Text style={[styles.menuItemText, dark && { color: colors.text }]}>{item.title}</Text>
                 <Ionicons name="chevron-forward" size={18} color={dark ? colors.muted : '#95a1ad'} />

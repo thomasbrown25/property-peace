@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   error: { color: '#fecaca', fontSize: 14, lineHeight: 20, marginBottom: 16 },
-  button: { minHeight: 52, borderRadius: 10, backgroundColor: '#2563eb', alignItems: 'center', justifyContent: 'center' },
+  button: { minHeight: 52, borderRadius: 10, backgroundColor: '#0b3558', alignItems: 'center', justifyContent: 'center' },
   buttonDisabled: { opacity: 0.55 },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   expires: { color: 'rgba(255, 255, 255, 0.56)', textAlign: 'left', fontSize: 12, marginTop: 16 },

@@ -35,6 +35,33 @@ public sealed class MaintenanceWorkflowApiServiceTests
     }
 
     [Fact]
+    public async Task Assign_CanReturnInProgressRequestToAssigned_UnlessWorkOrderIsActive()
+    {
+        await using var db = CreateDb();
+        Seed(db);
+        var request = await db.MaintenanceRequests.FindAsync(100L);
+        request!.Status = EMaintenanceStatus.InProgress;
+        await db.SaveChangesAsync();
+        var service = Service(db, Manager);
+
+        var result = await service.AssignAsync(100, new(EAssignedToType.Self, 61, null, false));
+        result.Code.Should().Be(MaintenanceApiResultCode.Success);
+        request.Status.Should().Be(EMaintenanceStatus.Assigned);
+
+        request.Status = EMaintenanceStatus.InProgress;
+        db.MaintenanceWorkOrders.Add(new MaintenanceWorkOrder
+        {
+            Id = 900, MaintenanceRequestId = 100, Version = 1,
+            Status = MaintenanceWorkOrderStatus.InProgress, Scope = "Repair", IssuedByUserId = 61
+        });
+        await db.SaveChangesAsync();
+        var blocked = await service.AssignAsync(100, new(EAssignedToType.Self, 61, null, false));
+        blocked.Code.Should().Be(MaintenanceApiResultCode.Conflict);
+        blocked.ErrorCode.Should().Be("maintenance.assignment_active_work_order");
+        request.Status.Should().Be(EMaintenanceStatus.InProgress);
+    }
+
+    [Fact]
     public async Task Assign_RejectsInactiveCrossOrganizationVendor_AndInactiveOrCrossOrganizationMember()
     {
         await using var db = CreateDb();

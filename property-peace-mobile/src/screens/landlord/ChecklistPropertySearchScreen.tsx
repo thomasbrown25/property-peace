@@ -95,7 +95,7 @@ export default function ChecklistPropertySearchScreen({ navigation, route }: Pro
     }
   };
 
-  if (loading) return <View style={themed.center}><ActivityIndicator size="large" color={mode === 'dark' ? colors.accent : '#2475cf'} /></View>;
+  if (loading) return <View style={themed.center}><ActivityIndicator size="large" color={mode === 'dark' ? colors.accent : '#0b3558'} /></View>;
 
   return (
     <FlatList
@@ -103,7 +103,7 @@ export default function ChecklistPropertySearchScreen({ navigation, route }: Pro
       contentContainerStyle={themed.content}
       data={visibleProperties}
       keyExtractor={(item) => propertyId(item)}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={mode === 'dark' ? colors.accent : '#2475cf'} />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={mode === 'dark' ? colors.accent : '#0b3558'} />}
       ListHeaderComponent={(
         <View>
           <View style={themed.hero}>
@@ -149,7 +149,7 @@ export default function ChecklistPropertySearchScreen({ navigation, route }: Pro
               accessibilityState={needsUnit ? { expanded: selected } : undefined}
               accessibilityLabel={`${needsUnit ? 'Show units for' : 'Open checklists for'} ${getChecklistPropertyLabel(item)}`}
             >
-              <View style={[themed.propertyIcon, selected && themed.propertyIconSelected]}><Ionicons name="home-outline" size={23} color={selected ? '#fff' : mode === 'dark' ? colors.accent : '#2475cf'} /></View>
+              <View style={[themed.propertyIcon, selected && themed.propertyIconSelected]}><Ionicons name="home-outline" size={23} color={selected ? '#fff' : mode === 'dark' ? colors.accent : '#0b3558'} /></View>
               <View style={themed.flex}>
                 <Text style={themed.propertyName}>{getChecklistPropertyLabel(item)}</Text>
                 {!!address && <Text style={themed.propertyAddress}>{address}</Text>}
@@ -159,12 +159,12 @@ export default function ChecklistPropertySearchScreen({ navigation, route }: Pro
             {selected && needsUnit && (
               <View style={themed.unitCard}>
                 <Text style={themed.unitTitle}>Units</Text>
-                {waitingForUnits && <ActivityIndicator color={mode === 'dark' ? colors.accent : '#2475cf'} style={themed.unitLoader} />}
+                {waitingForUnits && <ActivityIndicator color={mode === 'dark' ? colors.accent : '#0b3558'} style={themed.unitLoader} />}
                 {!!unitsError && <TouchableOpacity accessibilityRole="button" onPress={() => setSelectedProperty({ ...item })}><Text style={themed.unitError}>{unitsError} Tap to retry.</Text></TouchableOpacity>}
                 {!waitingForUnits && !unitsError && displayedUnits.map((unit) => (
                   <TouchableOpacity key={unitId(unit)} style={themed.unitRow} accessibilityRole="button" accessibilityLabel={`Open checklists for ${unitName(unit)}`} onPress={() => navigation.navigate('PropertyChecklists', buildChecklistHomeParams(item, unit))}>
                     <Text style={themed.unitName}>{unitName(unit)}</Text>
-                    <Ionicons name="arrow-forward" size={18} color={mode === 'dark' ? colors.accent : '#2475cf'} />
+                    <Ionicons name="arrow-forward" size={18} color={mode === 'dark' ? colors.accent : '#0b3558'} />
                   </TouchableOpacity>
                 ))}
                 {!waitingForUnits && !unitsError && displayedUnits.length === 0 && <Text style={themed.unitError}>No units were found for this property.</Text>}
@@ -173,7 +173,7 @@ export default function ChecklistPropertySearchScreen({ navigation, route }: Pro
                   navigation.navigate(entry.screen, entry.params);
                 }}>
                   <Text style={themed.historyText}>View all property checklists</Text>
-                  <Ionicons name="arrow-forward" size={18} color={mode === 'dark' ? colors.accent : '#2475cf'} />
+                  <Ionicons name="arrow-forward" size={18} color={mode === 'dark' ? colors.accent : '#0b3558'} />
                 </TouchableOpacity>
               </View>
             )}
@@ -220,7 +220,7 @@ const styles = StyleSheet.create({
   unitRow: { minHeight: 50, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 8, borderBottomWidth: 1, borderBottomColor: '#e2e8ed' },
   unitName: { color: '#405566', fontWeight: '800' },
   historyRow: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 8 },
-  historyText: { color: '#2475cf', fontSize: 13, fontWeight: '800' },
+  historyText: { color: '#0b3558', fontSize: 13, fontWeight: '800' },
   bottomSpace: { height: 30 },
 });
 

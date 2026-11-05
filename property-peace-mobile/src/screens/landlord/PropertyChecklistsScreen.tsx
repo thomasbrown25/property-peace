@@ -123,7 +123,7 @@ export default function PropertyChecklistsScreen({ navigation, route }: Props) {
     }
   };
 
-  if (loading) return <View style={themed.center}><ActivityIndicator size="large" color={mode === 'dark' ? colors.accent : '#2475cf'} /></View>;
+  if (loading) return <View style={themed.center}><ActivityIndicator size="large" color={mode === 'dark' ? colors.accent : '#0b3558'} /></View>;
 
   if (home.propertyWide) {
     const history = recentPropertyChecklists(checklists, home.propertyId);
@@ -133,7 +133,7 @@ export default function PropertyChecklistsScreen({ navigation, route }: Props) {
         contentContainerStyle={themed.content}
         data={history}
         keyExtractor={(item, index) => String(item.id ?? index)}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={mode === 'dark' ? colors.accent : '#2475cf'} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={mode === 'dark' ? colors.accent : '#0b3558'} />}
         ListHeaderComponent={<View>
           <Text style={themed.eyebrow}>PROPERTY CHECKLISTS</Text>
           <Text style={themed.title}>{home.propertyName}</Text>
@@ -201,7 +201,7 @@ export default function PropertyChecklistsScreen({ navigation, route }: Props) {
       contentContainerStyle={themed.content}
       data={cards}
       keyExtractor={({ id }) => id}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={mode === 'dark' ? colors.accent : '#2475cf'} />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={mode === 'dark' ? colors.accent : '#0b3558'} />}
       ListHeaderComponent={(
         <View>
           <View style={themed.hero}>
@@ -259,7 +259,7 @@ function ChecklistSide({
 }) {
   const { mode } = useAppTheme();
   const themed = mode === 'dark' ? darkStyles : styles;
-  const displayAccent = mode === 'dark' ? '#72b6ff' : '#2475cf';
+  const displayAccent = mode === 'dark' ? '#72b6ff' : '#0b3558';
   const completeAccent = mode === 'dark' ? '#86dc9a' : '#2f8f46';
   const started = checklist ? isChecklistStarted(checklist) : false;
   const action = side && started ? onOpen : onStart;
@@ -292,7 +292,7 @@ const styles = StyleSheet.create({
   heroCopy: { flex: 1 },
   eyebrow: { color: '#2f8f46', fontSize: 10, fontWeight: '900', letterSpacing: 1.1 },
   title: { color: '#102d43', fontSize: 26, lineHeight: 31, fontWeight: '900', letterSpacing: -0.6, marginTop: 2 },
-  unit: { color: '#2475cf', fontSize: 14, fontWeight: '900', marginTop: 1 },
+  unit: { color: '#0b3558', fontSize: 14, fontWeight: '900', marginTop: 1 },
   subtitle: { color: '#617180', fontSize: 14, lineHeight: 20, marginTop: 4 },
   errorCard: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: 15, borderWidth: 1, borderColor: '#f1d8a7', backgroundColor: '#fff8e8', marginBottom: 14 },
   errorTitle: { color: '#7a480f', fontWeight: '900' },

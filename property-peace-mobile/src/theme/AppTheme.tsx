@@ -7,7 +7,7 @@ export type ThemeMode = 'light' | 'dark';
 export const themeColors = {
   light: {
     background: '#ffffff', surface: '#ffffff', text: '#102d43', muted: '#596876',
-    border: '#e8edf2', accent: '#2475cf', dock: '#0b3558', dockText: '#ffffff',
+    border: '#e8edf2', accent: '#0b3558', dock: '#0b3558', dockText: '#ffffff',
   },
   dark: {
     background: '#101923', surface: '#1b2937', text: '#f2f6fa', muted: '#b4c3d0',

@@ -100,7 +100,7 @@ export default function NotificationsScreen() {
   return (
     <View style={styles.container}>
       <LandlordPageHeader title="Notifications" />
-      {loading ? <View style={styles.centerContainer}><ActivityIndicator size="large" color={mode === 'dark' ? colors.accent : '#1976d2'} /></View> : <FlatList
+      {loading ? <View style={styles.centerContainer}><ActivityIndicator size="large" color={mode === 'dark' ? colors.accent : '#0b3558'} /></View> : <FlatList
         ref={listRef}
         data={visible.rows}
         keyExtractor={(row, index) => row.kind === 'heading' ? `heading-${index}-${row.title}` : `notification-${row.item.id ?? row.item.Id ?? index}`}
@@ -178,7 +178,7 @@ const lightStyles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   listContent: { paddingBottom: 120, flexGrow: 1 },
-  clearText: { color: '#1976d2', fontWeight: '700' },
+  clearText: { color: '#0b3558', fontWeight: '700' },
   pagination: { alignItems: 'center', paddingVertical: 18, gap: 4 },
   pageText: { color: '#64748b', fontSize: 13 },
   pageActions: { flexDirection: 'row', gap: 24 },
@@ -188,26 +188,26 @@ const lightStyles = StyleSheet.create({
   errorBanner: { backgroundColor: '#fff8ec', borderLeftWidth: 3, borderLeftColor: '#d99b45', padding: 12, marginBottom: 12 },
   errorText: { color: '#754400', lineHeight: 20 },
   retryButton: { alignSelf: 'flex-start', marginTop: 8, minHeight: 44, justifyContent: 'center' },
-  retryText: { color: '#1976d2', fontWeight: '700' },
+  retryText: { color: '#0b3558', fontWeight: '700' },
   markAllButton: { minHeight: 44, justifyContent: 'center' },
-  markAllText: { color: '#1976d2', fontWeight: '700' },
+  markAllText: { color: '#0b3558', fontWeight: '700' },
   notificationRow: { flexDirection: 'row', paddingVertical: 16, paddingHorizontal: 16, gap: 12, alignItems: 'flex-start' },
   unreadRow: { backgroundColor: '#eaf4ff' },
   notificationCopy: { flex: 1 },
   notificationIcon: { width: 52, height: 52, borderRadius: 26, backgroundColor: '#e8edf2', alignItems: 'center', justifyContent: 'center' },
-  unreadIcon: { backgroundColor: '#2475cf' },
-  unreadDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: '#2475cf', alignSelf: 'center' },
+  unreadIcon: { backgroundColor: '#0b3558' },
+  unreadDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: '#0b3558', alignSelf: 'center' },
   divider: { height: 1, backgroundColor: '#e8edf2' },
   title: { fontSize: 16, fontWeight: '600', color: '#25384b', marginBottom: 3 },
   unreadTitle: { fontWeight: '800', color: '#102d43' },
   message: { color: '#555', lineHeight: 20 },
   date: { marginTop: 8, color: '#888', fontSize: 12 },
   markReadButton: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center', marginTop: 6 },
-  markReadText: { color: '#1976d2', fontWeight: '700' },
+  markReadText: { color: '#0b3558', fontWeight: '700' },
   emptyContainer: { flex: 1, padding: 32, alignItems: 'center', justifyContent: 'center' },
   emptyText: { fontSize: 17, fontWeight: '700', color: '#333', marginBottom: 6, textAlign: 'center' },
   emptySubtext: { color: '#777', textAlign: 'center', lineHeight: 20 },
-  emptyRetryButton: { marginTop: 16, minHeight: 44, paddingHorizontal: 20, justifyContent: 'center', borderRadius: 8, backgroundColor: '#1976d2' },
+  emptyRetryButton: { marginTop: 16, minHeight: 44, paddingHorizontal: 20, justifyContent: 'center', borderRadius: 8, backgroundColor: '#0b3558' },
   emptyRetryText: { color: '#fff', fontWeight: '700' },
 });
 
@@ -217,7 +217,7 @@ const darkStyles = StyleSheet.create({
   centerContainer: { ...lightStyles.centerContainer, backgroundColor: '#101923' },
   unreadRow: { ...lightStyles.unreadRow, backgroundColor: '#1c3042' },
   notificationIcon: { ...lightStyles.notificationIcon, backgroundColor: '#30465a' },
-  unreadIcon: { ...lightStyles.unreadIcon, backgroundColor: '#2475cf' },
+  unreadIcon: { ...lightStyles.unreadIcon, backgroundColor: '#0b3558' },
   clearText: { ...lightStyles.clearText, color: '#72b6ff' },
   pageText: { ...lightStyles.pageText, color: '#b4c3d0' },
   sectionRow: { ...lightStyles.sectionRow, backgroundColor: '#101923' },

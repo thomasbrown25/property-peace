@@ -59,7 +59,7 @@ export default function TenantsScreen() {
           {!!query && <TouchableOpacity accessibilityRole="button" accessibilityLabel="Clear search" onPress={() => setQuery('')}><Ionicons name="close-circle" size={19} color={dark ? colors.muted : '#94a3b8'} /></TouchableOpacity>}
         </View>
       </View>
-      {loading ? <View style={[styles.centerContainer, dark && { backgroundColor: colors.background }]}><ActivityIndicator size="large" color={dark ? colors.accent : '#1976d2'} /></View> : <FlatList
+      {loading ? <View style={[styles.centerContainer, dark && { backgroundColor: colors.background }]}><ActivityIndicator size="large" color={dark ? colors.accent : '#0b3558'} /></View> : <FlatList
         data={filteredTenants}
         keyExtractor={(item, index) => String(item.id || item.Id || index)}
         contentContainerStyle={styles.listContent}
@@ -103,7 +103,7 @@ const styles = StyleSheet.create({
   listContent: { paddingHorizontal: 22, paddingTop: 8, paddingBottom: 120 },
 
   pageSubtitle: { color: '#617180', fontSize: 15, lineHeight: 22 },
-  addButton: { flexDirection: 'row', gap: 4, backgroundColor: '#2475cf', borderRadius: 10, minHeight: 44, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center' },
+  addButton: { flexDirection: 'row', gap: 4, backgroundColor: '#0b3558', borderRadius: 10, minHeight: 44, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center' },
   search: { minHeight: 46, paddingHorizontal: 13, borderRadius: 10, backgroundColor: '#f1f5f9', flexDirection: 'row', alignItems: 'center', gap: 9 },
   searchInput: { flex: 1, color: '#0f172a', fontSize: 15, paddingVertical: 10 },
   addButtonText: { color: '#fff', fontSize: 14, fontWeight: '700' },
@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
   separator: { height: StyleSheet.hairlineWidth, backgroundColor: '#dbe2e6' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 82, paddingVertical: 15 },
   avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#eaf3ff', alignItems: 'center', justifyContent: 'center' },
-  avatarText: { color: '#2475cf', fontWeight: '700', fontSize: 18 },
+  avatarText: { color: '#0b3558', fontWeight: '700', fontSize: 18 },
   rowCopy: { flex: 1, minWidth: 0 },
   title: { fontSize: 16, fontWeight: '700', color: '#102d43', marginBottom: 3 },
   meta: { color: '#697887', fontSize: 13, lineHeight: 19 },

@@ -501,7 +501,7 @@ export default function DashboardScreen() {
               </ScrollView>
               <TouchableOpacity style={styles.notificationsMenuFooter} onPress={() => { setOpenMenu(null); navigation.getParent()?.navigate('Notifications'); }} accessibilityRole="button" accessibilityLabel="View all notifications">
                 <Text style={styles.notificationsMenuLink}>View all</Text>
-                <Ionicons name="arrow-forward" size={16} color={mode === 'dark' ? colors.accent : '#2475cf'} />
+                <Ionicons name="arrow-forward" size={16} color={mode === 'dark' ? colors.accent : '#0b3558'} />
               </TouchableOpacity>
             </Animated.View>
           )}
@@ -805,7 +805,7 @@ const styles = StyleSheet.create({
   notificationsMenuHint: { color: '#697887', fontSize: 13, lineHeight: 19, padding: 16 },
   notificationsMenuRetry: { minHeight: 44, justifyContent: 'center' },
   notificationsMenuFooter: { minHeight: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderTopWidth: 1, borderTopColor: '#edf1f3' },
-  notificationsMenuLink: { color: '#2475cf', fontSize: 14, fontWeight: '800' },
+  notificationsMenuLink: { color: '#0b3558', fontSize: 14, fontWeight: '800' },
   profileIdentity: { padding: 18, backgroundColor: '#f8fbfd', borderBottomWidth: 1, borderBottomColor: '#edf1f3' },
   profileName: { color: '#102d43', fontSize: 17, fontWeight: '900' },
   profileEmail: { color: '#6a7885', fontSize: 13, marginTop: 4 },
@@ -820,7 +820,7 @@ const styles = StyleSheet.create({
   maintenanceAdd: { width: 46, height: 46, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   todayCard: { minHeight: 105, flexDirection: 'row', alignItems: 'center', paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#dce4e8' },
   dateBlock: { width: 76, alignItems: 'center', justifyContent: 'center', borderRightWidth: 1, borderRightColor: '#dce4e8' },
-  dateMonth: { color: '#2475cf', fontSize: 11, fontWeight: '900', letterSpacing: 1.6 },
+  dateMonth: { color: '#0b3558', fontSize: 11, fontWeight: '900', letterSpacing: 1.6 },
   dateDay: { color: '#061e35', fontSize: 43, lineHeight: 48, fontWeight: '900', letterSpacing: -2 },
   dateWeekday: { color: '#657685', fontSize: 10, fontWeight: '800', letterSpacing: 1 },
   todayCopy: { flex: 1, justifyContent: 'center', paddingLeft: 18, minWidth: 0 },
@@ -830,7 +830,7 @@ const styles = StyleSheet.create({
   todayTitle: { color: '#061e35', fontSize: 19, lineHeight: 24, fontWeight: '900', letterSpacing: -0.5 },
   todayText: { color: '#657685', fontSize: 13, lineHeight: 19, marginTop: 7 },
   todayRepairAttention: { color: '#c2413b' },
-  todayUnreadAttention: { color: '#2475cf' },
+  todayUnreadAttention: { color: '#0b3558' },
   todayArrow: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   warningCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderTopWidth: 1, borderTopColor: '#e9edf0', paddingVertical: 16 },
   warningCopy: { flex: 1 },
@@ -880,7 +880,7 @@ const styles = StyleSheet.create({
   notificationRow: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#e9edf0' },
   lastRow: { borderBottomWidth: 0 },
   notificationDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#aeb9c1', marginTop: 6, marginRight: 11 },
-  notificationDotUnread: { backgroundColor: '#2475cf' },
+  notificationDotUnread: { backgroundColor: '#0b3558' },
   notificationDotReceived: { backgroundColor: '#2f8f46' },
   notificationDotPending: { backgroundColor: '#b76a11' },
   notificationDotFailed: { backgroundColor: '#c2413b' },
@@ -894,7 +894,7 @@ const styles = StyleSheet.create({
   sectionError: { minHeight: 86, alignItems: 'flex-start', justifyContent: 'center' },
   sectionErrorText: { color: '#8d2923', fontSize: 13, fontWeight: '800' },
   inlineRetry: { minHeight: 44, justifyContent: 'center', paddingRight: 12 },
-  inlineRetryText: { color: '#2475cf', fontSize: 13, fontWeight: '900' },
+  inlineRetryText: { color: '#0b3558', fontSize: 13, fontWeight: '900' },
   cardLoading: { minHeight: 100, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
   loadingText: { color: '#6b7b88', fontSize: 12 },
 });

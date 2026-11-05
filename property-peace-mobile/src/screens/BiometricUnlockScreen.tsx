@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   AccessibilityInfo,
-  ActivityIndicator,
+  Animated,
   AppState,
+  Easing,
   Image,
   StyleSheet,
   Text,
@@ -20,6 +21,66 @@ type BiometricUnlockScreenProps = {
   onUnlock: () => void;
   onSignOut: () => void;
 };
+
+function UnlockLoadingDots({ active }: { active: boolean }) {
+  const dots = useRef(Array.from({ length: 4 }, () => new Animated.Value(0))).current;
+  const [reduceMotion, setReduceMotion] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    AccessibilityInfo.isReduceMotionEnabled().then((enabled) => {
+      if (mounted) setReduceMotion(enabled);
+    }).catch(() => {});
+    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
+    return () => {
+      mounted = false;
+      subscription.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!active || reduceMotion) {
+      dots.forEach((dot) => dot.setValue(0));
+      return undefined;
+    }
+
+    const animations = dots.map((dot, index) => Animated.loop(Animated.sequence([
+      Animated.delay(index * 140),
+      Animated.timing(dot, {
+        toValue: 1,
+        duration: 210,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }),
+      Animated.timing(dot, {
+        toValue: 0,
+        duration: 260,
+        easing: Easing.in(Easing.quad),
+        useNativeDriver: true,
+      }),
+      Animated.delay((3 - index) * 140 + 170),
+    ])));
+    animations.forEach((animation) => animation.start());
+    return () => {
+      animations.forEach((animation) => animation.stop());
+      dots.forEach((dot) => dot.setValue(0));
+    };
+  }, [active, dots, reduceMotion]);
+
+  return (
+    <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.loadingDots}>
+      {dots.map((dot, index) => (
+        <Animated.View
+          key={index}
+          style={[styles.loadingDot, { transform: [{ translateY: dot.interpolate({
+            inputRange: [0, 1],
+            outputRange: [0, -10],
+          }) }] }]}
+        />
+      ))}
+    </View>
+  );
+}
 
 export default function BiometricUnlockScreen({
   autoPrompt = false,
@@ -147,6 +208,7 @@ export default function BiometricUnlockScreen({
         resizeMode="contain"
         accessibilityLabel="Property Peace"
       />
+      <UnlockLoadingDots active={checking} />
       <Text accessibilityLiveRegion="polite" style={styles.message}>{message}</Text>
       <TouchableOpacity
         accessibilityRole="button"
@@ -154,9 +216,7 @@ export default function BiometricUnlockScreen({
         onPress={unlock}
         disabled={checking}
       >
-        {checking
-          ? <ActivityIndicator color="#fff" />
-          : <Ionicons name="scan-outline" size={21} color="#fff" />}
+        {!checking && <Ionicons name="scan-outline" size={21} color="#fff" />}
         <Text style={styles.unlockText}>
           {checking ? 'Checking…' : 'Unlock with ' + label}
         </Text>
@@ -205,6 +265,20 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     maxWidth: 320,
     textAlign: 'center',
+  },
+  loadingDots: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
+    height: 32,
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  loadingDot: {
+    backgroundColor: '#70cf73',
+    borderRadius: 6,
+    height: 10,
+    width: 10,
   },
   unlockButton: {
     alignItems: 'center',

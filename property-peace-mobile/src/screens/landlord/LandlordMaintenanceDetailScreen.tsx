@@ -287,7 +287,7 @@ export default function LandlordMaintenanceDetailScreen() {
   const next = closed ? 'This request is closed.' : canAcknowledge ? 'Acknowledge the request to begin.' : !assigned ? 'Assign someone to handle the repair.' : pendingCompletion ? actionableCompletions.length ? 'The tenant deadline passed. Staff can close the completion with a reason.' : 'Waiting for tenant confirmation.' : inProgressOrders.length ? 'Submit repair completion with evidence.' : issuedOrders.length ? 'Start the issued work order.' : requiresEstimate && !approvedEstimates.length ? 'Review or submit an estimate.' : 'Issue a work order when ready.';
 
   return <SafeAreaView style={s.page} edges={['bottom']}>
-    {loading ? <ActivityIndicator style={s.loading} color={mode === 'dark' ? colors.accent : '#0b5cab'} /> : error ?
+    {loading ? <ActivityIndicator style={s.loading} color={mode === 'dark' ? colors.accent : '#0b3558'} /> : error ?
       <View style={s.content}><Text style={s.error}>{error}</Text><Action label="Retry loading request" onPress={reload} /></View> :
       <KeyboardAvoidingView style={s.page} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}>
@@ -399,14 +399,14 @@ const Action = ({ label, onPress, disabled, prominent, expanded, selected }: { l
 };
 const lightStyles = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#ffffff' }, content: { padding: 18, paddingBottom: 36 }, loading: { marginTop: 60 },
-  link: { color: '#0b5cab', fontWeight: '900' }, eyebrow: { color: '#74848d', fontSize: 11, fontWeight: '900', letterSpacing: 1.2, marginTop: 16 },
-  title: { color: '#102d43', fontSize: 26, fontWeight: '900', marginTop: 4 }, statusLabel: { color: '#74848d', fontSize: 11, fontWeight: '900', letterSpacing: 1, marginTop: 22 }, status: { color: '#0b5cab', fontSize: 20, fontWeight: '900', marginTop: 3 },
+  link: { color: '#0b3558', fontWeight: '900' }, eyebrow: { color: '#74848d', fontSize: 11, fontWeight: '900', letterSpacing: 1.2, marginTop: 16 },
+  title: { color: '#102d43', fontSize: 26, fontWeight: '900', marginTop: 4 }, statusLabel: { color: '#74848d', fontSize: 11, fontWeight: '900', letterSpacing: 1, marginTop: 22 }, status: { color: '#0b3558', fontSize: 20, fontWeight: '900', marginTop: 3 },
   body: { color: '#526874', lineHeight: 21, marginTop: 12 }, meta: { color: '#74848d', marginTop: 7 }, sectionWrap: { borderTopWidth: 1, borderColor: '#d3dde2', paddingTop: 18, marginTop: 24 }, tabContent: { marginTop: 18 }, section: { color: '#102d43', fontSize: 19, fontWeight: '900', marginBottom: 12 },
   record: { borderBottomWidth: 1, borderColor: '#e2e8eb', paddingVertical: 12 }, recordTitle: { color: '#19384c', fontWeight: '800' }, muted: { color: '#74848d', fontSize: 12, lineHeight: 18, marginTop: 5 },
-  action: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start', paddingHorizontal: 4, marginTop: 5 }, primary: { alignSelf: 'stretch', alignItems: 'center', backgroundColor: '#0b5cab', marginTop: 12, paddingHorizontal: 14 }, selectedAction: { backgroundColor: '#0b5cab', borderRadius: 6, paddingHorizontal: 14 }, primaryText: { color: '#fff' }, disabled: { opacity: .45 },
+  action: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start', paddingHorizontal: 4, marginTop: 5 }, primary: { alignSelf: 'stretch', alignItems: 'center', backgroundColor: '#0b3558', marginTop: 12, paddingHorizontal: 14 }, selectedAction: { backgroundColor: '#0b3558', borderRadius: 6, paddingHorizontal: 14 }, primaryText: { color: '#fff' }, disabled: { opacity: .45 },
   form: { borderLeftWidth: 2, borderColor: '#bdcbd3', marginTop: 10, paddingLeft: 12, paddingBottom: 10 }, row: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 }, choice: { paddingVertical: 10, borderBottomWidth: 1, borderColor: '#e2e8eb' },
-  moreButton: { alignSelf: 'flex-end', paddingVertical: 8 }, summaryRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 8, marginTop: 20 }, summaryText: { color: '#526874', fontSize: 13, flexShrink: 1 }, summaryValue: { color: '#0b5cab', fontWeight: '800' }, highPriority: { color: '#b42318', fontWeight: '800' },
-  tabs: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#d3dde2', marginTop: 22 }, tab: { flex: 1, alignItems: 'center', paddingVertical: 13, borderBottomWidth: 2, borderBottomColor: 'transparent' }, activeTab: { borderBottomColor: '#2563eb' }, tabText: { color: '#74848d', fontSize: 12, fontWeight: '600' }, activeTabText: { color: '#102d43', fontWeight: '800' }, statusSelect: { minHeight: 48, borderWidth: 1, borderColor: '#bdcbd3', borderRadius: 8, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  moreButton: { alignSelf: 'flex-end', paddingVertical: 8 }, summaryRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 8, marginTop: 20 }, summaryText: { color: '#526874', fontSize: 13, flexShrink: 1 }, summaryValue: { color: '#0b3558', fontWeight: '800' }, highPriority: { color: '#b42318', fontWeight: '800' },
+  tabs: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#d3dde2', marginTop: 22 }, tab: { flex: 1, alignItems: 'center', paddingVertical: 13, borderBottomWidth: 2, borderBottomColor: 'transparent' }, activeTab: { borderBottomColor: '#0b3558' }, tabText: { color: '#74848d', fontSize: 12, fontWeight: '600' }, activeTabText: { color: '#102d43', fontWeight: '800' }, statusSelect: { minHeight: 48, borderWidth: 1, borderColor: '#bdcbd3', borderRadius: 8, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   imageOverlay: { flex: 1, backgroundColor: '#101923', padding: 20, justifyContent: 'center' }, imagePreview: { flex: 1, width: '100%' },
   modalOverlay: { flex: 1, backgroundColor: '#0008', justifyContent: 'center', padding: 24 }, modalPanel: { backgroundColor: '#fff', borderRadius: 12, padding: 18, maxHeight: '80%' }, statusOptions: { flexGrow: 0 },
   input: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#bdcbd3', minHeight: 46, paddingHorizontal: 11, marginTop: 8, color: '#19384c' }, area: { minHeight: 76, paddingTop: 11 }, error: { color: '#a92338', lineHeight: 21, marginVertical: 10 }, keyboardAccessory: { padding: 12, alignItems: 'flex-end', backgroundColor: '#ffffff' },
@@ -427,8 +427,8 @@ const darkStyles = StyleSheet.create({
   record: { ...lightStyles.record, borderColor: '#35495b' },
   recordTitle: { ...lightStyles.recordTitle, color: '#f2f6fa' },
   muted: { ...lightStyles.muted, color: '#b4c3d0' },
-  primary: { ...lightStyles.primary, backgroundColor: '#2475cf' },
-  selectedAction: { ...lightStyles.selectedAction, backgroundColor: '#2475cf' },
+  primary: { ...lightStyles.primary, backgroundColor: '#0b3558' },
+  selectedAction: { ...lightStyles.selectedAction, backgroundColor: '#0b3558' },
   form: { ...lightStyles.form, borderColor: '#51697e' },
   choice: { ...lightStyles.choice, borderColor: '#35495b' },
   input: { ...lightStyles.input, backgroundColor: '#1b2937', borderColor: '#51697e', color: '#f2f6fa' },
