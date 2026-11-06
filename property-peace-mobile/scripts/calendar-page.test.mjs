@@ -34,8 +34,9 @@ test('active lease rent due date stays within the selected month and does not cl
   assert.equal(buildCalendarEvents([{ ...leases[0], isDrafted: true }], [], [], new Date(2026, 1, 1)).length, 0);
 });
 
-test('both landlord entry points lead to the registered calendar route', () => {
-  assert.match(source('../src/screens/landlord/DashboardScreen.tsx'), /todayArrow[^\n]*onPress=\{\(\) => navigation\.navigate\('Calendar'\)/);
+test('home tab and More menu both provide a Calendar destination', () => {
+  assert.match(source('../src/screens/landlord/DashboardScreen.tsx'), /const homeTabs: HomeTab\[\] = \['Dashboard', 'Calendar'/);
+  assert.match(source('../src/screens/landlord/DashboardScreen.tsx'), /activeHomeTab === 'Calendar' \? <CalendarScreen embedded/);
   assert.match(source('../src/navigation/QuickActionsTabBar.tsx'), /label: 'Calendar'[^\n]*route: 'Dashboard', screen: 'Calendar'/);
   assert.match(source('../src/navigation/MainNavigator.tsx'), /DashboardStack\.Screen name="Calendar" component=\{CalendarScreen\}/);
 });

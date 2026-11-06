@@ -10,6 +10,7 @@ import {
   TeamOutlined
 } from '@ant-design/icons';
 import { normalizeWorkflowToken, statusLabel } from 'utils/maintenanceWorkflow';
+import { maintenanceActionSelected, maintenanceActionUnavailable } from './maintenanceActionState.mjs';
 
 const NAVY = '#061e35';
 
@@ -28,7 +29,7 @@ export default function MaintenanceActionsPanel({ currentStatus, busy, onAcknowl
   const currentToken = normalizeWorkflowToken(currentStatus);
 
   const runAction = (action) => {
-    if (action.key === 'acknowledge') return onAcknowledge();
+    if (action.key === 'acknowledge') return currentToken === 'reported' ? onAcknowledge() : onStatusChange('Acknowledged');
     if (action.key === 'assign') return onAssign();
     if (action.key === 'schedule') return onSchedule();
     if (action.key === 'expense') return onAddExpense();
@@ -60,10 +61,8 @@ export default function MaintenanceActionsPanel({ currentStatus, busy, onAcknowl
         {MAINTENANCE_DETAIL_ACTIONS.map((action) => {
           const Icon = action.icon;
           const isCurrentStatus = action.status && !action.drawer && normalizeWorkflowToken(action.status) === currentToken;
-          const acknowledgeUnavailable = action.key === 'acknowledge' && currentToken !== 'reported';
-          const assignmentUnavailable = ['inprogress', 'resolved', 'cancelled'].includes(currentToken) && action.key === 'assign';
-          const scheduleUnavailable = ['scheduled', 'resolved', 'cancelled'].includes(currentToken) && action.key === 'schedule';
-          const disabled = Boolean(busy) || isCurrentStatus || acknowledgeUnavailable || assignmentUnavailable || scheduleUnavailable;
+          const isSelected = maintenanceActionSelected(action.key, currentStatus);
+          const disabled = maintenanceActionUnavailable(action.key, currentStatus, busy);
           const isWorking = busy === action.key || busy === `status:${action.status}`;
 
           return (
@@ -71,8 +70,8 @@ export default function MaintenanceActionsPanel({ currentStatus, busy, onAcknowl
               key={action.key}
               type="button"
               fullWidth
-              variant={action.key === 'acknowledge' ? 'contained' : 'outlined'}
-              color={action.color || 'primary'}
+              variant={isSelected ? 'contained' : 'outlined'}
+              color={isSelected ? 'primary' : action.color || 'primary'}
               startIcon={isWorking ? <CircularProgress size={15} color="inherit" /> : <Icon />}
               disabled={disabled}
               aria-current={isCurrentStatus ? 'step' : undefined}
@@ -83,7 +82,13 @@ export default function MaintenanceActionsPanel({ currentStatus, busy, onAcknowl
                 px: 1.75,
                 textTransform: 'none',
                 fontWeight: 780,
-                borderColor: action.key === 'cancel' ? 'error.light' : undefined
+                ...(isSelected && {
+                  bgcolor: NAVY,
+                  color: '#fff',
+                  '&:hover': { bgcolor: '#123653' },
+                  '&.Mui-disabled': { bgcolor: NAVY, color: '#fff', opacity: 0.75 }
+                }),
+                borderColor: action.key === 'cancel' && !isSelected ? 'error.light' : undefined
               }}
             >
               {isWorking ? 'Working…' : action.label}

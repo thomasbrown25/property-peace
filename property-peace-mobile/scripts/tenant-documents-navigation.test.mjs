@@ -12,7 +12,8 @@ test('tenant documents have a side-menu destination without changing the five-sl
   const tenantMenu = menu.slice(menu.indexOf('const tenantMenu:'), menu.indexOf('// Do not send a development/preview'));
   assert.match(tenantMenu, /label: 'Documents'[^\n]*route: 'Documents'/);
   assert.match(nav, /audience === 'tenant' && <Tab.Screen name="Documents" component={TenantDocumentsScreen}/);
-  assert.match(menu, /audience === 'tenant' && route\.name === 'Documents'/);
+  assert.match(menu, /const visibleRoutes = state\.routes\.filter\(\(route\) => dockNames\.includes\(route\.name\)\)/);
+  assert.doesNotMatch(menu.slice(menu.indexOf("? ['Dashboard'"), menu.indexOf('const visibleRoutes')), /'Documents'/);
   assert.match(screen, /<LandlordPageHeader title="Documents"/);
   assert.match(screen, /paddingBottom: Math\.max\(insets\.bottom, 24\) \+ 100/);
   assert.match(screen, /result\?\.scope === scope/);

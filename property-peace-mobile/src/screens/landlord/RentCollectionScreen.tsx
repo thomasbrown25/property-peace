@@ -126,7 +126,7 @@ export default function RentCollectionScreen() {
       <ScrollView
         contentContainerStyle={[styles.content, { paddingTop: insets.top + 28, paddingBottom: 32 }]}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={dark ? colors.accent : '#2475cf'} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={dark ? colors.accent : '#0b3558'} />}
       >
         <View style={styles.intro}>
           <Text style={[styles.title, dark && { color: colors.text }]} accessibilityRole="header">Rent collection</Text>
@@ -136,7 +136,7 @@ export default function RentCollectionScreen() {
           <TouchableOpacity style={[styles.periodArrow, dark && { borderColor: colors.border }]} disabled={!canGoBack} onPress={() => changeMonth(-1)} accessibilityRole="button" accessibilityLabel="Previous month" accessibilityState={{ disabled: !canGoBack }}>
             <Ionicons name="chevron-back" size={22} color={!canGoBack ? '#9ba9b5' : dark ? colors.text : '#102d43'} />
           </TouchableOpacity>
-          <View style={styles.periodCenter}><Ionicons name="calendar-outline" size={18} color={dark ? colors.accent : '#2475cf'} /><Text style={[styles.periodText, dark && { color: colors.text }]}>{monthLabel}</Text></View>
+          <View style={styles.periodCenter}><Ionicons name="calendar-outline" size={18} color={dark ? colors.accent : '#0b3558'} /><Text style={[styles.periodText, dark && { color: colors.text }]}>{monthLabel}</Text></View>
           <TouchableOpacity style={[styles.periodArrow, dark && { borderColor: colors.border }]} disabled={!historical} onPress={() => changeMonth(1)} accessibilityRole="button" accessibilityLabel="Next month" accessibilityState={{ disabled: !historical }}>
             <Ionicons name="chevron-forward" size={22} color={!historical ? '#9ba9b5' : dark ? colors.text : '#102d43'} />
           </TouchableOpacity>
@@ -144,7 +144,7 @@ export default function RentCollectionScreen() {
         {historical && <Text style={[styles.periodNote, dark && { color: colors.muted }]}>Payments applied to {monthLabel} as of today</Text>}
 
         {viewStatus === 'loading' ? (
-          <View style={styles.feedback}><ActivityIndicator color={dark ? colors.accent : '#2475cf'} /><Text style={[styles.feedbackText, dark && { color: colors.muted }]}>Loading rent collection…</Text></View>
+          <View style={styles.feedback}><ActivityIndicator color={dark ? colors.accent : '#0b3558'} /><Text style={[styles.feedbackText, dark && { color: colors.muted }]}>Loading rent collection…</Text></View>
         ) : viewStatus === 'error' ? (
           <View style={styles.feedback}>
             <Ionicons name="cloud-offline-outline" size={27} color={dark ? '#ffca82' : '#a45f12'} />
@@ -169,7 +169,7 @@ export default function RentCollectionScreen() {
               <Text style={[styles.count, dark && { color: colors.muted }]}>{visible.records.length} {visible.records.length === 1 ? 'lease' : 'leases'}</Text>
             </View>
             {visible.records.length === 0 ? (
-              <View style={styles.emptyState}><Ionicons name="receipt-outline" size={26} color={dark ? colors.accent : '#2475cf'} /><Text style={[styles.emptyTitle, dark && { color: colors.text }]}>{historical ? 'No leases for this month' : 'No rent records this month'}</Text><Text style={[styles.feedbackText, dark && { color: colors.muted }]}>{historical ? `No lease had rent expected in ${monthLabel}.` : 'Lease rent will appear here when available.'}</Text></View>
+              <View style={styles.emptyState}><Ionicons name="receipt-outline" size={26} color={dark ? colors.accent : '#0b3558'} /><Text style={[styles.emptyTitle, dark && { color: colors.text }]}>{historical ? 'No leases for this month' : 'No rent records this month'}</Text><Text style={[styles.feedbackText, dark && { color: colors.muted }]}>{historical ? `No lease had rent expected in ${monthLabel}.` : 'Lease rent will appear here when available.'}</Text></View>
             ) : visible.records.map((record, index) => {
               const tenants = read<RentRecord['tenants']>(record, 'tenants') ?? [];
               const tenant = tenants.map((person) => [person.firstName ?? person.firstname ?? person.FirstName, person.lastName ?? person.lastname ?? person.LastName].filter(Boolean).join(' ')).filter(Boolean).join(', ');
@@ -194,7 +194,7 @@ export default function RentCollectionScreen() {
                   disabled={!canOpenLease} accessibilityRole={canOpenLease ? 'button' : undefined}
                   accessibilityLabel={canOpenLease ? `View lease for ${name} at ${location}` : undefined}
                   onPress={() => { if (canOpenLease) navigation.getParent()?.navigate('Leases', { screen: 'LeaseDetail', params: { leaseId: String(leaseId), archived: false } }); }}>
-                  <View style={[styles.rowIcon, state.tone === 'success' ? styles.successIcon : state.tone === 'warning' ? styles.warningIcon : styles.infoIcon, dark && { backgroundColor: state.tone === 'success' ? '#224737' : state.tone === 'warning' ? '#4b3829' : '#233c56' }]}><Ionicons name={state.icon} size={23} color={dark ? state.tone === 'success' ? '#82e5a5' : state.tone === 'warning' ? '#ffca82' : colors.accent : state.tone === 'success' ? '#219447' : state.tone === 'warning' ? '#ae680d' : '#2475cf'} /></View>
+                  <View style={[styles.rowIcon, state.tone === 'success' ? styles.successIcon : state.tone === 'warning' ? styles.warningIcon : styles.infoIcon, dark && { backgroundColor: state.tone === 'success' ? '#224737' : state.tone === 'warning' ? '#4b3829' : '#233c56' }]}><Ionicons name={state.icon} size={23} color={dark ? state.tone === 'success' ? '#82e5a5' : state.tone === 'warning' ? '#ffca82' : colors.accent : state.tone === 'success' ? '#219447' : state.tone === 'warning' ? '#ae680d' : '#0b3558'} /></View>
                   <View style={styles.rowCopy}><Text style={[styles.rowName, dark && { color: colors.text }]} numberOfLines={2}>{name}</Text><Text style={[styles.rowLocation, dark && { color: colors.muted }]} numberOfLines={2}>{location}</Text><Text style={[styles.status, state.tone === 'success' ? styles.successText : state.tone === 'warning' ? styles.warningText : styles.infoText, dark && { color: state.tone === 'success' ? '#82e5a5' : state.tone === 'warning' ? '#ffca82' : colors.accent }]}>{state.label}</Text></View>
                   <View style={styles.amountBlock}><Text style={[styles.rowAmount, dark && { color: colors.text }]}>{money(displayAmount)}</Text><Text style={[styles.amountCaption, dark && { color: colors.muted }]}>{amountLabel}</Text></View>
                 </TouchableOpacity>
@@ -203,7 +203,7 @@ export default function RentCollectionScreen() {
             <TouchableOpacity style={[styles.leaseLink, dark && { borderTopColor: colors.border }]} accessibilityRole="button" onPress={() => navigation.navigate('Leases', { screen: 'LeasesList' })}>
               <View style={styles.linkIcon}><Ionicons name="document-text-outline" size={21} color={dark ? colors.accent : '#0b3558'} /></View>
               <View style={styles.linkCopy}><Text style={[styles.linkTitle, dark && { color: colors.text }]}>View leases</Text><Text style={[styles.linkSubtitle, dark && { color: colors.muted }]}>Review the leases behind these balances</Text></View>
-              <Ionicons name="arrow-forward" size={20} color={dark ? colors.accent : '#2475cf'} />
+              <Ionicons name="arrow-forward" size={20} color={dark ? colors.accent : '#0b3558'} />
             </TouchableOpacity>
           </>
         )}
@@ -233,7 +233,7 @@ const styles = StyleSheet.create({
   fill: { height: '100%', borderRadius: 7, backgroundColor: '#20a04b' },
   remaining: { color: '#556d64', fontSize: 13, marginTop: 8 },
   sectionHead: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 32, marginBottom: 7 },
-  sectionEyebrow: { color: '#2475cf', fontSize: 10, fontWeight: '800', letterSpacing: 1.4, marginBottom: 4 },
+  sectionEyebrow: { color: '#0b3558', fontSize: 10, fontWeight: '800', letterSpacing: 1.4, marginBottom: 4 },
   sectionTitle: { color: '#061e35', fontSize: 22, fontWeight: '800', letterSpacing: -0.4 },
   count: { color: '#667789', fontSize: 13, marginBottom: 3 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 17, borderBottomWidth: 1, borderBottomColor: '#e6ebee' },
@@ -244,7 +244,7 @@ const styles = StyleSheet.create({
   rowName: { color: '#102d43', fontSize: 15, fontWeight: '800', lineHeight: 20 },
   rowLocation: { color: '#667789', fontSize: 12, lineHeight: 17, marginTop: 2 },
   status: { fontSize: 12, fontWeight: '700', marginTop: 6 },
-  successText: { color: '#188d40' }, warningText: { color: '#a66310' }, infoText: { color: '#2475cf' },
+  successText: { color: '#188d40' }, warningText: { color: '#a66310' }, infoText: { color: '#0b3558' },
   amountBlock: { alignItems: 'flex-end', maxWidth: 112 },
   rowAmount: { color: '#102d43', fontSize: 15, fontWeight: '800' },
   amountCaption: { color: '#7c8c9b', fontSize: 11, marginTop: 4, textAlign: 'right' },

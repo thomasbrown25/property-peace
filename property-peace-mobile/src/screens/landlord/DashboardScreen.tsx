@@ -16,7 +16,8 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import type { DashboardStackParamList } from '../../navigation/types';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { logout } from '../../store/user/user.slice';
@@ -42,8 +43,8 @@ const lightLogo = require('../../../assets/property-peace-navbar-logo.png');
 const darkLogo = require('../../../assets/property-peace-logo.png');
 
 type LoadStatus = 'loading' | 'success' | 'error';
-type HomeTab = 'Dashboard' | 'Properties' | 'Rent' | 'Maintenance' | 'Calendar';
-const homeTabs: HomeTab[] = ['Dashboard', 'Calendar', 'Properties', 'Rent', 'Maintenance'];
+type HomeTab = 'Dashboard' | 'Calendar' | 'Properties' | 'Rent' | 'Tenants' | 'Maintenances' | 'Leases';
+const homeTabs: HomeTab[] = ['Dashboard', 'Calendar', 'Properties', 'Rent', 'Tenants', 'Maintenances', 'Leases'];
 type RentMetrics = {
   expected: number;
   collected: number;
@@ -116,6 +117,7 @@ export default function DashboardScreen() {
   const styles = useScreenStyles();
   const { mode, colors } = useAppTheme();
   const navigation = useNavigation<any>();
+  const route = useRoute<RouteProp<DashboardStackParamList, 'DashboardHome'>>();
   const moreDrawer = useMoreDrawer();
   const dispatch = useAppDispatch();
   const insets = useSafeAreaInsets();
@@ -130,6 +132,12 @@ export default function DashboardScreen() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [maintenanceQuery, setMaintenanceQuery] = useState('');
   const [activeHomeTab, setActiveHomeTab] = useState<HomeTab>('Dashboard');
+  useEffect(() => {
+    if (route.params?.homeTab === 'Properties') {
+      setActiveHomeTab('Properties');
+      navigation.setParams({ homeTab: undefined });
+    }
+  }, [route.params?.homeTab, navigation]);
   const [rentMetrics, setRentMetrics] = useState<RentMetrics>({ expected: 0, collected: 0, remaining: 0, outstanding: 0, overdue: 0 });
   const [overdueByProperty, setOverdueByProperty] = useState<Map<string, number> | null>(null);
   const [collectionByProperty, setCollectionByProperty] = useState<Map<string, PropertyCollection> | null>(null);
@@ -350,6 +358,7 @@ export default function DashboardScreen() {
     () => [...scopedNotifications].sort((a, b) => notificationTime(b) - notificationTime(a)).slice(0, 5),
     [scopedNotifications],
   );
+  const unreadNotifications = scopedNotifications.filter(item => item.isRead === false || item.IsRead === false).length;
 
   const todayAtAGlance = (
     <View style={styles.todayCard}>
@@ -387,14 +396,14 @@ export default function DashboardScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.headerButton}
-            onPress={() => navigation.getParent()?.navigate('Messages', { screen: 'MessagesList' })}
+            onPress={() => setOpenMenu(openMenu === 'notifications' ? null : 'notifications')}
             accessibilityRole="button"
-            accessibilityLabel={unreadMessages > 0 ? `Messages, ${unreadMessages} unread` : 'Messages'}
+            accessibilityLabel="Notifications"
           >
-            <Ionicons name="chatbubble-ellipses-outline" size={25} color={mode === 'dark' ? colors.text : '#0b3558'} />
-            {scopedConversationsStatus === 'success' && unreadMessages > 0 && (
+            <Ionicons name="notifications-outline" size={25} color={mode === 'dark' ? colors.text : '#0b3558'} />
+            {scopedNotificationsStatus === 'success' && unreadNotifications > 0 && (
               <View style={styles.messageBadge}>
-                <Text style={styles.messageBadgeText}>{unreadMessages > 99 ? '99+' : unreadMessages}</Text>
+                <Text style={styles.messageBadgeText}>{unreadNotifications > 99 ? '99+' : unreadNotifications}</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -404,7 +413,14 @@ export default function DashboardScreen() {
       <View style={[styles.homeTabBar, { borderBottomColor: colors.border, backgroundColor: colors.background }]}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.homeTabStrip} accessibilityRole="tablist">
           {homeTabs.map(tab => (
-            <TouchableOpacity key={tab} onPress={() => { setActiveHomeTab(tab); scrollRef.current?.scrollTo({ y: 0, animated: false }); }} accessibilityRole="tab" accessibilityState={{ selected: activeHomeTab === tab }} style={[styles.homeTab, activeHomeTab === tab && { borderBottomColor: mode === 'dark' ? '#75d995' : '#138a32' }]}>
+            <TouchableOpacity key={tab} onPress={() => {
+              if (tab === 'Tenants' || tab === 'Leases') {
+                navigation.getParent()?.navigate(tab);
+                return;
+              }
+              setActiveHomeTab(tab);
+              scrollRef.current?.scrollTo({ y: 0, animated: false });
+            }} accessibilityRole="tab" accessibilityState={{ selected: activeHomeTab === tab }} style={[styles.homeTab, activeHomeTab === tab && { borderBottomColor: mode === 'dark' ? '#75d995' : '#138a32' }]}>
               <Text style={[styles.homeTabLabel, { color: activeHomeTab === tab ? colors.text : colors.muted }, activeHomeTab === tab && styles.homeTabSelected]}>{tab}</Text>
             </TouchableOpacity>
           ))}
@@ -425,7 +441,7 @@ export default function DashboardScreen() {
           properties={scopedProperties}
           collections={scopedCollectionByProperty}
           status={scopedPropertiesStatus === 'error' || scopedRentStatus === 'error' ? 'error' : scopedPropertiesStatus === 'loading' || scopedRentStatus === 'loading' ? 'loading' : 'success'}
-          onProperty={propertyId => navigation.navigate('Properties', { screen: 'PropertyDetail', params: { propertyId } })}
+          onProperty={propertyId => navigation.getParent()?.navigate('Properties', { screen: 'PropertyDetail', params: { propertyId } })}
           onRetry={loadDashboard}
         />
       </>}
@@ -483,9 +499,9 @@ export default function DashboardScreen() {
                   </View>
                 ))}
               </ScrollView>
-              <TouchableOpacity style={styles.notificationsMenuFooter} onPress={() => { setOpenMenu(null); navigation.navigate('Notifications'); }} accessibilityRole="button" accessibilityLabel="View all notifications">
+              <TouchableOpacity style={styles.notificationsMenuFooter} onPress={() => { setOpenMenu(null); navigation.getParent()?.navigate('Notifications'); }} accessibilityRole="button" accessibilityLabel="View all notifications">
                 <Text style={styles.notificationsMenuLink}>View all</Text>
-                <Ionicons name="arrow-forward" size={16} color={mode === 'dark' ? colors.accent : '#2475cf'} />
+                <Ionicons name="arrow-forward" size={16} color={mode === 'dark' ? colors.accent : '#0b3558'} />
               </TouchableOpacity>
             </Animated.View>
           )}
@@ -582,7 +598,7 @@ export default function DashboardScreen() {
           ))}
         </DashboardSection>}
 
-        {activeHomeTab === 'Maintenance' && <DashboardSection borderless>
+        {activeHomeTab === 'Maintenances' && <DashboardSection borderless>
           <View style={styles.maintenanceToolbar}>
             <View style={[styles.maintenanceSearch, mode === 'dark' && { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]}>
               <Ionicons name="search" size={19} color={mode === 'dark' ? colors.muted : '#64748b'} />
@@ -789,7 +805,7 @@ const styles = StyleSheet.create({
   notificationsMenuHint: { color: '#697887', fontSize: 13, lineHeight: 19, padding: 16 },
   notificationsMenuRetry: { minHeight: 44, justifyContent: 'center' },
   notificationsMenuFooter: { minHeight: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderTopWidth: 1, borderTopColor: '#edf1f3' },
-  notificationsMenuLink: { color: '#2475cf', fontSize: 14, fontWeight: '800' },
+  notificationsMenuLink: { color: '#0b3558', fontSize: 14, fontWeight: '800' },
   profileIdentity: { padding: 18, backgroundColor: '#f8fbfd', borderBottomWidth: 1, borderBottomColor: '#edf1f3' },
   profileName: { color: '#102d43', fontSize: 17, fontWeight: '900' },
   profileEmail: { color: '#6a7885', fontSize: 13, marginTop: 4 },
@@ -804,7 +820,7 @@ const styles = StyleSheet.create({
   maintenanceAdd: { width: 46, height: 46, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   todayCard: { minHeight: 105, flexDirection: 'row', alignItems: 'center', paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#dce4e8' },
   dateBlock: { width: 76, alignItems: 'center', justifyContent: 'center', borderRightWidth: 1, borderRightColor: '#dce4e8' },
-  dateMonth: { color: '#2475cf', fontSize: 11, fontWeight: '900', letterSpacing: 1.6 },
+  dateMonth: { color: '#0b3558', fontSize: 11, fontWeight: '900', letterSpacing: 1.6 },
   dateDay: { color: '#061e35', fontSize: 43, lineHeight: 48, fontWeight: '900', letterSpacing: -2 },
   dateWeekday: { color: '#657685', fontSize: 10, fontWeight: '800', letterSpacing: 1 },
   todayCopy: { flex: 1, justifyContent: 'center', paddingLeft: 18, minWidth: 0 },
@@ -814,7 +830,7 @@ const styles = StyleSheet.create({
   todayTitle: { color: '#061e35', fontSize: 19, lineHeight: 24, fontWeight: '900', letterSpacing: -0.5 },
   todayText: { color: '#657685', fontSize: 13, lineHeight: 19, marginTop: 7 },
   todayRepairAttention: { color: '#c2413b' },
-  todayUnreadAttention: { color: '#2475cf' },
+  todayUnreadAttention: { color: '#0b3558' },
   todayArrow: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   warningCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderTopWidth: 1, borderTopColor: '#e9edf0', paddingVertical: 16 },
   warningCopy: { flex: 1 },
@@ -864,7 +880,7 @@ const styles = StyleSheet.create({
   notificationRow: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#e9edf0' },
   lastRow: { borderBottomWidth: 0 },
   notificationDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#aeb9c1', marginTop: 6, marginRight: 11 },
-  notificationDotUnread: { backgroundColor: '#2475cf' },
+  notificationDotUnread: { backgroundColor: '#0b3558' },
   notificationDotReceived: { backgroundColor: '#2f8f46' },
   notificationDotPending: { backgroundColor: '#b76a11' },
   notificationDotFailed: { backgroundColor: '#c2413b' },
@@ -878,7 +894,7 @@ const styles = StyleSheet.create({
   sectionError: { minHeight: 86, alignItems: 'flex-start', justifyContent: 'center' },
   sectionErrorText: { color: '#8d2923', fontSize: 13, fontWeight: '800' },
   inlineRetry: { minHeight: 44, justifyContent: 'center', paddingRight: 12 },
-  inlineRetryText: { color: '#2475cf', fontSize: 13, fontWeight: '900' },
+  inlineRetryText: { color: '#0b3558', fontSize: 13, fontWeight: '900' },
   cardLoading: { minHeight: 100, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
   loadingText: { color: '#6b7b88', fontSize: 12 },
 });

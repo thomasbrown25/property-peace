@@ -26,12 +26,12 @@ const glassChipSx = {
   '& .MuiChip-icon': { color: 'white' }
 };
 const heroButtonSx = {
-  borderColor: 'rgba(255,255,255,0.45)',
-  color: 'white',
+  borderColor: '#fff',
+  color: '#061e35',
   textTransform: 'none',
   fontWeight: 800,
-  bgcolor: 'rgba(8,15,28,0.24)',
-  '&:hover, &:focus-visible': { color: 'white', borderColor: 'white', bgcolor: 'rgba(255,255,255,0.16)' }
+  bgcolor: '#fff',
+  '&:hover, &:focus-visible': { color: '#061e35', borderColor: '#fff', bgcolor: '#fff' }
 };
 const dateLabel = (value) =>
   value ? new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'No active lease';

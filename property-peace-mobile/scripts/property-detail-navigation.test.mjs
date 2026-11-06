@@ -12,7 +12,7 @@ test('property maintenance includes only matching requests, including API Pascal
   assert.equal(forProperty(requests).length, 4);
 });
 
-test('property detail links to property-scoped maintenance and has a titled header/back to list', () => {
+test('property detail links to property-scoped maintenance and has a titled header/back to Home Properties', () => {
   const property = source('screens/landlord/PropertyDetailScreen.tsx');
   const navigator = source('navigation/MainNavigator.tsx');
   const maintenance = source('screens/landlord/MaintenanceScreen.tsx');
@@ -22,7 +22,7 @@ test('property detail links to property-scoped maintenance and has a titled head
   assert.match(property, /titleColor=\{openRepairs !== null && openRepairs > 0/);
   assert.match(property, /icon="construct-outline"[^\n]*\n\s*<ActionRow icon="clipboard-outline" title="Checklists"/);
   assert.doesNotMatch(property, /title="Open checklists"|title="View maintenances"/);
-  assert.match(navigator, /headerLeft: \(\) => <PageBackButton inHeader onPress=\{\(\) => navigation\.popToTop\(\)\}/);
+  assert.match(navigator, /headerLeft: \(\) => <PageBackButton inHeader onPress=\{\(\) => \{\s*navigation\.popToTop\(\);\s*navigation\.getParent\(\)\?\.navigate\('Dashboard', \{ screen: 'DashboardHome', params: \{ homeTab: 'Properties' \} \}\)/);
   assert.match(maintenance, /setRequests\(forProperty\(data \|\| \[\], propertyId\)\)/);
 });
 
@@ -43,10 +43,10 @@ test('shared back button has no filled background on any screen', () => {
   assert.doesNotMatch(navigator, /<PageBackButton[^>]*translucent/);
 });
 
-test('Properties tab returns to its list from a detail, including when switching from another tab', () => {
+test('Properties dock opens Home Properties from a detail while preserving root stack cleanup', () => {
   const dock = source('navigation/QuickActionsTabBar.tsx');
   assert.match(dock, /if \(event\.defaultPrevented\) return;/);
-  assert.match(dock, /if \(route\.name === 'Properties' && route\.state\?\.key\) \{\s*navigation\.dispatch\(\{ \.\.\.StackActions\.popToTop\(\), target: route\.state\.key \}\)/);
-  assert.match(dock, /navigation\.navigate\('Properties', \{ screen: 'PropertiesList' \}\)/);
-  assert.match(dock, /else if \(!selected\) navigation\.navigate\(route\.name\)/);
+  assert.match(dock, /navigation\.dispatch\(\{ \.\.\.StackActions\.popToTop\(\), target: route\.state\.key \}\)/);
+  assert.match(dock, /routeName === 'Properties' && audience === 'landlord'/);
+  assert.match(dock, /navigation\.navigate\('Dashboard', \{ screen: 'DashboardHome', params: \{ homeTab: 'Properties' \} \}\)/);
 });

@@ -75,7 +75,7 @@ const styles = StyleSheet.create({
   description: { color: 'rgba(255, 255, 255, 0.70)', fontSize: 16, lineHeight: 25, textAlign: 'center', maxWidth: 340 },
   actions: { width: '100%', alignSelf: 'center', maxWidth: 360, gap: 12 },
   primary: {
-    minHeight: 54, backgroundColor: '#2563eb', alignItems: 'center', justifyContent: 'center',
+    minHeight: 54, backgroundColor: '#0b3558', alignItems: 'center', justifyContent: 'center',
     borderRadius: 16, borderWidth: 1, borderColor: 'rgba(147, 197, 253, 0.45)',
   },
   primaryText: { color: '#fff', fontWeight: '700', fontSize: 16 },

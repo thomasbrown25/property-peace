@@ -249,7 +249,7 @@ export default function ChecklistEditorScreen({ route }: Props) {
     return next;
   });
 
-  if (loading) return <View style={themed.center}><ActivityIndicator size="large" color={mode === 'dark' ? colors.accent : '#2475cf'} /></View>;
+  if (loading) return <View style={themed.center}><ActivityIndicator size="large" color={mode === 'dark' ? colors.accent : '#0b3558'} /></View>;
   if (!checklist) return (
     <View style={themed.center}>
       <Ionicons name="cloud-offline-outline" size={34} color={mode === 'dark' ? '#f0b669' : '#a45f12'} />
@@ -267,7 +267,7 @@ export default function ChecklistEditorScreen({ route }: Props) {
     return (
       <View style={themed.roomCard}>
         <TouchableOpacity style={themed.roomTop} onPress={() => toggleRoom(room.name)} accessibilityRole="button" accessibilityState={{ expanded }}>
-          <View style={themed.roomIcon}><Ionicons name="home-outline" size={20} color={mode === 'dark' ? colors.accent : '#2475cf'} /></View>
+          <View style={themed.roomIcon}><Ionicons name="home-outline" size={20} color={mode === 'dark' ? colors.accent : '#0b3558'} /></View>
           <View style={themed.flex}>
             <Text style={themed.roomTitle}>{room.name}</Text>
             <Text style={themed.roomProgress}>{roomDone} of {room.items.length} complete</Text>
@@ -281,7 +281,7 @@ export default function ChecklistEditorScreen({ route }: Props) {
             <View style={themed.renameRow}>
               <TextInput value={renameValue} onChangeText={(value) => setRenameDrafts((current) => ({ ...current, [room.name]: value }))} style={themed.smallInput} accessibilityLabel={`Rename ${room.name}`} editable={!busy} />
               <TouchableOpacity style={themed.secondaryButton} onPress={() => renameRoom(room)} disabled={busy}>
-                {savingKey === `rename-${room.name}` ? <ActivityIndicator size="small" color={mode === 'dark' ? colors.accent : '#2475cf'} /> : <Text style={themed.secondaryText}>Rename</Text>}
+                {savingKey === `rename-${room.name}` ? <ActivityIndicator size="small" color={mode === 'dark' ? colors.accent : '#0b3558'} /> : <Text style={themed.secondaryText}>Rename</Text>}
               </TouchableOpacity>
             </View>
             {room.items.length === 0 ? <Text style={themed.noItems}>Add the first checklist item for this room.</Text> : room.items.map((item) => (
@@ -330,7 +330,7 @@ export default function ChecklistEditorScreen({ route }: Props) {
       keyExtractor={({ name }) => name.toLowerCase()}
       renderItem={renderRoom}
       ItemSeparatorComponent={() => <View style={themed.separator} />}
-      refreshControl={<RefreshControl refreshing={refreshing} enabled={!busy} onRefresh={() => { if (!busy) { setRefreshing(true); load(); } }} tintColor={mode === 'dark' ? colors.accent : '#2475cf'} />}
+      refreshControl={<RefreshControl refreshing={refreshing} enabled={!busy} onRefresh={() => { if (!busy) { setRefreshing(true); load(); } }} tintColor={mode === 'dark' ? colors.accent : '#0b3558'} />}
       ListHeaderComponent={(
         <View>
           <Text style={themed.eyebrow}>{Number(checklist.checklistType) === 41 ? 'MOVE-OUT INSPECTION' : 'MOVE-IN INSPECTION'}</Text>
@@ -349,7 +349,7 @@ export default function ChecklistEditorScreen({ route }: Props) {
             <Text style={themed.roomProgress}>Property: {checklist.propertyName || checklist.propertyId} · Unit: {checklist.unitName || checklist.unitId || 'Entire property'}</Text>
             <Text style={themed.roomProgress}>Lease: {checklist.leaseId || 'None'} · Tenant: {checklist.tenantName || checklist.tenantId || 'None'}</Text>
             <TouchableOpacity style={themed.saveDetailsButton} onPress={saveInspection} disabled={busy} accessibilityRole="button">
-              {savingKey === 'inspection' ? <ActivityIndicator size="small" color={mode === 'dark' ? colors.accent : '#2475cf'} /> : <Text style={themed.saveDetailsText}>Save inspection details</Text>}
+              {savingKey === 'inspection' ? <ActivityIndicator size="small" color={mode === 'dark' ? colors.accent : '#0b3558'} /> : <Text style={themed.saveDetailsText}>Save inspection details</Text>}
             </TouchableOpacity>
           </View>}
           {!!counterpartLoadError && (
@@ -459,7 +459,7 @@ function InspectionItem({ checklistId, item, draft, onDraft, savingKey, disabled
         editable={!disabled}
       />
       <TouchableOpacity style={themed.saveDetailsButton} onPress={onSaveDetails} disabled={disabled}>
-        {savingKey === `details-${key}` ? <ActivityIndicator size="small" color={mode === 'dark' ? colors.accent : '#2475cf'} /> : <Text style={themed.saveDetailsText}>Save details</Text>}
+        {savingKey === `details-${key}` ? <ActivityIndicator size="small" color={mode === 'dark' ? colors.accent : '#0b3558'} /> : <Text style={themed.saveDetailsText}>Save details</Text>}
       </TouchableOpacity>
       <ChecklistItemPhotos checklistId={checklistId} item={item} disabled={disabled} failedAsset={failedAsset} onFailedAssetChange={onFailedAssetChange} onBusyChange={onBusyChange} onChecklistUpdated={onChecklistUpdated} />
     </View>
@@ -480,7 +480,7 @@ const styles = StyleSheet.create({
   counterpartRetryButton: { minHeight: 44, alignSelf: 'flex-start', justifyContent: 'center', marginTop: 4 },
   counterpartRetryText: { color: '#9a5b0b', fontSize: 13, fontWeight: '900' },
   loadErrorText: { color: '#697887', textAlign: 'center', lineHeight: 20, marginTop: 5 },
-  retryButton: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 18, borderRadius: 13, backgroundColor: '#2475cf', marginTop: 15 },
+  retryButton: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 18, borderRadius: 13, backgroundColor: '#0b3558', marginTop: 15 },
   retryText: { color: '#fff', fontWeight: '900' },
   progressCard: { flexDirection: 'row', alignItems: 'center', gap: 18, borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#dce4e8', paddingVertical: 18, marginBottom: 24 },
   inspectionCard: { marginBottom: 20, gap: 5 },
@@ -502,7 +502,7 @@ const styles = StyleSheet.create({
   renameRow: { flexDirection: 'row', gap: 8, paddingBottom: 16, paddingTop: 4 },
   smallInput: { flex: 1, minHeight: 44, borderWidth: 1, borderColor: '#d8e0e6', borderRadius: 12, backgroundColor: '#fff', color: '#102d43', paddingHorizontal: 12 },
   secondaryButton: { minWidth: 78, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#9cc4eb', borderRadius: 12, paddingHorizontal: 10 },
-  secondaryText: { color: '#2475cf', fontSize: 12, fontWeight: '900' },
+  secondaryText: { color: '#0b3558', fontSize: 12, fontWeight: '900' },
   noItems: { color: '#697887', paddingBottom: 16 },
   itemCard: { borderTopWidth: 1, borderTopColor: '#e2e7e9', paddingVertical: 20 },
   itemTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
@@ -518,14 +518,14 @@ const styles = StyleSheet.create({
   conditionWarningSelected: { backgroundColor: '#a45f12', borderColor: '#a45f12' },
   conditionRepairSelected: { backgroundColor: '#b93832', borderColor: '#b93832' },
   conditionTextSelected: { color: '#fff' },
-  savingText: { color: '#2475cf', fontSize: 11, marginTop: 6 },
+  savingText: { color: '#0b3558', fontSize: 11, marginTop: 6 },
   retryConditionButton: { minHeight: 44, alignSelf: 'flex-start', justifyContent: 'center' },
   retryInline: { color: '#b75e10', fontSize: 12, fontWeight: '900', marginTop: 7 },
   detailInput: { minHeight: 44, borderWidth: 1, borderColor: '#dce3e8', borderRadius: 12, color: '#20394d', paddingHorizontal: 11, marginTop: 8, backgroundColor: '#fbfcfd' },
   saveDetailsButton: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center', paddingHorizontal: 13, borderRadius: 11, backgroundColor: '#eaf3ff', marginTop: 8 },
-  saveDetailsText: { color: '#2475cf', fontSize: 12, fontWeight: '900' },
+  saveDetailsText: { color: '#0b3558', fontSize: 12, fontWeight: '900' },
   addItemRow: { flexDirection: 'row', gap: 8, paddingVertical: 18, borderTopWidth: 1, borderTopColor: '#e2e7e9' },
-  addButton: { width: 46, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: '#2475cf' },
+  addButton: { width: 46, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: '#0b3558' },
   separator: { height: 30 },
 });
 

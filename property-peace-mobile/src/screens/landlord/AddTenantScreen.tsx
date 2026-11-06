@@ -60,7 +60,7 @@ const styles = StyleSheet.create({
   helper: { color: '#596b79', marginBottom: 30, lineHeight: 22, fontSize: 15 },
   sectionLabel: { color: '#647888', fontSize: 11, fontWeight: '800', letterSpacing: 1.2, marginBottom: 14 },
   input: { backgroundColor: '#fff', borderColor: '#dce3e5', borderWidth: 1, borderRadius: 12, minHeight: 50, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 14, fontSize: 16, color: '#102d43' },
-  primaryButton: { backgroundColor: '#2475cf', borderRadius: 12, minHeight: 50, padding: 14, alignItems: 'center', justifyContent: 'center', marginTop: 16 },
+  primaryButton: { backgroundColor: '#0b3558', borderRadius: 12, minHeight: 50, padding: 14, alignItems: 'center', justifyContent: 'center', marginTop: 16 },
   disabledButton: { opacity: 0.65 },
   primaryButtonText: { color: '#fff', fontWeight: '700', fontSize: 16 },
 });

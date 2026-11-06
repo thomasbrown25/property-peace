@@ -220,7 +220,7 @@ export default function SmallLandlordToolsPage() {
             className="text-xl text-[#E5E5E5] mb-8"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
-            Join thousands of small landlords who use Property Peace to manage their rental properties more efficiently.
+            Get started with Property Peace to keep your rental properties organized in one place.
           </p>
           <Link
             href="https://app.propertypeace.io/register"

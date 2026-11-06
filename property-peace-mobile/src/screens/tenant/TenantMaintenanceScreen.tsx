@@ -43,7 +43,7 @@ export default function TenantMaintenanceScreen() {
       <Text style={[styles.heading, dark && { color: colors.text }]}>Repairs & maintenance</Text>
       <Text style={[styles.sub, dark && { color: colors.muted }]}>Report an issue, see who is handling it, and follow every update.</Text>
     </View>
-    <TouchableOpacity accessibilityRole="button" style={[styles.newButton, dark && { backgroundColor: '#357bd0' }]} onPress={() => navigation.navigate('TenantMaintenanceIntake')}>
+    <TouchableOpacity accessibilityRole="button" style={[styles.newButton, dark && { backgroundColor: '#0b3558' }]} onPress={() => navigation.navigate('TenantMaintenanceIntake')}>
       <Text style={styles.newText}>+ Report an issue</Text>
     </TouchableOpacity>
     <View style={[styles.tabs, dark && { borderBottomColor: colors.border }]}>
@@ -51,11 +51,11 @@ export default function TenantMaintenanceScreen() {
         <Text style={[styles.tabText, tab === name && styles.tabTextActive, dark && { color: tab === name ? colors.text : colors.muted }]}>{name === 'current' ? 'Current' : 'History'}</Text>
       </TouchableOpacity>)}
     </View>
-    {loading ? <ActivityIndicator style={{ marginTop: 40 }} color={dark ? colors.accent : '#0b5cab'} /> : <FlatList
+    {loading ? <ActivityIndicator style={{ marginTop: 40 }} color={dark ? colors.accent : '#0b3558'} /> : <FlatList
       ref={scrollRef}
       data={items}
       keyExtractor={(x, i) => String(value(x, 'id') ?? i)}
-      refreshControl={<RefreshControl refreshing={refreshing} tintColor={dark ? colors.accent : '#0b5cab'} onRefresh={() => { setRefreshing(true); load(); }} />}
+      refreshControl={<RefreshControl refreshing={refreshing} tintColor={dark ? colors.accent : '#0b3558'} onRefresh={() => { setRefreshing(true); load(); }} />}
       contentContainerStyle={[styles.list, { paddingBottom: Math.max(insets.bottom, 24) + 100 }]}
       ItemSeparatorComponent={() => <View style={[styles.divider, dark && { backgroundColor: colors.border }]} />}
       ListHeaderComponent={<View>
@@ -84,11 +84,11 @@ const styles = StyleSheet.create({
   eyebrow: { fontSize: 11, fontWeight: '800', letterSpacing: 1.4, color: '#24733a' },
   heading: { fontSize: 27, fontWeight: '800', color: '#102d43', marginTop: 5 },
   sub: { fontSize: 14, lineHeight: 20, color: '#60717e', marginTop: 5 },
-  newButton: { marginHorizontal: 20, minHeight: 50, backgroundColor: '#0b5cab', borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  newButton: { marginHorizontal: 20, minHeight: 50, backgroundColor: '#0b3558', borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   newText: { color: '#fff', fontWeight: '800', fontSize: 16 },
   tabs: { flexDirection: 'row', paddingHorizontal: 20, marginTop: 16, borderBottomWidth: 1, borderBottomColor: '#e0e7eb' },
   tab: { minHeight: 48, marginRight: 28, justifyContent: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' },
-  tabActive: { borderBottomColor: '#0b5cab' },
+  tabActive: { borderBottomColor: '#0b3558' },
   tabText: { fontWeight: '700', color: '#60717e' },
   tabTextActive: { color: '#102d43', fontWeight: '800' },
   list: { paddingHorizontal: 20, paddingBottom: 28, flexGrow: 1 },
@@ -105,5 +105,5 @@ const styles = StyleSheet.create({
   emptyTitle: { fontSize: 18, fontWeight: '800', color: '#173449' },
   error: { backgroundColor: '#fff6f6', borderLeftWidth: 3, borderLeftColor: '#b7475a', padding: 12, marginTop: 16 },
   errorText: { color: '#8d2e3d' },
-  retry: { color: '#0b5cab', fontWeight: '800', marginTop: 7 },
+  retry: { color: '#0b3558', fontWeight: '800', marginTop: 7 },
 });

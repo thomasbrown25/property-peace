@@ -73,7 +73,7 @@ export default function MaintenanceScreen() {
   return (
     <View style={[styles.container, dark && { backgroundColor: colors.background }]}>
       <LandlordPageHeader title="Maintenance" />
-      {loading ? <View style={[styles.centerContainer, dark && { backgroundColor: colors.background }]}><ActivityIndicator size="large" color={dark ? colors.accent : '#1976d2'} /></View> : <FlatList
+      {loading ? <View style={[styles.centerContainer, dark && { backgroundColor: colors.background }]}><ActivityIndicator size="large" color={dark ? colors.accent : '#0b3558'} /></View> : <FlatList
         ref={scrollRef}
         data={visibleRequests}
         keyExtractor={(item, index) => String(item.id || item.Id || index)}
@@ -141,13 +141,13 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, color: '#0f172a', fontSize: 15, paddingVertical: 10 },
   tabs: { flexDirection: 'row', gap: 24, marginTop: 12, borderBottomWidth: 1, borderBottomColor: '#e2e8f0' },
   tab: { paddingVertical: 12, borderBottomWidth: 2, borderBottomColor: 'transparent' },
-  tabActive: { borderBottomColor: '#2563eb' },
+  tabActive: { borderBottomColor: '#0b3558' },
   tabText: { color: '#64748b', fontWeight: '600', fontSize: 13 },
   tabTextActive: { color: '#0f2f47', fontWeight: '800' },
   error: { borderLeftWidth: 2, borderColor: '#c2413b', paddingLeft: 14, marginBottom: 24 },
   errorText: { color: '#8d263a', fontWeight: '700', lineHeight: 20 },
   retry: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center', paddingHorizontal: 4 },
-  retryText: { color: '#2475cf', fontWeight: '700' },
+  retryText: { color: '#0b3558', fontWeight: '700' },
   separator: { height: StyleSheet.hairlineWidth, backgroundColor: '#dbe2e6' },
   row: { paddingVertical: 18, minHeight: 82 },
   title: { fontSize: 16, lineHeight: 22, fontWeight: '700', color: '#102d43' },
@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
   statusChip: { alignSelf: 'flex-start', maxWidth: '62%', minHeight: 28, justifyContent: 'center', borderRadius: 14, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1 },
   statusChipText: { fontSize: 11, fontWeight: '800' },
   activeChip: { backgroundColor: '#eff6ff', borderColor: '#bfdbfe' },
-  activeText: { color: '#1d4f91' },
+  activeText: { color: '#0b3558' },
   pendingChip: { backgroundColor: '#fff7e8', borderColor: '#f3d6a2' },
   pendingText: { color: '#865600' },
   resolvedChip: { backgroundColor: '#e9f8ee', borderColor: '#a7dfb7' },
@@ -172,7 +172,7 @@ const styles = StyleSheet.create({
   resolvedTextDark: { color: '#a3e9b9' },
   cancelledChipDark: { backgroundColor: '#2d3944', borderColor: '#64748b' },
   cancelledTextDark: { color: '#cbd5e1' },
-  openRequest: { color: '#2475cf', fontSize: 13, fontWeight: '700', textAlign: 'right' },
+  openRequest: { color: '#0b3558', fontSize: 13, fontWeight: '700', textAlign: 'right' },
   emptyContainer: { paddingVertical: 46, alignItems: 'center' },
   emptyText: { fontSize: 18, fontWeight: '700', color: '#102d43', marginTop: 12, marginBottom: 6 },
   emptySubtext: { color: '#697887', textAlign: 'center', lineHeight: 20, fontSize: 14 },

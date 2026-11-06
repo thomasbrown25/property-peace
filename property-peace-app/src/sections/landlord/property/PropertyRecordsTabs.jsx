@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { Alert, Box, CircularProgress, FormControl, InputAdornment, MenuItem, Paper, Select, Stack, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TablePagination, TableRow, Tabs, TextField, Typography } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
@@ -60,7 +61,9 @@ function RecordsTable({ label, rows, columns, searchFields, getStatus, highlight
           sx={{ flexShrink: 0, whiteSpace: 'nowrap', textTransform: 'none' }}>{addLabel}</Button>}
       </Stack>
       {error && <Alert severity="warning" sx={{ mb: 2 }}>{error}</Alert>}
-      {loading ? <CircularProgress aria-label={`Loading ${label.toLowerCase()}`} /> : (
+      {loading ? <Box sx={{ minHeight: { xs: 260, sm: 360 }, display: 'grid', placeItems: 'center' }}>
+        <CircularProgress aria-label={`Loading ${label.toLowerCase()}`} />
+      </Box> : (
         <Paper variant="outlined" sx={{ overflow: 'hidden' }}>
           <TableContainer sx={{ overflowX: 'auto', minHeight: { xs: 260, sm: 360 } }}>
             <Table size="small" aria-label={label}>
@@ -192,6 +195,17 @@ export default function PropertyRecordsTabs({ property, propertyId, rentRecords,
   const scopedMaintenance = useMemo(() => scopePropertyRecords([...(maintenances || []), ...(historyMaintenances || [])], propertyId), [maintenances, historyMaintenances, propertyId]);
   const tabs = ['overview', 'leases', 'tenants', 'maintenances', 'listings', 'applications', 'occupancy', 'finances', 'documents'];
   const active = tabs.includes(tab) ? tab : 'overview';
+  const previousTab = useRef({ propertyId, active });
+  const reduceMotion = useReducedMotion();
+  const direction = previousTab.current.propertyId === propertyId
+    ? Math.sign(tabs.indexOf(active) - tabs.indexOf(previousTab.current.active)) || 1
+    : 1;
+  useEffect(() => { previousTab.current = { propertyId, active }; }, [propertyId, active]);
+  const panelMotion = {
+    enter: side => ({ x: side * 36, opacity: 0 }),
+    center: { x: 0, opacity: 1 },
+    exit: side => ({ x: side * -36, opacity: 0, position: 'absolute', top: 0, left: 0, right: 0, pointerEvents: 'none' })
+  };
   return (
     <Box sx={{ mt: 0 }}>
       <Box sx={theme => ({ mt: 0.5, mb: 2.5, position: 'relative', isolation: 'isolate', width: '100%',
@@ -214,6 +228,12 @@ export default function PropertyRecordsTabs({ property, propertyId, rentRecords,
           <Tab value="occupancy" label="Occupancy" /><Tab value="finances" label="Finances" /><Tab value="documents" label="Documents" />
         </Tabs>
       </Box>
+      <Box sx={{ position: 'relative', overflow: 'hidden' }}>
+        <AnimatePresence initial={false} custom={direction}>
+          <motion.div key={`${propertyId}-${active}`} custom={direction} variants={panelMotion}
+            initial={reduceMotion ? false : 'enter'} animate="center" exit={reduceMotion ? { opacity: 0, position: 'absolute', top: 0, left: 0, right: 0, pointerEvents: 'none' } : 'exit'}
+            transition={{ duration: reduceMotion ? 0 : 0.22, ease: 'easeInOut' }}
+            role="tabpanel" aria-label={`${active[0].toUpperCase()}${active.slice(1)}`}>
       {active === 'overview' && <PropertyOverview property={property} propertyId={propertyId} rentRecords={rentRecords} />}
       {active === 'leases' && <RecordsTable label="Leases" onAdd={() => addRecord('leases')} addLabel="Add lease" rows={leases} columns={leaseColumns} searchFields={row => [read(row, 'leaseNickname'), read(row, 'unitName'), read(row, 'id')]} getStatus={leaseStatus} highlightStatus="Active" emptyMessage="No leases for this property." loading={leaseLoading} error={leaseError} />}
       {active === 'tenants' && <RecordsTable label="Tenants" onAdd={() => addRecord('tenants')} addLabel="Add tenant" rows={scopedTenants} columns={tenantColumns} searchFields={row => [tenantName(row), read(row, 'email'), read(row, 'unitName')]} getStatus={row => read(row, 'isActive') === false ? 'Inactive' : 'Active'} emptyMessage="No tenants for this property." loading={tenantsLoading} />}
@@ -223,6 +243,9 @@ export default function PropertyRecordsTabs({ property, propertyId, rentRecords,
       {active === 'occupancy' && <PropertyOccupancyTab propertyId={propertyId} property={property} />}
       {active === 'finances' && <IncomeTab propertyId={propertyId} property={property} />}
       {active === 'documents' && <DocumentsTab property={property} />}
+          </motion.div>
+        </AnimatePresence>
+      </Box>
       {drawer.isOpenTenantAdd && <TenantAddDrawer />}
       {drawer.isOpenApplicationAdd && <ApplicationAddDrawer />}
     </Box>

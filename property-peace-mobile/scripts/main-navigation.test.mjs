@@ -16,16 +16,13 @@ try {
   loadError = error;
 }
 
-test('landlord dock places Marketing after Tenants using the shared tab model', () => {
+test('landlord dock contains Home, Team, Checklists, Reports, Messages in order', () => {
   assert.equal(loadError, undefined);
   const tabs = visibleMainTabsForAudience('landlord');
-  assert.deepEqual(
-    tabs.map((tab) => tab.name),
-    ['Dashboard', 'Properties', 'Tenants', 'Marketing', 'Notifications'],
-  );
-  assert.equal(tabs.find((tab) => tab.name === 'Marketing')?.label, undefined);
-  assert.deepEqual(mainTabIconNames('Tenants'), { active: 'people', inactive: 'people-outline' });
-  assert.deepEqual(mainTabIconNames('Notifications'), { active: 'notifications', inactive: 'notifications-outline' });
+  assert.deepEqual(tabs.map((tab) => tab.name), ['Dashboard', 'Team', 'Checklists', 'Reports', 'Messages']);
+  assert.equal(tabs[0].label, 'Home');
+  assert.deepEqual(mainTabIconNames('Team'), { active: 'people', inactive: 'people-outline' });
+  assert.deepEqual(mainTabIconNames('Reports'), { active: 'bar-chart', inactive: 'bar-chart-outline' });
 });
 
 test('tenant navigation does not show the landlord Checklists tab', () => {
@@ -72,6 +69,8 @@ test('landlord dock resolves all five animated destination components', () => {
   assert.equal(loadError, undefined);
   const tabs = resolveVisibleMainTabs('landlord', {
     DashboardScreen: 'dashboard-screen',
+    TeamScreen: 'team-screen',
+    ReportsScreen: 'reports-screen',
     PropertiesNavigator: 'properties-navigator',
     ChecklistsNavigator: 'checklists-navigator',
     MaintenanceNavigator: 'maintenance-navigator',
@@ -84,35 +83,33 @@ test('landlord dock resolves all five animated destination components', () => {
   });
 
   assert.equal(tabs.length, 5);
-  assert.equal(tabs.find((tab) => tab.name === 'Tenants')?.component, 'tenants-navigator');
-  assert.equal(tabs.find((tab) => tab.name === 'Notifications')?.component, 'notifications-screen');
-  assert.equal(tabs.find((tab) => tab.name === 'Messages'), undefined);
+  assert.equal(tabs.find((tab) => tab.name === 'Team')?.component, 'team-screen');
+  assert.equal(tabs.find((tab) => tab.name === 'Reports')?.component, 'reports-screen');
+  assert.equal(tabs.find((tab) => tab.name === 'Messages')?.component, 'messages-navigator');
 });
 
-test('landlord Messages stays routable without a dock or side-menu item', async () => {
+test('landlord Messages moves to dock, while Notifications and Tenants remain routable', async () => {
   const sheet = await readFile(new URL('../src/navigation/QuickActionsTabBar.tsx', import.meta.url), 'utf8');
   const navigator = await readFile(new URL('../src/navigation/MainNavigator.tsx', import.meta.url), 'utf8');
-  assert.match(sheet, /const tenantMenu:[\s\S]*label: 'Messages'[^\n]*route: 'Messages'/);
-  assert.doesNotMatch(sheet.slice(sheet.indexOf('const landlordMenu:'), sheet.indexOf('const tenantMenu:')), /label: 'Messages'[^\n]*route: 'Messages'/);
-  assert.match(sheet, /audience === 'landlord' && route\.name === 'Messages'/);
-  assert.match(navigator, /name="Messages" component={MessagesNavigator} options={{ tabBarButton: \(\) => null }}/);
-  assert.doesNotMatch(navigator, /name="Tenants" component={TenantsNavigator} options={{ tabBarButton: \(\) => null }}/);
+  assert.match(sheet, /\['Dashboard', 'Team', 'Checklists', 'Reports', 'Messages'\]/);
+  assert.match(navigator, /name="Notifications" component={NotificationsScreen} options=\{\{ tabBarButton: \(\) => null \}\}/);
+  assert.match(navigator, /name="Tenants" component={TenantsNavigator} options=\{\{ tabBarButton: \(\) => null \}\}/);
 });
 
 test('profile occupies the rightmost dock slot without the quick-action plus', async () => {
   const sheet = await readFile(new URL('../src/navigation/QuickActionsTabBar.tsx', import.meta.url), 'utf8');
-  assert.match(sheet, /visibleRoutes\.map\(renderTab\)[\s\S]*accessibilityLabel="Settings"/);
+  assert.match(sheet, /visibleRoutes\.map\(renderTab\)[\s\S]*accessibilityLabel="User"/);
   assert.doesNotMatch(sheet, /plusButton|styles\.plusButton|accessibilityLabel="Quick actions"/);
   assert.match(sheet, /rgba\(24, 27, 31, 0\.82\)/);
 });
 
-test('Notifications uses the same scene and press animation as the other dock tabs', async () => {
+test('Messages uses the same scene and press animation as the other dock tabs', async () => {
   const sheet = await readFile(new URL('../src/navigation/QuickActionsTabBar.tsx', import.meta.url), 'utf8');
   const navigator = await readFile(new URL('../src/navigation/MainNavigator.tsx', import.meta.url), 'utf8');
   assert.match(navigator, /NotificationsScreen,\s*SettingsScreen: SettingsNavigator/);
   assert.match(navigator, /visibleTabs\.map\(\(tab, index\) => \(\{ \.\.\.tab, component: withTabTransition\(tab\.component, index\)/);
   assert.match(navigator, /audience === 'tenant' && <Tab\.Screen name="Notifications" component={NotificationsScreen} options={{ tabBarButton: \(\) => null }}/);
-  assert.match(sheet, /audience === 'tenant' && route\.name === 'Notifications'/);
+  assert.match(sheet, /\['Dashboard', 'Team', 'Checklists', 'Reports', 'Messages'\]/);
   assert.match(sheet, /visibleRoutes\.map\(renderTab\)/);
   assert.match(sheet, /<AnimatedTab[\s\S]*onPress=\{\(\) => \{[\s\S]*openTabRoot\(route\.name\)/);
   assert.doesNotMatch(sheet, /\['Notifications', 'Leases'/);
@@ -122,11 +119,11 @@ test('Notifications uses the same scene and press animation as the other dock ta
 test('scrollable More menu preserves native routes and labels web-only destinations', async () => {
   const sheet = await readFile(new URL('../src/navigation/QuickActionsTabBar.tsx', import.meta.url), 'utf8');
   const navigator = await readFile(new URL('../src/navigation/MainNavigator.tsx', import.meta.url), 'utf8');
-  for (const destination of ['Leases', 'Maintenance', 'Checklists', 'Team']) {
+  for (const destination of ['Leases', 'Maintenance']) {
     assert.match(sheet, new RegExp(`route: '${destination}'`));
   }
   const landlordMenu = sheet.slice(sheet.indexOf('const landlordMenu:'), sheet.indexOf('const tenantMenu:'));
-  for (const removed of ['Tenants', 'Messages', 'Notifications']) {
+  for (const removed of ['Tenants', 'Messages', 'Notifications', 'Team', 'Checklists', 'Reports']) {
     assert.doesNotMatch(landlordMenu, new RegExp(`label: '${removed}'[^\\n]*route: '${removed}'`));
   }
   assert.doesNotMatch(sheet, /webPath: '\/landlord\/listings'/);
@@ -141,8 +138,8 @@ test('scrollable More menu preserves native routes and labels web-only destinati
   assert.match(sheet, /Animated\.timing\(sheetOffset/);
   assert.doesNotMatch(sheet, /animationType="slide"/);
   assert.match(sheet, /Math\.max\(insets\.bottom/);
-  assert.match(navigator, /name="Checklists" component={ChecklistsNavigator}/);
-  assert.match(navigator, /name="Team" component={TeamScreen}/);
-  assert.match(sheet, /'Team', 'Announcements'/);
+  assert.match(navigator, /ChecklistsNavigator,/);
+  assert.match(navigator, /TeamScreen,/);
+  assert.match(sheet, /\['Dashboard', 'Team', 'Checklists', 'Reports', 'Messages'\]/);
   assert.doesNotMatch(sheet, /webPath: '\/landlord\/admin-members'/);
 });

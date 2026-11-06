@@ -36,6 +36,25 @@ test('dashboard shows only properties with a currently active lease, preserving 
   assert.equal(hasActiveLease({ id: 7 }), false);
 });
 
+test('dashboard collection includes only active-lease properties with positive expected rent', async () => {
+  const { dashboardPropertiesWithExpectedRent } = await import('../src/features/properties/dashboardPropertyOrder.ts');
+  const properties = [
+    { id: 1, units: [{ status: 'occupied' }] },
+    { id: 2, units: [{ status: 'overdue' }] },
+    { id: 3, units: [{ status: 'occupied' }] },
+    { id: 4, units: [{ status: 'vacant' }] },
+    { Id: 5, Units: [{ Status: 'occupied' }] },
+  ];
+  const collections = new Map([
+    ['1', { expected: 1200, collected: 0, overdue: 0 }],
+    ['2', { expected: 0, collected: 0, overdue: 800 }],
+    ['4', { expected: 900, collected: 0, overdue: 0 }],
+    ['5', { expected: 500, collected: 500, overdue: 0 }],
+  ]);
+  assert.deepEqual(dashboardPropertiesWithExpectedRent(properties, collections).map(p => p.id ?? p.Id), [1, 5]);
+  assert.deepEqual(properties.map(p => p.id ?? p.Id), [1, 2, 3, 4, 5]);
+});
+
 test('dashboard property collection fills the available width and height without quick actions', () => {
   assert.match(screen, /<PropertyCollectionRail[\s\S]*?<GlobalSearchModal/);
   assert.match(rail, /shell: \{ flex: 1, minHeight: 0, borderTopWidth:/);
@@ -44,8 +63,10 @@ test('dashboard property collection fills the available width and height without
   assert.match(rail, /<ScrollView nestedScrollEnabled[\s\S]*?refreshControl=/);
   assert.match(rail, /onProperty\(id\)/);
   assert.doesNotMatch(rail, /PROPERTIES · RENT COLLECTED|columnLabel/);
-  assert.match(rail, /dashboardPropertiesWithActiveLeases\(properties\.filter/);
-  assert.match(rail, /No properties with active leases yet/);
-  assert.match(rail, /No rent expected this month/);
+  assert.match(rail, /dashboardPropertiesWithExpectedRent\(properties\.filter.*, collections\)/);
+  assert.match(rail, /No rent expected from active properties this month/);
+  assert.doesNotMatch(rail, /No rent expected this month|styles\.gauge|styles\.pointer|styles\.segment/);
+  assert.match(rail, /accessibilityRole="progressbar"/);
+  assert.match(rail, /styles\.progressTrack[\s\S]*?styles\.progressFill/);
   assert.match(model, /currentMonthCollected/);
 });

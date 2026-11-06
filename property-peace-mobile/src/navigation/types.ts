@@ -16,7 +16,7 @@ export type AuthStackParamList = {
 };
 
 export type DashboardStackParamList = {
-  DashboardHome: undefined;
+  DashboardHome: { homeTab?: 'Properties' } | undefined;
   Calendar: undefined;
   RentCollection: undefined;
   AddExpense: undefined;
@@ -33,6 +33,7 @@ export type MainTabParamList = {
   Notifications: undefined;
   Tenants: NavigatorScreenParams<TenantsStackParamList> | undefined;
   Team: undefined;
+  Reports: undefined;
   Vendors: NavigatorScreenParams<VendorsStackParamList> | undefined;
   Announcements: NavigatorScreenParams<AnnouncementsStackParamList> | undefined;
   Finances: undefined;
