@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import { applyOttoSeo } from '@/lib/otto-seo';
 import Hero from '@/components/Sections/Hero';
 import PropertyManagementWheel from '@/components/Sections/PropertyManagementWheel';
-import CustomerReviewMarquee from '@/components/Sections/CustomerReviewMarquee';
 import CTA from '@/components/Sections/CTA';
 // import Features from '@/components/Sections/Features'; // Hidden for now
 import FAQ from '@/components/Sections/FAQ';
@@ -29,7 +28,6 @@ export default function Home() {
         <div className="relative overflow-hidden bg-white">
           <div className="relative z-10">
             <Hero />
-            <CustomerReviewMarquee />
             <PropertyManagementWheel />
           </div>
         </div>

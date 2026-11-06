@@ -45,13 +45,13 @@ export default function CustomerReviewMarquee() {
             className="text-3xl font-bold tracking-[-0.04em] text-white sm:text-4xl lg:text-[3.35rem]"
             style={{ fontFamily: '"Poppins", sans-serif', lineHeight: 1.1 }}
           >
-            Trusted by <span className="text-green-400">500+ Landlords Worldwide</span>
+            Built for <span className="text-green-400">independent landlords</span>
           </h2>
           <p
             className="mx-auto mt-5 max-w-2xl text-base leading-7 text-white/80 sm:text-lg"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
-            Independent landlords use one calm place to replace scattered tools, stay organized, and keep everyday rental work moving.
+            One calm place to replace scattered tools, stay organized, and keep everyday rental work moving.
           </p>
         </div>
 
