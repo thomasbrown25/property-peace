@@ -6,8 +6,8 @@ import { daysInOccupancyMonth, occupancyForDay } from './occupancyDays.mjs';
 const read = path => readFile(new URL(path, import.meta.url), 'utf8');
 
 test('daily occupancy is inclusive and scoped to the selected unit, even across a month boundary', () => {
-  const unit = { unitId: 1, leasePeriods: [{ startDate: '2026-01-31T00:00:00Z', endDate: '2026-02-02T00:00:00Z', tenantNames: 'A' }] };
-  const otherUnit = { unitId: 2, leasePeriods: [{ startDate: '2026-02-01', endDate: '2026-02-28' }] };
+  const unit = { unitId: 1, leasePeriods: [{ isActive: true, startDate: '2026-01-31T00:00:00Z', endDate: '2026-02-02T00:00:00Z', tenantNames: 'A' }] };
+  const otherUnit = { unitId: 2, leasePeriods: [{ isActive: true, startDate: '2026-02-01', endDate: '2026-02-28' }] };
   const days = daysInOccupancyMonth(unit, new Date(2026, 1, 1));
   assert.equal(days.length, 28);
   assert.deepEqual(days.slice(0, 3).map(day => day.occupied), [true, true, false]);
@@ -25,11 +25,11 @@ test('leap years, occupied availability and vacant gaps render daily', () => {
   assert.equal(days[28].occupied, true);
 });
 
-test('property occupancy tab precedes finances and uses the scoped 12-month calendar and unit modal', async () => {
+test('property occupancy tab precedes expenses and uses the scoped 12-month calendar and unit modal', async () => {
   const tabs = await read('./PropertyRecordsTabs.jsx');
   const view = await read('./PropertyOccupancyTab.jsx');
   const timeline = await read('../../../components/OccupancyTimelineGraph.jsx');
-  assert.match(tabs, /value="occupancy" label="Occupancy"\s*\/><Tab value="finances" label="Finances"/);
+  assert.match(tabs, /value="occupancy" label="Occupancy"\s*\/><Tab value="expenses" label="Expenses"/);
   assert.match(tabs, /active === 'occupancy' && <PropertyOccupancyTab/);
   assert.match(view, /getUnitAvailabilityCalendar\(landlordId, propertyId, windowStart, endOfMonth\(addMonths\(windowStart, 11\)\), controller.signal\)/);
   assert.match(view, /Promise.race\(/);

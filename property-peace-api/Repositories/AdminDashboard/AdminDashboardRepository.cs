@@ -124,19 +124,14 @@ public sealed class AdminDashboardRepository : IAdminDashboardRepository
 
         var propertyCount = await productionProperties.CountAsync(cancellationToken);
         var unitCount = await productionUnits.CountAsync(cancellationToken);
-        var currentLeases = productionLeases.Where(lease =>
-            lease.IsActive
-            && lease.StartDate.HasValue
-            && lease.StartDate.Value <= today
-            && lease.EndDate.HasValue
-            && lease.EndDate.Value >= today);
+        var currentLeases = productionLeases.Where(brownstone_hub_api.Utils.LeaseOccupancy.ActiveOn(today));
         var occupiedUnits = await currentLeases
             .Select(lease => lease.UnitId)
             .Distinct()
             .CountAsync(cancellationToken);
         var activeLeases = await currentLeases.CountAsync(cancellationToken);
         var expiringLeases = await currentLeases.CountAsync(
-            lease => lease.EndDate!.Value <= thirtyDaysAhead,
+            lease => lease.EndDate.HasValue && lease.EndDate.Value <= thirtyDaysAhead,
             cancellationToken);
 
         var productionMaintenance = _context.MaintenanceRequests.AsNoTracking().Where(request =>

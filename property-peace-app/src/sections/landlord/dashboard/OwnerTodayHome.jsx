@@ -4,10 +4,10 @@ import { format } from 'date-fns';
 import { ArrowRightOutlined } from '@ant-design/icons';
 import placeholderImage from 'assets/images/placeholder-house.png';
 import PropertyOperations from 'sections/landlord/properties/PropertyOperations';
-import { getOwnerNextStep, getOwnerProperties, getPropertyMonthRent } from 'utils/ownerHome';
+import { getOwnerNextStep, getOwnerProperties, getPropertyMonthRent, getPropertyOverdueRent } from 'utils/ownerHome';
 
 const money = (value) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(value);
-const columns = 'minmax(260px, 1.45fr) minmax(170px, .9fr) minmax(190px, 1fr)';
+const columns = 'minmax(220px, 1.3fr) minmax(170px, 1fr) minmax(140px, .8fr) minmax(170px, 1fr)';
 
 export default function OwnerTodayHome({ reminders = [], properties = [], propertiesLoading = false, propertiesError = false, rentRecords = [], rentLoading = false, rentError = false, rentReady = false }) {
   const theme = useTheme();
@@ -52,12 +52,13 @@ export default function OwnerTodayHome({ reminders = [], properties = [], proper
         ) : places.length ? (
           <Box sx={{ bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', borderRadius: 2, overflow: 'hidden' }}>
             <Box sx={{ display: { xs: 'none', md: 'grid' }, gridTemplateColumns: columns, gap: 2, px: 2, py: 1.15, bgcolor: alpha(theme.palette.primary.main, 0.025) }}>
-              {['Property', 'Rent paid', 'Operations'].map((label) => (
+              {['Property', 'Rent paid', 'Rent status', 'Operations'].map((label) => (
                 <Typography key={label} sx={{ fontSize: '0.66rem', fontWeight: 750, letterSpacing: 0.65, textTransform: 'uppercase', color: 'text.secondary' }}>{label}</Typography>
               ))}
             </Box>
             {places.slice(0, 4).map((property, index) => {
               const rent = getPropertyMonthRent(property.id, rentRecords, rentError || !rentReady);
+              const overdue = getPropertyOverdueRent(property.id, rentRecords, rentError || !rentReady);
               return (
                 <Box key={property.id} sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: columns }, alignItems: 'center', gap: { xs: 1.5, md: 2 }, px: 2, py: 1.5, borderTop: index ? '1px solid' : { xs: 0, md: '1px solid' }, borderColor: 'divider' }}>
                   <Stack component={RouterLink} to={property.href} direction="row" spacing={1.4} alignItems="center" sx={{ minWidth: 0, color: 'inherit', textDecoration: 'none', '&:hover .owner-property-name': { textDecoration: 'underline' }, '&:focus-visible': { outline: `2px solid ${theme.palette.primary.main}`, outlineOffset: 2 } }}>
@@ -81,8 +82,14 @@ export default function OwnerTodayHome({ reminders = [], properties = [], proper
                     ) : <Typography sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>{rentError ? 'Rent data unavailable' : rentReady ? 'No rent scheduled this month' : 'Loading rent…'}</Typography>}
                   </Box>
                   <Box>
+                    <Typography sx={{ display: { xs: 'block', md: 'none' }, mb: 0.5, fontSize: '0.66rem', fontWeight: 750, textTransform: 'uppercase', color: 'text.secondary' }}>Rent status</Typography>
+                    <Typography sx={{ fontSize: '0.8rem', fontWeight: overdue > 0 ? 650 : 400, color: overdue > 0 ? 'error.main' : 'text.secondary' }}>
+                      {overdue === null ? (rentError ? 'Rent data unavailable' : 'Loading rent…') : overdue > 0 ? `${money(overdue)} overdue` : property.activeLeaseCount === 0 ? 'No lease' : 'Up to date'}
+                    </Typography>
+                  </Box>
+                  <Box>
                     <Typography sx={{ display: { xs: 'block', md: 'none' }, mb: 0.5, fontSize: '0.66rem', fontWeight: 750, textTransform: 'uppercase', color: 'text.secondary' }}>Operations</Typography>
-                    <PropertyOperations property={property.original} />
+                    <PropertyOperations property={property.original} showOverdue={false} />
                   </Box>
                 </Box>
               );

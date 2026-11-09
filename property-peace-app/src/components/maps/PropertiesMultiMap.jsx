@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { alpha, Box, CircularProgress, Typography, useTheme } from '@mui/material';
 import { loadMaps } from 'googleMaps';
 import { isHighPriorityMaintenanceRequest } from 'utils/maintenanceStatus';
+import { getPropertyOccupancy } from 'utils/occupancy.mjs';
 
 export default function PropertiesMultiMap({ properties = [], onPropertyClick, selectedPropertyId }) {
   const theme = useTheme();
@@ -102,6 +103,7 @@ export default function PropertiesMultiMap({ properties = [], onPropertyClick, s
           if (!address) return;
 
           const needsAttention = getPropertyNeedsAttention(property);
+          const { occupiedUnits, totalUnits } = getPropertyOccupancy(property);
           const markerColor = needsAttention ? errorColor : primaryColor;
 
           geocoder.geocode({ address }, (results, status) => {
@@ -128,6 +130,7 @@ export default function PropertiesMultiMap({ properties = [], onPropertyClick, s
               content: `<div style="font-family:Inter,sans-serif;padding:4px 2px;min-width:140px">
                 <div style="font-weight:700;font-size:13px;color:#111">${property.name || 'Property'}</div>
                 <div style="font-size:11px;color:#666;margin-top:2px">${property.streetAddress || ''}</div>
+                <div style="font-size:11px;color:#666;margin-top:2px">${occupiedUnits} of ${totalUnits} units occupied</div>
               </div>`
             });
 

@@ -1,3 +1,4 @@
+import { getPropertyOccupancy } from 'utils/occupancy.mjs';
 import { isDetachedSingleUnitType } from 'utils/propertyType';
 import { Grid, Stack, Typography, Box, CardContent, useTheme, alpha, useMediaQuery } from '@mui/material';
 import { DollarOutlined, ToolOutlined, HomeOutlined } from '@ant-design/icons';
@@ -183,9 +184,7 @@ export default function PropertyMetrics({ property, rentRecords, maintenances })
   // Calculate metrics
   const rentDue = rentRecords?.[0]?.rentAmount ? parseDecimalToCurrency(rentRecords[0].rentAmount) : '$0';
   const openRequests = maintenances?.filter((req) => req.status?.toLowerCase() === 'open').length || 0;
-  const totalUnits = property?.units?.length || 0;
-  const occupiedUnits = property?.units?.filter((unit) => unit.isOccupied).length || 0;
-  const occupancyRate = totalUnits > 0 ? Math.round((occupiedUnits / totalUnits) * 100) : 0;
+  const { totalUnits, occupiedUnits, occupancyRate } = getPropertyOccupancy(property);
 
   const handleRentDueClick = (e) => {
     e.preventDefault();

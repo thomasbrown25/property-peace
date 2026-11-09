@@ -15,16 +15,18 @@ import useFetchTenants from 'hooks/useFetchTenants';
 import listingApi from 'api/listing';
 import { getApplicationsByProperty } from 'api/application';
 import { isActiveListing } from 'pages/landlord/listing-readiness.mjs';
+import { isLeaseDraft } from 'utils/leaseStatus';
 import PropertyOverview from './PropertyOverview';
 import DocumentsTab from './DocumentsTab';
-import IncomeTab from './IncomeTab';
+import PaymentsTab from './PaymentsTab';
+import ExpensesTab from './ExpensesTab';
 import PropertyOccupancyTab from './PropertyOccupancyTab';
 import { filterPropertyRows, maintenanceTableColumns, maintenanceUnitName, scopePropertyRecords } from './propertyRecords.mjs';
 
 const read = (row, key) => row?.[key] ?? row?.[key[0].toUpperCase() + key.slice(1)];
 const displayDate = value => value ? new Date(value).toLocaleDateString() : '—';
 const leaseStatus = lease => {
-  if ([0, 'NotSent', 'notsent'].includes(read(lease, 'signatureStatus'))) return 'Draft';
+  if (isLeaseDraft(lease) || [0, 'NotSent', 'notsent'].includes(read(lease, 'signatureStatus'))) return 'Draft';
   const now = new Date();
   if (read(lease, 'endDate') && new Date(read(lease, 'endDate')) < now) return 'Expired';
   if (read(lease, 'startDate') && new Date(read(lease, 'startDate')) > now) return 'Scheduled';
@@ -81,7 +83,7 @@ function RecordsTable({ label, rows, columns, searchFields, getStatus, highlight
                         '&.MuiTableRow-hover:hover': { bgcolor: alpha(theme.palette.success.main, 0.16) }
                       } : {})
                     })}>
-                    {columns.map(column => <TableCell key={column.label} sx={{ whiteSpace: 'nowrap' }}>
+                    {columns.map(column => <TableCell key={column.label} sx={{ whiteSpace: 'nowrap', ...column.sx?.(row) }}>
                       {column.link && read(row, 'id') ? <Typography component={Link} to={column.link(row)} sx={{ color: 'primary.main', fontWeight: 600, textDecoration: 'none', '&:hover': { textDecoration: 'underline' }, '&:focus-visible': { outline: '2px solid', outlineColor: 'primary.main' } }}>{column.value(row)}</Typography> : column.value(row)}
                     </TableCell>)}
                   </TableRow>
@@ -159,7 +161,7 @@ function PropertyLeasingRecords({ kind, propertyId, onAdd }) {
     emptyMessage={`No ${kind} for this property.`} loading={!!propertyId && (!current || result.loading)} error={current ? result.error : ''} />;
 }
 
-export default function PropertyRecordsTabs({ property, propertyId, rentRecords, maintenances, historyMaintenances, maintenanceError, tab, onTabChange }) {
+export default function PropertyRecordsTabs({ property, propertyId, rentRecords, rentLoading, rentError, maintenances, historyMaintenances, maintenanceError, tab, onTabChange }) {
   const dispatch = useDispatch();
   const drawer = useDrawer();
   const navigate = useNavigate();
@@ -193,8 +195,9 @@ export default function PropertyRecordsTabs({ property, propertyId, rentRecords,
 
   const scopedTenants = useMemo(() => scopePropertyRecords(tenants, propertyId), [tenants, propertyId]);
   const scopedMaintenance = useMemo(() => scopePropertyRecords([...(maintenances || []), ...(historyMaintenances || [])], propertyId), [maintenances, historyMaintenances, propertyId]);
-  const tabs = ['overview', 'leases', 'tenants', 'maintenances', 'listings', 'applications', 'occupancy', 'finances', 'documents'];
-  const active = tabs.includes(tab) ? tab : 'overview';
+  const tabs = ['overview', 'leases', 'tenants', 'payments', 'maintenances', 'listings', 'applications', 'occupancy', 'expenses', 'documents'];
+  const requestedTab = tab === 'finances' ? 'payments' : tab;
+  const active = tabs.includes(requestedTab) ? requestedTab : 'overview';
   const previousTab = useRef({ propertyId, active });
   const reduceMotion = useReducedMotion();
   const direction = previousTab.current.propertyId === propertyId
@@ -223,9 +226,9 @@ export default function PropertyRecordsTabs({ property, propertyId, rentRecords,
         '& .MuiTabs-indicator': { zIndex: 1, height: 2, borderRadius: 2, backgroundColor: 'primary.main' }
       })}>
         <Tabs value={active} onChange={(_, value) => onTabChange(value)} variant="scrollable" scrollButtons="auto" aria-label="Property sections">
-          <Tab value="overview" label="Overview" /><Tab value="leases" label="Leases" /><Tab value="tenants" label="Tenants" />
+          <Tab value="overview" label="Overview" /><Tab value="leases" label="Leases" /><Tab value="tenants" label="Tenants" /><Tab value="payments" label="Payments" />
           <Tab value="maintenances" label="Maintenances" /><Tab value="listings" label="Listings" /><Tab value="applications" label="Applications" />
-          <Tab value="occupancy" label="Occupancy" /><Tab value="finances" label="Finances" /><Tab value="documents" label="Documents" />
+          <Tab value="occupancy" label="Occupancy" /><Tab value="expenses" label="Expenses" /><Tab value="documents" label="Documents" />
         </Tabs>
       </Box>
       <Box sx={{ position: 'relative', overflow: 'hidden' }}>
@@ -241,7 +244,8 @@ export default function PropertyRecordsTabs({ property, propertyId, rentRecords,
       {active === 'listings' && <PropertyLeasingRecords key="listings" kind="listings" propertyId={propertyId} onAdd={() => addRecord('listings')} />}
       {active === 'applications' && <PropertyLeasingRecords key="applications" kind="applications" propertyId={propertyId} onAdd={() => addRecord('applications')} />}
       {active === 'occupancy' && <PropertyOccupancyTab propertyId={propertyId} property={property} />}
-      {active === 'finances' && <IncomeTab propertyId={propertyId} property={property} />}
+      {active === 'payments' && <PaymentsTab propertyId={propertyId} property={property} rentRecords={rentRecords} rentLoading={rentLoading} rentError={rentError} />}
+      {active === 'expenses' && <ExpensesTab propertyId={propertyId} property={property} />}
       {active === 'documents' && <DocumentsTab property={property} />}
           </motion.div>
         </AnimatePresence>

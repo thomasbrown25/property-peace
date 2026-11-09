@@ -1,5 +1,5 @@
 import { FieldArray } from 'formik';
-import { Grid, Card, CardContent, CardHeader, IconButton, Button, Stack, Checkbox, FormControlLabel } from '@mui/material';
+import { Grid, Card, CardContent, CardHeader, IconButton, Button, Stack, Typography } from '@mui/material';
 import DeleteFilled from '@ant-design/icons/DeleteFilled';
 import PlusOutlined from '@ant-design/icons/PlusOutlined';
 import FormInput from 'components/input/FormInput';
@@ -71,19 +71,9 @@ export default function UnitFields({ values, errors, touched, setFieldValue }) {
                       />
                     </Grid>
                     <Grid size={{ xs: 12 }}>
-                      <FormControlLabel
-                        control={
-                          <Checkbox
-                            checked={unit.isOccupied || false}
-                            onChange={(e) => {
-                              const newUnits = [...values.units];
-                              newUnits[index] = { ...newUnits[index], isOccupied: e.target.checked };
-                              setFieldValue('units', newUnits);
-                            }}
-                          />
-                        }
-                        label="Unit is currently occupied"
-                      />
+                      <Typography variant="body2" color="text.secondary">
+                        Occupancy is determined automatically by the unit’s active lease.
+                      </Typography>
                     </Grid>
                   </Grid>
                 </CardContent>

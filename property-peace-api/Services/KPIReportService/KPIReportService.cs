@@ -1,3 +1,4 @@
+using brownstone_hub_api.Utils;
 using brownstone_hub_api.Dtos.KPIReports;
 using brownstone_hub_api.Repositories.Properties;
 using brownstone_hub_api.Repositories.Leases;
@@ -66,7 +67,7 @@ namespace brownstone_hub_api.Services.KPIReportService
                 }
 
                 var totalUnits = allUnits.Count;
-                var occupiedUnits = allUnits.Count(u => u.Lease != null || u.IsOccupied);
+                var occupiedUnits = allUnits.Count(u => LeaseOccupancy.IsOccupied(u, DateTime.UtcNow.Date));
                 var vacantUnits = totalUnits - occupiedUnits;
                 var occupancyRate = totalUnits > 0 ? (decimal)occupiedUnits / totalUnits * 100 : 0;
                 var vacancyRate = totalUnits > 0 ? (decimal)vacantUnits / totalUnits * 100 : 0;
@@ -75,10 +76,10 @@ namespace brownstone_hub_api.Services.KPIReportService
                 {
                     PropertyId = p.Id,
                     PropertyName = p.Name,
-                    OccupiedUnits = allUnits.Count(u => u.PropertyId == p.Id && (u.Lease != null || u.IsOccupied)),
+                    OccupiedUnits = allUnits.Count(u => u.PropertyId == p.Id && (LeaseOccupancy.IsOccupied(u, DateTime.UtcNow.Date))),
                     TotalUnits = allUnits.Count(u => u.PropertyId == p.Id),
                     OccupancyRate = allUnits.Count(u => u.PropertyId == p.Id) > 0
-                        ? (decimal)allUnits.Count(u => u.PropertyId == p.Id && (u.Lease != null || u.IsOccupied)) / allUnits.Count(u => u.PropertyId == p.Id) * 100
+                        ? (decimal)allUnits.Count(u => u.PropertyId == p.Id && (LeaseOccupancy.IsOccupied(u, DateTime.UtcNow.Date))) / allUnits.Count(u => u.PropertyId == p.Id) * 100
                         : 0
                 }).ToList();
 

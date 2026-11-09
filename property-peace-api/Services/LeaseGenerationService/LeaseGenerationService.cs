@@ -328,32 +328,10 @@ namespace brownstone_hub_api.Services.LeaseGenerationService
                     }
                 }
 
-                // Check lease terms
-                var clauseSettings = dto.ClauseSettings;
-                decimal? lateFeeAmount = null;
-                int? gracePeriodDays = null;
-                
-                if (clauseSettings != null && clauseSettings.TryGetValue("lateFee", out var lateFeeObj))
-                {
-                    if (lateFeeObj is JsonElement lateFeeElement)
-                    {
-                        if (lateFeeElement.TryGetProperty("amount", out var amountElement))
-                        {
-                            lateFeeAmount = amountElement.GetDecimal();
-                        }
-                        if (lateFeeElement.TryGetProperty("gracePeriodDays", out var graceElement))
-                        {
-                            gracePeriodDays = graceElement.GetInt32();
-                        }
-                    }
-                }
-
+                // Financial terms are authoritative on the saved lease.
+                var lateFee = lease.Fees?.FirstOrDefault(f => f.IsLateFee);
                 warnings.AddRange(LeaseWarningService.CheckLeaseTerms(
-                    dto.MonthlyRent,
-                    dto.SecurityDeposit,
-                    lateFeeAmount,
-                    gracePeriodDays
-                ));
+                    lease.RentAmount, lease.DepositAmount, lateFee?.Amount, lateFee?.AppliedAfterDays));
 
                 // Create instance
                 var instance = new LeaseInstance
@@ -368,54 +346,8 @@ namespace brownstone_hub_api.Services.LeaseGenerationService
                 };
 
                 // Resolve placeholders
-                await ResolvePlaceholdersForInstance(instance, lease, dto, organizationId);
+                await ResolvePlaceholdersForInstance(instance, lease, organizationId);
 
-                // Ensure tenants are linked to the lease
-                if (dto.TenantIds != null && dto.TenantIds.Any())
-                {
-                    try
-                    {
-                        // Get existing tenants for this lease
-                        var existingTenants = await _tenantRepository.GetTenantsByLeaseId(lease.Id);
-                        var existingTenantIds = existingTenants.Select(t => t.Id).ToHashSet();
-
-                        // Link tenants that aren't already linked
-                        foreach (var tenantId in dto.TenantIds)
-                        {
-                            if (!existingTenantIds.Contains(tenantId))
-                            {
-                                var tenant = await _tenantRepository.GetTenantById(tenantId);
-                                // The lease is organization-scoped; require the tenant to belong to
-                                // that lease's property rather than inventing an OrganizationId DTO field.
-                                if (tenant != null && lease.PropertyId > 0 && tenant.PropertyId == lease.PropertyId)
-                                {
-                                    var tenantOrganizationId = organizationId;
-
-                                    // Update tenant to link to this lease
-                                    var updateDto = new AddTenantDto
-                                    {
-                                        Id = tenant.Id,
-                                        LeaseId = lease.Id, // Explicitly set LeaseId to link tenant to lease
-                                        UnitId = lease.UnitId, // Ensure UnitId matches the lease's unit
-                                        Firstname = tenant.Firstname,
-                                        Lastname = tenant.Lastname,
-                                        Email = tenant.Email,
-                                        PhoneNumber = tenant.PhoneNumber,
-                                        UserId = tenant.UserId, // Preserve existing UserId
-                                        OrganizationId = tenantOrganizationId // Use organizationId from context
-                                    };
-                                    await _tenantRepository.UpdateTenant(tenantId, updateDto);
-                                    _logger.LogInformation("Linked tenant {TenantId} to lease {LeaseId} during instance creation", tenantId, lease.Id);
-                                }
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(ex, "Error linking tenants to lease {LeaseId} during instance creation. This may cause issues during finalization.", lease.Id);
-                        // Don't fail instance creation if tenant linking fails - we'll try again at finalization
-                    }
-                }
 
                 // Create policy section if provided
                 if (dto.CustomPolicies != null && dto.CustomPolicies.Any())
@@ -437,7 +369,7 @@ namespace brownstone_hub_api.Services.LeaseGenerationService
             }
         }
 
-        private async Task ResolvePlaceholdersForInstance(LeaseInstance instance, LoadLeaseDto lease, CreateLeaseInstanceDto dto, long organizationId)
+        private async Task ResolvePlaceholdersForInstance(LeaseInstance instance, LoadLeaseDto lease, long organizationId)
         {
             var variables = new List<LeaseVariable>();
 
@@ -447,20 +379,8 @@ namespace brownstone_hub_api.Services.LeaseGenerationService
                 property = null;
             var unit = property?.Units?.FirstOrDefault(u => u.Id == lease.UnitId);
 
-            // Get tenants
-            var tenants = new List<LoadTenantDto>();
-            if (dto.TenantIds.Any())
-            {
-                foreach (var tenantId in dto.TenantIds)
-                {
-                    var tenant = await _tenantRepository.GetTenantById(tenantId);
-                    // property was explicitly verified against organizationId above.
-                    if (tenant != null && property != null && tenant.PropertyId == property.Id)
-                    {
-                        tenants.Add(tenant);
-                    }
-                }
-            }
+            // Only persisted TenantLease relationships determine the agreement's parties.
+            var tenants = await _tenantRepository.GetTenantsByLeaseId(lease.Id);
 
             // Resolve tenant placeholders
             if (tenants.Any())
@@ -490,16 +410,21 @@ namespace brownstone_hub_api.Services.LeaseGenerationService
             }
 
             // Resolve lease placeholders
-            var startDate = dto.StartDate ?? lease.StartDate;
-            var endDate = dto.EndDate ?? lease.EndDate;
-            var monthlyRent = dto.MonthlyRent ?? lease.RentAmount;
-            var securityDeposit = dto.SecurityDeposit ?? lease.DepositAmount;
-            var rentDueDay = dto.RentDueDay ?? lease.RentDueDay;
+            var startDate = lease.StartDate;
+            var endDate = lease.EndDate;
+            var monthlyRent = lease.RentAmount;
+            var securityDeposit = lease.DepositAmount;
+            var rentDueDay = lease.RentDueDay;
 
             if (startDate.HasValue)
                 variables.Add(new LeaseVariable { VariableKey = "Lease.StartDate", VariableValue = startDate.Value.ToString("MM/dd/yyyy", CultureInfo.InvariantCulture), VariableType = "Date" });
             if (endDate.HasValue)
                 variables.Add(new LeaseVariable { VariableKey = "Lease.EndDate", VariableValue = endDate.Value.ToString("MM/dd/yyyy", CultureInfo.InvariantCulture), VariableType = "Date" });
+            else if (lease.LeaseLength == -1)
+            {
+                variables.Add(new LeaseVariable { VariableKey = "Lease.TermType", VariableValue = "Month-to-month", VariableType = "Text" });
+                variables.Add(new LeaseVariable { VariableKey = "Lease.EndDate", VariableValue = "Month-to-month (no fixed end date)", VariableType = "Text" });
+            }
             if (monthlyRent.HasValue)
                 variables.Add(new LeaseVariable { VariableKey = "Lease.MonthlyRent", VariableValue = monthlyRent.Value.ToString("C", CultureInfo.InvariantCulture), VariableType = "Currency" });
             if (securityDeposit.HasValue)
@@ -580,14 +505,13 @@ namespace brownstone_hub_api.Services.LeaseGenerationService
                 if (lateFeeEntry != null)
                     variables.Add(new LeaseVariable { VariableKey = "LateFee.Amount", VariableValue = lateFeeEntry.Amount.ToString("C"), VariableType = "Currency" });
             }
-            // Fall back to clauseSettings for late fee if not found in fees list
-            if (variables.All(v => v.VariableKey != "LateFee.Amount") && dto.ClauseSettings != null
-                && dto.ClauseSettings.TryGetValue("lateFee", out var lateFeeObj) && lateFeeObj is JsonElement lateFeeEl)
+            var savedLateFee = lease.Fees?.FirstOrDefault(f => f.IsLateFee);
+            if (savedLateFee != null)
             {
-                if (lateFeeEl.TryGetProperty("amount", out var amtEl))
-                    variables.Add(new LeaseVariable { VariableKey = "LateFee.Amount", VariableValue = amtEl.GetDecimal().ToString("C"), VariableType = "Currency" });
-                if (lateFeeEl.TryGetProperty("gracePeriodDays", out var graceEl))
-                    variables.Add(new LeaseVariable { VariableKey = "LateFee.GracePeriodDays", VariableValue = graceEl.GetInt32().ToString(), VariableType = "Number" });
+                if (variables.All(v => v.VariableKey != "LateFee.Amount"))
+                    variables.Add(new LeaseVariable { VariableKey = "LateFee.Amount", VariableValue = savedLateFee.Amount.ToString("C"), VariableType = "Currency" });
+                if (savedLateFee.AppliedAfterDays.HasValue)
+                    variables.Add(new LeaseVariable { VariableKey = "LateFee.GracePeriodDays", VariableValue = savedLateFee.AppliedAfterDays.Value.ToString(CultureInfo.InvariantCulture), VariableType = "Number" });
             }
 
             // ── People – occupants & co-signers ──────────────────────────────────────
@@ -700,7 +624,26 @@ namespace brownstone_hub_api.Services.LeaseGenerationService
                 variables.Add(new LeaseVariable { VariableKey = "LeadPaint.Disclosure", VariableValue = leadContent.ToString(), VariableType = "String" });
             }
 
-            instance.Variables = variables;
+            // Keep disclosure snapshots and reuse tracked variable identities on draft refresh.
+            // Missing lease values must disappear instead of falling back to stale request data.
+            var existing = instance.Variables.ToDictionary(v => v.VariableKey);
+            var refreshed = new List<LeaseVariable>();
+            foreach (var variable in variables)
+            {
+                if (existing.TryGetValue(variable.VariableKey, out var previous))
+                {
+                    previous.VariableValue = variable.VariableValue;
+                    previous.VariableType = variable.VariableType;
+                    refreshed.Add(previous);
+                }
+                else
+                {
+                    variable.LeaseInstanceId = instance.Id;
+                    refreshed.Add(variable);
+                }
+            }
+            refreshed.AddRange(instance.Variables.Where(v => v.VariableKey.StartsWith("State.", StringComparison.Ordinal)));
+            instance.Variables = refreshed;
         }
 
         public async Task<ServiceResponse<LoadLeaseInstanceDto>> ResolvePlaceholdersAsync(long instanceId, long organizationId)
@@ -725,9 +668,8 @@ namespace brownstone_hub_api.Services.LeaseGenerationService
                     return ServiceResponse<LoadLeaseInstanceDto>.CreateError("Lease not found", "The associated lease does not exist.");
                 }
 
-                // Re-resolve placeholders (this would need the original dto, so for now we'll just update existing)
-                // In a real implementation, you'd want to store the original CreateLeaseInstanceDto or re-fetch tenants
-                
+                await ResolvePlaceholdersForInstance(instance, lease, organizationId);
+
                 var updated = await _leaseInstanceRepository.UpdateLeaseInstanceAsync(instance, organizationId);
                 return ServiceResponse<LoadLeaseInstanceDto>.CreateSuccess(_mapper.Map<LoadLeaseInstanceDto>(updated));
             }
@@ -804,12 +746,15 @@ namespace brownstone_hub_api.Services.LeaseGenerationService
                 !DateTime.TryParseExact(startText, "MM/dd/yyyy", CultureInfo.InvariantCulture,
                     DateTimeStyles.None, out var startDate) || startDate == DateTime.MinValue)
                 return "A real lease start date is required.";
-            if (!values.TryGetValue("Lease.EndDate", out var endText) ||
-                !DateTime.TryParseExact(endText, "MM/dd/yyyy", CultureInfo.InvariantCulture,
-                    DateTimeStyles.None, out var endDate) || endDate == DateTime.MinValue)
-                return "A real lease end date is required.";
-            if (endDate <= startDate)
-                return "The lease end date must be after the start date.";
+            if (values.GetValueOrDefault("Lease.TermType") != "Month-to-month")
+            {
+                if (!values.TryGetValue("Lease.EndDate", out var endText) ||
+                    !DateTime.TryParseExact(endText, "MM/dd/yyyy", CultureInfo.InvariantCulture,
+                        DateTimeStyles.None, out var endDate) || endDate == DateTime.MinValue)
+                    return "A real lease end date is required.";
+                if (endDate <= startDate)
+                    return "The lease end date must be after the start date.";
+            }
 
             if (!TryParseCurrency(values, "Lease.MonthlyRent", out var monthlyRent) || monthlyRent <= 0)
                 return "Monthly rent is required and must be greater than zero.";
@@ -986,7 +931,11 @@ namespace brownstone_hub_api.Services.LeaseGenerationService
                 // instance until this latest draft has either finalized or been explicitly removed.
                 var existingDraft = await _leaseInstanceRepository.GetLatestDraftLeaseInstanceByLeaseIdAsync(leaseId, organizationId);
                 if (existingDraft != null)
+                {
+                    await ResolvePlaceholdersForInstance(existingDraft, lease, organizationId);
+                    await _leaseInstanceRepository.UpdateLeaseInstanceAsync(existingDraft, organizationId);
                     return await PrepareLeaseInstanceForFinalizationAsync(existingDraft.Id, organizationId);
+                }
 
                 // Get template: prefer default for org, else first template for organization
                 var templates = await _templateRepository.GetTemplatesByOrganizationAsync(organizationId);
@@ -1000,27 +949,10 @@ namespace brownstone_hub_api.Services.LeaseGenerationService
                     return ServiceResponse<LoadLeaseInstanceDto>.CreateError("No template", "No lease template found for your organization. Please contact support.");
                 }
 
-                // lease was loaded with organizationId, so tenants reached through that parent are scoped.
-                var tenantIds = lease.Tenants?.Select(t => t.Id).ToList() ?? new List<long>();
-                if (!tenantIds.Any())
-                {
-                    var tenantsFromDb = await _tenantRepository.GetTenantsByLeaseId(lease.Id);
-                    // This lease id was already verified in the current organization.
-                    tenantIds = tenantsFromDb.Select(t => t.Id).ToList();
-                }
-
                 var dto = new CreateLeaseInstanceDto
                 {
                     LeaseId = lease.Id,
-                    LeaseTemplateId = template.Id,
-                    PropertyId = lease.PropertyId,
-                    UnitId = lease.UnitId,
-                    TenantIds = tenantIds,
-                    StartDate = lease.StartDate,
-                    EndDate = lease.EndDate,
-                    MonthlyRent = lease.RentAmount,
-                    SecurityDeposit = lease.DepositAmount,
-                    RentDueDay = lease.RentDueDay
+                    LeaseTemplateId = template.Id
                 };
 
                 var userId = GetUserIdFromContext();

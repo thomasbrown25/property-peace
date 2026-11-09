@@ -18,6 +18,7 @@ namespace brownstone_hub_api.Repositories.Units
             try
             {
                 var query = _context.Properties
+                    .Include(p => p.Units).ThenInclude(u => u.Leases).ThenInclude(l => l.LeaseAgreement)
                     .Include(p => p.Units)
                         .ThenInclude(u => u.Leases)
                             .ThenInclude(l => l.TenantLeases)
@@ -69,6 +70,7 @@ namespace brownstone_hub_api.Repositories.Units
                     .Include(u => u.Leases)
                         .ThenInclude(l => l.TenantLeases)
                             .ThenInclude(tl => tl.Tenant)
+                    .Include(u => u.Leases).ThenInclude(l => l.LeaseAgreement)
                     .Include(u => u.Amenities)
                     .Include(u => u.IncludedUtility)
                     .Include(u => u.MaintenanceRequests)
@@ -302,6 +304,7 @@ namespace brownstone_hub_api.Repositories.Units
             try
             {
                 var unit = await _context.Units
+                    .Include(u => u.Leases).ThenInclude(l => l.LeaseAgreement)
                     .Include(u => u.Amenities)
                     .Include(u => u.IncludedUtility)
                     .FirstOrDefaultAsync(u => u.Id == updateUnitDto.Id) ?? throw new KeyNotFoundException($"Unit with ID {updateUnitDto.Id} not found.");
@@ -357,6 +360,7 @@ namespace brownstone_hub_api.Repositories.Units
             try
             {
                 var unit = await _context.Units
+                    .Include(u => u.Leases).ThenInclude(l => l.LeaseAgreement)
                     .Include(u => u.Amenities)
                     .Include(u => u.IncludedUtility)
                     .Where(u => u.Id == updateUnitDto.Id &&
@@ -403,6 +407,7 @@ namespace brownstone_hub_api.Repositories.Units
             try
             {
                 var query = _context.Units
+                    .Include(u => u.Leases).ThenInclude(l => l.LeaseAgreement)
                     .Include(u => u.Amenities)
                     .Include(u => u.IncludedUtility)
                     .Include(u => u.Leases)

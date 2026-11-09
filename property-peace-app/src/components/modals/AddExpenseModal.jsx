@@ -57,7 +57,7 @@ const EXPENSE_CATEGORIES = [
   },
   {
     section: 'Other',
-    categories: ['Utilities', 'HOA', 'Insurance', 'Taxes', 'Landscaping', 'Cleaning', 'Advertising', 'Legal', 'Accounting', 'Property Management', 'Capital Improvements', 'Supplies', 'Other']
+    categories: ['Utilities', 'HOA', 'Mortgage', 'Insurance', 'Taxes', 'Landscaping', 'Cleaning', 'Advertising', 'Legal', 'Accounting', 'Property Management', 'Capital Improvements', 'Supplies', 'Other']
   }
 ];
 

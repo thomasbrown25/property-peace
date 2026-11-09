@@ -1,3 +1,4 @@
+import { getPropertyOccupancy } from 'utils/occupancy.mjs';
 import { useState, useEffect } from 'react';
 import { isDetachedSingleUnitType } from 'utils/propertyType';
 import { rentalMode } from 'utils/rentalMode';
@@ -78,9 +79,7 @@ export default function PropertyHeader({ property, rentRecords = [], rentLoading
   const tenantName = primaryTenant
     ? `${primaryTenant.firstname || primaryTenant.Firstname || ''} ${primaryTenant.lastname || primaryTenant.Lastname || ''}`.trim()
     : null;
-  const occupiedUnits = units.filter(
-    (unit) => unit.isOccupied || unit.IsOccupied || ['occupied', 'overdue'].includes(String(unit.status ?? unit.Status ?? '').toLowerCase())
-  ).length;
+  const { occupiedUnits } = getPropertyOccupancy(property);
   const { expected, collected, remaining, percent, scheduledRent, pastDue } = propertyHeaderMetrics(rentRecords, propertyId);
   const collectionAvailable = !rentLoading && !rentError && propertyId != null;
   const collectionValue = (value) => (collectionAvailable ? formatCurrency(value) : '—');
@@ -314,7 +313,7 @@ export default function PropertyHeader({ property, rentRecords = [], rentLoading
         <MenuItem onClick={() => runAction(() => navigate('/landlord/leases'))}>
           <FileTextOutlined style={{ marginRight: 12 }} /> View leases
         </MenuItem>
-        <MenuItem disabled={!hasLongTermUnits} onClick={() => runAction(() => drawer.openPaymentAddDrawer())}>
+        <MenuItem disabled={!hasLongTermUnits} onClick={() => runAction(() => drawer.openPaymentAddDrawer({ property: property || { id: propertyId } }))}>
           <DollarOutlined style={{ marginRight: 12 }} /> Record a payment
         </MenuItem>
         <MenuItem onClick={() => runAction(() => drawer.openMaintenanceAddDrawer({ propertyId, propertyName: property?.name }))}>

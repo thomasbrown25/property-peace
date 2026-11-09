@@ -7,6 +7,7 @@ import { setProperty } from 'store/property/property.action';
 import { useDrawer } from 'contexts/DrawerContext';
 import { formatCurrency } from 'utils/formatters';
 import { normalizeRentBalance } from 'utils/rentBalance';
+import { getPropertyOccupancy, isPropertyOccupied, isUnitOccupied } from 'utils/occupancy.mjs';
 import { isDetachedSingleUnitType } from 'utils/propertyType';
 import { isHighPriorityMaintenanceRequest } from 'utils/maintenanceStatus';
 import { differenceInDays } from 'date-fns';
@@ -104,8 +105,7 @@ export default function PropertyCard({ property, rentRecords = [] }) {
       const unitLeaseId = unit?.lease?.id ?? unit?.lease?.Id ?? unit?.leaseId ?? unit?.LeaseId;
       const match = unitLeaseId === undefined || unitLeaseId === null ? null : byLeaseId.get(String(unitLeaseId));
       const unitName = unit?.name || unit?.Name || unit?.unitNumber || `Unit ${index + 1}`;
-      const occupied = Boolean(unit?.isOccupied ?? unit?.IsOccupied)
-        || ['occupied', 'overdue'].includes(String(unit?.status ?? unit?.Status ?? '').toLowerCase());
+      const occupied = isUnitOccupied(unit);
       return {
         unitName,
         occupied,
@@ -117,11 +117,7 @@ export default function PropertyCard({ property, rentRecords = [] }) {
     return { monthlyRent, rentDue, overdueAmount, overdueCount, displayUnits };
   }, [propertyId, rentRecords, units]);
 
-  // Unit status
-  // Unit status (single-unit uses first unit; multi-unit aggregates all)
-  const unitStatus = (firstUnit?.status || firstUnit?.Status || '').toLowerCase();
-  const isOccupied = unitStatus === 'occupied' || unitStatus === 'overdue'
-    || (!unitStatus && (property?.isOccupied || property?.IsOccupied));
+  const isOccupied = isPropertyOccupied(property);
   const isOverdue = propertyRent.overdueCount > 0;
 
   // Days until lease expiry
@@ -136,14 +132,9 @@ export default function PropertyCard({ property, rentRecords = [] }) {
   // Multi-unit aggregate counts (for attention banner and status chip)
   const multiUnitCounts = useMemo(() => {
     if (!isMultiUnit) return null;
-    let vacantCount = 0, occupiedCount = 0;
-    units.forEach((u) => {
-      const s = (u.status || u.Status || '').toLowerCase();
-      if (s === 'occupied' || s === 'overdue') occupiedCount++;
-      else vacantCount++;
-    });
-    return { overdueCount: propertyRent.overdueCount, vacantCount, occupiedCount, total: units.length };
-  }, [isMultiUnit, propertyRent.overdueCount, units]);
+    const { vacantUnits, occupiedUnits, totalUnits } = getPropertyOccupancy(property);
+    return { overdueCount: propertyRent.overdueCount, vacantCount: vacantUnits, occupiedCount: occupiedUnits, total: totalUnits };
+  }, [isMultiUnit, propertyRent.overdueCount, property]);
 
   // Attention banner — always shown
   const attentionBanner = isMultiUnit && multiUnitCounts
@@ -164,8 +155,8 @@ export default function PropertyCard({ property, rentRecords = [] }) {
 
   // Status chip
   const statusLabel = isMultiUnit && multiUnitCounts
-    ? `${multiUnitCounts.occupiedCount + multiUnitCounts.overdueCount}/${multiUnitCounts.total} occupied`
-    : isOverdue ? 'Overdue' : isOccupied ? 'Occupied' : 'Vacant';
+    ? `${multiUnitCounts.occupiedCount}/${multiUnitCounts.total} occupied`
+    : isOccupied ? 'Occupied' : 'Vacant';
   const statusColor = isMultiUnit && multiUnitCounts
     ? multiUnitCounts.overdueCount > 0 ? 'error' : multiUnitCounts.vacantCount > 0 ? 'warning' : 'success'
     : isOverdue ? 'error' : isOccupied ? 'success' : 'warning';

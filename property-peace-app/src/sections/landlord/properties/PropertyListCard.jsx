@@ -3,19 +3,16 @@ import { WarningOutlined, CheckCircleOutlined, ExclamationCircleOutlined } from 
 import { useNavigate } from 'react-router-dom';
 import { formatCurrency } from 'utils/formatters';
 import { isHighPriorityMaintenanceRequest } from 'utils/maintenanceStatus';
+import { getPropertyOccupancy } from 'utils/occupancy.mjs';
 
 function getUnitSummary(property) {
   const units = property.units || property.Units || [];
-  let occupied = 0, vacant = 0, overdue = 0, highMaint = 0;
-  units.forEach((u) => {
-    const status = (u.status || u.Status || '').toLowerCase();
-    if (status === 'occupied') occupied++;
-    else if (status === 'overdue') { occupied++; overdue++; }
-    else if (status === 'vacant') vacant++;
-  });
+  const { occupiedUnits: occupied, vacantUnits: vacant, totalUnits: total } = getPropertyOccupancy(property);
+  // Overdue is a financial signal, never an occupancy source.
+  const overdue = units.filter((unit) => String(unit.status || unit.Status || '').toLowerCase() === 'overdue').length;
   const maintReqs = property.maintenanceRequests || property.MaintenanceRequests || [];
-  highMaint = maintReqs.filter(isHighPriorityMaintenanceRequest).length;
-  return { occupied, vacant, overdue, highMaint, total: units.length };
+  const highMaint = maintReqs.filter(isHighPriorityMaintenanceRequest).length;
+  return { occupied, vacant, overdue, highMaint, total };
 }
 
 function getFirstUnit(property) {
@@ -35,7 +32,7 @@ export default function PropertyListCard({ property }) {
   const baths = firstUnit?.baths || firstUnit?.Baths;
   const sqft = firstUnit?.squareFeet || firstUnit?.SquareFeet;
 
-  const isFullyOccupied = total > 0 && occupied === total && overdue === 0;
+  const isFullyOccupied = total > 0 && occupied === total;
   const hasOverdue = overdue > 0;
   const hasHighMaint = highMaint > 0;
   const needsAttention = hasOverdue || hasHighMaint;
@@ -50,8 +47,7 @@ export default function PropertyListCard({ property }) {
   const statusLabel = total === 0
     ? null
     : vacant === total ? 'Vacant'
-    : occupied === total && !hasOverdue ? 'Occupied'
-    : hasOverdue ? 'Overdue'
+    : occupied === total ? 'Occupied'
     : `${occupied}/${total} occupied`;
 
   const statusColor = hasOverdue ? 'error' : vacant === total ? 'warning' : 'success';

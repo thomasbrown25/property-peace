@@ -63,6 +63,7 @@ const EXPENSE_CATEGORIES = [
   'Maintenance',
   'Utilities',
   'HOA',
+  'Mortgage',
   'Insurance',
   'Taxes',
   'Landscaping',

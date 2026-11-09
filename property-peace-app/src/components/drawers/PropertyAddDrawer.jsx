@@ -6,7 +6,7 @@ import { alpha } from '@mui/system';
 import {
   Box,
   Button,
-  Checkbox,
+
   Dialog,
   DialogActions,
   DialogContent,
@@ -512,15 +512,9 @@ export default function PropertyAddDrawer({ property, closeModal }) {
                         </Grid>
                         <Grid size={{ xs: 4 }}>
                           <Box display={'flex'} justifyContent="end" mt={3}>
-                            <FormControlLabel
-                              control={
-                                <Checkbox
-                                  checked={values.isOccupied}
-                                  onChange={(event) => setFieldValue('isOccupied', event.target.checked)}
-                                />
-                              }
-                              label="Occupied?"
-                            />
+                            <Typography variant="body2" color="text.secondary">
+                              Occupancy is determined by an active lease.
+                            </Typography>
                           </Box>
                         </Grid>
                       </>

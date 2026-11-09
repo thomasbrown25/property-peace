@@ -267,8 +267,9 @@ export const updateLeaseAgreement = (leaseId, agreementData) => async (dispatch)
     }
   } catch (error) {
     console.error(error);
-    dispatch({ type: LEASE_ACTION_TYPES.UPDATE_LEASE_AGREEMENT_FAILED, payload: error?.message });
-    return { success: false, message: error?.message };
+    const message = error?.response?.data?.message || error?.response?.data?.Message || error?.message;
+    dispatch({ type: LEASE_ACTION_TYPES.UPDATE_LEASE_AGREEMENT_FAILED, payload: message });
+    return { success: false, message };
   }
 };
 

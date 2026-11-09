@@ -35,6 +35,7 @@ import { propertyCollection, type PropertyCollection } from '../../features/rent
 import { displayStatus } from '../../features/maintenance/maintenanceModel';
 import { useAppTheme } from '../../theme/AppTheme';
 import { paymentActivityTone } from '../../features/notifications/paymentActivityTone';
+import { markDisplayedNotificationsRead } from '../../features/notifications/markDisplayedNotificationsRead';
 import GlobalSearchModal from '../../components/GlobalSearchModal';
 import PropertyCollectionRail from './PropertyCollectionRail';
 import CalendarScreen from './CalendarScreen';
@@ -149,6 +150,8 @@ export default function DashboardScreen() {
   const [rentStatus, setRentStatus] = useState<LoadStatus>('loading');
   const [openMenu, setOpenMenu] = useState<'profile' | 'notifications' | null>(null);
   const [notificationMenuMounted, setNotificationMenuMounted] = useState(false);
+  const [notificationReadError, setNotificationReadError] = useState(false);
+  const attemptedNotificationReads = useRef(new Set<string>());
   const notificationMenuProgress = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     if (openMenu === 'notifications') setNotificationMenuMounted(true);
@@ -360,6 +363,32 @@ export default function DashboardScreen() {
   );
   const unreadNotifications = scopedNotifications.filter(item => item.isRead === false || item.IsRead === false).length;
 
+  useEffect(() => {
+    if (openMenu !== 'notifications') {
+      attemptedNotificationReads.current = new Set();
+      setNotificationReadError(false);
+      return;
+    }
+    if (scopedNotificationsStatus !== 'success') return;
+    const attempted = attemptedNotificationReads.current;
+    const displayedUnread = recentNotifications.filter(item => {
+      const key = `${organizationId}:${String(item.id ?? item.Id)}`;
+      if (!(item.isRead === false || item.IsRead === false) || attempted.has(key)) return false;
+      attempted.add(key);
+      return true;
+    });
+    if (!displayedUnread.length) return;
+    const capturedOrganizationId = organizationId;
+    const generation = loadGeneration.current;
+    void markDisplayedNotificationsRead(displayedUnread, id => NotificationAPI.markRead(id)).then(({ readIds, failed }) => {
+      if (capturedOrganizationId !== currentOrganizationId.current || generation !== loadGeneration.current) return;
+      setNotifications(items => items.map(item => readIds.has(String(item.id ?? item.Id))
+        ? { ...item, isRead: true, IsRead: true }
+        : item));
+      if (attemptedNotificationReads.current === attempted && failed) setNotificationReadError(true);
+    });
+  }, [openMenu, scopedNotificationsStatus, recentNotifications, organizationId]);
+
   const todayAtAGlance = (
     <View style={styles.todayCard}>
       <View style={styles.dateBlock}>
@@ -474,6 +503,7 @@ export default function DashboardScreen() {
               transform: [{ translateY: notificationMenuProgress.interpolate({ inputRange: [0, 1], outputRange: [-16, 0] }) }],
             }]}>
               <Text style={styles.notificationsMenuHeading}>Recent notifications</Text>
+              {notificationReadError && <Text style={styles.notificationsMenuHint} accessibilityRole="alert">Couldn't mark some notifications as read. Reopen the bell to retry.</Text>}
               <ScrollView style={styles.notificationsMenuList} nestedScrollEnabled>
                 {scopedNotificationsStatus === 'loading' ? (
                   <View style={styles.notificationsMenuState}><ActivityIndicator color={colors.accent} /></View>

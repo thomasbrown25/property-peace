@@ -2,8 +2,8 @@ const isAnswered = (value) => value !== null && value !== undefined &&
   (typeof value !== 'string' || value.trim().length > 0);
 const isNonEmptyString = (value) => typeof value === 'string' && value.trim().length > 0;
 const parseDateOnly = (value) => {
-  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
-  const [year, month, day] = value.split('-').map(Number);
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}(?:T[0-9:.+Z-]+)?$/.test(value)) return null;
+  const [year, month, day] = value.slice(0, 10).split('-').map(Number);
   const parsed = new Date(Date.UTC(year, month - 1, day));
   return parsed.getUTCFullYear() === year &&
     parsed.getUTCMonth() === month - 1 &&
@@ -26,7 +26,7 @@ export const computeLeasePreflightChecks = (lease) => {
       section: 'Lease Specifics',
       checks: [
         { label: 'Start date', ok: startDate !== null },
-        { label: 'End date', ok: endDate !== null && startDate !== null && endDate > startDate },
+        { label: 'End date', ok: Number(lease.leaseLength) === -1 || (endDate !== null && startDate !== null && endDate > startDate) },
         { label: 'Rent due day', ok: isFiniteNumberInRange(lease.rentDueDay, 1, 31) && Number.isInteger(Number(lease.rentDueDay)) }
       ]
     },

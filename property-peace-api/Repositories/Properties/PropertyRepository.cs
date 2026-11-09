@@ -4,6 +4,7 @@ using AutoMapper;
 using brownstone_hub_api.Data;
 using brownstone_hub_api.Dtos.Property;
 using brownstone_hub_api.Enums;
+using brownstone_hub_api.Utils;
 using Microsoft.EntityFrameworkCore;
 
 namespace brownstone_hub_api.Repositories.Properties
@@ -53,6 +54,7 @@ namespace brownstone_hub_api.Repositories.Properties
             var existingProperty = await _context.Properties
                 .Where(p => !p.IsDeleted && p.OrganizationId == organizationId)
                 .Include(p => p.Units)
+                    .ThenInclude(u => u.Leases).ThenInclude(l => l.LeaseAgreement)
                 .FirstOrDefaultAsync(p => p.Id == property.Id, cancellationToken);
             if (existingProperty is null)
             {
@@ -80,6 +82,7 @@ namespace brownstone_hub_api.Repositories.Properties
                 var existingProperty = await _context.Properties
                     .Where(p => !p.IsDeleted)
                     .Include(p => p.Units)
+                        .ThenInclude(u => u.Leases).ThenInclude(l => l.LeaseAgreement)
                     .FirstOrDefaultAsync(p => p.Id == property.Id, cancellationToken) ?? throw new KeyNotFoundException("Property not found");
 
                 // Log the incoming values for debugging
@@ -155,6 +158,7 @@ namespace brownstone_hub_api.Repositories.Properties
             var property = await _context.Properties
                 .Where(p => p.IsDeleted && p.OrganizationId == organizationId)
                 .Include(p => p.Units)
+                    .ThenInclude(u => u.Leases).ThenInclude(l => l.LeaseAgreement)
                 .FirstOrDefaultAsync(p => p.Id == propertyId, cancellationToken);
             return property is null ? null : _mapper.Map<LoadPropertyDto>(property);
         }
@@ -165,6 +169,7 @@ namespace brownstone_hub_api.Repositories.Properties
             {
                 var property = await _context.Properties
                         .Where(p => !p.IsDeleted)
+                        .Include(p => p.Units).ThenInclude(u => u.Leases).ThenInclude(l => l.LeaseAgreement)
                         .Include(p => p.Images)
                         .Include(p => p.MaintenanceRequests)
                                 .ThenInclude(m => m.Images)
@@ -244,6 +249,7 @@ namespace brownstone_hub_api.Repositories.Properties
                 }
                 
                 var properties = await query
+                        .Include(p => p.Units).ThenInclude(u => u.Leases).ThenInclude(l => l.LeaseAgreement)
                         .Include(p => p.Images)
                         .Include(p => p.MaintenanceRequests)
                             .ThenInclude(m => m.Images)
@@ -312,6 +318,7 @@ namespace brownstone_hub_api.Repositories.Properties
                 // GET /api/lease/{id} when editing. Also omit Unit.MaintenanceRequests.Images (shown separately).
                 var properties = await _context.Properties
                         .Where(p => p.OrganizationId == organizationId && !p.IsDeleted)
+                        .Include(p => p.Units).ThenInclude(u => u.Leases).ThenInclude(l => l.LeaseAgreement)
                         .Include(p => p.Images)
                         .Include(p => p.MaintenanceRequests)
                             .ThenInclude(m => m.Images)
@@ -346,7 +353,9 @@ namespace brownstone_hub_api.Repositories.Properties
         {
             try
             {
-                return await _context.Properties.CountAsync(p => p.OrganizationId == organizationId && !p.IsDeleted && p.IsOccupied);
+                var activeLeases = _context.Leases.Where(LeaseOccupancy.ActiveOn(DateTime.UtcNow.Date));
+                return await _context.Properties.CountAsync(p => p.OrganizationId == organizationId && !p.IsDeleted &&
+                    activeLeases.Any(l => l.Unit.PropertyId == p.Id));
             }
             catch (Exception ex)
             {
@@ -359,7 +368,9 @@ namespace brownstone_hub_api.Repositories.Properties
         {
             try
             {
-                return await _context.Properties.CountAsync(p => p.OrganizationId == organizationId && !p.IsDeleted && !p.IsOccupied);
+                var activeLeases = _context.Leases.Where(LeaseOccupancy.ActiveOn(DateTime.UtcNow.Date));
+                return await _context.Properties.CountAsync(p => p.OrganizationId == organizationId && !p.IsDeleted &&
+                    !activeLeases.Any(l => l.Unit.PropertyId == p.Id));
             }
             catch (Exception ex)
             {
@@ -539,10 +550,9 @@ namespace brownstone_hub_api.Repositories.Properties
 
                 var totalUnits = await unitQuery.CountAsync();
 
+                var activeLeases = _context.Leases.Where(LeaseOccupancy.ActiveOn(today));
                 var occupiedUnits = await unitQuery
-                    .CountAsync(u => u.Leases.Any(l => !l.IsDeleted && l.IsActive &&
-                                     l.StartDate.HasValue && l.StartDate <= today &&
-                                     (!l.EndDate.HasValue || l.EndDate >= today)));
+                    .CountAsync(u => activeLeases.Any(l => l.UnitId == u.Id));
 
                 return (totalProperties, totalUnits, occupiedUnits);
             }

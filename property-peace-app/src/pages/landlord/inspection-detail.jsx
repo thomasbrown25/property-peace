@@ -659,7 +659,7 @@ function InspectionItemRow({ item, checklistId, allItems, onUpdated, isDefault, 
 
       <Box sx={{ display: { xs: 'none', md: 'flex' }, flexWrap: 'wrap', gap: 0.5, flexShrink: 0 }} role="group" aria-label={`Condition for ${item.name}`}>
         {CONDITION_OPTIONS.map((opt) => (
-          <Tooltip key={opt.value} title={opt.label.split('–')[1]?.trim()} arrow>
+          <Tooltip key={opt.value} title={opt.value === 'Good' ? '' : opt.label.split('–')[1]?.trim()} arrow>
             <Button
               variant="outlined"
               size="small"
@@ -743,7 +743,7 @@ function renameRoomName(roomNames, currentName, nextName) {
   return roomNames.map((name) => (name.toLowerCase() === currentKey ? nextName : name));
 }
 
-function RoomInspectionSection({ room, checklist, expanded, onToggle, onAddItem, addingItem, draftValue, onDraftChange, onItemUpdated, onDeleteItem, onRenameRoom }) {
+function RoomInspectionSection({ room, checklist, expanded, onToggle, onAddItem, addingItem, draftValue, onDraftChange, onItemUpdated, onDeleteItem, onRenameRoom, onDeleteRoom, deletingRoom }) {
   const theme = useTheme();
   const [editingName, setEditingName] = useState(false);
   const [roomNameDraft, setRoomNameDraft] = useState(room.name);
@@ -794,6 +794,7 @@ function RoomInspectionSection({ room, checklist, expanded, onToggle, onAddItem,
         aria-expanded={expanded}
         onClick={() => onToggle()}
         onKeyDown={(e) => {
+          if (e.target !== e.currentTarget) return;
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
             onToggle();
@@ -889,19 +890,35 @@ function RoomInspectionSection({ room, checklist, expanded, onToggle, onAddItem,
             </Typography>
           </Box>
 
-          {progress.total > 0 && (
-            <Box sx={{ width: { xs: '100%', sm: 180 } }}>
-              <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.4 }}>
-                <Typography variant="caption" color="text.secondary">Room progress</Typography>
-                <Typography variant="caption" fontWeight={700} sx={{ color: progressColor }}>{progress.pct}%</Typography>
-              </Stack>
-              <LinearProgress
-                variant="determinate"
-                value={progress.pct}
-                sx={{ height: 6, borderRadius: 1, bgcolor: alpha(progressColor, 0.12), '& .MuiLinearProgress-bar': { bgcolor: progressColor, borderRadius: 1 } }}
-              />
-            </Box>
-          )}
+          <Stack direction="row" spacing={1.5} alignItems="center" justifyContent="flex-end">
+            {progress.total > 0 && (
+              <Box sx={{ width: { xs: '100%', sm: 180 }, flex: { xs: 1, sm: 'initial' } }}>
+                <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.4 }}>
+                  <Typography variant="caption" color="text.secondary">Room progress</Typography>
+                  <Typography variant="caption" fontWeight={700} sx={{ color: progressColor }}>{progress.pct}%</Typography>
+                </Stack>
+                <LinearProgress
+                  variant="determinate"
+                  value={progress.pct}
+                  sx={{ height: 6, borderRadius: 1, bgcolor: alpha(progressColor, 0.12), '& .MuiLinearProgress-bar': { bgcolor: progressColor, borderRadius: 1 } }}
+                />
+              </Box>
+            )}
+            <Tooltip title="Delete room">
+              <span onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+                <IconButton
+                  size="small"
+                  color="error"
+                  aria-label={`Delete ${room.name}`}
+                  disabled={deletingRoom || renaming}
+                  onClick={() => onDeleteRoom(room.name)}
+                  sx={{ flexShrink: 0 }}
+                >
+                  <DeleteOutlined />
+                </IconButton>
+              </span>
+            </Tooltip>
+          </Stack>
         </Stack>
       </Box>
 
@@ -965,6 +982,8 @@ function InspectionColumn({ type, checklist, counterpartChecklist, relatedLease,
   const [expandedRoomName, setExpandedRoomName] = useState(null);
   const [addingRoom, setAddingRoom] = useState(false);
   const [addingItemRoom, setAddingItemRoom] = useState(null);
+  const [roomToDelete, setRoomToDelete] = useState(null);
+  const [deletingRoom, setDeletingRoom] = useState(false);
   const [scheduledAt, setScheduledAt] = useState('');
 
 
@@ -1239,6 +1258,49 @@ function InspectionColumn({ type, checklist, counterpartChecklist, relatedLease,
     }
   };
 
+  const handleDeleteRoom = async () => {
+    if (!checklist || !roomToDelete || deletingRoom) return;
+    setDeletingRoom(true);
+    try {
+      const roomKey = roomToDelete.trim().toLowerCase();
+      const targets = [checklist, counterpartChecklist].filter(Boolean);
+      for (const target of targets) {
+        const remainingRooms = getChecklistRoomNames(target, target.id === checklist.id ? customRooms : [])
+          .filter((name) => name.toLowerCase() !== roomKey);
+        const remainingItems = (target.items || [])
+          .filter((item) => ((item.category || 'General').trim() || 'General').toLowerCase() !== roomKey)
+          .map(toItemDto);
+        const res = await checklistAPI.updateChecklist(target.id, {
+          Id: target.id,
+          RoomNames: remainingRooms,
+          Items: remainingItems
+        });
+        if (!res?.success) throw new Error(res?.message || 'Failed to delete room');
+        onRefresh(res.data);
+        if (target.id === checklist.id) {
+          setCustomRooms((prev) => prev.filter((name) => name.toLowerCase() !== roomKey));
+          setExpandedRoomName((current) => current === roomToDelete ? null : current);
+          setItemDrafts((prev) => {
+            const nextDrafts = { ...prev };
+            delete nextDrafts[roomToDelete];
+            return nextDrafts;
+          });
+        }
+      }
+      setRoomToDelete(null);
+      openSnackbar({
+        open: true,
+        message: counterpartChecklist ? 'Room deleted from move-in and move-out' : 'Room deleted',
+        variant: 'alert',
+        alert: { color: 'success' }
+      });
+    } catch (err) {
+      openSnackbar({ open: true, message: err.message || 'Failed to delete room', variant: 'alert', alert: { color: 'error' } });
+    } finally {
+      setDeletingRoom(false);
+    }
+  };
+
   const handleDeleteItem = async (itemToDelete) => {
     if (!checklist) return;
     try {
@@ -1253,6 +1315,13 @@ function InspectionColumn({ type, checklist, counterpartChecklist, relatedLease,
 
   return (
     <Stack spacing={2}>
+      <RoomDeleteDialog
+        roomName={roomToDelete}
+        paired={!!counterpartChecklist}
+        deleting={deletingRoom}
+        onClose={() => setRoomToDelete(null)}
+        onDelete={handleDeleteRoom}
+      />
       {checklist && (
         <Grid container spacing={2} alignItems="stretch">
           <Grid size={{ xs: 12, md: 4 }}>
@@ -1404,6 +1473,8 @@ function InspectionColumn({ type, checklist, counterpartChecklist, relatedLease,
                     onItemUpdated={onRefresh}
                     onDeleteItem={handleDeleteItem}
                     onRenameRoom={handleRenameRoom}
+                    onDeleteRoom={setRoomToDelete}
+                    deletingRoom={deletingRoom}
                   />
                 ))}
               </Stack>
@@ -1414,6 +1485,28 @@ function InspectionColumn({ type, checklist, counterpartChecklist, relatedLease,
     </Box>
     </MainCard>
     </Stack>
+  );
+}
+
+function RoomDeleteDialog({ roomName, paired, deleting, onClose, onDelete }) {
+  return (
+    <Dialog open={roomName !== null} onClose={() => { if (!deleting) onClose(); }} maxWidth="xs" fullWidth aria-labelledby="delete-room-title">
+      <DialogTitle id="delete-room-title">Delete room?</DialogTitle>
+      <DialogContent>
+        <Typography>
+          Delete “{roomName}” and all of its checklist items
+          {paired ? ' from both the move-in and move-out checklists' : ' from this checklist'}?
+          {' '}This cannot be undone.
+        </Typography>
+      </DialogContent>
+      <DialogActions sx={{ px: 3, pb: 2.5 }}>
+        <Button disabled={deleting} onClick={onClose}>Cancel</Button>
+        <Button variant="contained" color="error" disabled={deleting} onClick={onDelete}
+          startIcon={deleting ? <CircularProgress size={14} color="inherit" /> : <DeleteOutlined />}>
+          {deleting ? 'Deleting…' : 'Delete room'}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }
 

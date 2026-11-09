@@ -168,6 +168,9 @@ export default function RecordPaymentDrawer({ onSuccess }) {
               <Stack spacing={3}>
                 <TenantPaymentSelector
                   selectedLease={selectedLease}
+                  autoSelectPropertyId={drawer.isOpenPaymentAdd && selectedProperty
+                    ? (drawer.paymentAddInitialSelection?.property?.id ?? drawer.paymentAddInitialSelection?.property?.Id)
+                    : null}
                   onSelectTenant={handleSelectTenant}
                   selectedProperty={selectedProperty}
                   onSelectProperty={setSelectedProperty}

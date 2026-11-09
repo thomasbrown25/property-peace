@@ -1,3 +1,4 @@
+import { isUnitOccupied } from './occupancy.mjs';
 import { differenceInCalendarDays, isBefore, parseISO } from 'date-fns';
 import moment from 'moment';
 
@@ -28,7 +29,7 @@ export const diffInMonths = (start, end) => {
 export const calculateOccupancyPercentage = (units) => {
   if (!Array.isArray(units) || units.length === 0) return 0;
 
-  const occupiedCount = units.filter((unit) => unit.isOccupied).length;
+  const occupiedCount = units.filter((unit) => isUnitOccupied(unit)).length;
   const percentage = (occupiedCount / units.length) * 100;
 
   return Math.round(percentage);
@@ -37,7 +38,7 @@ export const calculateOccupancyPercentage = (units) => {
 export const isOccupied = (units) => {
   if (!Array.isArray(units) || units.length === 0) return false;
 
-  return units.some((unit) => unit.isOccupied);
+  return units.some((unit) => isUnitOccupied(unit));
 };
 
 export const valueToCommaDelimitedString = (values) => {

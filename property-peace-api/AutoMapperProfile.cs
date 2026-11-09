@@ -161,6 +161,8 @@ public class AutoMapperProfile : Profile
         CreateMap<IncludedUtility, IncludedUtilityDto>();
 
         CreateMap<Property, LoadPropertyDto>()
+            .ForMember(dest => dest.IsOccupied, opt => opt.MapFrom(src =>
+                src.Units.Any(u => u.Leases.Any(l => LeaseOccupancy.IsActiveOn(l, DateTime.UtcNow.Date)))))
             .ForMember(dest => dest.IsActive, opt => opt.MapFrom(src => !src.IsDeleted))
             .ForMember(dest => dest.PrimaryManagerName, opt => opt.MapFrom(src => src.PrimaryManager != null ? $"{src.PrimaryManager.FirstName} {src.PrimaryManager.LastName}".Trim() : null))
             .ForMember(dest => dest.ClientName, opt => opt.MapFrom(src => src.Client != null ? $"{src.Client.FirstName} {src.Client.LastName}".Trim() : null));
@@ -226,25 +228,10 @@ public class AutoMapperProfile : Profile
             .ForMember(dest => dest.Leases, opt => opt.MapFrom(src => src.Leases.Where(l => !l.IsDeleted)))
             .ForMember(dest => dest.Lease, opt => opt.MapFrom(src =>
                 src.Lease != null && !src.Lease.IsDeleted ? src.Lease : null))
-            .ForMember(dest => dest.IsOccupied, opt => opt.MapFrom(src =>
-                src.Lease != null &&
-                !src.Lease.IsDeleted &&
-                src.Lease.IsActive &&
-                src.Lease.StartDate.HasValue &&
-                src.Lease.StartDate.Value <= DateTime.UtcNow.Date &&
-                (src.Lease.EndDate == null || src.Lease.EndDate.Value.Date >= DateTime.UtcNow.Date)))
+            .ForMember(dest => dest.IsOccupied, opt => opt.MapFrom(src => src.Lease != null))
             .ForMember(dest => dest.Status, opt => opt.MapFrom(src =>
-                src.Lease == null || src.Lease.IsDeleted
-                    ? "vacant"
-                    : src.Lease.LeaseAgreement != null && src.Lease.LeaseAgreement.IsDrafted == true && !src.Lease.IsActive
-                        ? "draft"
-                        : src.Lease.IsActive && src.Lease.StartDate.HasValue && src.Lease.StartDate.Value > DateTime.UtcNow.Date
-                            ? "notStarted"
-                            : src.Lease.IsActive && src.Lease.StartDate.HasValue &&
-                                src.Lease.StartDate.Value.Date <= DateTime.UtcNow.Date &&
-                                (!src.Lease.EndDate.HasValue || src.Lease.EndDate.Value.Date >= DateTime.UtcNow.Date)
-                                ? (src.Lease.OverdueAmount.HasValue && src.Lease.OverdueAmount > 0 ? "overdue" : "occupied")
-                                : "vacant"));
+                src.Lease == null ? "vacant" :
+                    src.Lease.OverdueAmount.HasValue && src.Lease.OverdueAmount > 0 ? "overdue" : "occupied"));
         CreateMap<Unit, UpdateUnitDto>();
         CreateMap<UpdateUnitDto, Unit>()
             .ForMember(dest => dest.PropertyId, opt => opt.Ignore())

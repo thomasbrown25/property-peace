@@ -101,9 +101,10 @@ public sealed class ScheduledSuccessorLeaseTests
         var unit = new Unit { Id = 1, Name = "A", Property = property, PropertyId = 1, OrganizationId = 10 };
         property.Units.Add(unit);
         db.Properties.Add(property);
+        var today = DateTime.UtcNow.Date;
         db.Leases.AddRange(
-            new Lease { Id = 1, UnitId = 1, OrganizationId = 10, IsActive = true, StartDate = DateTime.Today.AddMonths(-1), EndDate = DateTime.Today },
-            new Lease { Id = 2, UnitId = 1, OrganizationId = 10, IsActive = true, StartDate = DateTime.Today, EndDate = DateTime.Today.AddYears(1) });
+            new Lease { Id = 1, UnitId = 1, OrganizationId = 10, IsActive = true, StartDate = today.AddMonths(-1), EndDate = today },
+            new Lease { Id = 2, UnitId = 1, OrganizationId = 10, IsActive = true, StartDate = today, EndDate = today.AddYears(1) });
         await db.SaveChangesAsync();
         var projection = MapperFactory.Create().Map<brownstone_hub_api.Dtos.Unit.LoadUnitDto>(unit);
         projection.Lease!.Id.Should().Be(1);

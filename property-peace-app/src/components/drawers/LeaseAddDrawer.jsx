@@ -171,6 +171,19 @@ export default function LeaseAddDrawer() {
   const properties     = useSelector(selectProperties);
   const selectedProperty = useSelector(selectProperty);
 
+  // Ordinary Add lease entry points now share the full-page lease builder.
+  // Keep the specialized approved-application handoff intact until it is migrated separately.
+  useEffect(() => {
+    if (!drawer.isOpenLeaseAdd || drawer.leaseAddApplicationContext) return;
+    const propertyId = Number(drawer.leaseAddProperty?.id ?? drawer.leaseAddProperty?.Id ?? selectedProperty?.id ?? selectedProperty?.Id);
+    const unitId = Number(drawer.leaseAddUnitId);
+    const query = new URLSearchParams();
+    if (Number.isSafeInteger(propertyId) && propertyId > 0) query.set('propertyId', propertyId);
+    if (Number.isSafeInteger(unitId) && unitId > 0) query.set('unitId', unitId);
+    drawer.closeLeaseAddDrawer();
+    navigate(`/landlord/leases/builder${query.size ? `?${query}` : ''}`);
+  }, [drawer.isOpenLeaseAdd, drawer.leaseAddApplicationContext, drawer.leaseAddProperty, drawer.leaseAddUnitId, drawer.closeLeaseAddDrawer, selectedProperty, navigate]);
+
   const [step, setStep] = useState(STEP_PROPERTY);
   const [stepError, setStepError] = useState('');
   const [createdLease, setCreatedLease] = useState(null);

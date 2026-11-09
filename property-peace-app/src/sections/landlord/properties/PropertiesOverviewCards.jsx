@@ -1,6 +1,7 @@
 import { Grid, Stack, Typography, Box, Card, CardContent, alpha, useTheme } from '@mui/material';
 import { HomeOutlined, AlertOutlined, TeamOutlined, AppstoreOutlined } from '@ant-design/icons';
 import { useMemo } from 'react';
+import { getPropertyOccupancy, isPropertyOccupied } from 'utils/occupancy.mjs';
 
 const MetricCard = ({ icon: IconComponent, label, value, iconColor, onClick, isActive }) => {
   const theme = useTheme();
@@ -57,9 +58,9 @@ const MetricCard = ({ icon: IconComponent, label, value, iconColor, onClick, isA
 export default function PropertiesOverviewCards({ properties = [], activeFilter, onFilterChange }) {
   const metrics = useMemo(() => {
     const total = properties.length;
-    const occupied = properties.filter((p) => p.isOccupied).length;
+    const occupied = properties.filter((p) => isPropertyOccupied(p)).length;
     const vacant = total - occupied;
-    const totalUnits = properties.reduce((sum, p) => sum + (p.units?.length || 0), 0);
+    const totalUnits = properties.reduce((sum, p) => sum + getPropertyOccupancy(p).totalUnits, 0);
     return { total, occupied, vacant, totalUnits };
   }, [properties]);
 

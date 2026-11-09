@@ -1,3 +1,4 @@
+import { isUnitOccupied } from 'utils/occupancy.mjs';
 import { useEffect, useMemo, useState } from 'react';
 import {
   alpha,
@@ -50,7 +51,7 @@ const getUnits = (property) => read(property, 'units', 'Units') || [];
 const getMaintenance = (property) => read(property, 'maintenanceRequests', 'MaintenanceRequests') || [];
 const getLease = (unit) => read(unit, 'lease', 'Lease');
 const getUnitStatus = (unit) => String(read(unit, 'status', 'Status') || '').toLowerCase();
-const isOccupiedUnit = (unit) => ['occupied', 'overdue'].includes(getUnitStatus(unit));
+const isOccupiedUnit = (unit) => isUnitOccupied(unit);
 const isOverdueUnit = (unit) => getUnitStatus(unit) === 'overdue';
 const isActiveProperty = (property) => read(property, 'isActive', 'IsActive') !== false;
 

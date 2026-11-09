@@ -33,7 +33,6 @@ export default function TopNavigation() {
     : item.id === 'leases'
       ? (pathname === '/landlord/leases' && new URLSearchParams(search).get('tab') !== 'tenants') || pathname.startsWith('/landlord/leases/')
       : pathname === item.url || pathname.startsWith(`${item.url}/`);
-  const moreSelected = groups.some((group) => group.children.some(isSelected));
 
   useEffect(() => setAnchor(null), [pathname, search]);
 
@@ -58,7 +57,7 @@ export default function TopNavigation() {
           fontFamily: 'inherit',
           color: 'inherit',
           fontSize: { md: 13, lg: 14 },
-          fontWeight: moreSelected ? 700 : 500,
+          fontWeight: 500,
           lineHeight: 1,
           transition: 'color 150ms ease',
           '&:hover': { color: 'inherit' },
@@ -67,22 +66,11 @@ export default function TopNavigation() {
       >
         <Box
           component="span"
-          sx={(theme) => ({
-            position: 'relative',
+          sx={{
             display: 'inline-flex',
             alignItems: 'center',
-            gap: 0.5,
-            '&::after': {
-              content: '""',
-              position: 'absolute',
-              left: 0,
-              right: 0,
-              bottom: -6,
-              height: 2,
-              backgroundColor: theme.palette.mode === 'dark' ? 'common.white' : '#061e35',
-              opacity: moreSelected ? 1 : 0
-            }
-          })}
+            gap: 0.5
+          }}
         >
           More <DownOutlined style={{ fontSize: 11 }} />
         </Box>

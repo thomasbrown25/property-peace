@@ -1,6 +1,7 @@
 import { Grid, Stack, Typography, Box, Card, CardContent, useTheme, alpha, useMediaQuery } from '@mui/material';
 import { HomeOutlined, DollarOutlined, ToolOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import MainCard from 'components/MainCard';
+import { getPropertyOccupancy, isPropertyOccupied } from 'utils/occupancy.mjs';
 
 const MetricCard = ({ icon: IconComponent, label, value, color, subtitle }) => {
   const theme = useTheme();
@@ -166,8 +167,8 @@ const MetricCard = ({ icon: IconComponent, label, value, color, subtitle }) => {
 export default function PropertiesMetrics({ properties }) {
   const totalProperties = properties?.length || 0;
   const activeProperties = properties?.filter((p) => p.isActive).length || 0;
-  const occupiedProperties = properties?.filter((p) => p.isOccupied).length || 0;
-  const totalUnits = properties?.reduce((sum, p) => sum + (p.units?.length || 0), 0) || 0;
+  const occupiedProperties = properties?.filter((p) => isPropertyOccupied(p)).length || 0;
+  const totalUnits = properties?.reduce((sum, p) => sum + getPropertyOccupancy(p).totalUnits, 0) || 0;
 
   return (
     <Grid container spacing={3} sx={{ mt: 1 }}>

@@ -20,6 +20,7 @@ namespace brownstone_hub_api.Dtos.Lease
         public int? RentDueDay { get; set; }
         public decimal? OverdueAmount { get; set; }
         public bool IsActive { get; set; } = true;
+        public bool IsDeleted { get; set; }
         public bool? IsScreeningComplete { get; set; }
 
         // Nested lease agreement (signature workflow + builder steps)

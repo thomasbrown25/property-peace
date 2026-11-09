@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch } from 'react-redux';
 import {
   Box,
   Container,
@@ -21,9 +21,8 @@ import {
 import MainCard from 'components/MainCard';
 import BuildLeaseAgreementHeader from 'sections/landlord/lease-builder/BuildLeaseAgreementHeader';
 import { openSnackbar } from 'api/snackbar';
-import useFetchProperties from 'hooks/useFetchProperties';
-import { selectProperties } from 'store/property/property.selector';
-import { updateLease, updateLeaseAgreement } from 'store/lease/lease.action';
+import { updateLeaseAgreement } from 'store/lease/lease.action';
+import useSupplementalLease from './useSupplementalLease';
 import { FileTextOutlined, BookOutlined, BgColorsOutlined, FolderOpenOutlined, CloudUploadOutlined, InfoCircleOutlined } from '@ant-design/icons';
 
 const DEFAULT_EARLY_TERMINATION_CLAUSE = `Either party, upon 60 days' advance written notice to the other party, may terminate this lease early. Termination will be effective as of the last day of the calendar month following the end of the 60 day notice period. Each party understands that a notice of termination can happen at any time after lease signing. Tenant may terminate this lease provided that the Tenant pays a termination fee equal to one months' rent or the maximum allowable by law, whichever is less. Termination charge will be in addition to all rent due and late fees up to the termination date.`;
@@ -37,22 +36,18 @@ const LEAD_PAINT_RECORDS_GUIDANCE =
 const PROPERTY_CONDITION_REPORTS_TEXT =
   'While many states do not require a Property Condition Report form at the beginning of a lease term, it is a good idea to complete one at the beginning of the lease term so any resulting damages at the end of the lease term are properly documented.';
 
-export default function ProvisionsAttachmentsPage({ embedded = false, onSaved } = {}) {
+export default function ProvisionsAttachmentsPage({ embedded = false, onSaved, leaseData } = {}) {
   const theme = useTheme();
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const [searchParams] = useSearchParams();
-  const properties = useSelector(selectProperties);
-  const { propertiesRefetch } = useFetchProperties();
+
 
   const leaseId = searchParams.get('leaseId') ? parseInt(searchParams.get('leaseId')) : null;
   const propertyId = searchParams.get('propertyId') ? parseInt(searchParams.get('propertyId')) : null;
   const unitId = searchParams.get('unitId') ? parseInt(searchParams.get('unitId')) : null;
 
-  const [lease, setLease] = useState(null);
-  const [property, setProperty] = useState(null);
-  const [unit, setUnit] = useState(null);
-  const [loading, setLoading] = useState(true);
+
   const [saving, setSaving] = useState(false);
 
   const [includeEarlyTerminationClause, setIncludeEarlyTerminationClause] = useState(false);
@@ -67,26 +62,7 @@ export default function ProvisionsAttachmentsPage({ embedded = false, onSaved } 
   const [leadPaintExplanationError, setLeadPaintExplanationError] = useState('');
   const [leadPaintRecordsExplanationError, setLeadPaintRecordsExplanationError] = useState('');
 
-  useEffect(() => {
-    const loadData = async () => {
-      if (!leaseId || !propertyId) {
-        setLoading(false);
-        return;
-      }
-      const foundProperty = properties?.find((p) => p.id === propertyId);
-      if (!foundProperty) {
-        setLoading(false);
-        return;
-      }
-      setProperty(foundProperty);
-      const targetUnit = unitId
-        ? foundProperty.units?.find((u) => u.id === unitId)
-        : foundProperty.units?.[0];
-      if (targetUnit) {
-        setUnit(targetUnit);
-        const unitLease = targetUnit.lease || targetUnit.Lease;
-        if (unitLease && (unitLease.id === leaseId || unitLease.Id === leaseId)) {
-          setLease(unitLease);
+  const { lease, loading, error: loadError } = useSupplementalLease(leaseId, leaseData, (unitLease) => {
           setIncludeEarlyTerminationClause(unitLease.includeEarlyTerminationClause ?? unitLease.IncludeEarlyTerminationClause ?? false);
           setEarlyTerminationClauseText(
             unitLease.earlyTerminationClauseText ?? unitLease.EarlyTerminationClauseText ?? DEFAULT_EARLY_TERMINATION_CLAUSE
@@ -97,51 +73,25 @@ export default function ProvisionsAttachmentsPage({ embedded = false, onSaved } 
           setLeadPaintExplanation(unitLease.leadPaintExplanation ?? unitLease.LeadPaintExplanation ?? '');
           setHasLeadPaintRecords(unitLease.hasLeadPaintRecords ?? unitLease.HasLeadPaintRecords ?? null);
           setLeadPaintRecordsExplanation(unitLease.leadPaintRecordsExplanation ?? unitLease.LeadPaintRecordsExplanation ?? '');
-        }
-      }
-      setLoading(false);
-    };
-    if (properties && properties.length >= 0) loadData();
-  }, [leaseId, propertyId, unitId, properties]);
-
-  useEffect(() => {
-    if (leaseId && propertyId) propertiesRefetch();
-  }, [leaseId, propertyId, propertiesRefetch]);
+  });
 
   const handleBack = () => {
     if (embedded) {
-      onSaved?.();
       return;
     }
     navigate(`/landlord/leases/build-lease-agreement?leaseId=${leaseId}&propertyId=${propertyId}${unitId ? `&unitId=${unitId}` : ''}`);
   };
 
-  const buildUpdatePayload = (currentLeaseId) => ({
-    id: currentLeaseId,
-    propertyId: property?.id || propertyId,
-    unitId: unit?.id || unitId,
-    name: lease?.name || lease?.Name,
-    startDate: lease?.startDate || lease?.StartDate,
-    endDate: lease?.endDate || lease?.EndDate,
-    rentAmount: lease?.rentAmount ?? lease?.RentAmount,
-    depositAmount: lease?.depositAmount ?? lease?.DepositAmount,
-    leaseLength: lease?.leaseLength ?? lease?.LeaseLength,
-    rentFrequency: (lease?.rentFrequency ?? lease?.RentFrequency) || 'Monthly',
-    rentDueDay: lease?.rentDueDay ?? lease?.RentDueDay,
+  const buildUpdatePayload = () => ({
     isProvisionsAttachmentsComplete: true,
     includeEarlyTerminationClause: includeEarlyTerminationClause,
-    earlyTerminationClauseText: includeEarlyTerminationClause ? earlyTerminationClauseText : null,
-    additionalTerms: additionalTerms?.trim() || null,
+    earlyTerminationClauseText: includeEarlyTerminationClause ? earlyTerminationClauseText.trim() : '',
+    additionalTerms: additionalTerms?.trim() || '',
     builtBefore1978: builtBefore1978,
     awareOfLeadPaint: awareOfLeadPaint,
-    leadPaintExplanation: awareOfLeadPaint ? leadPaintExplanation?.trim() || null : null,
+    leadPaintExplanation: awareOfLeadPaint ? leadPaintExplanation.trim() : '',
     hasLeadPaintRecords: hasLeadPaintRecords,
-    leadPaintRecordsExplanation: hasLeadPaintRecords ? leadPaintRecordsExplanation?.trim() || null : null,
-    isLeaseSpecificsComplete: lease?.isLeaseSpecificsComplete ?? lease?.IsLeaseSpecificsComplete,
-    isRentDepositFeesComplete: lease?.isRentDepositFeesComplete ?? lease?.IsRentDepositFeesComplete,
-    isPeopleOnLeaseComplete: lease?.isPeopleOnLeaseComplete ?? lease?.IsPeopleOnLeaseComplete,
-    isPetsSmokingOtherComplete: lease?.isPetsSmokingOtherComplete ?? lease?.IsPetsSmokingOtherComplete,
-    isUtilitiesMaintenanceKeysComplete: lease?.isUtilitiesMaintenanceKeysComplete ?? lease?.IsUtilitiesMaintenanceKeysComplete
+    leadPaintRecordsExplanation: hasLeadPaintRecords ? leadPaintRecordsExplanation.trim() : ''
   });
 
   const validateLeadPaint = () => {
@@ -159,52 +109,34 @@ export default function ProvisionsAttachmentsPage({ embedded = false, onSaved } 
     return valid;
   };
 
-  const handleSaveDraft = async () => {
-    if (!leaseId || !lease) return;
-    const currentLeaseId = lease?.id ?? lease?.Id ?? leaseId;
-    try {
-      await dispatch(updateLease(buildUpdatePayload(currentLeaseId)));
-      await dispatch(updateLeaseAgreement(currentLeaseId, { isProvisionsAttachmentsComplete: true }));
-      await propertiesRefetch();
-      openSnackbar({ open: true, message: 'Draft saved successfully', variant: 'alert', alert: { color: 'success' } });
-      if (embedded) {
-        onSaved?.();
-      } else {
-        navigate(`/landlord/leases/build-lease-agreement?leaseId=${leaseId}&propertyId=${propertyId}${unitId ? `&unitId=${unitId}` : ''}`);
-      }
-    } catch (e) {
-      console.error('Error saving draft:', e);
-      openSnackbar({ open: true, message: e?.message || 'Failed to save draft', variant: 'alert', alert: { color: 'error' } });
-    }
-  };
-
-  const handleSaveAndNext = async () => {
-    if (!leaseId || !lease) return;
+  const save = async () => {
+    if (saving || loading || !lease) return;
     if (!validateLeadPaint()) return;
-    const currentLeaseId = lease?.id ?? lease?.Id ?? leaseId;
+    if (builtBefore1978 == null || awareOfLeadPaint == null || hasLeadPaintRecords == null) {
+      openSnackbar({ open: true, message: 'Answer each lead-paint disclosure question.', variant: 'alert', alert: { color: 'error' } });
+      return;
+    }
+    if (includeEarlyTerminationClause && !earlyTerminationClauseText.trim()) {
+      openSnackbar({ open: true, message: 'Enter the early termination clause or turn it off.', variant: 'alert', alert: { color: 'error' } });
+      return;
+    }
     setSaving(true);
     try {
-      const result = await dispatch(updateLease(buildUpdatePayload(currentLeaseId)));
-      if (result?.success) await dispatch(updateLeaseAgreement(currentLeaseId, { isProvisionsAttachmentsComplete: true }));
-      if (result?.success) {
-        await propertiesRefetch();
-        openSnackbar({ open: true, message: 'Saved successfully', variant: 'alert', alert: { color: 'success' } });
-        if (embedded) {
-          onSaved?.();
-        } else {
-          navigate(`/landlord/leases/build-lease-agreement?leaseId=${leaseId}&propertyId=${propertyId}${unitId ? `&unitId=${unitId}` : ''}`);
-        }
-      } else {
-        openSnackbar({ open: true, message: result?.message || 'Failed to save', variant: 'alert', alert: { color: 'error' } });
-      }
+      const result = await dispatch(updateLeaseAgreement(leaseId, buildUpdatePayload()));
+      if (result?.success !== true) throw new Error(result?.message || 'Failed to save agreement.');
+      if (embedded) await onSaved?.();
+      else handleBack();
+      openSnackbar({ open: true, message: 'Agreement section saved', variant: 'alert', alert: { color: 'success' } });
     } catch (e) {
-      console.error('Error saving:', e);
       openSnackbar({ open: true, message: e?.response?.data?.message || e?.message || 'Failed to save', variant: 'alert', alert: { color: 'error' } });
     } finally {
       setSaving(false);
     }
   };
+  const handleSaveDraft = () => save();
+  const handleSaveAndNext = () => save();
 
+  if (loadError) return <Typography role="alert" color="error">{loadError}</Typography>;
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
@@ -218,7 +150,7 @@ export default function ProvisionsAttachmentsPage({ embedded = false, onSaved } 
       <Container maxWidth={embedded ? false : "md"} disableGutters={embedded} sx={{ py: embedded ? 0 : 3 }}>
         {!embedded && <BuildLeaseAgreementHeader onBack={handleBack} onSaveDraft={handleSaveDraft} showTitle={false} />}
         <MainCard>
-          <Stack spacing={4}>
+                  <Stack component="fieldset" disabled={saving} spacing={4} sx={{ border: 0, m: 0, p: 0, minWidth: 0 }}>
             {!embedded && (
               <>
                 <Box>

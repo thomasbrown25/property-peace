@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch } from 'react-redux';
 import {
   Box,
   Container,
@@ -29,9 +29,8 @@ import {
 import MainCard from 'components/MainCard';
 import BuildLeaseAgreementHeader from 'sections/landlord/lease-builder/BuildLeaseAgreementHeader';
 import { openSnackbar } from 'api/snackbar';
-import useFetchProperties from 'hooks/useFetchProperties';
-import { selectProperties } from 'store/property/property.selector';
-import { updateLease, updateLeaseAgreement } from 'store/lease/lease.action';
+import { updateLeaseAgreement } from 'store/lease/lease.action';
+import useSupplementalLease from './useSupplementalLease';
 import { ThunderboltOutlined, ToolOutlined, KeyOutlined, PlusOutlined, DeleteOutlined, InfoCircleOutlined } from '@ant-design/icons';
 
 const REQUIRED_UTILITY_NAMES = ['Electricity', 'Gas', 'Sewer / Septic', 'Trash', 'Water'];
@@ -82,22 +81,18 @@ function normalizeKey(k) {
   };
 }
 
-export default function UtilitiesMaintenanceKeysPage({ embedded = false, onSaved } = {}) {
+export default function UtilitiesMaintenanceKeysPage({ embedded = false, onSaved, leaseData } = {}) {
   const theme = useTheme();
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const [searchParams] = useSearchParams();
-  const properties = useSelector(selectProperties);
-  const { propertiesRefetch } = useFetchProperties();
+
 
   const leaseId = searchParams.get('leaseId') ? parseInt(searchParams.get('leaseId')) : null;
   const propertyId = searchParams.get('propertyId') ? parseInt(searchParams.get('propertyId')) : null;
   const unitId = searchParams.get('unitId') ? parseInt(searchParams.get('unitId')) : null;
 
-  const [lease, setLease] = useState(null);
-  const [property, setProperty] = useState(null);
-  const [unit, setUnit] = useState(null);
-  const [loading, setLoading] = useState(true);
+
   const [saving, setSaving] = useState(false);
 
   const [utilities, setUtilities] = useState([]);
@@ -107,31 +102,12 @@ export default function UtilitiesMaintenanceKeysPage({ embedded = false, onSaved
   const [maintenanceNotificationMethods, setMaintenanceNotificationMethods] = useState([]);
   const [leaseKeys, setLeaseKeys] = useState([]);
 
-  useEffect(() => {
-    const loadData = async () => {
-      if (!leaseId || !propertyId) {
-        setLoading(false);
-        return;
-      }
-      const foundProperty = properties?.find((p) => p.id === propertyId);
-      if (!foundProperty) {
-        setLoading(false);
-        return;
-      }
-      setProperty(foundProperty);
-      const targetUnit = unitId
-        ? foundProperty.units?.find((u) => u.id === unitId)
-        : foundProperty.units?.[0];
-      if (targetUnit) {
-        setUnit(targetUnit);
-        const unitLease = targetUnit.lease || targetUnit.Lease;
-        if (unitLease && (unitLease.id === leaseId || unitLease.Id === leaseId)) {
-          setLease(unitLease);
+  const { lease, loading, error: loadError } = useSupplementalLease(leaseId, leaseData, (unitLease) => {
           const rawUtils = unitLease.utilityServiceResponsibilities ?? unitLease.UtilityServiceResponsibilities;
           if (Array.isArray(rawUtils) && rawUtils.length > 0) {
             setUtilities(rawUtils.map(normalizeUtility));
           } else {
-            setUtilities([]);
+            setUtilities(REQUIRED_UTILITY_NAMES.map((name) => ({ name, responsibility: 'Tenant', isRequired: true })));
           }
           setHasSharedUtilities(unitLease.hasSharedUtilities ?? unitLease.HasSharedUtilities ?? false);
           setSharedUtilitiesDisclosure(unitLease.sharedUtilitiesDisclosure ?? unitLease.SharedUtilitiesDisclosure ?? '');
@@ -139,7 +115,7 @@ export default function UtilitiesMaintenanceKeysPage({ embedded = false, onSaved
           if (Array.isArray(rawMaint) && rawMaint.length > 0) {
             setMaintenanceItems(rawMaint.map(normalizeMaintenance));
           } else {
-            setMaintenanceItems([]);
+            setMaintenanceItems([{ name: 'Building systems and structural repairs', description: '', responsibility: 'Landlord' }]);
           }
           const rawMethods = unitLease.maintenanceNotificationMethods ?? unitLease.MaintenanceNotificationMethods;
           if (rawMethods) {
@@ -158,42 +134,22 @@ export default function UtilitiesMaintenanceKeysPage({ embedded = false, onSaved
           } else {
             setLeaseKeys([{ id: null, keyType: 'Property', copies: 1 }]);
           }
-        }
-      }
-      setLoading(false);
-    };
-    if (properties && properties.length >= 0) loadData();
-  }, [leaseId, propertyId, unitId, properties]);
-
-  useEffect(() => {
-    if (leaseId && propertyId) propertiesRefetch();
-  }, [leaseId, propertyId, propertiesRefetch]);
+  });
 
   const handleBack = () => {
     if (embedded) {
-      onSaved?.();
       return;
     }
     navigate(`/landlord/leases/build-lease-agreement?leaseId=${leaseId}&propertyId=${propertyId}${unitId ? `&unitId=${unitId}` : ''}`);
   };
 
-  const buildUpdatePayload = (currentLeaseId) => {
+  const buildUpdatePayload = () => {
     const payload = {
-      id: currentLeaseId,
-      propertyId: property?.id || propertyId,
-      unitId: unit?.id || unitId,
-      name: lease?.name || lease?.Name,
-      startDate: lease?.startDate || lease?.StartDate,
-      endDate: lease?.endDate || lease?.EndDate,
-      rentAmount: lease?.rentAmount ?? lease?.RentAmount,
-      depositAmount: lease?.depositAmount ?? lease?.DepositAmount,
-      leaseLength: lease?.leaseLength ?? lease?.LeaseLength,
-      rentFrequency: (lease?.rentFrequency ?? lease?.RentFrequency) || 'Monthly',
-      rentDueDay: lease?.rentDueDay ?? lease?.RentDueDay,
+
       isUtilitiesMaintenanceKeysComplete: true,
       hasSharedUtilities: hasSharedUtilities,
-      sharedUtilitiesDisclosure: hasSharedUtilities ? sharedUtilitiesDisclosure : null,
-      maintenanceNotificationMethods: maintenanceNotificationMethods.length > 0 ? JSON.stringify(maintenanceNotificationMethods) : null,
+      sharedUtilitiesDisclosure: hasSharedUtilities ? sharedUtilitiesDisclosure.trim() : '',
+      maintenanceNotificationMethods: JSON.stringify(maintenanceNotificationMethods),
       utilityServiceResponsibilities: utilities.map((u) => ({
         id: u.id || 0,
         name: u.name?.trim() || '',
@@ -210,64 +166,36 @@ export default function UtilitiesMaintenanceKeysPage({ embedded = false, onSaved
         id: k.id || 0,
         keyType: k.keyType || 'Property',
         copies: Math.max(1, parseInt(k.copies, 10) || 1)
-      })),
-      isLeaseSpecificsComplete: lease?.isLeaseSpecificsComplete ?? lease?.IsLeaseSpecificsComplete,
-      isRentDepositFeesComplete: lease?.isRentDepositFeesComplete ?? lease?.IsRentDepositFeesComplete,
-      isPeopleOnLeaseComplete: lease?.isPeopleOnLeaseComplete ?? lease?.IsPeopleOnLeaseComplete,
-      isPetsSmokingOtherComplete: lease?.isPetsSmokingOtherComplete ?? lease?.IsPetsSmokingOtherComplete,
-      isProvisionsAttachmentsComplete: lease?.isProvisionsAttachmentsComplete ?? lease?.IsProvisionsAttachmentsComplete
+      }))
     };
     return payload;
   };
 
-  const handleSaveDraft = async () => {
-    if (!leaseId || !lease) return;
-    const currentLeaseId = lease?.id ?? lease?.Id ?? leaseId;
-    try {
-      await dispatch(updateLease(buildUpdatePayload(currentLeaseId)));
-      await dispatch(updateLeaseAgreement(currentLeaseId, { isUtilitiesMaintenanceKeysComplete: true }));
-      await propertiesRefetch();
-      openSnackbar({ open: true, message: 'Draft saved successfully', variant: 'alert', alert: { color: 'success' } });
-      if (embedded) {
-        onSaved?.();
-      } else {
-        navigate(`/landlord/leases/build-lease-agreement?leaseId=${leaseId}&propertyId=${propertyId}${unitId ? `&unitId=${unitId}` : ''}`);
-      }
-    } catch (e) {
-      console.error('Error saving draft:', e);
-      openSnackbar({ open: true, message: e?.message || 'Failed to save draft', variant: 'alert', alert: { color: 'error' } });
-    }
-  };
-
-  const handleSaveAndNext = async () => {
-    if (!leaseId || !lease) return;
+  const save = async () => {
+    if (saving || loading || !lease) return;
     if (hasSharedUtilities && !sharedUtilitiesDisclosure?.trim()) {
       openSnackbar({ open: true, message: 'Please list shared utilities and how they are divided.', variant: 'alert', alert: { color: 'error' } });
       return;
     }
-    const currentLeaseId = lease?.id ?? lease?.Id ?? leaseId;
+    if (!utilities.length || !maintenanceItems.length || [...utilities, ...maintenanceItems].some((item) => !item.name?.trim())) {
+      openSnackbar({ open: true, message: 'Specify utility and maintenance responsibilities with a name for each item.', variant: 'alert', alert: { color: 'error' } });
+      return;
+    }
     setSaving(true);
     try {
-      const result = await dispatch(updateLease(buildUpdatePayload(currentLeaseId)));
-      if (result?.success) await dispatch(updateLeaseAgreement(currentLeaseId, { isUtilitiesMaintenanceKeysComplete: true }));
-      if (result?.success) {
-        await propertiesRefetch();
-        openSnackbar({ open: true, message: 'Saved successfully', variant: 'alert', alert: { color: 'success' } });
-        if (embedded) {
-          onSaved?.();
-        } else {
-          navigate(`/landlord/leases/build-lease-agreement?leaseId=${leaseId}&propertyId=${propertyId}${unitId ? `&unitId=${unitId}` : ''}`);
-        }
-      } else {
-        openSnackbar({ open: true, message: result?.message || 'Failed to save', variant: 'alert', alert: { color: 'error' } });
-      }
+      const result = await dispatch(updateLeaseAgreement(leaseId, buildUpdatePayload()));
+      if (result?.success !== true) throw new Error(result?.message || 'Failed to save agreement.');
+      if (embedded) await onSaved?.();
+      else handleBack();
+      openSnackbar({ open: true, message: 'Agreement section saved', variant: 'alert', alert: { color: 'success' } });
     } catch (e) {
-      console.error('Error saving:', e);
       openSnackbar({ open: true, message: e?.response?.data?.message || e?.message || 'Failed to save', variant: 'alert', alert: { color: 'error' } });
     } finally {
       setSaving(false);
     }
   };
+  const handleSaveDraft = () => save();
+  const handleSaveAndNext = () => save();
 
   const updateUtilityResponsibility = (index, value) => {
     if (value === null) return;
@@ -337,6 +265,7 @@ export default function UtilitiesMaintenanceKeysPage({ embedded = false, onSaved
 
   const isUtilityRequired = (u) => u?.isRequired || REQUIRED_UTILITY_NAMES.includes(u?.name);
 
+  if (loadError) return <Typography role="alert" color="error">{loadError}</Typography>;
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
@@ -350,7 +279,7 @@ export default function UtilitiesMaintenanceKeysPage({ embedded = false, onSaved
       <Container maxWidth={embedded ? false : "md"} disableGutters={embedded} sx={{ py: embedded ? 0 : 3 }}>
         {!embedded && <BuildLeaseAgreementHeader onBack={handleBack} onSaveDraft={handleSaveDraft} showTitle={false} />}
         <MainCard>
-          <Stack spacing={4}>
+                  <Stack component="fieldset" disabled={saving} spacing={4} sx={{ border: 0, m: 0, p: 0, minWidth: 0 }}>
             {!embedded && (
               <>
                 <Box>
