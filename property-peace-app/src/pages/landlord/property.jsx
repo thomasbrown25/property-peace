@@ -1,3 +1,4 @@
+import { isUnitOccupied } from 'utils/occupancy.mjs';
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useDashboardLoading } from 'contexts/DashboardLoadingContext';
@@ -1451,8 +1452,8 @@ function PropertyDetailsTab({ property, onRefresh }) {
               </Typography>
               <Chip
                 size="small"
-                label={unit?.isOccupied ? 'Occupied' : 'Vacant'}
-                color={unit?.isOccupied ? 'success' : 'default'}
+                label={isUnitOccupied(unit) ? 'Occupied' : 'Vacant'}
+                color={isUnitOccupied(unit) ? 'success' : 'default'}
                 variant="outlined"
                 sx={{ width: 'fit-content' }}
               />
@@ -1936,9 +1937,9 @@ function UnitsTab({ property, onRefresh, onOpenBulkCreate }) {
 
     // Apply status filter
     if (statusFilter === 'occupied') {
-      filtered = filtered.filter((unit) => unit.isOccupied);
+      filtered = filtered.filter((unit) => isUnitOccupied(unit));
     } else if (statusFilter === 'vacant') {
-      filtered = filtered.filter((unit) => !unit.isOccupied);
+      filtered = filtered.filter((unit) => !isUnitOccupied(unit));
     }
 
     // Apply search query
@@ -2238,8 +2239,8 @@ function UnitsTab({ property, onRefresh, onOpenBulkCreate }) {
                     <TableCell>
                       {rentalMode(unit) === 'shortTerm' ? <Typography variant="body2" color="text.secondary">—</Typography> : <Chip
                         size="small"
-                        label={unit.isOccupied ? 'Occupied' : 'Vacant'}
-                        color={unit.isOccupied ? 'success' : 'default'}
+                        label={isUnitOccupied(unit) ? 'Occupied' : 'Vacant'}
+                        color={isUnitOccupied(unit) ? 'success' : 'default'}
                         variant="outlined"
                       />}
                     </TableCell>
@@ -2375,9 +2376,16 @@ export default function Property() {
   const propertyLoading = useSelector(selectPropertyLoading);
   const maintenanceLoading = useSelector(selectMaintenanceLoading);
 
-  const { rentRecords, loading: rentCollectionLoading, error: rentCollectionError } = useFetchRentCollection(propertyId);
+  const { rentRecords, loading: rentCollectionLoading, error: rentCollectionError, refetch: refetchRentCollection } = useFetchRentCollection(propertyId);
+
+  // Refresh the canonical balances shared by the hero and Payments rent status as
+  // soon as a payment is saved, including Record Another before the drawer closes.
+  useEffect(() => {
+    if (drawer.financeMutationVersion > 0) refetchRentCollection();
+  }, [drawer.financeMutationVersion, refetchRentCollection]);
+
   const { maintenances, historyMaintenances, loadError: maintenanceError, refetch: refetchMaintenances } = useFetchMaintenances(propertyId);
-  
+
   // Get context to update property loading state
   const { setPropertyLoading } = useDashboardLoading();
 
@@ -2632,6 +2640,8 @@ export default function Property() {
               property={selectedProperty}
               propertyId={propertyId}
               rentRecords={rentRecords}
+              rentLoading={rentCollectionLoading}
+              rentError={rentCollectionError}
               maintenances={maintenances}
               historyMaintenances={historyMaintenances}
               maintenanceError={maintenanceError}

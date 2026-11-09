@@ -239,12 +239,25 @@ public sealed class MilestoneOneBlockerRegressionTests
                     LeaseAgreement = new LeaseAgreement { Id = 58, SignatureStatus = ESignatureStatus.Completed, SignatureCompletedAt = now } });
                 break;
             case LeasingLifecycleStage.Occupied:
-                (await db.Units.SingleAsync()).IsOccupied = true;
+                db.Leases.Add(new Lease { Id = 59, UnitId = 40, OrganizationId = 10, IsActive = true,
+                    StartDate = now.AddDays(-1), EndDate = null, UpdatedAt = now });
                 break;
         }
         await db.SaveChangesAsync();
 
         (await sut.GetForPropertyAsync(10, 20, 30, 40, default)).CurrentStage.Should().Be(expected);
+    }
+
+    [Fact]
+    public async Task Cached_occupancy_alone_does_not_mark_the_pipeline_occupied()
+    {
+        var (db, sut) = Create();
+        await SeedScope(db);
+        (await db.Units.SingleAsync()).IsOccupied = true;
+        (await db.Properties.SingleAsync()).IsOccupied = true;
+        await db.SaveChangesAsync();
+
+        (await sut.GetForPropertyAsync(10, 20, 30, 40, default)).CurrentStage.Should().Be(LeasingLifecycleStage.Vacant);
     }
 
     [Fact]

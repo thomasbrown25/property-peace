@@ -7,7 +7,7 @@ const require = createRequire(import.meta.url);
 const { parse } = require('@babel/parser');
 const source = readFileSync(new URL('./PropertyRecordsTabs.jsx', import.meta.url), 'utf8');
 const ast = parse(source, { sourceType: 'module', plugins: ['jsx'] });
-const expected = ['overview', 'leases', 'tenants', 'maintenances', 'listings', 'applications', 'occupancy', 'finances', 'documents'];
+const expected = ['overview', 'leases', 'tenants', 'payments', 'maintenances', 'listings', 'applications', 'occupancy', 'expenses', 'documents'];
 
 function walk(node, visit) {
   if (!node || typeof node !== 'object') return;

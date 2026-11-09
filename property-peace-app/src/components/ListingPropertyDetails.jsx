@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
+import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { Autocomplete, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Grid, IconButton, MenuItem, Stack, TextField, Tooltip, Typography } from '@mui/material';
 import EditOutlined from '@ant-design/icons/EditOutlined';
@@ -31,7 +32,8 @@ const uniqueOptions = (items) => items.filter((item, index, all) => itemId(item)
 const initialAmenities = (listing) => Object.fromEntries(groups.map((group) => [group, Array.isArray(listing[group]) ? listing[group] : []]));
 const namedItem = (item, group) => ({ ...(typeof item === 'object' ? item : {}), group, name: itemName(item) });
 
-export default function ListingPropertyDetails({ listing }) {
+export default function ListingPropertyDetails({ listing, editPage = false }) {
+  const navigate = useNavigate();
   const propertyId = listing?.propertyId;
   const dispatch = useDispatch();
   const selectedProperty = useSelector(selectProperty);
@@ -85,15 +87,19 @@ export default function ListingPropertyDetails({ listing }) {
   }, [editing]); // Choices are fetched once per edit session; draft selections are kept separately.
 
   const startEdit = () => {
-    if (!property) return;
+    navigate(`/landlord/listings/${listing.id}/edit`);
+  };
+
+  useEffect(() => {
+    if (!editPage || !property || draft) return;
     setDraft({ name: property.name ?? '', propertyType: canonicalType(property.propertyType) ?? '',
       yearBuilt: property.yearBuilt ?? '', unitName: unit?.name ?? '', bedrooms: unit?.bedrooms ?? '',
-      baths: unit?.baths ?? '', squareFeet: unit?.squareFeet ?? '' });
+      baths: unit?.baths ?? '', squareFeet: unit?.squareFeet ?? '', marketingDescription: listing.marketingDescription ?? '' });
     setSelectedAmenities(initialAmenities(listing));
     setSearch('');
     setEditing(true);
     setConfirmEdit(false);
-  };
+  }, [editPage, property, unit, listing, draft]);
   const change = (field) => (event) => setDraft((current) => ({ ...current, [field]: event.target.value }));
   const selected = groups.flatMap((group) => selectedAmenities[group].map((item) => namedItem(item, group)));
   const available = options[kind].filter((item) => !selectedAmenities[kind].some((chosen) => String(itemId(chosen)) === String(itemId(item))));
@@ -146,6 +152,7 @@ export default function ListingPropertyDetails({ listing }) {
         .map((item) => ({ name: itemName(item), category: item.category }));
       const response = await listingApi.updateListing(listing.id, {
         id: listing.id,
+        marketingDescription: draft.marketingDescription,
         basicAmenityIds: selectedAmenities.basicAmenities.map(itemId).filter((id) => Number(id) > 0),
         defaultAmenityIds: ids('propertyAmenities', false), customAmenityIds: ids('propertyAmenities', true),
         defaultFeatureIds: ids('propertyFeatures', false), customFeatureIds: ids('propertyFeatures', true),
@@ -153,10 +160,13 @@ export default function ListingPropertyDetails({ listing }) {
         defaultFeatureSelections: fallback('propertyFeatures')
       });
       if (!response?.success) throw new Error(response?.message || 'Could not save listing amenities.');
-      dispatch(setSelectedListing(response.data?.data ?? response.data));
+      const published = await listingApi.publishListing(listing.id);
+      if (!published?.success) throw new Error(published?.message || 'Changes saved, but the listing could not be published.');
+      dispatch(setSelectedListing(published.data?.data ?? published.data ?? response.data?.data ?? response.data));
       setEditing(false);
       refreshProperty();
-      openSnackbar({ open: true, message: 'Property details saved.', variant: 'alert', alert: { color: 'success' } });
+      navigate(`/landlord/listings/${listing.id}`);
+      openSnackbar({ open: true, message: 'Listing changes published.', variant: 'alert', alert: { color: 'success' } });
     } catch (error) {
       openSnackbar({ open: true, message: `${error?.response?.data?.message || error.message || 'Save failed.'} Some changes may have saved; review before retrying.`, variant: 'alert', alert: { color: 'error' } });
     } finally { setSaving(false); }
@@ -170,10 +180,14 @@ export default function ListingPropertyDetails({ listing }) {
   return <Stack spacing={2.5}>
     <Stack direction="row" justifyContent="space-between" alignItems="center" gap={1}>
       <Box>
-        <Typography variant="h5" fontWeight={800}>Property Details</Typography>
+        <Typography variant="h5" fontWeight={800}>{editPage ? 'Edit listing' : 'Property Details'}</Typography>
         <Typography variant="body2" color="text.secondary">Live details from the linked property and unit.</Typography>
       </Box>
-      {property && !editing && <Tooltip title="Edit property details"><IconButton aria-label="Edit property details" onClick={() => setConfirmEdit(true)}><EditOutlined /></IconButton></Tooltip>}
+      {editPage && <Stack direction="row" spacing={1} sx={{ ml: 'auto', flexShrink: 0 }}>
+        <Button disabled={saving} onClick={() => navigate(`/landlord/listings/${listing.id}`)}>Cancel</Button>
+        <Button variant="contained" disabled={saving || !editing || !draft?.name.trim() || !draft?.propertyType || (listing.unitId != null && !unit)} onClick={save}>{saving ? 'Publishing…' : 'Publish'}</Button>
+      </Stack>}
+      {!editPage && property && !editing && <Tooltip title="Edit property details"><IconButton aria-label="Edit property details" onClick={() => setConfirmEdit(true)}><EditOutlined /></IconButton></Tooltip>}
     </Stack>
     {property ? <>
       <Grid container spacing={2}>
@@ -194,7 +208,8 @@ export default function ListingPropertyDetails({ listing }) {
       {propertyId == null ? 'No property is linked to this listing.' : loadedId !== String(propertyId) ? 'Loading linked property…' : 'Linked property unavailable.'}
     </Typography>}
 
-    {listing.marketingDescription && <Box>
+    {editing && <TextField label="Listing description" multiline minRows={5} fullWidth value={draft.marketingDescription} onChange={change('marketingDescription')} />}
+    {!editing && listing.marketingDescription && <Box>
       <Typography variant="h6" sx={{ mb: 1 }}>Listing Description</Typography>
       <Typography variant="body1" color="text.secondary" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.85 }}>
         {listing.marketingDescription}
@@ -223,10 +238,7 @@ export default function ListingPropertyDetails({ listing }) {
                 ? String(itemId(chosen)) !== String(itemId(item)) : itemName(chosen) !== item.name) })) : undefined} />)}
       </Stack>
     </Box>}
-    {editing && <Stack direction="row" spacing={1}>
-      <Button variant="contained" disabled={saving || !draft?.name.trim() || !draft?.propertyType} onClick={save}>Save changes</Button>
-      <Button disabled={saving} onClick={() => setEditing(false)}>Cancel</Button>
-    </Stack>}
+
     <Dialog open={confirmEdit && !!property} onClose={() => setConfirmEdit(false)} aria-labelledby="edit-property-warning">
       <DialogTitle id="edit-property-warning">Edit property details?</DialogTitle>
       <DialogContent><Typography>Changes to the property or unit will appear everywhere they are used, not just on this listing. The address cannot be changed here. Continue?</Typography></DialogContent>
@@ -234,4 +246,4 @@ export default function ListingPropertyDetails({ listing }) {
     </Dialog>
   </Stack>;
 }
-ListingPropertyDetails.propTypes = { listing: PropTypes.object.isRequired };
+ListingPropertyDetails.propTypes = { listing: PropTypes.object.isRequired, editPage: PropTypes.bool };

@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { isUnitOccupied } from 'utils/occupancy.mjs';
 import { alpha, Box, Chip, Stack, Typography, useTheme } from '@mui/material';
 import MainCard from 'components/MainCard';
 import { formatCurrency } from 'utils/formatters';
@@ -31,8 +32,7 @@ export default function PropertyMonthlyRent({ property, rentRecords = [] }) {
       const balance = leaseId === undefined || leaseId === null
         ? normalizeRentBalance(null)
         : recordsByLeaseId.get(String(leaseId)) ?? normalizeRentBalance(null);
-      const status = String(unit?.status ?? unit?.Status ?? '').toLowerCase();
-      const occupied = Boolean(leaseId) || ['occupied', 'overdue'].includes(status);
+      const occupied = isUnitOccupied(unit);
 
       return {
         unitName: unit?.name || unit?.Name || `Unit ${index + 1}`,

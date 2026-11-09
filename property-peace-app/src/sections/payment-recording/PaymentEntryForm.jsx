@@ -1,4 +1,4 @@
-import { isDetachedSingleUnitType } from 'utils/propertyType';
+
 import { useState, useEffect, useMemo } from 'react';
 import PropTypes from 'prop-types';
 
@@ -11,12 +11,9 @@ import {
   InputAdornment,
   Paper,
   Divider,
-  Chip,
   alpha,
   CircularProgress,
-  Alert,
   FormControl,
-  FormLabel,
   RadioGroup,
   FormControlLabel,
   Radio
@@ -24,7 +21,6 @@ import {
 import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined';
-import HomeOutlined from '@ant-design/icons/HomeOutlined';
 import DollarOutlined from '@ant-design/icons/DollarOutlined';
 import { formatCurrency } from 'utils/formatters';
 import { normalizeRentBalance } from 'utils/rentBalance';
@@ -44,9 +40,9 @@ const parseCurrencyToNumber = (value) => {
 // ==============================|| PAYMENT ENTRY FORM ||============================== //
 
 export default function PaymentEntryForm({ lease, paymentData, onPaymentDataChange, rentRecordOverride }) {
-  const [rentRecord, setRentRecord] = useState(null);
+
   const [deposits, setDeposits] = useState([]);
-  const [loadingDeposits, setLoadingDeposits] = useState(false);
+  const [loadingDeposits, setLoadingDeposits] = useState(true);
 
   // Fetch rent collection data for the lease's property
   const propertyId = lease?.unit?.propertyId || lease?.unit?.property?.id || lease?.propertyId;
@@ -77,26 +73,16 @@ export default function PaymentEntryForm({ lease, paymentData, onPaymentDataChan
     fetchDeposits();
   }, [lease?.id]);
 
-  // Find rent record for selected lease
-  useEffect(() => {
-    if (!lease?.id) {
-      setRentRecord(null);
-      return;
-    }
-
+  // Derive the selected record synchronously so defaults never use the previous lease's balance.
+  const rentRecord = useMemo(() => {
+    if (!lease?.id) return null;
     const overrideLeaseId = rentRecordOverride?.leaseId ?? rentRecordOverride?.LeaseId;
-    const record = Number(overrideLeaseId) === Number(lease.id)
+    return Number(overrideLeaseId) === Number(lease.id)
       ? rentRecordOverride
-      : rentRecords?.find((r) => r.leaseId === lease.id || r.LeaseId === lease.id);
-
-    if (record) {
-      setRentRecord(record);
-    } else {
-      setRentRecord(null);
-    }
+      : rentRecords?.find((record) => Number(record.leaseId ?? record.LeaseId) === Number(lease.id)) || null;
   }, [lease?.id, rentRecords, rentRecordOverride]);
 
-  // Calculate unpaid deposit amount
+
   const unpaidDeposit = useMemo(() => {
     if (!lease?.depositAmount || lease.depositAmount === 0) return 0;
     
@@ -111,7 +97,10 @@ export default function PaymentEntryForm({ lease, paymentData, onPaymentDataChan
     return Math.max(unpaid, 0); // Don't show negative
   }, [lease, deposits]);
 
-  const { rentDue, rentDueIsOverdue } = normalizeRentBalance(rentRecord);
+  const { rentDue, rentDueIsOverdue, currentMonthRentDue, overdueAmount } = normalizeRentBalance(rentRecord);
+  const currentRentIsOverdue = rentRecord?.currentMonthRentIsOverdue ?? rentRecord?.CurrentMonthRentIsOverdue;
+  const overdueRent = Math.min(rentDue, overdueAmount + (currentRentIsOverdue ? currentMonthRentDue : 0))
+    || (rentDueIsOverdue ? rentDue : 0);
   const rentDuePresentation = getCurrentRentPresentation({
     dueDate: rentRecord?.currentMonthRentDueDate ?? rentRecord?.CurrentMonthRentDueDate,
     isOverdue: rentDueIsOverdue
@@ -121,7 +110,7 @@ export default function PaymentEntryForm({ lease, paymentData, onPaymentDataChan
     return fees.map((fee) => ({
       id: fee.feeId ?? fee.FeeId ?? fee.id ?? fee.Id,
       name: fee.name ?? fee.Name ?? 'Fee',
-      amount: fee.amountDue ?? fee.AmountDue ?? fee.amount ?? fee.Amount ?? 0,
+      amount: Number(fee.amountDue ?? fee.AmountDue ?? fee.amount ?? fee.Amount ?? 0),
       dueDate: fee.dueDate ?? fee.DueDate
     }));
   }, [rentRecord]);
@@ -134,33 +123,19 @@ export default function PaymentEntryForm({ lease, paymentData, onPaymentDataChan
   const summaryLoading = (!rentRecord && rentRecordsLoading) || loadingDeposits;
 
   useEffect(() => {
-    if (summaryLoading || paymentData.suppressAutoPrefill || paymentData.amount) return;
-    onPaymentDataChange({
-      ...paymentData,
-      amount: totalDue,
-      amountDisplay: totalDue > 0 ? formatCurrency(totalDue) : ''
-    });
-  }, [summaryLoading, totalDue, paymentData.suppressAutoPrefill]);
-
-  // Format property display
-  const propertyDisplay = useMemo(() => {
-    if (!lease) return null;
-    const isSingleFamily = isDetachedSingleUnitType(lease.unit?.property?.propertyType || lease.propertyType);
-    if (isSingleFamily) {
-      return lease.propertyName || lease.unit?.property?.name;
-    }
-    if (lease.unitName) {
-      return `${lease.propertyName || lease.unit?.property?.name} – ${lease.unitName}`;
-    }
-    return lease.propertyName || lease.unit?.property?.name;
-  }, [lease]);
+    if (summaryLoading || !rentRecord || paymentData.suppressAutoPrefill || paymentData.amountEdited) return;
+    const amountDisplay = totalDue > 0 ? formatCurrency(totalDue) : '';
+    if (paymentData.amount === totalDue && paymentData.amountDisplay === amountDisplay) return;
+    onPaymentDataChange({ ...paymentData, amount: totalDue, amountDisplay });
+  }, [summaryLoading, rentRecord, totalDue, paymentData, onPaymentDataChange]);
 
   const handleAmountChange = (value) => {
     const parsed = parseCurrencyToNumber(value);
     onPaymentDataChange({
       ...paymentData,
       amount: parsed,
-      amountDisplay: value
+      amountDisplay: value,
+      amountEdited: true
     });
   };
 
@@ -183,69 +158,24 @@ export default function PaymentEntryForm({ lease, paymentData, onPaymentDataChan
 
   return (
     <Box>
-      <Typography variant="h5" sx={{ mb: 3 }}>
-        Enter Payment Details
+      <Typography variant="h6" sx={{ mb: 2 }}>
+        Payment details
       </Typography>
-
-      {/* Property/Unit Info Display */}
-      {propertyDisplay && (
-        <Box
-          sx={{
-            p: 3,
-            mb: 3,
-            borderRadius: 1.5,
-            bgcolor: (theme) => alpha(theme.palette.primary.main, 0.08),
-            border: (theme) => `1px solid ${alpha(theme.palette.primary.main, 0.2)}`
-          }}
-        >
-          <Stack direction="row" spacing={1.5} alignItems="center">
-            <Box
-              sx={{
-                p: 1,
-                borderRadius: 1,
-                bgcolor: (theme) => alpha(theme.palette.primary.main, 0.1),
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-            >
-              <HomeOutlined style={{ fontSize: 20, color: '#1877F2' }} />
-            </Box>
-            <Box>
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
-                Property / Unit
-              </Typography>
-              <Typography variant="body1" fontWeight={600}>
-                {propertyDisplay}
-              </Typography>
-            </Box>
-          </Stack>
-        </Box>
-      )}
-
-      {/* Info message */}
-      <Alert severity="info" sx={{ mb: 3, borderRadius: 1.5 }}>
-        As a landlord, you're recording a payment that has been received. No payment processing will occur.
-      </Alert>
 
       {/* Payment Summary */}
       <Paper
         variant="outlined"
         sx={{
-          p: 3.5,
+          p: 2.5,
           mb: 3,
           borderRadius: 1.5,
-          bgcolor: (theme) => alpha(theme.palette.background.paper, 0.6),
-          border: (theme) => `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-          boxShadow: (theme) => `0 2px 8px ${alpha(theme.palette.common.black, 0.04)}`
+          bgcolor: 'background.paper',
+          borderColor: 'divider',
+          boxShadow: 'none'
         }}
       >
-        <Typography
-          variant="caption"
-          color="text.secondary"
-          sx={{ mb: 2.5, display: 'block', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}
-        >
-          Payment Summary
+        <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>
+          Payment summary
         </Typography>
         {summaryLoading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
@@ -253,81 +183,48 @@ export default function PaymentEntryForm({ lease, paymentData, onPaymentDataChan
           </Box>
         ) : (
           <Stack spacing={2}>
-            <Stack direction="row" justifyContent="space-between" alignItems="center">
-              <Box>
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <Typography variant="body2" color="text.secondary">{rentDuePresentation.label}</Typography>
-                  {rentDueIsOverdue && (
-                    <Chip label="Overdue" size="small" color="error" sx={{ height: 20, fontSize: '0.7rem', fontWeight: 600 }} />
-                  )}
-                </Stack>
+            <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2}>
+              <Box sx={{ minWidth: 0 }}>
+                <Typography variant="body2" fontWeight={500}>Rent</Typography>
                 {rentDue > 0 && rentDuePresentation.dueLabel && (
                   <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
                     {rentDuePresentation.dueLabel}
                   </Typography>
                 )}
               </Box>
-              <Typography
-                variant="body1"
-                fontWeight={rentDueIsOverdue ? 600 : 500}
-                color={rentDueIsOverdue ? 'error.main' : 'text.primary'}
-              >
+              <Typography variant="body2" fontWeight={600} sx={{ flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>
                 {formatCurrency(rentDue)}
               </Typography>
             </Stack>
-
-            {/* Unpaid Deposit Section */}
             {hasUnpaidDeposit && (
-              <>
-                <Divider sx={{ my: 0.5 }} />
-                <Stack direction="row" justifyContent="space-between" alignItems="center">
-                  <Typography variant="body2" color="text.secondary">
-                    Security Deposit
-                  </Typography>
-                  <Typography variant="body2" fontWeight={500}>
-                    {formatCurrency(unpaidDeposit)}
-                  </Typography>
-                </Stack>
-              </>
+              <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2}>
+                <Typography variant="body2" fontWeight={500}>Security deposit</Typography>
+                <Typography variant="body2" fontWeight={600} sx={{ flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>
+                  {formatCurrency(unpaidDeposit)}
+                </Typography>
+              </Stack>
             )}
-
-            {/* Each unpaid fee stays separate from rent and other charges. */}
             {unpaidFees.map((fee) => (
-              <Box key={fee.id ?? `${fee.name}-${fee.dueDate ?? ''}`}>
-                <Divider sx={{ mb: 2 }} />
-                <Stack direction="row" justifyContent="space-between" alignItems="center">
-                  <Typography variant="body2" color="text.secondary">
-                    {fee.name}
-                  </Typography>
-                  <Typography variant="body2" fontWeight={500}>
-                    {formatCurrency(fee.amount)}
-                  </Typography>
-                </Stack>
-              </Box>
+              <Stack key={fee.id ?? `${fee.name}-${fee.dueDate ?? ''}`} direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2}>
+                <Typography variant="body2" fontWeight={500}>{fee.name}</Typography>
+                <Typography variant="body2" fontWeight={600} sx={{ flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>
+                  {formatCurrency(fee.amount)}
+                </Typography>
+              </Stack>
             ))}
-
-            <Divider sx={{ my: 0.5 }} />
-            <Stack
-              direction="row"
-              justifyContent="space-between"
-              alignItems="center"
-              sx={{
-                pt: 1,
-                mt: 1,
-                borderTop: (theme) => `2px solid ${alpha(theme.palette.primary.main, 0.2)}`
-              }}
-            >
-              <Typography variant="subtitle1" fontWeight={700} color="text.primary">
-                Total Due
-              </Typography>
-              <Typography
-                variant="h6"
-                fontWeight={700}
-                color={rentDueIsOverdue ? 'error.main' : 'success.main'}
-                sx={{
-                  fontSize: '1.5rem'
-                }}
-              >
+            {rentDueIsOverdue && overdueRent > 0 && (
+              <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}
+                sx={{ p: 1.25, borderRadius: 1, bgcolor: (theme) => alpha(theme.palette.error.main, 0.06) }}>
+                <Typography variant="body2" color="error.main">Overdue rent (included above)</Typography>
+                <Typography variant="body2" fontWeight={600} color="error.main" sx={{ flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>
+                  {formatCurrency(overdueRent)}
+                </Typography>
+              </Stack>
+            )}
+            <Divider />
+            <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
+              <Typography variant="subtitle2" fontWeight={700}>Total due</Typography>
+              <Typography variant="h6" fontWeight={700} sx={{ flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>
                 {formatCurrency(totalDue)}
               </Typography>
             </Stack>
@@ -383,7 +280,7 @@ export default function PaymentEntryForm({ lease, paymentData, onPaymentDataChan
             </InputAdornment>
           )
         }}
-        helperText={!rentRecordsLoading && rentDue > 0 ? `Rent due: ${formatCurrency(rentDue)}` : undefined}
+        helperText={!summaryLoading && totalDue > 0 ? `Total due: ${formatCurrency(totalDue)}` : undefined}
         sx={{
           mb: 3,
           '& .MuiOutlinedInput-root': {

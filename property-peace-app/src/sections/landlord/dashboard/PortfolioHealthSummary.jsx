@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import MainCard from 'components/MainCard';
 import { selectDashboardSummary } from 'store/dashboard/dashboard.selector';
 import { formatCurrency } from 'utils/formatters';
+import { getPropertyOccupancy } from 'utils/occupancy.mjs';
 import { CheckOutlined, DollarOutlined, ToolOutlined, RiseOutlined } from '@ant-design/icons';
 import { isHighPriorityMaintenanceRequest, isOpenMaintenanceRequest } from 'utils/maintenanceStatus';
 
@@ -48,11 +49,9 @@ export default function PortfolioHealthSummary({ properties, summary, totalExpen
     let total = 0;
     let occupied = 0;
     properties.forEach((p) => {
-      (p.units || p.Units || []).forEach((u) => {
-        total++;
-        const status = (u.status || u.Status || '').toLowerCase();
-        if (status === 'occupied' || status === 'overdue') occupied++;
-      });
+      const occupancy = getPropertyOccupancy(p);
+      total += occupancy.totalUnits;
+      occupied += occupancy.occupiedUnits;
     });
     return { totalUnits: total, occupiedUnits: occupied, occupancyRate: total > 0 ? (occupied / total) * 100 : 0 };
   }, [properties]);

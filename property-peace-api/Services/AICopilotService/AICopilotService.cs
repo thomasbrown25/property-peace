@@ -159,11 +159,7 @@ namespace brownstone_hub_api.Services.AICopilotService
                 Address = p.StreetAddress ?? string.Empty,
                 UnitCount = p.Units?.Count ?? 0,
                 OccupancyRate = p.Units?.Count > 0
-                    ? (decimal)(p.Units.Count(u =>
-                        u.Lease != null &&
-                        u.Lease.IsActive &&
-                        u.Lease.EndDate.HasValue &&
-                        u.Lease.EndDate.Value >= DateTime.UtcNow.Date) / (double)p.Units.Count) * 100
+                    ? (decimal)(p.Units.Count(u => brownstone_hub_api.Utils.LeaseOccupancy.IsOccupied(u, DateTime.UtcNow.Date)) / (double)p.Units.Count) * 100
                     : 0
             }).ToList();
         }
@@ -336,18 +332,19 @@ namespace brownstone_hub_api.Services.AICopilotService
 
         private List<VacantUnitDto> BuildVacantUnitsSummaries(List<LoadPropertyDto> properties, List<LoadLeaseDto> leases)
         {
-            var today = DateTime.Today;
+            var today = DateTime.UtcNow.Date;
             var vacantUnits = new List<VacantUnitDto>();
 
-            // Build a lookup of unitId → most recently ended lease end date
+            // Build a lookup of unitId → most recently ended lease end date.
             var lastLeaseEndByUnit = leases
-                .Where(l => !l.IsActive && l.UnitId > 0 && l.EndDate.HasValue)
+                .Where(l => !l.IsDeleted && l.LeaseAgreement?.IsDrafted != true && l.UnitId > 0 &&
+                    l.StartDate.HasValue && l.EndDate.HasValue && l.EndDate.Value.Date < today)
                 .GroupBy(l => l.UnitId)
                 .ToDictionary(g => g.Key, g => g.Max(l => l.EndDate!.Value.Date));
 
-            // Set of unit IDs that currently have an active lease
+            // Future, expired, draft, and deleted leases do not occupy units today.
             var activeLeaseUnitIds = leases
-                .Where(l => l.IsActive)
+                .Where(l => LeaseOccupancy.IsActiveOn(l, today))
                 .Select(l => l.UnitId)
                 .ToHashSet();
 

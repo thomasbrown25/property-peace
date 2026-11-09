@@ -4,17 +4,16 @@ import { alpha, Box, Button, Chip, Grid, Stack, Typography, useTheme } from '@mu
 import { HomeOutlined } from '@ant-design/icons';
 import MainCard from 'components/MainCard';
 import { formatCurrency } from 'utils/formatters';
+import { getPropertyOccupancy, isUnitOccupied } from 'utils/occupancy.mjs';
 import { differenceInDays, isToday, isFuture, parseISO } from 'date-fns';
 
 // Muted distinct placeholder colors per property index
 const CARD_COLORS = ['#4a6fa5', '#b07d50', '#5a8a6a', '#8a5a6a', '#6a7a8a', '#7a6a4a'];
 
 function getUnitStatus(unit) {
-  const status = unit.status || unit.Status;
-  if (status) return status.toLowerCase();
-  const lease = unit.lease || unit.Lease;
-  if (!lease || (!lease.isActive && !lease.IsActive)) return 'vacant';
-  return 'occupied';
+  const status = String(unit.status || unit.Status || '').toLowerCase();
+  if (isUnitOccupied(unit)) return status === 'overdue' ? 'overdue' : 'occupied';
+  return status === 'draft' ? 'draft' : 'vacant';
 }
 
 const STATUS_CONFIG = {
@@ -172,11 +171,9 @@ function MultiUnitPropertyCard({ property, colorIdx }) {
   const navigate = useNavigate();
 
   const units = property.units || property.Units || [];
-  const unitCount = units.length;
-
-  const occupied = units.filter(u => getUnitStatus(u) === 'occupied').length;
+  const { totalUnits: unitCount, occupiedUnits: occupied, vacantUnits: vacant } = getPropertyOccupancy(property);
   const overdue  = units.filter(u => getUnitStatus(u) === 'overdue').length;
-  const vacant   = units.filter(u => ['vacant', 'draft'].includes(getUnitStatus(u))).length;
+
 
   const totalRent = units.reduce((sum, u) => {
     const lease = u.lease || u.Lease;
@@ -299,7 +296,7 @@ export default function AtAGlance({ properties = [], onAddProperty }) {
   }, [properties]);
 
   const totalUnits = useMemo(
-    () => (properties || []).reduce((sum, p) => sum + (p.units || p.Units || []).length, 0),
+    () => (properties || []).reduce((sum, p) => sum + getPropertyOccupancy(p).totalUnits, 0),
     [properties]
   );
 

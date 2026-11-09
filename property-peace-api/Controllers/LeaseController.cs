@@ -125,12 +125,29 @@ namespace brownstone_hub_api.Controllers
                     || member.Role == "Manager" && member.CanManageLeases));
             if (!canManageLeases) return Forbid();
 
-            var agreement = await _dataContext.LeaseAgreements
-                .FirstOrDefaultAsync(la => la.LeaseId == leaseId && !la.Lease.IsDeleted
-                    && la.Lease.Unit.Property.OrganizationId == organizationId
-                    && (!la.Lease.OrganizationId.HasValue || la.Lease.OrganizationId == organizationId));
+            // Start an agreement only for a real, saved lease. Never accept a second copy of
+            // location, terms, financials, or people through the agreement endpoint.
+            var lease = await _dataContext.Leases.Include(l => l.LeaseAgreement)
+                .FirstOrDefaultAsync(l => l.Id == leaseId && !l.IsDeleted
+                    && l.Unit.Property.OrganizationId == organizationId
+                    && (!l.OrganizationId.HasValue || l.OrganizationId == organizationId));
+            if (lease == null)
+                return NotFound(new { Message = "Lease not found" });
+
+            var agreement = lease.LeaseAgreement;
+            if (agreement?.LandlordSignedAt != null || agreement?.SignatureCompletedAt != null
+                || !string.IsNullOrEmpty(agreement?.DocuSignEnvelopeId)
+                || agreement?.SignatureStatus == ESignatureStatus.Completed
+                || await _dataContext.LeaseInstances.AnyAsync(i => i.LeaseId == leaseId && i.IsFinalized))
+                return Conflict(new { Message = "A finalized or signed agreement cannot be edited." });
+
             if (agreement == null)
-                return NotFound(new { Message = "Lease agreement not found" });
+            {
+                agreement = new LeaseAgreement { LeaseId = lease.Id, IsDrafted = false };
+                _dataContext.LeaseAgreements.Add(agreement);
+                lease.LeaseAgreement = agreement;
+            }
+            await brownstone_hub_api.Repositories.Leases.LeaseAgreementWriter.ApplyAsync(_dataContext, lease, dto);
 
             if (dto.IsLeaseSpecificsComplete == true)        agreement.IsLeaseSpecificsComplete = true;
             if (dto.IsRentDepositFeesComplete == true)       agreement.IsRentDepositFeesComplete = true;

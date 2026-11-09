@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import { isPropertyOccupied } from 'utils/occupancy.mjs';
 import {
   Box,
   Table,
@@ -145,8 +146,8 @@ export default function PropertiesTableView({
           break;
         case 'status':
           // Sort by occupied status: occupied (true) comes before vacant (false)
-          const aOccupied = a.isOccupied ? 0 : 1;
-          const bOccupied = b.isOccupied ? 0 : 1;
+          const aOccupied = isPropertyOccupied(a) ? 0 : 1;
+          const bOccupied = isPropertyOccupied(b) ? 0 : 1;
           comparison = aOccupied - bOccupied;
           break;
         case 'dateListed':
@@ -303,8 +304,8 @@ export default function PropertiesTableView({
                     <Stack direction="row" spacing={0.5}>
                       <Chip
                         size="small"
-                        label={property.isOccupied ? 'Occupied' : 'Vacant'}
-                        color={property.isOccupied ? 'success' : 'default'}
+                        label={isPropertyOccupied(property) ? 'Occupied' : 'Vacant'}
+                        color={isPropertyOccupied(property) ? 'success' : 'default'}
                         variant="outlined"
                       />
                       <Chip

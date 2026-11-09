@@ -28,6 +28,7 @@ const ListingSetupPhotos = Loadable(lazy(() => import('pages/landlord/listing-se
 const ListingSetupTerms = Loadable(lazy(() => import('pages/landlord/listing-setup-terms')));
 const ListingSetupApplication = Loadable(lazy(() => import('pages/landlord/listing-setup-application')));
 const ListingSetupAmenities = Loadable(lazy(() => import('pages/landlord/listing-setup-amenities')));
+const ListingEdit = Loadable(lazy(() => import('pages/landlord/listing-edit')));
 const ListingDetail = Loadable(lazy(() => import('pages/landlord/listing-detail')));
 const ListingSettings = Loadable(lazy(() => import('pages/landlord/listing-settings')));
 
@@ -46,9 +47,6 @@ const LeaseBuilderBulkPage = Loadable(lazy(() => import('pages/landlord/lease-bu
 const LeaseAddTenantPage = Loadable(lazy(() => import('pages/landlord/lease-add-tenant')));
 const LeaseSelectionPage = Loadable(lazy(() => import('pages/landlord/lease-selection')));
 const BuildLeaseAgreementPage = Loadable(lazy(() => import('pages/landlord/build-lease-agreement')));
-const LeaseSpecificsPage = Loadable(lazy(() => import('pages/landlord/build-lease-agreement/lease-specifics')));
-const RentDepositFeesPage = Loadable(lazy(() => import('pages/landlord/build-lease-agreement/rent-deposit-fees')));
-const PeopleOnLeasePage = Loadable(lazy(() => import('pages/landlord/build-lease-agreement/people-on-lease')));
 const PetsSmokingOtherPage = Loadable(lazy(() => import('pages/landlord/build-lease-agreement/pets-smoking-other')));
 const UtilitiesMaintenanceKeysPage = Loadable(lazy(() => import('pages/landlord/build-lease-agreement/utilities-maintenance-keys')));
 const ProvisionsAttachmentsPage = Loadable(lazy(() => import('pages/landlord/build-lease-agreement/provisions-attachments')));
@@ -492,7 +490,7 @@ const MainRoutes = {
           path: 'landlord/leases/builder',
           element: (
             <SubscriptionPausedGuard>
-              <LegacyLeaseBuilderRedirect />
+              <LeaseBuilderPage />
             </SubscriptionPausedGuard>
           )
         },
@@ -500,7 +498,7 @@ const MainRoutes = {
           path: 'landlord/lease-builder',
           element: (
             <SubscriptionPausedGuard>
-              <LegacyLeaseBuilderRedirect />
+              <LeaseBuilderPage />
             </SubscriptionPausedGuard>
           )
         },
@@ -532,7 +530,7 @@ const MainRoutes = {
           path: 'landlord/leases/build-lease-agreement/lease-specifics',
           element: (
             <SubscriptionPausedGuard>
-              <LeaseSpecificsPage />
+              <LegacyLeaseBuilderRedirect />
             </SubscriptionPausedGuard>
           )
         },
@@ -540,7 +538,7 @@ const MainRoutes = {
           path: 'landlord/leases/build-lease-agreement/rent-deposit-fees',
           element: (
             <SubscriptionPausedGuard>
-              <RentDepositFeesPage />
+              <LegacyLeaseBuilderRedirect />
             </SubscriptionPausedGuard>
           )
         },
@@ -548,7 +546,7 @@ const MainRoutes = {
           path: 'landlord/leases/build-lease-agreement/people-on-lease',
           element: (
             <SubscriptionPausedGuard>
-              <PeopleOnLeasePage />
+              <LegacyLeaseBuilderRedirect />
             </SubscriptionPausedGuard>
           )
         },
@@ -757,6 +755,14 @@ const MainRoutes = {
           element: (
             <SubscriptionPausedGuard>
               <ListingSetup />
+            </SubscriptionPausedGuard>
+          )
+        },
+        {
+          path: 'landlord/listings/:id/edit',
+          element: (
+            <SubscriptionPausedGuard>
+              <ListingEdit />
             </SubscriptionPausedGuard>
           )
         },

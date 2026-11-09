@@ -310,16 +310,14 @@ public sealed class LeasingPipelineService : ILeasingPipelineService
             .FirstOrDefaultAsync(ct);
         var latestEvent = proposedEvent ?? persistedEvent;
 
-        var unitOccupied = await db.Units.AsNoTracking()
-            .Where(x => x.Id == unitId && x.OrganizationId == org && x.PropertyId == propertyId)
-            .Select(x => x.IsOccupied).SingleAsync(ct);
-
-        var activeLeaseStarted = lease is { IsActive: true } && lease.StartDate <= now;
+        var unitOccupied = await db.Leases.AsNoTracking()
+            .Where(brownstone_hub_api.Utils.LeaseOccupancy.ActiveOn(now))
+            .AnyAsync(x => x.UnitId == unitId && x.Unit.OrganizationId == org && x.Unit.PropertyId == propertyId, ct);
         var signature = lease?.SignatureStatus;
         var futureLease = lease is { IsActive: true } && lease.StartDate > now;
         var facts = new LeasingPipelineFacts
         {
-            IsOccupied = unitOccupied || activeLeaseStarted,
+            IsOccupied = unitOccupied,
             HasActiveListing = listing is not null,
             HasLead = hasLead || invite is { IsUsed: false } && invite.ExpiresAt > now,
             HasScheduledShowing = hasScheduledShowing ||

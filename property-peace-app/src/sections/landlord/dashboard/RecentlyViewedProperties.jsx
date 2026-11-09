@@ -6,10 +6,10 @@ import { useNavigate } from 'react-router-dom';
 
 import MainCard from 'components/MainCard';
 import placeholderImage from 'assets/images/placeholder-house.png';
+import { getPropertyOccupancy } from 'utils/occupancy.mjs';
 
 const read = (value, camel, pascal) => value?.[camel] ?? value?.[pascal];
 const getId = (property) => read(property, 'id', 'Id');
-const getUnits = (property) => read(property, 'units', 'Units') || [];
 
 function getImageUrl(property) {
   const images = read(property, 'images', 'Images') || [];
@@ -31,18 +31,8 @@ function getAddress(property) {
 }
 
 function getOccupancy(property) {
-  const units = getUnits(property);
-  if (!units.length) {
-    const isOccupied = read(property, 'isOccupied', 'IsOccupied');
-    return isOccupied === true ? { occupied: 1, vacant: 0 } : isOccupied === false ? { occupied: 0, vacant: 1 } : null;
-  }
-
-  const occupied = units.filter((unit) => {
-    const status = String(read(unit, 'status', 'Status') || '').toLowerCase();
-    return ['occupied', 'overdue'].includes(status) || read(unit, 'isOccupied', 'IsOccupied') === true;
-  }).length;
-
-  return { occupied, vacant: Math.max(units.length - occupied, 0) };
+  const { occupiedUnits, vacantUnits, totalUnits } = getPropertyOccupancy(property);
+  return totalUnits ? { occupied: occupiedUnits, vacant: vacantUnits } : null;
 }
 
 function PropertyImage({ property }) {

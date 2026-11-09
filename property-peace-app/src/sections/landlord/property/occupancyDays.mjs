@@ -10,7 +10,7 @@ const dayKey = value => {
 
 export const occupancyForDay = (unit, date) => {
   const key = dayKey(date);
-  const lease = (unit?.leasePeriods || []).find(period => dayKey(period.startDate) <= key && key <= dayKey(period.endDate));
+  const lease = (unit?.leasePeriods || []).find(period => period.isActive === true && dayKey(period.startDate) <= key && key <= dayKey(period.endDate));
   if (lease) return { occupied: true, lease };
   const occupiedPeriod = (unit?.availabilityPeriods || []).find(period =>
     !period.isVacant && period.status?.toLowerCase() === 'occupied' && dayKey(period.startDate) <= key && key <= dayKey(period.endDate)

@@ -4,13 +4,14 @@ import { alpha, Box, Button, Grid, Skeleton, Stack, Typography, useTheme } from 
 import { ArrowRightOutlined, DollarCircleOutlined, HomeOutlined, WarningOutlined } from '@ant-design/icons';
 import MainCard from 'components/MainCard';
 import { isHighPriorityMaintenanceRequest } from 'utils/maintenanceStatus';
+import { getPropertyOccupancy } from 'utils/occupancy.mjs';
 
 const read = (object, camel, pascal) => object?.[camel] ?? object?.[pascal];
 const getUnits = (property) => read(property, 'units', 'Units') || [];
 const getMaintenance = (property) => read(property, 'maintenanceRequests', 'MaintenanceRequests') || [];
 const getLease = (unit) => read(unit, 'lease', 'Lease');
 const getUnitStatus = (unit) => String(read(unit, 'status', 'Status') || '').toLowerCase();
-const isOccupiedUnit = (unit) => ['occupied', 'overdue'].includes(getUnitStatus(unit));
+
 const isOverdueUnit = (unit) => getUnitStatus(unit) === 'overdue';
 const isActiveProperty = (property) => read(property, 'isActive', 'IsActive') !== false;
 
@@ -31,11 +32,13 @@ function hasExpiringLease(unit) {
   return daysToLeaseEnd >= 0 && daysToLeaseEnd <= 60;
 }
 
-export function getPortfolioMetrics(properties = []) {
+export function getPortfolioMetrics(properties = [], now = new Date()) {
   const activeProperties = properties.filter(isActiveProperty);
   const units = activeProperties.flatMap(getUnits);
-  const occupiedUnits = units.filter(isOccupiedUnit).length;
-  const vacantUnits = Math.max(units.length - occupiedUnits, 0);
+  const occupancy = activeProperties.map((property) => getPropertyOccupancy(property, now));
+  const occupiedUnits = occupancy.reduce((total, property) => total + property.occupiedUnits, 0);
+  const totalUnits = occupancy.reduce((total, property) => total + property.totalUnits, 0);
+  const vacantUnits = totalUnits - occupiedUnits;
   const monthlyRent = units.reduce((total, unit) => total + getRentAmount(unit), 0);
   const needsAttention = activeProperties.filter((property) => {
     const propertyUnits = getUnits(property);
@@ -46,9 +49,9 @@ export function getPortfolioMetrics(properties = []) {
   }).length;
 
   return {
-    occupancy: units.length ? Math.round((occupiedUnits / units.length) * 100) : 0,
+    occupancy: totalUnits ? Math.round((occupiedUnits / totalUnits) * 100) : 0,
     occupiedUnits,
-    totalUnits: units.length,
+    totalUnits,
     vacantUnits,
     monthlyRent,
     needsAttention

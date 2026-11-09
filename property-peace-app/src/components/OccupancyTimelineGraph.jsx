@@ -76,6 +76,8 @@ function OccupancyTimelineGraph({ calendarData, year, loading, monthRange, windo
 
         if (unit.leasePeriods && unit.leasePeriods.length > 0) {
           for (const lease of unit.leasePeriods) {
+            // Inactive history remains in the API payload for reference, not occupancy.
+            if (lease.isActive !== true) continue;
             const leaseStart = new Date(lease.startDate);
             const leaseEnd = new Date(lease.endDate);
 

@@ -201,12 +201,7 @@ export default function FinancialReports() {
     };
   }, [profitability]);
 
-  const collectionRate = useMemo(() => {
-    if (!rentSummary || !rentSummary.expectedThisMonth) return null;
-    return (rentSummary.collectedThisMonth / rentSummary.expectedThisMonth) * 100;
-  }, [rentSummary]);
 
-  // Monthly net income trend: merge expense trends with income from yoyIncome
   const netIncomeTrendData = useMemo(() => {
     if (!expenseTrends || expenseTrends.length === 0) return [];
 
@@ -361,50 +356,22 @@ export default function FinancialReports() {
       )}
       {warning && !error && <Alert severity="warning" sx={{ mb: 3 }}>{warning}</Alert>}
 
-      {/* KPI cards */}
+      {/* Compact financial overview */}
       {!loading && !error && (profitability.length > 0 || summary) && (
-        <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
-          {profitability.length > 0 && <>
-            <Box key="rent" sx={{ flex: '1 1 160px', border: '1px dashed rgba(0,0,0,0.15)', borderRadius: 2, p: 2, bgcolor: 'background.paper' }}>
-              <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.6, display: 'block', mb: 0.5 }}>Total Rent Income</Typography>
-              <Typography variant="h4" fontWeight={700} color="success.main">${profitabilityTotals.totalRent.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Typography>
-              <Typography variant="caption" color="text.secondary">selected period</Typography>
+        <Stack spacing={0.75} sx={{ mb: 3 }}>
+          {[
+            { label: 'Total rent income:', value: profitability.length > 0 ? profitabilityTotals.totalRent : null, color: 'success.main' },
+            { label: 'Total expenses:', value: summary?.totalAmount ?? null, color: 'error.main' },
+            { label: 'Net income:', value: profitability.length > 0 ? profitabilityTotals.netIncome : null, color: profitabilityTotals.netIncome >= 0 ? 'success.main' : 'error.main' }
+          ].map(({ label, value, color }) => (
+            <Box key={label} sx={{ display: 'grid', gridTemplateColumns: '132px minmax(0, 1fr)', columnGap: 1.5, alignItems: 'baseline' }}>
+              <Typography variant="body2" color="text.secondary">{label}</Typography>
+              <Typography variant="body1" fontWeight={700} color={value === null ? 'text.secondary' : color}>
+                {value === null ? '—' : `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+              </Typography>
             </Box>
-            <Box key="net" sx={{ flex: '1 1 160px', border: '1px dashed rgba(0,0,0,0.15)', borderRadius: 2, p: 2, bgcolor: 'background.paper' }}>
-              <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.6, display: 'block', mb: 0.5 }}>Net Income</Typography>
-              <Typography variant="h4" fontWeight={700} color={profitabilityTotals.netIncome >= 0 ? 'success.main' : 'error.main'}>${profitabilityTotals.netIncome.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Typography>
-              <Typography variant="caption" color="text.secondary">rent minus expenses</Typography>
-            </Box>
-            <Box key="collection" sx={{ flex: '1 1 160px', border: '1px dashed rgba(0,0,0,0.15)', borderRadius: 2, p: 2, bgcolor: 'background.paper' }}>
-              <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.6, display: 'block', mb: 0.5 }}>Collection Rate</Typography>
-              <Typography variant="h4" fontWeight={700} color={collectionRate !== null && collectionRate >= 90 ? 'success.main' : collectionRate !== null && collectionRate >= 70 ? 'warning.main' : 'error.main'}>{collectionRate !== null ? `${collectionRate.toFixed(1)}%` : '—'}</Typography>
-              <Typography variant="caption" color="text.secondary">{rentSummary ? `$${(rentSummary.collectedThisMonth || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} of $${(rentSummary.expectedThisMonth || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}` : 'this month'}</Typography>
-            </Box>
-            <Box key="outstanding" sx={{ flex: '1 1 160px', border: '1px dashed rgba(0,0,0,0.15)', borderRadius: 2, p: 2, bgcolor: 'background.paper' }}>
-              <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.6, display: 'block', mb: 0.5 }}>Outstanding Balance</Typography>
-              <Typography variant="h4" fontWeight={700} color={(rentSummary?.outstanding || 0) > 0 ? 'error.main' : 'success.main'}>${(rentSummary?.outstanding || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Typography>
-              <Typography variant="caption" color="text.secondary">${(rentSummary?.overdue || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} overdue</Typography>
-            </Box>
-          </>}
-          {summary && <>
-            <Box key="total-exp" sx={{ flex: '1 1 160px', border: '1px dashed rgba(0,0,0,0.15)', borderRadius: 2, p: 2, bgcolor: 'background.paper' }}>
-              <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.6, display: 'block', mb: 0.5 }}>Total Expenses</Typography>
-              <Typography variant="h4" fontWeight={700} color="error.main">${summary.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Typography>
-            </Box>
-            <Box key="tx-count" sx={{ flex: '1 1 160px', border: '1px dashed rgba(0,0,0,0.15)', borderRadius: 2, p: 2, bgcolor: 'background.paper' }}>
-              <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.6, display: 'block', mb: 0.5 }}>Total Transactions</Typography>
-              <Typography variant="h4" fontWeight={700} color="primary.main">{summary.totalCount}</Typography>
-            </Box>
-            <Box key="avg" sx={{ flex: '1 1 160px', border: '1px dashed rgba(0,0,0,0.15)', borderRadius: 2, p: 2, bgcolor: 'background.paper' }}>
-              <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.6, display: 'block', mb: 0.5 }}>Avg. Transaction</Typography>
-              <Typography variant="h4" fontWeight={700} color="info.main">${summary.averageAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Typography>
-            </Box>
-            <Box key="max" sx={{ flex: '1 1 160px', border: '1px dashed rgba(0,0,0,0.15)', borderRadius: 2, p: 2, bgcolor: 'background.paper' }}>
-              <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.6, display: 'block', mb: 0.5 }}>Highest Expense</Typography>
-              <Typography variant="h4" fontWeight={700} color="warning.main">${summary.maxAmount?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}</Typography>
-            </Box>
-          </>}
-        </Box>
+          ))}
+        </Stack>
       )}
 
       {!loading && !error && activityStatusKnown && (!summary || (expenseReport.length === 0 && byCategory.length === 0)) && (

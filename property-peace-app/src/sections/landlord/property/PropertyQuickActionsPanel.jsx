@@ -38,7 +38,7 @@ export default function PropertyQuickActionsPanel({ property, propertyId, mobile
     }] : []),
     ...(hasLongTermUnits ? [
       ...(activeLease ? [{ label: 'View lease', icon: <FileTextOutlined style={{ fontSize: 13 }} />, onClick: () => setLeasePreviewOpen(true) }] : []),
-      { label: 'Record payment', icon: <DollarOutlined style={{ fontSize: 13 }} />, onClick: () => drawer.openPaymentAddDrawer() }
+      { label: 'Record payment', icon: <DollarOutlined style={{ fontSize: 13 }} />, onClick: () => drawer.openPaymentAddDrawer({ property: property || { id: propertyId } }) }
     ] : []),
     { label: 'New maintenance ticket', icon: <ToolOutlined     style={{ fontSize: 13 }} />, onClick: () => drawer.openMaintenanceAddDrawer({ propertyId, propertyName: property?.name }) },
     { label: 'Upload document',        icon: <UploadOutlined   style={{ fontSize: 13 }} />, onClick: () => navigate('/landlord/documents') },

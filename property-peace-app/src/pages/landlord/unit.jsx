@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { isUnitOccupied } from 'utils/occupancy.mjs';
 import {
   Box,
   Typography,
@@ -205,7 +206,7 @@ export default function UnitPage() {
   }
 
   const unitRent = unit?.lease?.rentAmount || 0;
-  const isOccupied = unit?.isOccupied || false;
+  const isOccupied = isUnitOccupied(unit);
   
   const handleDeleteUnit = async () => {
     setDeleting(true);

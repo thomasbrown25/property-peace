@@ -32,9 +32,10 @@ public sealed class AdminDashboardRepositoryTests
         var result = await new AdminDashboardRepository(context).GetSummaryAsync(30, GeneratedAtUtc);
 
         Assert.Equal(9, result.Portfolio.Units);
-        Assert.Equal(3, result.Portfolio.ActiveLeases);
-        Assert.Equal(3, result.Portfolio.OccupiedUnits);
-        Assert.Equal(6, result.Portfolio.VacantUnits);
+        // Legacy open-ended leases occupy a unit but are not expiring.
+        Assert.Equal(4, result.Portfolio.ActiveLeases);
+        Assert.Equal(4, result.Portfolio.OccupiedUnits);
+        Assert.Equal(5, result.Portfolio.VacantUnits);
         Assert.Equal(2, result.Portfolio.LeasesExpiringWithin30Days);
     }
 

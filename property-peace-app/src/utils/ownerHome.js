@@ -1,9 +1,16 @@
 import { rentalMode } from './rentalMode.js';
-import { isStartedActiveLease } from './leaseStatus.js';
+import { getPropertyOccupancy } from './occupancy.mjs';
+import { getLeaseHeaderBalance } from './leaseHeaderSummary.js';
+
+export function getPropertyOverdueRent(propertyId, records = [], unavailable = false) {
+  if (unavailable || !Array.isArray(records)) return null;
+  return records.filter((record) => String(read(record, 'propertyId', 'PropertyId')) === String(propertyId))
+    .reduce((total, record) => total + getLeaseHeaderBalance(record).overdueAmount, 0);
+}
 
 const read = (item, camel, pascal) => item?.[camel] ?? item?.[pascal];
 
-export function getOwnerProperties(properties = []) {
+export function getOwnerProperties(properties = [], now = new Date()) {
   return (properties || []).filter((property) => read(property, 'id', 'Id') != null).map((property) => {
     const id = read(property, 'id', 'Id');
     const shortStayUnit = (read(property, 'units', 'Units') || []).find(
@@ -15,9 +22,7 @@ export function getOwnerProperties(properties = []) {
       address: [read(property, 'streetAddress', 'StreetAddress'), read(property, 'city', 'City'), read(property, 'state', 'State')].filter(Boolean).join(', '),
       imageUrl: read(property, 'mainImageUrl', 'MainImageUrl') || read(property, 'images', 'Images')?.[0]?.blobUrl || null,
       original: property,
-      activeLeaseCount: (read(property, 'units', 'Units') || []).filter(
-        (unit) => isStartedActiveLease(read(unit, 'lease', 'Lease'))
-      ).length,
+      activeLeaseCount: getPropertyOccupancy(property, now).occupiedUnits,
       href: `/landlord/property/${encodeURIComponent(id)}`,
       shortStayHref: shortStayUnit
         ? `/landlord/property/${encodeURIComponent(id)}/unit/${encodeURIComponent(read(shortStayUnit, 'id', 'Id'))}/short-stay`

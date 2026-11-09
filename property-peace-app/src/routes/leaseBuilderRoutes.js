@@ -2,9 +2,7 @@ export const ACTIVE_LEASE_BUILDER_PATH = '/landlord/leases/build-lease-agreement
 
 export const LEGACY_LEASE_BUILDER_PATHS = [
   '/landlord/lease-agreement-builder',
-  '/landlord/create-lease-agreement',
-  '/landlord/leases/builder',
-  '/landlord/lease-builder'
+  '/landlord/create-lease-agreement'
 ];
 
 export const buildLeaseBuilderRedirect = (search = '') =>

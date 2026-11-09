@@ -1,6 +1,7 @@
 import { Stack, Typography, useTheme } from '@mui/material';
 import { CalendarOutlined, ToolOutlined, WarningOutlined } from '@ant-design/icons';
 import { isHighPriorityMaintenanceRequest } from 'utils/maintenanceStatus';
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 
 const read = (item, camel, pascal) => item?.[camel] ?? item?.[pascal];
 
@@ -18,14 +19,17 @@ export function getPropertyOperations(property) {
   return { overdue, urgentMaintenance, nextLeaseEnd, expiringSoon: daysToLeaseEnd !== null && daysToLeaseEnd >= 0 && daysToLeaseEnd <= 60 };
 }
 
-export default function PropertyOperations({ property, summary = getPropertyOperations(property) }) {
+export default function PropertyOperations({ property, summary = getPropertyOperations(property), showOverdue = true }) {
   const theme = useTheme();
+  const isSingleFamily = isDetachedSingleUnitType(read(property, 'propertyType', 'PropertyType'));
   return (
     <Stack spacing={0.55}>
-      {summary.overdue > 0 && (
+      {showOverdue && summary.overdue > 0 && (
         <Stack direction="row" spacing={0.65} alignItems="center">
-          <WarningOutlined style={{ color: theme.palette.error.main, fontSize: 13 }} />
-          <Typography sx={{ fontSize: '0.75rem', fontWeight: 650, color: 'error.main' }}>{summary.overdue} overdue unit{summary.overdue === 1 ? '' : 's'}</Typography>
+          {!isSingleFamily && <WarningOutlined style={{ color: theme.palette.error.main, fontSize: 13 }} />}
+          <Typography sx={{ fontSize: '0.75rem', fontWeight: 650, color: 'error.main' }}>
+            {isSingleFamily ? 'Overdue' : `${summary.overdue} overdue unit${summary.overdue === 1 ? '' : 's'}`}
+          </Typography>
         </Stack>
       )}
       {summary.urgentMaintenance > 0 && (

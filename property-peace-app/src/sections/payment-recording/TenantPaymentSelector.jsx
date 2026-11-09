@@ -1,5 +1,6 @@
 import { isDetachedSingleUnitType } from 'utils/propertyType';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
+import { getLatestActivePaymentTarget } from './paymentTargetSelection.mjs';
 import PropTypes from 'prop-types';
 
 // material-ui
@@ -128,6 +129,7 @@ const buildPaymentTarget = ({ lease, property, unit = null }) => {
 
 export default function TenantPaymentSelector({
   selectedLease,
+  autoSelectPropertyId,
   selectedProperty,
   selectedUnit,
   onSelectTenant,
@@ -136,6 +138,7 @@ export default function TenantPaymentSelector({
   onConfirmLease
 }) {
   const theme = useTheme();
+  const autoSelectionAttempted = useRef(false);
   const { properties, loading: loadingProperties, isLoading } = useFetchProperties();
 
   const paymentTargets = useMemo(() => {
@@ -170,6 +173,27 @@ export default function TenantPaymentSelector({
       return true;
     });
   }, [properties]);
+
+  // Apply a contextual default once, after options load. Do not undo manual changes/clears.
+  useEffect(() => {
+    if (autoSelectPropertyId == null) {
+      autoSelectionAttempted.current = false;
+      return;
+    }
+    if (autoSelectionAttempted.current || loadingProperties || isLoading) return;
+    if (selectedLease) {
+      autoSelectionAttempted.current = true;
+      return;
+    }
+    const target = getLatestActivePaymentTarget(paymentTargets, autoSelectPropertyId);
+    if (!target) return;
+    autoSelectionAttempted.current = true;
+    onSelectTenant(target.tenant || null);
+    onSelectProperty(target.property || null);
+    onSelectUnit(target.unit || null);
+    onConfirmLease(target.lease);
+  }, [autoSelectPropertyId, selectedLease, paymentTargets, loadingProperties, isLoading,
+    onSelectTenant, onSelectProperty, onSelectUnit, onConfirmLease]);
 
   const selectedOption = useMemo(() => {
     if (!selectedLease) return null;
@@ -233,16 +257,12 @@ export default function TenantPaymentSelector({
 
   return (
     <Box>
-      <Typography variant="h5" sx={{ mb: 1.5 }}>
+      <Typography variant="h6" sx={{ mb: 1.5 }}>
         Who paid?
       </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Select an active lease record. Leases that have not started yet are shown but cannot be selected for payment.
-      </Typography>
-
       <Stack spacing={0.75}>
         <Typography variant="caption" fontWeight={600} color="text.secondary">
-          Lease *
+          Select an active lease *
         </Typography>
         <Autocomplete
           options={displayTargets}
@@ -314,6 +334,7 @@ export default function TenantPaymentSelector({
 
 TenantPaymentSelector.propTypes = {
   selectedLease: PropTypes.object,
+  autoSelectPropertyId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
   selectedProperty: PropTypes.object,
   selectedUnit: PropTypes.object,
   onSelectTenant: PropTypes.func.isRequired,

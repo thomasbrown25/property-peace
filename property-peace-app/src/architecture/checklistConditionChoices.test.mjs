@@ -15,8 +15,8 @@ test('mobile retains the existing dropdown, desktop shows the seven square condi
   }
 });
 
-test('desktop choices disclose descriptions and expose selected state for assistive technology', () => {
-  assert.match(row, /<Tooltip key=\{opt\.value\} title=\{opt\.label\.split\('–'\)\[1\]\?\.trim\(\)\}/);
+test('desktop choices disclose descriptions except for Good and expose selected state for assistive technology', () => {
+  assert.match(row, /<Tooltip key=\{opt\.value\} title=\{opt\.value === 'Good' \? '' : opt\.label\.split\('–'\)\[1\]\?\.trim\(\)\}/);
   assert.match(row, /aria-label=\{opt\.label\}/);
   assert.match(row, /aria-pressed=\{displayedCondition === opt\.value\}/);
 });

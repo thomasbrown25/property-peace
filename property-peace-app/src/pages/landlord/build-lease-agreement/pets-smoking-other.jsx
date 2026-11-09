@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch } from 'react-redux';
 import {
   Box,
   Container,
@@ -24,9 +24,8 @@ import {
 import MainCard from 'components/MainCard';
 import BuildLeaseAgreementHeader from 'sections/landlord/lease-builder/BuildLeaseAgreementHeader';
 import { openSnackbar } from 'api/snackbar';
-import useFetchProperties from 'hooks/useFetchProperties';
-import { selectProperties } from 'store/property/property.selector';
-import { updateLease, updateLeaseAgreement } from 'store/lease/lease.action';
+import { updateLeaseAgreement } from 'store/lease/lease.action';
+import useSupplementalLease from './useSupplementalLease';
 import {
   SafetyOutlined,
   CarOutlined,
@@ -46,22 +45,18 @@ const PARKING_TYPES = [
   { id: 'other', label: 'Other' }
 ];
 
-export default function PetsSmokingOtherPage({ embedded = false, onSaved } = {}) {
+export default function PetsSmokingOtherPage({ embedded = false, onSaved, leaseData } = {}) {
   const theme = useTheme();
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const [searchParams] = useSearchParams();
-  const properties = useSelector(selectProperties);
-  const { propertiesRefetch } = useFetchProperties();
+
 
   const leaseId = searchParams.get('leaseId') ? parseInt(searchParams.get('leaseId')) : null;
   const propertyId = searchParams.get('propertyId') ? parseInt(searchParams.get('propertyId')) : null;
   const unitId = searchParams.get('unitId') ? parseInt(searchParams.get('unitId')) : null;
 
-  const [lease, setLease] = useState(null);
-  const [property, setProperty] = useState(null);
-  const [unit, setUnit] = useState(null);
-  const [loading, setLoading] = useState(true);
+
   const [saving, setSaving] = useState(false);
 
   const [petsAllowed, setPetsAllowed] = useState(false);
@@ -71,26 +66,7 @@ export default function PetsSmokingOtherPage({ embedded = false, onSaved } = {})
   const [parkingTypes, setParkingTypes] = useState([]); // ['garage', 'driveway', ...]
   const [parkingCustomRules, setParkingCustomRules] = useState(DEFAULT_PARKING_RULE);
 
-  useEffect(() => {
-    const loadData = async () => {
-      if (!leaseId || !propertyId) {
-        setLoading(false);
-        return;
-      }
-      const foundProperty = properties?.find((p) => p.id === propertyId);
-      if (!foundProperty) {
-        setLoading(false);
-        return;
-      }
-      setProperty(foundProperty);
-      const targetUnit = unitId
-        ? foundProperty.units?.find((u) => u.id === unitId)
-        : foundProperty.units?.[0];
-      if (targetUnit) {
-        setUnit(targetUnit);
-        const unitLease = targetUnit.lease || targetUnit.Lease;
-        if (unitLease && (unitLease.id === leaseId || unitLease.Id === leaseId)) {
-          setLease(unitLease);
+  const { lease, loading, error: loadError } = useSupplementalLease(leaseId, leaseData, (unitLease) => {
           setPetsAllowed(unitLease.petsAllowed ?? unitLease.PetsAllowed ?? false);
           const rawPets = unitLease.pets ?? unitLease.Pets;
           if (Array.isArray(rawPets) && rawPets.length > 0) {
@@ -122,84 +98,39 @@ export default function PetsSmokingOtherPage({ embedded = false, onSaved } = {})
             const rules = parking.customRules ?? parking.CustomRules;
             if (rules) setParkingCustomRules(rules);
           }
-        }
-      }
-      setLoading(false);
-    };
-    if (properties && properties.length > 0) loadData();
-  }, [leaseId, propertyId, unitId, properties]);
-
-  useEffect(() => {
-    if (leaseId && propertyId) propertiesRefetch();
-  }, [leaseId, propertyId, propertiesRefetch]);
+  });
 
   const handleBack = () => {
     if (embedded) {
-      onSaved?.();
       return;
     }
     navigate(`/landlord/leases/build-lease-agreement?leaseId=${leaseId}&propertyId=${propertyId}${unitId ? `&unitId=${unitId}` : ''}`);
   };
 
-  const handleSaveDraft = async () => {
-    if (!leaseId || !lease) return;
-    const currentLeaseId = lease?.id || lease?.Id || leaseId;
-    try {
-      const updatePayload = buildUpdatePayload(currentLeaseId);
-      await dispatch(updateLease(updatePayload));
-      await dispatch(updateLeaseAgreement(currentLeaseId, { isPetsSmokingOtherComplete: true }));
-      await propertiesRefetch();
-      openSnackbar({ open: true, message: 'Draft saved successfully', variant: 'alert', alert: { color: 'success' } });
-      if (embedded) {
-        onSaved?.();
-      } else {
-        navigate(`/landlord/leases/build-lease-agreement?leaseId=${leaseId}&propertyId=${propertyId}${unitId ? `&unitId=${unitId}` : ''}`);
-      }
-    } catch (e) {
-      console.error('Error saving draft:', e);
-      openSnackbar({ open: true, message: e?.message || 'Failed to save draft', variant: 'alert', alert: { color: 'error' } });
+  const save = async () => {
+    if (saving || loading || !lease) return;
+    if (petsAllowed && (!pets.length || pets.some((pet) => !pet.type?.trim() ||
+      ['weight', 'age'].some((key) => pet[key] !== '' && (!Number.isFinite(Number(pet[key])) || Number(pet[key]) < 0))))) {
+      openSnackbar({ open: true, message: 'Enter a type and valid non-negative weight/age for each pet.', variant: 'alert', alert: { color: 'error' } });
+      return;
     }
-  };
-
-  const handleSaveAndNext = async () => {
-    if (!leaseId || !lease) return;
-    const currentLeaseId = lease?.id || lease?.Id || leaseId;
     setSaving(true);
     try {
-      const updatePayload = buildUpdatePayload(currentLeaseId);
-      const result = await dispatch(updateLease(updatePayload));
-      if (result?.success) await dispatch(updateLeaseAgreement(currentLeaseId, { isPetsSmokingOtherComplete: true }));
-      if (result?.success) {
-        await propertiesRefetch();
-        openSnackbar({ open: true, message: 'Saved successfully', variant: 'alert', alert: { color: 'success' } });
-        if (embedded) {
-          onSaved?.();
-        } else {
-          navigate(`/landlord/leases/build-lease-agreement?leaseId=${leaseId}&propertyId=${propertyId}${unitId ? `&unitId=${unitId}` : ''}`);
-        }
-      } else {
-        openSnackbar({ open: true, message: result?.message || 'Failed to save', variant: 'alert', alert: { color: 'error' } });
-      }
+      const result = await dispatch(updateLeaseAgreement(leaseId, buildUpdatePayload()));
+      if (result?.success !== true) throw new Error(result?.message || 'Failed to save agreement.');
+      if (embedded) await onSaved?.();
+      else handleBack();
+      openSnackbar({ open: true, message: 'Agreement section saved', variant: 'alert', alert: { color: 'success' } });
     } catch (e) {
-      console.error('Error saving:', e);
       openSnackbar({ open: true, message: e?.response?.data?.message || e?.message || 'Failed to save', variant: 'alert', alert: { color: 'error' } });
     } finally {
       setSaving(false);
     }
   };
+  const handleSaveDraft = () => save();
+  const handleSaveAndNext = () => save();
 
-  const buildUpdatePayload = (currentLeaseId) => ({
-    id: currentLeaseId,
-    propertyId: property?.id || propertyId,
-    unitId: unit?.id || unitId,
-    name: lease?.name || lease?.Name,
-    startDate: lease?.startDate || lease?.StartDate,
-    endDate: lease?.endDate || lease?.EndDate,
-    rentAmount: lease?.rentAmount ?? lease?.RentAmount,
-    depositAmount: lease?.depositAmount ?? lease?.DepositAmount,
-    leaseLength: lease?.leaseLength ?? lease?.LeaseLength,
-    rentFrequency: (lease?.rentFrequency ?? lease?.RentFrequency) || 'Monthly',
-    rentDueDay: lease?.rentDueDay ?? lease?.RentDueDay,
+  const buildUpdatePayload = () => ({
     isPetsSmokingOtherComplete: true,
     petsAllowed,
     pets: petsAllowed
@@ -216,12 +147,7 @@ export default function PetsSmokingOtherPage({ embedded = false, onSaved } = {})
       includeParkingRules,
       parkingTypes: includeParkingRules ? JSON.stringify(parkingTypes) : null,
       customRules: includeParkingRules ? parkingCustomRules : null
-    },
-    isLeaseSpecificsComplete: lease?.isLeaseSpecificsComplete ?? lease?.IsLeaseSpecificsComplete,
-    isRentDepositFeesComplete: lease?.isRentDepositFeesComplete ?? lease?.IsRentDepositFeesComplete,
-    isPeopleOnLeaseComplete: lease?.isPeopleOnLeaseComplete ?? lease?.IsPeopleOnLeaseComplete,
-    isUtilitiesMaintenanceKeysComplete: lease?.isUtilitiesMaintenanceKeysComplete ?? lease?.IsUtilitiesMaintenanceKeysComplete,
-    isProvisionsAttachmentsComplete: lease?.isProvisionsAttachmentsComplete ?? lease?.IsProvisionsAttachmentsComplete
+    }
   });
 
   const toggleParkingType = (id) => {
@@ -254,6 +180,7 @@ export default function PetsSmokingOtherPage({ embedded = false, onSaved } = {})
     setPets((prev) => prev.filter((_, i) => i !== index));
   };
 
+  if (loadError) return <Typography role="alert" color="error">{loadError}</Typography>;
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
@@ -267,7 +194,7 @@ export default function PetsSmokingOtherPage({ embedded = false, onSaved } = {})
       <Container maxWidth={embedded ? false : "md"} disableGutters={embedded} sx={{ py: embedded ? 0 : 3 }}>
         {!embedded && <BuildLeaseAgreementHeader onBack={handleBack} onSaveDraft={handleSaveDraft} showTitle={false} />}
         <MainCard>
-          <Stack spacing={4}>
+                  <Stack component="fieldset" disabled={saving} spacing={4} sx={{ border: 0, m: 0, p: 0, minWidth: 0 }}>
             {!embedded && (
               <>
                 <Box>

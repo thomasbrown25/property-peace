@@ -1,4 +1,5 @@
 import { isDetachedSingleUnitType } from '../../../utils/propertyType.js';
+import { statusLabel } from '../../../utils/maintenanceWorkflow.js';
 
 const field = (row, key) => row?.[key] ?? row?.[key[0].toUpperCase() + key.slice(1)];
 
@@ -22,9 +23,9 @@ export const maintenanceCreated = row => {
 export const maintenanceTableColumns = property => [
   { label: 'Request', value: row => field(row, 'title') || `Request #${field(row, 'id')}`, link: row => `/landlord/maintenance/${field(row, 'id')}` },
   ...(!isDetachedSingleUnitType(field(property, 'propertyType')) ? [{ label: 'Unit', value: row => maintenanceUnitName(row, property) }] : []),
-  { label: 'Priority', value: maintenancePriority },
+  { label: 'Priority', value: maintenancePriority, sx: row => ({ color: String(maintenancePriority(row)).toLowerCase() === 'high' ? 'error.main' : 'text.primary' }) },
   { label: 'Created', value: maintenanceCreated },
-  { label: 'Status', value: row => field(row, 'status') || '—' }
+  { label: 'Status', value: row => field(row, 'status') ? statusLabel(field(row, 'status')) : '—' }
 ];
 
 export const scopePropertyRecords = (rows, propertyId) =>

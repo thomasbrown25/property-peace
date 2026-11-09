@@ -7,6 +7,7 @@ import {
   Button,
   Chip,
   alpha,
+  Alert,
   useTheme,
   TextField,
   InputAdornment,
@@ -61,15 +62,21 @@ import { getFutureExpensesAction, deleteFutureExpenseAction } from 'store/future
 import { openSnackbar } from 'api/snackbar';
 import ConfirmationDialog from 'components/dialogs/ConfirmationDialog';
 import PropertyFinanceTable from './PropertyFinanceTable';
+import { financeUnitName, hasFinanceUnits } from './propertyFinances.mjs';
+import { scopePropertyRecords } from './propertyRecords.mjs';
+import { getMonthlyExpenses } from './monthlyExpenses.mjs';
 
-export default function ExpensesTab({ propertyId, property, payments, combined = false }) {
+export default function ExpensesTab({ propertyId, property, combined = true }) {
   const dispatch = useDispatch();
   const theme = useTheme();
   const { user } = useAuth();
   const { properties } = useFetchProperties();
   const selectedProperty = useSelector(selectProperty);
-  const recurringExpenses = useSelector(selectRecurringExpenses);
-  const futureExpenses = useSelector(selectFutureExpenses);
+  const allRecurringExpenses = useSelector(selectRecurringExpenses);
+  const allFutureExpenses = useSelector(selectFutureExpenses);
+  const recurringExpenses = useMemo(() => scopePropertyRecords(allRecurringExpenses, propertyId), [allRecurringExpenses, propertyId]);
+  const futureExpenses = useMemo(() => scopePropertyRecords(allFutureExpenses, propertyId), [allFutureExpenses, propertyId]);
+  const showUnit = hasFinanceUnits(property);
   
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -79,9 +86,11 @@ export default function ExpensesTab({ propertyId, property, payments, combined =
   const [expenseToDelete, setExpenseToDelete] = useState(null);
   const [page, setPage] = useState(0);
   const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [recurringExpensesLoading, setRecurringExpensesLoading] = useState(false);
-  const [recurringExpensesExpanded, setRecurringExpensesExpanded] = useState(false);
-  const [futureExpensesLoading, setFutureExpensesLoading] = useState(false);
+  const [recurringExpensesLoading, setRecurringExpensesLoading] = useState(true);
+  const [recurringExpensesExpanded, setRecurringExpensesExpanded] = useState(true);
+  const [futureExpensesLoading, setFutureExpensesLoading] = useState(true);
+  const [recurringError, setRecurringError] = useState('');
+  const [futureError, setFutureError] = useState('');
 
   // Fetch expenses filtered by property
   const expenseFilters = useMemo(() => ({
@@ -91,7 +100,7 @@ export default function ExpensesTab({ propertyId, property, payments, combined =
     endDate: null
   }), [propertyId]);
 
-  const { expenses: allExpenses, loading, refetch } = useFetchExpenses(expenseFilters);
+  const { expenses: allExpenses, loading, error: expensesError, refetch } = useFetchExpenses(expenseFilters);
 
   // Fetch recurring expenses
   const fetchRecurringExpenses = async () => {
@@ -99,11 +108,14 @@ export default function ExpensesTab({ propertyId, property, payments, combined =
     
     try {
       setRecurringExpensesLoading(true);
+      setRecurringError('');
       const landlordId = user.id || user.Id;
-      await dispatch(getRecurringExpensesAction(landlordId, { 
-        propertyId: propertyId || null 
+      const records = await dispatch(getRecurringExpensesAction(landlordId, {
+        propertyId: propertyId || null
       }));
+      if (!Array.isArray(records)) throw new Error('Recurring expenses could not be loaded.');
     } catch (error) {
+      setRecurringError('Recurring expenses could not be loaded.');
       console.error('Error fetching recurring expenses:', error);
       openSnackbar({
         open: true,
@@ -122,11 +134,14 @@ export default function ExpensesTab({ propertyId, property, payments, combined =
     
     try {
       setFutureExpensesLoading(true);
+      setFutureError('');
       const landlordId = user.id || user.Id;
-      await dispatch(getFutureExpensesAction(landlordId, { 
-        propertyId: propertyId || null 
+      const records = await dispatch(getFutureExpensesAction(landlordId, {
+        propertyId: propertyId || null
       }));
+      if (!Array.isArray(records)) throw new Error('Future expenses could not be loaded.');
     } catch (error) {
+      setFutureError('Future expenses could not be loaded.');
       console.error('Error fetching future expenses:', error);
       openSnackbar({
         open: true,
@@ -189,6 +204,7 @@ export default function ExpensesTab({ propertyId, property, payments, combined =
     if (property) {
       dispatch(setProperty(property));
     }
+    dispatch(setUnit(null));
     setEditingExpense(null);
     setExpenseModalOpen(true);
   };
@@ -308,9 +324,13 @@ export default function ExpensesTab({ propertyId, property, payments, combined =
 
   return (
     <Box>
-      {combined && <PropertyFinanceTable propertyId={propertyId} payments={payments || []} expenses={allExpenses || []}
+      {expensesError && <Alert severity="error" sx={{ mb: 2 }} action={<Button color="inherit" onClick={refetch}>Retry</Button>}>Expenses could not be loaded. Please try again.</Alert>}
+      {combined && !expensesError && <PropertyFinanceTable propertyId={propertyId} property={property} mode="expenses" expenses={allExpenses || []}
         onAddExpense={handleAddExpense} onEditExpense={handleEditExpense} onDeleteExpense={handleDelete}
-        onMarkAsPaid={handleMarkAsPaid} />}
+        onMarkAsPaid={handleMarkAsPaid}
+        monthlyExpenses={getMonthlyExpenses({ expenses: allExpenses || [], recurringExpenses, futureExpenses, propertyId })}
+        monthlyExpensesLoading={recurringExpensesLoading || futureExpensesLoading}
+        monthlyExpensesError={Boolean(recurringError || futureError)} />}
       {!combined && <>
       {/* Header with Add Button */}
       <AnimateIn direction="bottom" delay={100} distance={120}>
@@ -447,7 +467,7 @@ export default function ExpensesTab({ propertyId, property, payments, combined =
                       <TableCell>Date</TableCell>
                       <TableCell>Name</TableCell>
                       <TableCell>Category</TableCell>
-                      <TableCell>Unit</TableCell>
+                      {showUnit && <TableCell>Unit</TableCell>}
                       <TableCell>Status</TableCell>
                       <TableCell align="right">Amount</TableCell>
                       <TableCell align="center">Actions</TableCell>
@@ -487,11 +507,9 @@ export default function ExpensesTab({ propertyId, property, payments, combined =
                           sx={{ fontWeight: 500 }}
                         />
                       </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" color="text.secondary">
-                          {expense.unitName || 'N/A'}
-                        </Typography>
-                      </TableCell>
+                      {showUnit && <TableCell>
+                        <Typography variant="body2" color="text.secondary">{financeUnitName(expense, property)}</Typography>
+                      </TableCell>}
                       <TableCell>
                         <Chip
                           label={expense.isPaid ? 'Paid' : 'Unpaid'}
@@ -657,11 +675,13 @@ export default function ExpensesTab({ propertyId, property, payments, combined =
               </Stack>
             </AccordionSummary>
             <AccordionDetails sx={{ pt: 3 }}>
+              {recurringError && <Alert severity="error" sx={{ mb: 2 }} action={<Button color="inherit" onClick={fetchRecurringExpenses}>Retry</Button>}>{recurringError}</Alert>}
+              {futureError && <Alert severity="error" sx={{ mb: 2 }} action={<Button color="inherit" onClick={fetchFutureExpenses}>Retry</Button>}>{futureError}</Alert>}
               {(recurringExpensesLoading || futureExpensesLoading) ? (
                 <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}>
                   <CircularProgress />
                 </Box>
-              ) : (recurringExpenses.length === 0 && futureExpenses.length === 0) ? (
+              ) : (recurringError || futureError) ? null : (recurringExpenses.length === 0 && futureExpenses.length === 0) ? (
                 <Box sx={{ p: 5, textAlign: 'center' }}>
                   <Typography variant="h6" color="text.secondary" sx={{ mt: 2 }}>
                     No future or recurring expenses found
@@ -678,6 +698,7 @@ export default function ExpensesTab({ propertyId, property, payments, combined =
                         <TableCell>Name</TableCell>
                         <TableCell>Category</TableCell>
                         <TableCell>Amount</TableCell>
+                        {showUnit && <TableCell>Unit</TableCell>}
                         <TableCell>Frequency</TableCell>
                         <TableCell>Next Due Date</TableCell>
                         <TableCell>Status</TableCell>
@@ -708,6 +729,7 @@ export default function ExpensesTab({ propertyId, property, payments, combined =
                                 {formatCurrency(recurring.amount)}
                               </Typography>
                             </TableCell>
+                            {showUnit && <TableCell>{financeUnitName(recurring, property)}</TableCell>}
                             <TableCell>{frequency}</TableCell>
                             <TableCell>{nextDueDate}</TableCell>
                             <TableCell>
@@ -877,6 +899,7 @@ export default function ExpensesTab({ propertyId, property, payments, combined =
                               {formatCurrency(future.amount)}
                             </Typography>
                           </TableCell>
+                          {showUnit && <TableCell>{financeUnitName(future, property)}</TableCell>}
                           <TableCell>
                             <Chip label="One-time" size="small" variant="outlined" />
                           </TableCell>

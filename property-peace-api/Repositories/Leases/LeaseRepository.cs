@@ -224,6 +224,35 @@ namespace brownstone_hub_api.Repositories.Leases
                     leaseDeposits.Count, newLease.Id);
             }
 
+            // People are lease-owned and must persist on standalone creation too (the broad
+            // mapper deliberately ignores these collections). Never trust client child IDs.
+            if (lease.LeaseLandlords != null)
+                _context.LeaseLandlords.AddRange(lease.LeaseLandlords.Select(x => new LeaseLandlord
+                {
+                    LeaseId = newLease.Id, EntityType = x.EntityType ?? "Individual",
+                    FirstName = x.FirstName, LastName = x.LastName, CompanyName = x.CompanyName,
+                    Email = x.Email, Phone = x.Phone, StreetAddress = x.StreetAddress, Unit = x.Unit,
+                    City = x.City, State = x.State, ZipCode = x.ZipCode, SortOrder = x.SortOrder
+                }));
+            if (lease.LeaseCoSigners != null)
+                _context.LeaseCoSigners.AddRange(lease.LeaseCoSigners.Select(x => new LeaseCoSigner
+                {
+                    LeaseId = newLease.Id, FirstName = x.FirstName, LastName = x.LastName,
+                    Email = x.Email, SortOrder = x.SortOrder
+                }));
+            if (lease.LeaseAdditionalSigners != null)
+                _context.LeaseAdditionalSigners.AddRange(lease.LeaseAdditionalSigners.Select(x => new LeaseAdditionalSigner
+                {
+                    LeaseId = newLease.Id, FirstName = x.FirstName, LastName = x.LastName,
+                    Email = x.Email, SortOrder = x.SortOrder
+                }));
+            if (lease.LeaseOccupants != null)
+                _context.LeaseOccupants.AddRange(lease.LeaseOccupants.Select(x => new LeaseOccupant
+                {
+                    LeaseId = newLease.Id, FirstName = x.FirstName ?? string.Empty, LastName = x.LastName ?? string.Empty,
+                    Email = x.Email, SortOrder = x.SortOrder
+                }));
+
             // Utilities, Maintenance, & Keys: create default utility and maintenance rows for new lease
             await AddDefaultUtilityAndMaintenanceForLeaseAsync(newLease.Id, newLease.OrganizationId);
             if (transaction != null) await transaction.CommitAsync();
@@ -1818,8 +1847,9 @@ namespace brownstone_hub_api.Repositories.Leases
         public Task<List<LoadLeaseDto>> GetLeasesForCalendarAsync(long propertyId, DateTime startDate, DateTime endDate) =>
             _context.Leases.AsNoTracking()
                 .Where(l => l.Unit.PropertyId == propertyId && !l.IsDeleted && !l.Unit.Property.IsDeleted &&
-                    (!l.EndDate.HasValue || l.EndDate >= startDate) &&
-                    (!l.StartDate.HasValue || l.StartDate <= endDate))
+                    (l.LeaseAgreement == null || l.LeaseAgreement.IsDrafted != true) &&
+                    (!l.EndDate.HasValue || l.EndDate.Value.Date >= startDate.Date) &&
+                    (!l.StartDate.HasValue || l.StartDate.Value.Date <= endDate.Date))
                 .Select(l => new LoadLeaseDto
                 {
                     Id = l.Id,

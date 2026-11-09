@@ -6,9 +6,7 @@ describe('legacy lease builder routes', () => {
     expect(ACTIVE_LEASE_BUILDER_PATH).toBe('/landlord/leases/build-lease-agreement');
     expect(LEGACY_LEASE_BUILDER_PATHS).toEqual([
       '/landlord/lease-agreement-builder',
-      '/landlord/create-lease-agreement',
-      '/landlord/leases/builder',
-      '/landlord/lease-builder'
+      '/landlord/create-lease-agreement'
     ]);
   });
 

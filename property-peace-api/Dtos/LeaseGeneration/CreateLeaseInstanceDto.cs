@@ -1,24 +1,16 @@
+using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
+
 namespace brownstone_hub_api.Dtos.LeaseGeneration
 {
+    // Lease-owned data must be saved through the lease API, never copied into an agreement request.
+    [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
     public class CreateLeaseInstanceDto
     {
+        [Range(1, long.MaxValue)]
         public long LeaseId { get; set; }
+        [Range(1, long.MaxValue)]
         public long LeaseTemplateId { get; set; }
-        public long PropertyId { get; set; }
-        public long UnitId { get; set; }
-        public List<long> TenantIds { get; set; } = [];
-        
-        // Lease terms (can override template defaults)
-        public DateTime? StartDate { get; set; }
-        public DateTime? EndDate { get; set; }
-        public decimal? MonthlyRent { get; set; }
-        public decimal? SecurityDeposit { get; set; }
-        public int? RentDueDay { get; set; }
-        
-        // Custom policies (optional override of template policies)
-        public List<string>? CustomPolicies { get; set; } // Raw policy bullets from landlord
-        
-        // Clause settings
-        public Dictionary<string, object>? ClauseSettings { get; set; } // e.g., {"lateFee": {"enabled": true, "amount": 50}}
+        public List<string>? CustomPolicies { get; set; }
     }
 }

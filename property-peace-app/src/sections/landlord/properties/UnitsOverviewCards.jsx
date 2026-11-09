@@ -1,7 +1,7 @@
 import { Grid, Stack, Typography, Box, Card, CardContent, alpha } from '@mui/material';
 import { HomeOutlined, CheckCircleOutlined, CloseCircleOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import { useMemo } from 'react';
-import { calculateOccupancyPercentage } from 'utils/helper-methods';
+import { getPropertyOccupancy } from 'utils/occupancy.mjs';
 
 const MetricCard = ({ icon: IconComponent, label, value, iconColor }) => {
   return (
@@ -32,21 +32,13 @@ const MetricCard = ({ icon: IconComponent, label, value, iconColor }) => {
 export default function UnitsOverviewCards({ properties = [] }) {
   const metrics = useMemo(() => {
     // Get all units from all properties
-    const allUnits = properties.flatMap((p) => p.units || []);
-    const totalUnits = allUnits.length;
-    
-    // Count units by status
-    const occupiedUnits = allUnits.filter((u) => u.isOccupied || u.tenantId).length;
-    const vacantUnits = allUnits.filter((u) => !u.isOccupied && !u.tenantId).length;
-    
-    // Calculate average occupancy
-    const propertiesWithUnits = properties.filter((p) => p.units && p.units.length > 0);
-    const totalOccupancy = propertiesWithUnits.reduce((sum, p) => {
-      return sum + calculateOccupancyPercentage(p.units || []);
-    }, 0);
-    const avgOccupancy = propertiesWithUnits.length > 0 
-      ? Math.round(totalOccupancy / propertiesWithUnits.length) 
-      : 0;
+    const occupancies = properties.map((property) => getPropertyOccupancy(property));
+    const totalUnits = occupancies.reduce((sum, occupancy) => sum + occupancy.totalUnits, 0);
+    const occupiedUnits = occupancies.reduce((sum, occupancy) => sum + occupancy.occupiedUnits, 0);
+    const vacantUnits = totalUnits - occupiedUnits;
+
+    // Weight the portfolio rate by units, not by property size.
+    const avgOccupancy = totalUnits > 0 ? Math.round((occupiedUnits / totalUnits) * 100) : 0;
 
     return {
       totalUnits,

@@ -1,4 +1,5 @@
 import { isDetachedSingleUnitType } from 'utils/propertyType';
+import { getPropertyOccupancy } from 'utils/occupancy.mjs';
 import ThemeAdaptiveDrawer from 'components/drawers/shared/ThemeAdaptiveDrawer';
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useDashboardLoading } from 'contexts/DashboardLoadingContext';
@@ -510,196 +511,49 @@ function PaymentHeartbeat({ lease, payments }) {
 
 
 function CreateLeaseAgreementDrawer({ open, onClose, properties, initialLease, onSetup }) {
-  const theme = useTheme();
-  const [propertyId, setPropertyId] = useState('');
-  const [unitId, setUnitId] = useState('');
-  const [agreementName, setAgreementName] = useState('');
-  const [createdLease, setCreatedLease] = useState(null);
-
-  useEffect(() => {
-    if (!open) return;
-    setCreatedLease(null);
-    setAgreementName('');
-    setPropertyId(initialLease?.propertyId || '');
-    setUnitId(initialLease?.unitId || '');
-  }, [open, initialLease]);
-
-  const selectedProperty = useMemo(() => properties?.find((p) => Number(p.id) === Number(propertyId)) || null, [properties, propertyId]);
-  const unitsWithLeases = useMemo(() => (selectedProperty?.units || []).filter((unit) => unit.lease || unit.Lease), [selectedProperty]);
-  const isSingleUnitProperty = useMemo(() => {
-    if (!selectedProperty) return false;
-    const propertyType = String(selectedProperty.propertyType || selectedProperty.PropertyType || '').toLowerCase();
-    const units = selectedProperty.units || selectedProperty.Units || [];
-    return units.length === 1 || propertyType.includes('single');
-  }, [selectedProperty]);
-  const selectedUnitForAgreement = useMemo(() => unitsWithLeases.find((unit) => Number(unit.id) === Number(unitId)) || null, [unitsWithLeases, unitId]);
-  const selectedLease = selectedUnitForAgreement ? (selectedUnitForAgreement.lease || selectedUnitForAgreement.Lease) : null;
-
-  useEffect(() => {
-    if (!selectedProperty) return;
-    if (isSingleUnitProperty && unitsWithLeases.length === 1 && Number(unitId) !== Number(unitsWithLeases[0].id)) {
-      setUnitId(unitsWithLeases[0].id);
+  const [selectedId, setSelectedId] = useState('');
+  const options = useMemo(() => {
+    const result = new Map();
+    for (const property of properties || []) {
+      for (const unit of property.units || property.Units || []) {
+        const candidates = [unit.lease || unit.Lease, ...(unit.leases || unit.Leases || [])];
+        for (const lease of candidates) {
+          const id = lease?.id ?? lease?.Id;
+          if (!id) continue;
+          result.set(Number(id), { ...lease, id: Number(id), propertyId: property.id ?? property.Id,
+            propertyName: property.name || property.streetAddress, unitId: unit.id ?? unit.Id, unitName: unit.name ?? unit.Name });
+        }
+      }
     }
-  }, [selectedProperty, isSingleUnitProperty, unitsWithLeases, unitId]);
-  const tenantLabel = selectedLease?.tenants?.length
-    ? selectedLease.tenants.map((tenant) => [tenant.firstname || tenant.firstName || tenant.FirstName, tenant.lastname || tenant.lastName || tenant.LastName].filter(Boolean).join(' ')).filter(Boolean).join(', ')
-    : 'No tenants added yet';
-
-  const handleCreate = () => {
-    if (!selectedLease || !selectedProperty || !selectedUnitForAgreement) return;
-    const payload = {
-      ...selectedLease,
-      propertyId: selectedProperty.id,
-      propertyName: selectedProperty.name,
-      propertyStreetAddress: selectedProperty.streetAddress,
-      propertyType: selectedProperty.propertyType,
-      unitId: selectedUnitForAgreement.id,
-      unitName: selectedUnitForAgreement.name,
-      agreementName: agreementName.trim()
-    };
-    if (agreementName.trim()) {
-      window.localStorage.setItem(`leaseAgreementName_${selectedLease.id}`, agreementName.trim());
-    }
-    setCreatedLease(payload);
-  };
-
-  const handleClose = () => {
-    onClose?.();
-  };
-
-  return (
-    <ThemeAdaptiveDrawer
-      anchor="right"
-      open={open}
-      onClose={handleClose}
-      PaperProps={{ sx: { width: { xs: '100%', sm: 520 }, bgcolor: 'background.paper' } }}
-    >
-      <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-        <Box sx={{ px: 3, py: 2.5, borderBottom: `1px solid ${alpha(theme.palette.divider, 0.12)}` }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2}>
-            <Box>
-              <Typography variant="h5" fontWeight={800}>{createdLease ? 'Lease agreement created' : 'Create lease agreement'}</Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                {createdLease ? 'Your draft is ready to set up.' : 'Choose the lease this agreement belongs to.'}
-              </Typography>
-            </Box>
-            <IconButton onClick={handleClose} size="small"><CloseCircleOutlined /></IconButton>
-          </Stack>
-        </Box>
-
-        <Box sx={{ flex: 1, overflowY: 'auto', p: 3 }}>
-          {createdLease ? (
-            <Stack spacing={2.5} alignItems="center" sx={{ textAlign: 'center', py: 4 }}>
-              <Box sx={{ width: 72, height: 72, borderRadius: '50%', bgcolor: alpha(theme.palette.success.main, 0.12), color: 'success.main', display: 'grid', placeItems: 'center' }}>
-                <CheckCircleOutlined style={{ fontSize: 36 }} />
-              </Box>
-              <Box>
-                <Typography variant="h4" fontWeight={800}>Created successfully</Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                  {createdLease.agreementName || 'Lease agreement'} is ready for setup. Complete the required sections, then finalize to generate the signing PDF.
-                </Typography>
-              </Box>
-              <Box sx={{ width: '100%', p: 2, borderRadius: 2, border: `1px solid ${alpha(theme.palette.divider, 0.12)}`, bgcolor: alpha(theme.palette.primary.main, 0.025), textAlign: 'left' }}>
-                <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: 0.8 }}>Agreement</Typography>
-                <Typography variant="body1" fontWeight={700}>{createdLease.propertyName || 'Property'}{createdLease.unitName ? ` · ${createdLease.unitName}` : ''}</Typography>
-                <Typography variant="caption" color="text.secondary">{tenantLabel}</Typography>
-              </Box>
-            </Stack>
-          ) : (
-            <Stack spacing={2.25}>
-              <Box>
-                <Typography variant="caption" fontWeight={700} color="text.secondary">Property *</Typography>
-                <FormControl fullWidth size="small" sx={{ mt: 0.75 }}>
-                  <Select
-                    value={propertyId}
-                    displayEmpty
-                    onChange={(e) => { setPropertyId(e.target.value); setUnitId(''); }}
-                    input={<OutlinedInput />}
-                  >
-                    <MenuItem value="" disabled>Select a property</MenuItem>
-                    {(properties || []).map((property) => (
-                      <MenuItem key={property.id} value={property.id}>{property.name || property.streetAddress || `Property ${property.id}`}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Box>
-
-              {isSingleUnitProperty && unitsWithLeases.length === 1 ? (
-                <Box>
-                  <Typography variant="caption" fontWeight={700} color="text.secondary">Unit / lease *</Typography>
-                  <Box sx={{ mt: 0.75, p: 1.5, borderRadius: 1.5, border: `1px solid ${alpha(theme.palette.divider, 0.18)}`, bgcolor: alpha(theme.palette.primary.main, 0.025) }}>
-                    <Typography variant="body2" fontWeight={700}>{unitsWithLeases[0].name || `Unit ${unitsWithLeases[0].id}`}</Typography>
-                    <Typography variant="caption" color="text.secondary">{getTenantDisplay((unitsWithLeases[0].lease || unitsWithLeases[0].Lease) || {})}</Typography>
-                  </Box>
-                </Box>
-              ) : (
-                <Box>
-                  <Typography variant="caption" fontWeight={700} color="text.secondary">Unit / lease *</Typography>
-                  <FormControl fullWidth size="small" sx={{ mt: 0.75 }} disabled={!propertyId}>
-                    <Select
-                      value={unitId}
-                      displayEmpty
-                      onChange={(e) => setUnitId(e.target.value)}
-                      input={<OutlinedInput />}
-                    >
-                      <MenuItem value="" disabled>{propertyId ? 'Select a unit with a lease' : 'Select a property first'}</MenuItem>
-                      {unitsWithLeases.map((unit) => {
-                        const lease = unit.lease || unit.Lease;
-                        return <MenuItem key={unit.id} value={unit.id}>{unit.name || `Unit ${unit.id}`} · {getTenantDisplay(lease || {})}</MenuItem>;
-                      })}
-                    </Select>
-                  </FormControl>
-                </Box>
-              )}
-
-              <Box>
-                <Typography variant="caption" fontWeight={700} color="text.secondary">Lease agreement name</Typography>
-                <TextField
-                  fullWidth
-                  size="small"
-                  value={agreementName}
-                  onChange={(e) => setAgreementName(e.target.value)}
-                  placeholder="Example: 2026 renewal agreement"
-                  sx={{ mt: 0.75 }}
-                />
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.75 }}>
-                  Optional. This helps you recognize the agreement later.
-                </Typography>
-              </Box>
-
-              {selectedLease && (
-                <Box sx={{ p: 2, borderRadius: 2, border: `1px solid ${alpha(theme.palette.divider, 0.12)}`, bgcolor: alpha(theme.palette.primary.main, 0.025) }}>
-                  <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: 0.8 }}>Selected lease</Typography>
-                  <Typography variant="body2" fontWeight={700} sx={{ mt: 0.5 }}>{selectedProperty?.name || 'Property'}{selectedUnitForAgreement?.name ? ` · ${selectedUnitForAgreement.name}` : ''}</Typography>
-                  <Typography variant="caption" color="text.secondary">{tenantLabel}</Typography>
-                  <Divider sx={{ my: 1.25 }} />
-                  <Stack direction="row" justifyContent="space-between">
-                    <Typography variant="caption" color="text.secondary">Term</Typography>
-                    <Typography variant="caption" fontWeight={700}>{selectedLease.startDate && selectedLease.endDate ? `${formatDate(selectedLease.startDate)} – ${formatDate(selectedLease.endDate)}` : 'Not set'}</Typography>
-                  </Stack>
-                </Box>
-              )}
-            </Stack>
-          )}
-        </Box>
-
-        <Box sx={{ p: 3, borderTop: `1px solid ${alpha(theme.palette.divider, 0.12)}` }}>
-          {createdLease ? (
-            <Stack spacing={1.25}>
-              <Button fullWidth variant="contained" size="large" onClick={() => onSetup(createdLease)} sx={{ textTransform: 'none', fontWeight: 800 }}>
-                Set up lease agreement
-              </Button>
-              <Button fullWidth variant="text" onClick={handleClose} sx={{ textTransform: 'none' }}>Close</Button>
-            </Stack>
-          ) : (
-            <Button fullWidth variant="contained" size="large" disabled={!selectedLease} onClick={handleCreate} sx={{ textTransform: 'none', fontWeight: 800 }}>
-              Create
-            </Button>
-          )}
-        </Box>
-      </Box>
-    </ThemeAdaptiveDrawer>
-  );
+    // A menu action on a historical/successor lease must keep that exact lease, not its unit's current lease.
+    if (initialLease?.id) result.set(Number(initialLease.id), initialLease);
+    return [...result.values()];
+  }, [properties, initialLease]);
+  useEffect(() => { if (open) setSelectedId(initialLease?.id || ''); }, [open, initialLease]);
+  const selected = options.find((lease) => Number(lease.id) === Number(selectedId));
+  return <ThemeAdaptiveDrawer anchor="right" open={open} onClose={onClose}
+    PaperProps={{ sx: { width: { xs: '100%', sm: 520 }, bgcolor: 'background.paper' } }}>
+    <Stack spacing={3} sx={{ p: 3 }}>
+      <Stack direction="row" justifyContent="space-between" alignItems="center">
+        <Typography variant="h4">Create lease agreement</Typography>
+        <IconButton aria-label="Close lease selection" onClick={onClose}><CloseCircleOutlined /></IconButton>
+      </Stack>
+      <Typography color="text.secondary">Choose the saved lease this agreement belongs to. Its property, rent, terms, and people will be inherited automatically.</Typography>
+      <TextField select fullWidth label="Lease" value={selectedId} onChange={(event) => setSelectedId(event.target.value)}>
+        {options.map((lease) => <MenuItem key={lease.id} value={lease.id}>
+          {lease.propertyName || `Property ${lease.propertyId}`}{lease.unitName ? ` · ${lease.unitName}` : ''} · Lease #{lease.id}
+        </MenuItem>)}
+      </TextField>
+      {!options.length && <Typography color="text.secondary">Create a lease first, then return to build its agreement.</Typography>}
+      {selected && <MainCard>
+        <Stack spacing={1}>
+          <Typography fontWeight={700}>{getTenantDisplay(selected)}</Typography>
+          <Typography variant="body2" color="text.secondary">Starts {selected.startDate ? formatDate(selected.startDate) : 'Not set'} · Rent {selected.rentAmount != null ? `$${Number(selected.rentAmount).toLocaleString()}` : 'Not set'}</Typography>
+        </Stack>
+      </MainCard>}
+      <Button variant="contained" disabled={!selected} onClick={() => onSetup(selected)}>Continue to agreement builder</Button>
+    </Stack>
+  </ThemeAdaptiveDrawer>;
 }
 
 export default function LeasesPage({ onEditLease }) {
@@ -1530,8 +1384,9 @@ export default function LeasesPage({ onEditLease }) {
       return endDate >= today && endDate <= ninetyDaysFromNow;
     });
 
-    const totalUnits = (properties || []).reduce((sum, property) => sum + Math.max(1, property.units?.length || 0), 0);
-    const occupiedUnits = allLeases.filter((lease) => isStartedActiveLease(lease)).length;
+    const occupancyByProperty = (properties || []).map((property) => getPropertyOccupancy(property));
+    const totalUnits = occupancyByProperty.reduce((sum, property) => sum + property.totalUnits, 0);
+    const occupiedUnits = occupancyByProperty.reduce((sum, property) => sum + property.occupiedUnits, 0);
     const occupancy = totalUnits ? Math.round((occupiedUnits / totalUnits) * 100) : 0;
 
     return {
@@ -1588,7 +1443,7 @@ export default function LeasesPage({ onEditLease }) {
       variant="contained"
       color="primary"
       startIcon={<PlusOutlined />}
-      onClick={() => drawer.openLeaseAddDrawer()}
+      onClick={() => navigate('/landlord/leases/builder')}
       sx={creationActionSx}
     >
       Create lease
@@ -2107,7 +1962,7 @@ export default function LeasesPage({ onEditLease }) {
                               : 'Ended leases will appear here after you close them out.'}
                       </Typography>
                       {view === 'current' && !leaseSearch.trim() && (
-                        <Button variant="contained" startIcon={<PlusOutlined />} onClick={() => drawer.openLeaseAddDrawer()} sx={{ ...creationActionSx, mt: 2 }}>
+                        <Button variant="contained" startIcon={<PlusOutlined />} onClick={() => navigate('/landlord/leases/builder')} sx={{ ...creationActionSx, mt: 2 }}>
                           Create Lease
                         </Button>
                       )}

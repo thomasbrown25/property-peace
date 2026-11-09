@@ -1,3 +1,4 @@
+using brownstone_hub_api.Utils;
 using brownstone_hub_api.Dtos.PropertyPortfolio;
 using brownstone_hub_api.Dtos.Property;
 using brownstone_hub_api.Dtos.Lease;
@@ -117,11 +118,7 @@ namespace brownstone_hub_api.Services.PropertyPortfolioService
                 // Calculate vacancy and occupancy rates based on active leases
                 var totalUnits = properties.Sum(p => p.Units?.Count ?? 0);
                 var today = DateTime.UtcNow.Date;
-                var occupiedUnits = properties.Sum(p => p.Units?.Count(u => 
-                    u.Lease != null && 
-                    u.Lease.IsActive && 
-                    u.Lease.EndDate.HasValue &&
-                    u.Lease.EndDate.Value >= today) ?? 0);
+                var occupiedUnits = properties.Sum(p => p.Units?.Count(u => LeaseOccupancy.IsOccupied(u, today)) ?? 0);
                 var vacantUnits = totalUnits - occupiedUnits;
 
                 analytics.VacancyRate = totalUnits > 0 ? (vacantUnits / (decimal)totalUnits) * 100 : 0;
@@ -190,7 +187,9 @@ namespace brownstone_hub_api.Services.PropertyPortfolioService
 
                     foreach (var unit in propertyUnits)
                     {
-                        var unitLeases = propertyLeases.Where(l => l.UnitId == unit.Id)
+                        var unitLeases = propertyLeases.Where(l => l.UnitId == unit.Id && !l.IsDeleted &&
+                                l.LeaseAgreement?.IsDrafted != true && l.StartDate.HasValue &&
+                                l.StartDate.Value.Date <= DateTime.UtcNow.Date)
                             .OrderBy(l => l.StartDate)
                             .ToList();
 
@@ -219,14 +218,12 @@ namespace brownstone_hub_api.Services.PropertyPortfolioService
 
                         // Check if unit is currently vacant (no active lease that hasn't ended)
                         var today = DateTime.UtcNow.Date;
-                        var hasActiveLease = unitLeases.Any(l => 
-                            l.IsActive && 
-                            l.EndDate >= today);
+                        var hasActiveLease = unitLeases.Any(l => LeaseOccupancy.IsActiveOn(l, today));
                         
                         if (!hasActiveLease)
                         {
                             var lastLease = unitLeases
-                                .Where(l => l.IsActive)
+                                .Where(l => l.EndDate.HasValue && l.EndDate.Value.Date < today)
                                 .OrderByDescending(l => l.EndDate)
                                 .FirstOrDefault();
                             if (lastLease != null && lastLease.EndDate.HasValue && lastLease.RentAmount.HasValue && lastLease.EndDate.Value >= twelveMonthsAgo)
@@ -268,7 +265,9 @@ namespace brownstone_hub_api.Services.PropertyPortfolioService
                 foreach (var property in properties)
                 {
                     var propertyLeases = leases?.Where(l => l.PropertyId == property.Id).ToList() ?? [];
-                    var turnovers = propertyLeases.Count(l => l.EndDate >= twelveMonthsAgo && l.EndDate < DateTime.UtcNow);
+                    var turnovers = propertyLeases.Count(l => !l.IsDeleted && l.LeaseAgreement?.IsDrafted != true &&
+                        l.StartDate.HasValue && l.StartDate.Value.Date <= DateTime.UtcNow.Date &&
+                        l.EndDate >= twelveMonthsAgo && l.EndDate < DateTime.UtcNow.Date);
 
                     if (turnovers > 0)
                     {
@@ -338,11 +337,8 @@ namespace brownstone_hub_api.Services.PropertyPortfolioService
 
                     foreach (var unit in propertyUnits)
                     {
-                        var unitLeases = propertyLeases.Where(l => 
-                            l.UnitId == unit.Id && 
-                            l.IsActive &&
-                            l.StartDate <= monthStart && 
-                            l.EndDate >= monthStart).ToList();
+                        var unitLeases = propertyLeases.Where(l =>
+                            l.UnitId == unit.Id && LeaseOccupancy.IsActiveOn(l, monthStart)).ToList();
                         
                         if (unitLeases.Any()) occupiedUnits++;
                     }
@@ -484,7 +480,8 @@ namespace brownstone_hub_api.Services.PropertyPortfolioService
                     foreach (var unit in propertyUnits)
                     {
                         var unitLeases = propertyLeases
-                            .Where(l => l.UnitId == unit.Id)
+                            .Where(l => l.UnitId == unit.Id && !l.IsDeleted &&
+                                l.LeaseAgreement?.IsDrafted != true && l.StartDate.HasValue)
                             .OrderBy(l => l.StartDate)
                             .ToList();
 
@@ -492,7 +489,7 @@ namespace brownstone_hub_api.Services.PropertyPortfolioService
                         {
                             LeaseId = l.Id,
                             StartDate = l.StartDate ?? DateTime.UtcNow,
-                            EndDate = l.EndDate ?? DateTime.UtcNow,
+                            EndDate = l.EndDate ?? calendarEndDate.Date,
                             IsActive = l.IsActive,
                             RentAmount = l.RentAmount ?? 0m,
                             TenantNames = string.Join(", ", l.Tenants?.Select(t => $"{t.Firstname} {t.Lastname}") ?? []),
@@ -502,8 +499,15 @@ namespace brownstone_hub_api.Services.PropertyPortfolioService
                         // Calculate availability periods (vacant periods)
                         var availabilityPeriods = new List<AvailabilityPeriodDto>();
 
-                        // Add occupied periods from leases
-                        foreach (var lease in unitLeases.Where(l => l.StartDate.HasValue && l.EndDate.HasValue))
+                        // Calendar occupancy is evaluated on each period's dates, not today's
+                        // cached flag. Keep inactive leases in LeasePeriods for historical context only.
+                        var activeUnitLeases = unitLeases.Where(l => l.IsActive)
+                            .Select(l => new LoadLeaseDto
+                            {
+                                StartDate = l.StartDate!.Value.Date,
+                                EndDate = l.EndDate?.Date ?? calendarEndDate.Date
+                            }).ToList();
+                        foreach (var lease in activeUnitLeases)
                         {
                             var leaseStart = lease.StartDate!.Value.Date;
                             var leaseEnd = lease.EndDate!.Value.Date;
@@ -516,13 +520,13 @@ namespace brownstone_hub_api.Services.PropertyPortfolioService
                                     StartDate = leaseStart < calendarStartDate ? calendarStartDate : leaseStart,
                                     EndDate = leaseEnd > calendarEndDate ? calendarEndDate : leaseEnd,
                                     IsVacant = false,
-                                    Status = lease.IsActive ? "Occupied" : "Expired"
+                                    Status = "Occupied"
                                 });
                             }
                         }
 
                         // Find vacant periods (gaps between leases and before/after)
-                        var sortedLeases = unitLeases
+                        var sortedLeases = activeUnitLeases
                             .Where(l => l.EndDate >= calendarStartDate && l.StartDate <= calendarEndDate)
                             .OrderBy(l => l.StartDate)
                             .ToList();
@@ -565,7 +569,7 @@ namespace brownstone_hub_api.Services.PropertyPortfolioService
                             var gapStart = currentLease.EndDate.Value.AddDays(1);
                             var gapEnd = nextLease.StartDate.Value.AddDays(-1);
 
-                            if (gapStart < gapEnd && gapStart <= calendarEndDate && gapEnd >= calendarStartDate)
+                            if (gapStart <= gapEnd && gapStart <= calendarEndDate && gapEnd >= calendarStartDate)
                             {
                                 availabilityPeriods.Add(new AvailabilityPeriodDto
                                 {

@@ -1,4 +1,5 @@
 import PropTypes from 'prop-types';
+import { isUnitOccupied } from 'utils/occupancy.mjs';
 import { useMemo } from 'react';
 import {
   Box,
@@ -96,7 +97,7 @@ export default function PropertyUnitCard({ property }) {
   }, [singleUnit]);
 
   // Check if single unit is occupied
-  const isOccupied = singleUnit?.isOccupied || false;
+  const isOccupied = isUnitOccupied(singleUnit);
 
   const handleViewProperty = () => {
     dispatch(setProperty(property));
@@ -293,7 +294,7 @@ export default function PropertyUnitCard({ property }) {
             <Stack spacing={0}>
               {units.map((unit, index) => {
                 const unitRent = unit?.lease?.rentAmount || 0;
-                const unitIsOccupied = unit?.isOccupied || false;
+                const unitIsOccupied = isUnitOccupied(unit);
 
                 return (
                   <Box key={unit.id}>

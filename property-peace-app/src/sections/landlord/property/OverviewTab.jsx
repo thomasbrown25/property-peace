@@ -1,4 +1,5 @@
 import { isDetachedSingleUnitType } from 'utils/propertyType';
+import { isUnitOccupied } from 'utils/occupancy.mjs';
 import { useMemo, useState, useEffect } from 'react';
 import { Box, Grid, Stack, Typography, Card, CardContent, Button, alpha, useTheme, Divider, Link, Chip, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { UserOutlined, FileTextOutlined, DollarOutlined, PlusOutlined, ToolOutlined, KeyOutlined, EditOutlined, SendOutlined, RightOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
@@ -402,7 +403,7 @@ export default function OverviewTab({ property, propertyId, selectedProperty, le
                     {propertyData.units.map((unit, index) => {
                       const unitLease = unit?.lease;
                       const leaseId = unitLease?.id || unitLease?.Id;
-                      const isOccupied = unit?.isOccupied || !!leaseId;
+                      const isOccupied = isUnitOccupied(unit);
                       const unitName = unit?.name || `Unit ${index + 1}`;
                       const rent = unitLease?.rentAmount || unitLease?.RentAmount;
 
