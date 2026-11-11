@@ -136,10 +136,9 @@ namespace brownstone_hub_api.Controllers
                 _logger.LogInformation("Successfully received Stripe webhook event: {EventType}, ID: {EventId}, Created: {Created}",
                     stripeEvent.Type, stripeEvent.Id, stripeEvent.Created);
 
-                // Rent intents are platform charges. A connected-account direct charge (or an
-                // explicitly short-stay-tagged intent) must never enter the rent inbox/handlers.
-                // Return a retryable rejection until the dedicated short-stay endpoint exists.
-                if (IsNonRentMoneyEvent(stripeEvent))
+                // Connected events enter the rent inbox only when their immutable owner and
+                // intent/charge identity match a registered rent payment. Short stays stay isolated.
+                if (IsNonRentMoneyEvent(stripeEvent) && !await IsRegisteredDirectRentEventAsync(stripeEvent))
                     return StatusCode(StatusCodes.Status409Conflict, new { received = false });
 
                 var dispatchFence = await TryAcquireDispatchFenceAsync(stripeEvent.Id);
@@ -203,6 +202,41 @@ namespace brownstone_hub_api.Controllers
             if (!string.IsNullOrWhiteSpace(stripeEvent.Account)) return true;
             return stripeEvent.Data?.Object is PaymentIntent intent &&
                 intent.Metadata?.ContainsKey("reservation_code") == true;
+        }
+
+        [NonAction]
+        public async Task<bool> IsRegisteredDirectRentEventAsync(Event stripeEvent)
+        {
+            if (string.IsNullOrWhiteSpace(stripeEvent.Account)) return false;
+            string? intentId = null;
+            string? chargeId = null;
+            switch (stripeEvent.Data?.Object)
+            {
+                case PaymentIntent intent:
+                    if (intent.Metadata?.ContainsKey("reservation_code") == true) return false;
+                    intentId = intent.Id;
+                    break;
+                case Charge charge:
+                    if (charge.Metadata?.ContainsKey("reservation_code") == true) return false;
+                    intentId = charge.PaymentIntentId;
+                    chargeId = charge.Id;
+                    break;
+                case Dispute dispute:
+                    intentId = dispute.PaymentIntentId;
+                    chargeId = dispute.ChargeId;
+                    break;
+                case Refund refund:
+                    intentId = refund.PaymentIntentId;
+                    chargeId = refund.ChargeId;
+                    break;
+                default:
+                    return false;
+            }
+            if (string.IsNullOrWhiteSpace(intentId) && string.IsNullOrWhiteSpace(chargeId)) return false;
+            return await _context.StripeRentPayments.AsNoTracking().AnyAsync(payment =>
+                payment.ChargeStripeAccountId == stripeEvent.Account &&
+                ((intentId != null && payment.PaymentIntentId == intentId) ||
+                 (chargeId != null && payment.StripeChargeId == chargeId)), HttpContext.RequestAborted);
         }
 
         private async Task<IAsyncDisposable?> TryAcquireDispatchFenceAsync(string stripeEventId)

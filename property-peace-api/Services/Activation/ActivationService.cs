@@ -234,24 +234,27 @@ public sealed class ActivationService(DataContext db, TimeProvider timeProvider)
                 from review in db.StripeConnectedPayeeReviews.AsNoTracking()
                 join payee in db.OrganizationMembers.AsNoTracking()
                     on review.UserId equals payee.UserId
-                where review.ApprovedOrganizationId == organizationId
+                where (review.ApprovedOrganizationId == null || review.ApprovedOrganizationId == organizationId)
                     && payee.OrganizationId == organizationId && payee.IsActive
                     && (payee.Role == Owner || payee.Role == Manager)
                     && payee.User != null && !payee.User.IsDeleted
                     && payee.User.StripeAccountId != null && payee.User.StripeAccountId != ""
                     && payee.User.StripeAccountId == review.StripeAccountId
-                    && review.Status == StripePayeeReviewStatus.PayoutApproved && review.ApprovedAt.HasValue
-                    && review.PropertyAuthorityAttested
+                    && review.Status != StripePayeeReviewStatus.Suspended && review.SuspendedAt == null
                 orderby review.Id
                 select new PaymentFact(true,
                     review.LastStripeSnapshotAt >= evaluatedAt.AddMinutes(-5)
                     && review.LastStripeSnapshotAt <= evaluatedAt.AddMinutes(1)
-                    && review.StripeDetailsSubmitted && review.StripePayoutsEnabled && review.StripeTransfersActive
-                    && review.StripeTransferCapabilityStatus == "active"
+                    && review.StripeDetailsSubmitted && review.StripePayoutsEnabled
                     && review.CurrentlyDueRequirementCount == 0 && review.PastDueRequirementCount == 0
                     && (review.StripeDisabledReason == null || review.StripeDisabledReason == "")
                     && review.ExternalAccountFingerprint != null && review.ExternalAccountFingerprint != ""
-                    && review.PayoutSchedulePolicy == "manual" && !review.InstantPayoutsAllowed))
+                    // Cached direct-charge preflight, not authorization: live card/controller
+                    // eligibility is enforced by the inner payment risk gate.
+                    && (review.PayoutSchedulePolicy.ToLower() == "manual"
+                        || review.PayoutSchedulePolicy.ToLower() == "daily"
+                        || review.PayoutSchedulePolicy.ToLower() == "weekly"
+                        || review.PayoutSchedulePolicy.ToLower() == "monthly")))
                 .Take(CandidateLimit).ToListAsync(cancellationToken);
             paymentSetupCompleted = paymentFacts.Count != 0;
             currentlyReady = paymentFacts.Any(x => x.CurrentlyReady);

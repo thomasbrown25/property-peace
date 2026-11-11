@@ -373,7 +373,7 @@ export default function RentCollection() {
     <Box>
       {/* Enhanced Header */}
       <RentCollectionHeader />
-      <RentPaymentAccessPanel {...rentPaymentAccess} onRequest={rentPaymentAccess.requestAccess} onRefresh={rentPaymentAccess.refresh} onConfigure={() => navigate('/landlord/settings?tab=payments')} />
+      <RentPaymentAccessPanel {...rentPaymentAccess} onRefresh={rentPaymentAccess.refresh} onConfigure={() => navigate('/landlord/settings?tab=payments')} />
 
       {/* Bank Account Banner - Show if bank account is not connected */}
       {rentCanInvoke && !checkingBankStatus && !isBankConnected && (

@@ -36,7 +36,13 @@ namespace brownstone_hub_api.Services.ActivityService
             {
                 "payment" => ("DollarOutlined", "success"),
                 "maintenance" => ("ToolOutlined", "warning"),
-                "lease" => ("FileTextOutlined", "info"),
+                "lease" or "leaseagreement" => ("FileTextOutlined", "info"),
+                "bankaccount" => ("DollarCircleOutlined", "primary"),
+                "teammember" => ("UserOutlined", "info"),
+                "listing" => ("HomeFilled", "primary"),
+                "calendar" or "booking" => ("FormOutlined", "info"),
+                "checklist" => ("CheckCircleOutlined", "success"),
+                "announcement" => ("BellOutlined", "info"),
                 "property" => ("HomeFilled", "primary"),
                 "tenant" => ("UserOutlined", "success"),
                 "staffmember" => ("UserOutlined", "info"),
@@ -97,6 +103,18 @@ namespace brownstone_hub_api.Services.ActivityService
                 }
 
                 var organizationId = GetCurrentOrganizationId();
+                // The organization-wide ledger must never fall back to an unscoped read.
+                if (!organizationId.HasValue || !await _context.OrganizationMembers.AsNoTracking().AnyAsync(m =>
+                    m.OrganizationId == organizationId.Value && m.UserId == userId && m.IsActive &&
+                    (m.Role == "Owner" || m.Role == "Manager" || m.Role == "Viewer")))
+                {
+                    response.Success = false;
+                    response.Message = "An active organization membership is required.";
+                    response.StatusCode = 403;
+                    return response;
+                }
+                filter.Page = Math.Clamp(filter.Page, 1, 100000);
+                filter.PageSize = Math.Clamp(filter.PageSize, 1, 100);
                 
                 // OPTIMIZATION: Limit the number of records fetched per type to reduce memory usage
                 // We'll fetch more than needed, then sort/filter/paginate, but this is still much faster
@@ -108,17 +126,16 @@ namespace brownstone_hub_api.Services.ActivityService
                 // 2. Database-level filtering and limiting
                 // 3. Reduced memory usage
                 var activities = new List<ActivityDto>();
-                activities.AddRange(await GetNotificationActivities(userId, organizationId, filter, maxRecordsPerType));
-                activities.AddRange(await GetPaymentActivities(userId, organizationId, filter, maxRecordsPerType));
-                activities.AddRange(await GetMaintenanceActivities(userId, organizationId, filter, maxRecordsPerType));
-                activities.AddRange(await GetLeaseActivities(userId, organizationId, filter, maxRecordsPerType));
-                activities.AddRange(await GetPropertyActivities(userId, organizationId, filter, maxRecordsPerType));
-                activities.AddRange(await GetTenantActivities(userId, organizationId, filter, maxRecordsPerType));
-                activities.AddRange(await GetStaffMemberActivities(userId, organizationId, filter, maxRecordsPerType));
-                activities.AddRange(await GetExpenseActivities(userId, organizationId, filter, maxRecordsPerType));
-                activities.AddRange(await GetFileActivities(userId, organizationId, filter, maxRecordsPerType));
-                activities.AddRange(await GetMessageActivities(userId, organizationId, filter, maxRecordsPerType));
-                activities.AddRange(await GetApplicationActivities(userId, organizationId, filter, maxRecordsPerType));
+                bool IncludesType(string type) => filter.ActivityTypes is not { Count: > 0 } ||
+                    filter.ActivityTypes.Contains(type, StringComparer.OrdinalIgnoreCase);
+                if (IncludesType("Notification")) activities.AddRange(await GetNotificationActivities(userId, organizationId, filter, maxRecordsPerType));
+                // CRUD events are durable facts, not guesses from the current entity's dates.
+                // Do not also synthesize creation rows for these types (duplicate/phantom history).
+                if (IncludesType("Maintenance")) activities.AddRange(await GetMaintenanceActivities(userId, organizationId, filter, maxRecordsPerType));
+                if (IncludesType("Expense")) activities.AddRange(await GetExpenseActivities(userId, organizationId, filter, maxRecordsPerType));
+                if (IncludesType("File")) activities.AddRange(await GetFileActivities(userId, organizationId, filter, maxRecordsPerType));
+                if (IncludesType("Message")) activities.AddRange(await GetMessageActivities(userId, organizationId, filter, maxRecordsPerType));
+                if (IncludesType("Application")) activities.AddRange(await GetApplicationActivities(userId, organizationId, filter, maxRecordsPerType));
 
                 // Sort by CreatedAt descending
                 activities = activities.OrderByDescending(a => a.CreatedAt).ToList();
@@ -141,12 +158,49 @@ namespace brownstone_hub_api.Services.ActivityService
                     activities = activities.Where(a => a.PropertyId == filter.PropertyId.Value).ToList();
                 }
 
-                var totalCount = activities.Count;
                 var page = filter.Page;
                 var pageSize = filter.PageSize;
                 var skip = (page - 1) * pageSize;
-
-                var pagedActivities = activities.Skip(skip).Take(pageSize).ToList();
+                var ledger = _context.ActivityEvents.AsNoTracking()
+                    .Where(e => e.OrganizationId == organizationId.Value);
+                if (filter.StartDate.HasValue) ledger = ledger.Where(e => e.CreatedAt >= filter.StartDate.Value);
+                if (filter.EndDate.HasValue) ledger = ledger.Where(e => e.CreatedAt <= filter.EndDate.Value);
+                if (filter.PropertyId.HasValue) ledger = ledger.Where(e => e.PropertyId == filter.PropertyId.Value);
+                if (filter.ActivityTypes is { Count: > 0 })
+                {
+                    var types = filter.ActivityTypes.Select(t => t.Equals("StaffMember", StringComparison.OrdinalIgnoreCase)
+                        ? "teammember" : t.ToLowerInvariant()).ToArray();
+                    ledger = ledger.Where(e => types.Contains(e.ActivityType.ToLower()));
+                }
+                var totalCount = activities.Count + await ledger.CountAsync();
+                // Fetch only candidates which can occur in this merged page. Count is not capped.
+                var events = await ledger.OrderByDescending(e => e.CreatedAt).ThenByDescending(e => e.Id)
+                    .Take(skip + pageSize).ToListAsync();
+                var actorIds = events.Where(e => e.PerformedByUserId.HasValue)
+                    .Select(e => e.PerformedByUserId!.Value).Distinct().ToArray();
+                var actors = await _context.Users.AsNoTracking().Where(u => actorIds.Contains(u.Id))
+                    .Select(u => new { u.Id, u.FirstName, u.LastName }).ToDictionaryAsync(u => u.Id);
+                foreach (var item in activities) item.EventKey ??= $"legacy:{item.ActivityType}:{item.Id}";
+                activities.AddRange(events.Select(e =>
+                {
+                    var (icon, color) = GetActivityIconAndColor(e.ActivityType);
+                    var name = e.PerformedByUserId.HasValue && actors.TryGetValue(e.PerformedByUserId.Value, out var actor)
+                        ? $"{actor.FirstName} {actor.LastName}".Trim() : null;
+                    return new ActivityDto
+                    {
+                        Id = e.Id, EventKey = $"event:{e.Id}", Operation = e.Operation,
+                        ActivityType = e.ActivityType, Title = e.Title, Message = e.Message,
+                        CreatedAt = DateTime.SpecifyKind(e.CreatedAt, DateTimeKind.Utc),
+                        RelatedId = e.RelatedId, RelatedEntityType = e.ActivityType,
+                        OrganizationId = e.OrganizationId, PropertyId = e.PropertyId, LeaseId = e.LeaseId,
+                        PerformedByUserId = e.PerformedByUserId,
+                        PerformedByName = string.IsNullOrWhiteSpace(name) ? e.PerformedByName : name,
+                        IconType = icon, Color = e.Operation == "Deleted" ? "error" : color
+                    };
+                }));
+                var pagedActivities = activities.OrderByDescending(a => a.CreatedAt)
+                    .ThenByDescending(a => a.Id).ThenByDescending(a => a.EventKey, StringComparer.Ordinal)
+                    .Skip(skip).Take(pageSize).ToList();
 
                 response.Data = new ActivityListResponseDto
                 {

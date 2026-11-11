@@ -11,6 +11,7 @@ namespace brownstone_hub_api.Controllers
     [ApiController]
     [Route("api/admin/stripe/payees")]
     [Authorize(Roles = "Admin")]
+    [NonController] // Historical workflow only; not exposed by MVC.
     public sealed class StripePayeeReviewController(IStripeConnectedPayeeService service,
         IStripeConnectedAccountGateway accountGateway) : ControllerBase
     {

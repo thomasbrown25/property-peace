@@ -202,7 +202,7 @@ public sealed class ShortStayPublicListingTests
             base.OnModelCreating(builder);
             var keep = new[] { typeof(Property), typeof(Unit), typeof(Organization), typeof(User), typeof(ShortStayListing), typeof(ShortStayBlock), typeof(ShortStayNightlyRateOverride), typeof(ShortStayIcalSubscription), typeof(ShortStayIcalOccurrence), typeof(ShortStayReservation), typeof(ShortStayReservationNight), typeof(ShortStayOccupancyClaim) };
             foreach (var entity in builder.Model.GetEntityTypes().ToList())
-                if (!keep.Contains(entity.ClrType)) builder.Ignore(entity.ClrType);
+                if (entity.ClrType != typeof(ActivityEvent) && !keep.Contains(entity.ClrType)) builder.Ignore(entity.ClrType);
             foreach (var entity in builder.Model.GetEntityTypes())
                 foreach (var property in entity.GetProperties())
                     if (property.GetColumnType()?.Contains("(max)", StringComparison.OrdinalIgnoreCase) == true) property.SetColumnType("TEXT");

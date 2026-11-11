@@ -253,18 +253,12 @@ export default function PropertyHeader({ property, rentRecords = [], rentLoading
                     <SummaryFact label="Remaining this month" value={collectionValue(remaining)} />
                     <SummaryFact label="Past-due rent" value={collectionValue(pastDue)} />
                     <SummaryFact
-                      label={isSingle ? 'Lease ends' : 'Units'}
-                      value={isSingle ? dateLabel(firstLease?.endDate ?? firstLease?.EndDate) : String(units.length)}
+                      label={isSingle ? 'Lease start' : 'Units'}
+                      value={isSingle ? dateLabel(firstLease?.startDate ?? firstLease?.StartDate) : String(units.length)}
                     />
                     <SummaryFact
-                      label={isSingle ? 'Security deposit' : 'Occupied units'}
-                      value={
-                        isSingle
-                          ? (firstLease?.securityDeposit ?? firstLease?.SecurityDeposit) != null
-                            ? formatCurrency(firstLease.securityDeposit ?? firstLease.SecurityDeposit)
-                            : '—'
-                          : `${occupiedUnits} / ${units.length}`
-                      }
+                      label={isSingle ? 'Lease end' : 'Occupied units'}
+                      value={isSingle ? dateLabel(firstLease?.endDate ?? firstLease?.EndDate) : `${occupiedUnits} / ${units.length}`}
                     />
                   </Box>
                   <Box>

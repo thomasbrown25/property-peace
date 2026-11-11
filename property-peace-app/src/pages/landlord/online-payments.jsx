@@ -31,7 +31,7 @@ export default function OnlinePaymentsPage() {
   const [continueError, setContinueError] = useState('');
   const [activeTab, setActiveTab] = useState(DEFAULT_ONLINE_PAYMENT_TAB);
   const [paymentHeaderActionElement, setPaymentHeaderActionElement] = useState(null);
-  const paymentTabs = getOnlinePaymentTabs(rentPaymentAccess.access, rentPaymentAccess.presentation.canConfigure);
+  const paymentTabs = getOnlinePaymentTabs(rentPaymentAccess.presentation.canConfigure);
   const selectedTab = getSelectedOnlinePaymentTab(activeTab, paymentTabs);
 
   useEffect(() => {

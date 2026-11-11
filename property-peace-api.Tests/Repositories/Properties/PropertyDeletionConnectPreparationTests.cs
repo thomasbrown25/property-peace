@@ -104,7 +104,7 @@ public sealed class PropertyDeletionConnectPreparationTests
             await using var db = database.Context();
             // Minimal relational schema: use every scalar column from the production model,
             // but only the FKs relevant to this regression. No external database is touched.
-            foreach (var type in new[] { typeof(Property), typeof(StripeConnectPreparation), typeof(StripeConnectPreparationProperty) })
+            foreach (var type in new[] { typeof(Property), typeof(StripeConnectPreparation), typeof(StripeConnectPreparationProperty), typeof(ActivityEvent) })
             {
                 var entity = db.Model.FindEntityType(type)!;
                 var columns = entity.GetProperties().Select(property =>

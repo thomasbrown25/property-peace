@@ -720,14 +720,15 @@ export default function ChecklistsPage() {
         <Stack sx={{ height: '100%' }}>
           <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ px: 3, py: 2.5, borderBottom: 1, borderColor: 'divider' }}>
             <Box>
-              <Typography variant="h4" fontWeight={750}>Create checklist</Typography>
+              <Typography variant="h4" fontWeight={750}>{standalone ? `Create ${createType} checklist` : 'Create checklist'}</Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                {standalone ? `For lease #${contextLeaseId} · ${selectedProperty ? getPropertyLabel(selectedProperty) : 'Loading home…'}` : 'Choose the inspection type and the home it belongs to.'}
+                {standalone ? `For lease #${contextLeaseId} · ${selectedProperty ? getPropertyLabel(selectedProperty) : 'Loading home…'}${selectedUnit ? ` · ${selectedUnit.label}` : ''}` : 'Choose the inspection type and the home it belongs to.'}
               </Typography>
             </Box>
             <IconButton aria-label="Close create checklist" onClick={leaveCreation} disabled={creating}><CloseOutlined /></IconButton>
           </Stack>
           <Stack spacing={2.25} sx={{ flex: 1, overflowY: 'auto', px: 3, py: 3 }}>
+            {!standalone && <>
             <Autocomplete
               label="Checklist type"
               options={checklistTypeOptions}
@@ -806,10 +807,14 @@ export default function ChecklistsPage() {
                 )}
               </Stack>
             )}
+            </>}
+            {standalone && (propertiesLoading || unitsLoading || leasesLoading) && (
+              <Stack direction="row" spacing={1} alignItems="center"><CircularProgress size={15} /><Typography variant="body2">Loading lease home…</Typography></Stack>
+            )}
             {standalone && !contextPropertyId && <Alert severity="error">Property context is missing. Return to the lease and try again.</Alert>}
             {standalone && contextPropertyId && !propertiesLoading && !selectedProperty && <Alert severity="error">This property is not available to your account.</Alert>}
             {standalone && selectedProperty && !leasesLoading && !leasesError && !contextLease && <Alert severity="error">This lease does not belong to the selected property. Return to the lease and try again.</Alert>}
-            {standalone && contextLease && needsUnit && !unitsLoading && units.length > 0 && !unitOptions.some((unit) => String(unit.id) === String(contextUnitId)) && <Alert severity="error">The lease unit is not available for this property.</Alert>}
+            {standalone && contextLease && needsUnit && !unitsLoading && !unitOptions.some((unit) => String(unit.id) === String(contextUnitId)) && <Alert severity="error">The lease unit is not available for this property.</Alert>}
             {leaseContextReady && (
               <Stack spacing={0.9} component="section" aria-label="Checklist lease">
                 {leasesLoading || checklistsLoading ? (

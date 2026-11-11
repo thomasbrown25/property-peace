@@ -17,23 +17,31 @@ namespace brownstone_hub_api.Tests.Services.StripeRentPayments;
 
 public sealed class StripeWebhookRefundTests
 {
-    [Fact]
-    public async Task ChargeRefunded_UsesFreshSuccessfulExposureAndValidatesDurableProvenance()
+    [Theory]
+    [InlineData(null)]
+    [InlineData("acct_original")]
+    public async Task ChargeRefunded_UsesFreshSuccessfulExposureAndValidatesDurableProvenance(string? owner)
     {
         await using var context = StripeRentPaymentFlowTests.CreateContext();
         var aggregate = StripeRentPaymentFlowTests.NewPayment("pi_refund");
         aggregate.StripeChargeId = "ch_refund";
+        aggregate.ChargeStripeAccountId = owner;
         context.StripeRentPayments.Add(aggregate);
         await context.SaveChangesAsync();
         var rentPayments = new Mock<IStripeRentPaymentService>();
         var lossAccounting = new Mock<IStripeRentLossAccountingService>();
-        var gateway = new Mock<IStripeRentGateway>();
-        gateway.Setup(x => x.GetSourceStateAsync("ch_refund", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new StripeRentSourceState(true, true, false, false, null,
-                "pi_refund", 10_000, "usd", 2_000));
+        var gateway = new Mock<IStripeRentGateway>(MockBehavior.Strict);
+        var source = new StripeRentSourceState(true, true, false, false, null, "pi_refund", 10_000, "usd", 2_000);
+        if (owner == null)
+            gateway.Setup(x => x.GetSourceStateAsync("ch_refund", It.IsAny<CancellationToken>())).ReturnsAsync(source);
+        else
+            gateway.Setup(x => x.GetSourceStateAsync("ch_refund", owner, It.IsAny<CancellationToken>())).ReturnsAsync(source);
         var service = CreateService(context, rentPayments.Object, lossAccounting.Object, gateway.Object);
+        var stripeEvent = ChargeRefundedEvent(9_000);
+        stripeEvent.Account = owner;
 
-        await service.HandleChargeRefundedAsync(ChargeRefundedEvent(9_000));
+        await service.HandleChargeRefundedAsync(stripeEvent);
+        gateway.VerifyAll();
 
         rentPayments.Verify(x => x.ReconcileRefundExposureAsync("pi_refund", "ch_refund",
             string.Empty, It.IsAny<string>(), 2_000,

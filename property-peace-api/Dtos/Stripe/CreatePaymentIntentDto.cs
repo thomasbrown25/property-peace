@@ -12,12 +12,14 @@ namespace brownstone_hub_api.Dtos.Stripe
 
     public class CreatePaymentIntentResponseDto
     {
+        public string? StripeAccountId { get; set; }
         public string ClientSecret { get; set; } = string.Empty;
         public string PaymentIntentId { get; set; } = string.Empty;
     }
 
     public class CreateSetupIntentResponseDto
     {
+        public string StripeAccountId { get; set; } = string.Empty;
         public string ClientSecret { get; set; } = string.Empty;
         public string SetupIntentId { get; set; } = string.Empty;
         public string CustomerId { get; set; } = string.Empty;

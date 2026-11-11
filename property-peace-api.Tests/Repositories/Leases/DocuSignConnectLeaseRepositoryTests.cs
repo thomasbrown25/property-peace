@@ -181,10 +181,11 @@ public sealed class DocuSignConnectLeaseRepositoryTests
         {
             await using (var seed = new DataContext(options))
             {
+                await CreateActivityTableAsync(seed);
                 await seed.Database.ExecuteSqlRawAsync("""
                     CREATE TABLE Organizations (Id INTEGER PRIMARY KEY, Name TEXT NOT NULL, IsActive INTEGER NOT NULL, IsDeleted INTEGER NOT NULL);
                     CREATE TABLE Properties (Id INTEGER PRIMARY KEY, OrganizationId INTEGER, LandlordId INTEGER NOT NULL);
-                    CREATE TABLE Units (Id INTEGER PRIMARY KEY, PropertyId INTEGER NOT NULL);
+                    CREATE TABLE Units (Id INTEGER PRIMARY KEY, PropertyId INTEGER NOT NULL, OrganizationId INTEGER);
                     CREATE TABLE Leases (Id INTEGER PRIMARY KEY, UnitId INTEGER NOT NULL, OrganizationId INTEGER, IsDeleted INTEGER NOT NULL, IsActive INTEGER NOT NULL);
                     CREATE TABLE LeaseAgreements (
                         Id INTEGER PRIMARY KEY, LeaseId INTEGER NOT NULL, IsDrafted INTEGER,
@@ -354,10 +355,11 @@ public sealed class DocuSignConnectLeaseRepositoryTests
         {
             await using (var seed = new DataContext(options))
             {
+                await CreateActivityTableAsync(seed);
                 await seed.Database.ExecuteSqlRawAsync("""
                     CREATE TABLE Organizations (Id INTEGER PRIMARY KEY, IsActive INTEGER NOT NULL, IsDeleted INTEGER NOT NULL);
                     CREATE TABLE Properties (Id INTEGER PRIMARY KEY, OrganizationId INTEGER, LandlordId INTEGER NOT NULL);
-                    CREATE TABLE Units (Id INTEGER PRIMARY KEY, PropertyId INTEGER NOT NULL);
+                    CREATE TABLE Units (Id INTEGER PRIMARY KEY, PropertyId INTEGER NOT NULL, OrganizationId INTEGER);
                     CREATE TABLE Leases (Id INTEGER PRIMARY KEY, UnitId INTEGER NOT NULL, OrganizationId INTEGER, IsDeleted INTEGER NOT NULL, IsActive INTEGER NOT NULL);
                     CREATE TABLE LeaseAgreements (
                         Id INTEGER PRIMARY KEY, LeaseId INTEGER NOT NULL, IsDrafted INTEGER,
@@ -411,6 +413,11 @@ public sealed class DocuSignConnectLeaseRepositoryTests
                 var final = await verify.LeaseAgreements.AsNoTracking().SingleAsync();
                 final.SignatureStatus.Should().Be(ESignatureStatus.Completed);
                 final.SignatureCompletedAt.Should().Be(completedAt);
+                var activities = await verify.ActivityEvents.AsNoTracking().ToListAsync();
+                activities.Should().NotBeEmpty();
+                activities.Should().OnlyContain(activity => activity.ActivityType == "LeaseAgreement" &&
+                    activity.OrganizationId == 10 && activity.PropertyId == 20 && activity.LeaseId == 30 &&
+                    activity.RelatedId == 31);
             }
         }
         finally
@@ -428,10 +435,11 @@ public sealed class DocuSignConnectLeaseRepositoryTests
         var options = new DbContextOptionsBuilder<DataContext>().UseSqlite(connection).Options;
         await using (var seed = new DataContext(options))
         {
+            await CreateActivityTableAsync(seed);
             await seed.Database.ExecuteSqlRawAsync("""
                 CREATE TABLE Organizations (Id INTEGER PRIMARY KEY, IsActive INTEGER NOT NULL, IsDeleted INTEGER NOT NULL);
                 CREATE TABLE Properties (Id INTEGER PRIMARY KEY, OrganizationId INTEGER, LandlordId INTEGER NOT NULL);
-                CREATE TABLE Units (Id INTEGER PRIMARY KEY, PropertyId INTEGER NOT NULL);
+                CREATE TABLE Units (Id INTEGER PRIMARY KEY, PropertyId INTEGER NOT NULL, OrganizationId INTEGER);
                 CREATE TABLE Leases (Id INTEGER PRIMARY KEY, UnitId INTEGER NOT NULL, OrganizationId INTEGER, IsDeleted INTEGER NOT NULL, IsActive INTEGER NOT NULL);
                 CREATE TABLE LeaseAgreements (
                     Id INTEGER PRIMARY KEY, LeaseId INTEGER NOT NULL, IsDrafted INTEGER,
@@ -462,6 +470,7 @@ public sealed class DocuSignConnectLeaseRepositoryTests
         }
         await using var verify = new DataContext(options);
         (await verify.LeaseAgreements.SingleAsync()).SignatureStatus.Should().Be(ESignatureStatus.Sent);
+        (await verify.ActivityEvents.ToListAsync()).Should().BeEmpty();
     }
 
     private static async Task ApplyWithBoundedSqliteRetryAsync(
@@ -502,10 +511,11 @@ public sealed class DocuSignConnectLeaseRepositoryTests
     private static async Task<DataContext> CreateInactiveLeaseRelationalContextAsync(SqliteConnection connection)
     {
         var db = new DataContext(new DbContextOptionsBuilder<DataContext>().UseSqlite(connection).Options);
+        await CreateActivityTableAsync(db);
         await db.Database.ExecuteSqlRawAsync("""
             CREATE TABLE Organizations (Id INTEGER PRIMARY KEY, IsActive INTEGER NOT NULL, IsDeleted INTEGER NOT NULL);
             CREATE TABLE Properties (Id INTEGER PRIMARY KEY, OrganizationId INTEGER, LandlordId INTEGER NOT NULL);
-            CREATE TABLE Units (Id INTEGER PRIMARY KEY, PropertyId INTEGER NOT NULL);
+            CREATE TABLE Units (Id INTEGER PRIMARY KEY, PropertyId INTEGER NOT NULL, OrganizationId INTEGER);
             CREATE TABLE Leases (Id INTEGER PRIMARY KEY, UnitId INTEGER NOT NULL, OrganizationId INTEGER, IsDeleted INTEGER NOT NULL, IsActive INTEGER NOT NULL);
             CREATE TABLE LeaseAgreements (
                 Id INTEGER PRIMARY KEY, LeaseId INTEGER NOT NULL, IsDrafted INTEGER,
@@ -525,6 +535,15 @@ public sealed class DocuSignConnectLeaseRepositoryTests
                 VALUES (31, 30, 0, 0, 0, 0, 0, 0, 0, 1, 'Envelope-Case-Sensitive');
             """);
         return db;
+    }
+
+    private static async Task CreateActivityTableAsync(DataContext db)
+    {
+        var activityTable = System.Text.RegularExpressions.Regex.Match(
+            db.Database.GenerateCreateScript(), "CREATE TABLE \"ActivityEvents\"[^;]*;",
+            System.Text.RegularExpressions.RegexOptions.Singleline);
+        Assert.True(activityTable.Success, "Missing EF DDL for ActivityEvents");
+        await db.Database.ExecuteSqlRawAsync(activityTable.Value);
     }
 
     private static async Task SeedAsync(DataContext db, bool organizationActive = true, bool organizationDeleted = false,

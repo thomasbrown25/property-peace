@@ -76,7 +76,7 @@ namespace brownstone_hub_api.Services.StripeRentPayments
 
         private static string GetDisplayStatus(StripeRentPayment payment)
         {
-            if (payment.DisputedAmountCents > payment.DisputeRecoveredAmountCents) return "disputed";
+            if (payment.DisputedAmountCents > 0) return "disputed";
             if (payment.RefundedAmountCents >= payment.AmountCents) return "refunded";
             if (payment.RefundedAmountCents > 0) return "partially_refunded";
 

@@ -2645,6 +2645,7 @@ export default function Property() {
               maintenances={maintenances}
               historyMaintenances={historyMaintenances}
               maintenanceError={maintenanceError}
+              onLeaseDeleted={handlePropertyRefresh}
               tab={tab}
               onTabChange={(nextTab) => {
                 setTab(nextTab);

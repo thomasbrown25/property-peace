@@ -30,6 +30,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { selectProperty } from 'store/property/property.selector';
 import { setProperty } from 'store/property/property.action';
 import { formatDateAndTime } from 'utils/formatters';
+import { ACTIVITY_TYPES, getActivityDestination, getActivityKey } from 'utils/activityNavigation.mjs';
 
 // Icons
 import DollarOutlined from '@ant-design/icons/DollarOutlined';
@@ -72,19 +73,6 @@ const getActivityColor = (colorName) => {
   return valid.includes(colorName) ? colorName : 'default';
 };
 
-const ACTIVITY_TYPES = [
-  { value: 'Payment', label: 'Payment' },
-  { value: 'Maintenance', label: 'Maintenance' },
-  { value: 'Lease', label: 'Lease' },
-  { value: 'Property', label: 'Property' },
-  { value: 'Tenant', label: 'Tenant' },
-  { value: 'Expense', label: 'Expense' },
-  { value: 'File', label: 'File' },
-  { value: 'Message', label: 'Message' },
-  { value: 'Application', label: 'Application' },
-  { value: 'System', label: 'System' },
-  { value: 'Notification', label: 'Notification' }
-];
 
 const parseUtcDate = (dateStr) => {
   if (!dateStr) return null;
@@ -195,28 +183,8 @@ export default function Activity() {
   const hasActiveFilters = filterType !== 'all' || timespan !== 'all';
 
   const handleActivityClick = (activity) => {
-    switch (activity.activityType) {
-      case 'Payment':
-        navigate('/landlord/finances?tab=payments');
-        break;
-      case 'Maintenance':
-        if (activity.relatedId) navigate(`/landlord/maintenance/${activity.relatedId}`);
-        break;
-      case 'Lease':
-        if (activity.relatedId) navigate(`/landlord/leases/${activity.relatedId}`);
-        break;
-      case 'Property':
-        if (activity.relatedId) navigate(`/landlord/property/${activity.relatedId}`);
-        break;
-      case 'Tenant':
-        if (activity.relatedId) navigate(`/landlord/tenants/${activity.relatedId}`);
-        break;
-      case 'Message':
-        navigate(activity.conversationId ? `/landlord/messages?conversationId=${activity.conversationId}` : '/landlord/messages');
-        break;
-      default:
-        break;
-    }
+    const destination = getActivityDestination(activity);
+    if (destination) navigate(destination);
   };
 
   if (activitiesLoading && (!activities || activities.length === 0)) {
@@ -360,12 +328,15 @@ export default function Activity() {
                   const color = getActivityColor(activity.color || 'default');
                   const isSystem = !activity.performedByName || activity.performedByName === 'System';
                   const initials = getInitials(activity.performedByName);
-                  const isClickable = ['Payment', 'Maintenance', 'Lease', 'Property', 'Tenant', 'Message'].includes(activity.activityType);
+                  const isClickable = Boolean(getActivityDestination(activity));
 
                   return (
-                    <Box key={`${activity.activityType}-${activity.id}-${idx}`}>
+                    <Box key={getActivityKey(activity, idx)}>
                       <Box
                         onClick={isClickable ? () => handleActivityClick(activity) : undefined}
+                        role={isClickable ? 'link' : undefined}
+                        tabIndex={isClickable ? 0 : undefined}
+                        onKeyDown={isClickable ? (event) => { if (event.key === 'Enter') handleActivityClick(activity); } : undefined}
                         sx={{
                           display: 'flex',
                           alignItems: 'flex-start',

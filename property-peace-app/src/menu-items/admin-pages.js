@@ -96,13 +96,7 @@ const adminPages = {
       url: '/admin/upcoming-features',
       icon: icons.RocketOutlined
     },
-    {
-      id: 'admin-stripe-payees',
-      title: 'Stripe Payees',
-      type: 'item',
-      url: '/admin/stripe-payees',
-      icon: icons.SafetyCertificateOutlined
-    },
+
     {
       id: 'admin-short-stay-collection',
       title: 'Short-stay collection review',
@@ -110,13 +104,7 @@ const adminPages = {
       url: '/admin/short-stay-collection',
       icon: icons.SafetyCertificateOutlined
     },
-    {
-      id: 'admin-rent-payment-access',
-      title: 'Rent payment access',
-      type: 'item',
-      url: '/admin/rent-payment-access',
-      icon: icons.SafetyCertificateOutlined
-    },
+
     {
       id: 'admin-settings',
       title: 'Settings',

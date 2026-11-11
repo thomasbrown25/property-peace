@@ -26,13 +26,13 @@ export default function PropertyFinanceTable({ propertyId, property, payments = 
   const filtered = rows.filter(({ record }) => {
     if (filter !== 'all' && filter !== getFilterValue(record)) return false;
     const text = [record.name, record.vendor, record.category, record.tenantName, record.lease?.tenantName,
-      financeUnitName(record, property), paymentCategory(record), record.reference, record.method, record.status].filter(Boolean).join(' ').toLowerCase();
+      financeUnitName(record, property), paymentCategory(record), record.reference, record.method, record.status, isPayments && record.paymentTiming].filter(Boolean).join(' ').toLowerCase();
     return text.includes(query.trim().toLowerCase());
   });
   const total = rows.filter(({ record }) => !isPayments || String(record.status).toLowerCase() === 'completed')
     .reduce((sum, row) => sum + (Number(row.record.amount) || 0), 0);
   const safePage = Math.min(page, Math.max(0, Math.ceil(filtered.length / rowsPerPage) - 1));
-  const columnCount = 5 + (showUnit ? 1 : 0) + (isPayments ? 0 : 1);
+  const columnCount = 6 + (showUnit ? 1 : 0);
   useEffect(() => { setPage(0); setFilter('all'); setQuery(''); }, [propertyId, mode]);
   useEffect(() => setPage(0), [query, filter, rowsPerPage]);
   return (
@@ -78,7 +78,9 @@ export default function PropertyFinanceTable({ propertyId, property, payments = 
           <Table size="small" aria-label={`Property ${label}`}>
             <TableHead><TableRow>
               <TableCell>Date</TableCell><TableCell>{isPayments ? 'Tenant' : 'Name'}</TableCell><TableCell>{isPayments ? 'Payment type' : 'Category'}</TableCell>
-              {showUnit && <TableCell>Unit</TableCell>}<TableCell>Status</TableCell><TableCell align="right">Amount</TableCell>
+              {showUnit && <TableCell>Unit</TableCell>}<TableCell>Status</TableCell>
+              {isPayments && <TableCell sx={{ whiteSpace: 'nowrap' }}>Payment timing</TableCell>}
+              <TableCell align="right">Amount</TableCell>
               {!isPayments && <TableCell align="center">Actions</TableCell>}
             </TableRow></TableHead>
             <TableBody>
@@ -92,6 +94,10 @@ export default function PropertyFinanceTable({ propertyId, property, payments = 
                   <TableCell>{isPayments
                     ? <Chip size="small" label={record.status || 'Unknown'} color={String(record.status).toLowerCase() === 'completed' ? 'success' : 'default'} />
                     : <Chip size="small" label={record.isPaid ? 'Paid' : 'Unpaid'} color={record.isPaid ? 'success' : 'warning'} />}</TableCell>
+                  {isPayments && <TableCell sx={{ whiteSpace: 'nowrap', color: record.paymentTiming === 'Late' ? 'error.main' : record.paymentTiming === 'On time' ? 'primary.main' : 'text.secondary' }}
+                    title={record.paymentTiming ? 'Based on the recorded payment date and allocated charge due date.' : 'Timing is unavailable for unfinished payments or payments without a confirmed due-date allocation.'}>
+                    {record.paymentTiming || '—'}
+                  </TableCell>}
                   <TableCell align="right" sx={{ whiteSpace: 'nowrap', color: isPayments ? 'success.main' : 'error.main', fontWeight: 600 }}>
                     {isPayments ? '+' : '−'}{formatCurrency(record.amount || 0)}</TableCell>
                   {!isPayments && <TableCell align="center"><Stack direction="row" justifyContent="center">

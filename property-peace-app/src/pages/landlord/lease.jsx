@@ -83,6 +83,7 @@ import { buildLeaseMoveInReadiness, deriveExactLeaseSigners, selectCurrentSignat
 import { normalizeRentBalance } from 'utils/rentBalance';
 import { leaseById } from 'utils/leaseById.mjs';
 import { buildChecklistWorkspacePath } from 'utils/checklistPortfolio';
+import { findLinkedChecklist } from 'utils/checklistLeaseOptions.mjs';
 import { isDetachedSingleUnitType } from 'utils/propertyType';
 
 // E-Signature Status Labels
@@ -249,7 +250,7 @@ export default function LeasePage() {
   }, [lease?.startDate]);
 
   // Fetch payments for this lease - MUST be called before any early returns (Rules of Hooks)
-  const { payments: fetchedPayments, refetch: refetchPayments } = useFetchPayments(lease?.id);
+  const { payments: fetchedPayments, loading: paymentsLoading, error: paymentsError, refetch: refetchPayments } = useFetchPayments(lease?.id);
 
   // Fetch rent collection data to get current due (including overdue) - MUST be called before any early returns (Rules of Hooks)
   const { rentRecords, refetch: refetchRentCollection, loading: rentCollectionLoading } = useFetchRentCollection(null, true);
@@ -1638,6 +1639,9 @@ export default function LeasePage() {
         tenants={tenants}
         property={property}
         payments={payments}
+        paymentsLoading={paymentsLoading}
+        paymentsError={paymentsError}
+        onRetryPayments={refetchPayments}
         deposits={deposits}
         rentRecord={rentRecord}
         propertyDisplay={propertyDisplay}
@@ -1660,15 +1664,28 @@ export default function LeasePage() {
         onUploadDocument={() => setDocumentUploadDrawerOpen(true)}
         onEditTerms={() => { dispatch(setLease(lease)); drawer.openLeaseEditDrawer(); }}
         onOpenSignature={handleOpenSignatures}
-        onViewChecklists={(type = 'move-in') => {
-          const checklistType = type === 'move-out' ? 41 : 40;
-          const existing = leaseChecklists?.find((item) => String(item.leaseId ?? item.LeaseId) === String(leaseId) && Number(item.checklistType ?? item.ChecklistType) === checklistType);
-          if (existing) {
-            navigate(buildChecklistWorkspacePath(existing));
-            return;
+        onViewChecklists={async (type = 'move-in') => {
+          try {
+            // Resolve the exact lease before deciding to create, including when the
+            // initial checklist request is still loading or failed.
+            const response = await getChecklistsByLease(leaseId);
+            if (!response?.success || !Array.isArray(response.data)) throw new Error('Could not load lease checklists. Please try again.');
+            const existing = findLinkedChecklist(response.data, leaseId, type);
+            if (existing) {
+              navigate(buildChecklistWorkspacePath({
+                ...existing,
+                id: existing.id ?? existing.Id,
+                propertyId: existing.propertyId ?? existing.PropertyId ?? propertyId,
+                unitId: existing.unitId ?? existing.UnitId
+              }));
+              return;
+            }
+            if (!propertyId) throw new Error('The lease property is not available. Please reload the lease.');
+            const params = new URLSearchParams({ propertyId: String(propertyId) });
+            navigate(`/landlord/leases/${leaseId}/checklists/${type}/new?${params}`, { state: { propertyId } });
+          } catch (error) {
+            openSnackbar({ open: true, message: error?.response?.data?.message || error.message || 'Could not open checklist', variant: 'alert', alert: { color: 'error' } });
           }
-          const params = new URLSearchParams({ propertyId: String(propertyId) });
-          navigate(`/landlord/leases/${leaseId}/checklists/${type}/new?${params}`, { state: { propertyId } });
         }}
         onAddTenant={() => {
           if (property) dispatch(setProperty(property));

@@ -8,7 +8,7 @@ const deferred = () => {
   const promise = new Promise((done) => { resolve = done; });
   return { promise, resolve };
 };
-const result = (amount, id = 'pi_1') => ({ data: { success: true, data: { paymentIntentId: id, clientSecret: 'secret', amount } } });
+const result = (amount, id = 'pi_1') => ({ data: { success: true, data: { paymentIntentId: id, clientSecret: 'secret', stripeAccountId: 'acct_rent1', amount } } });
 const tick = () => new Promise((resolve) => setImmediate(resolve));
 
 for (const kind of ['rent', 'fee']) {

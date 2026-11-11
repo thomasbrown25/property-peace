@@ -26,6 +26,10 @@ public sealed class PropertyDeleteConnectPreparationTests
 
         Assert.False(await db.Properties.AnyAsync(x => x.Id == 137));
         Assert.True(await db.Properties.AnyAsync(x => x.Id == 138));
+        var deleted = await db.ActivityEvents.SingleAsync(x => x.ActivityType == "Property" && x.Operation == "Deleted");
+        Assert.Equal(137, deleted.RelatedId);
+        Assert.Equal(137, deleted.PropertyId);
+        Assert.Equal(10, deleted.OrganizationId);
         Assert.Equal(2, await db.StripeConnectPreparationProperties.CountAsync());
         Assert.False(await db.StripeConnectPreparationProperties.AnyAsync(x => x.PropertyId == 137));
         var drafts = await db.StripeConnectPreparations.OrderBy(x => x.Id).ToListAsync();
@@ -78,11 +82,11 @@ public sealed class PropertyDeleteConnectPreparationTests
             await connection.OpenAsync();
             var db = new DataContext(new DbContextOptionsBuilder<DataContext>().UseSqlite(connection).Options);
             var ddl = db.Database.GenerateCreateScript();
-            foreach (var table in new[] { "Properties", "StripeConnectPreparations", "StripeConnectPreparationProperties" })
+            foreach (var table in new[] { "Properties", "StripeConnectPreparations", "StripeConnectPreparationProperties", "ActivityEvents" })
             {
                 var match = Regex.Match(ddl, $"CREATE TABLE \"{table}\"[^;]*;", RegexOptions.Singleline);
                 Assert.True(match.Success, $"Missing EF DDL for {table}");
-                // Isolate the three production tables; keep both actual selection FKs intact.
+                // Isolate the production tables used here; keep both actual selection FKs intact.
                 var create = table == "StripeConnectPreparationProperties" ? match.Value
                     : Regex.Replace(string.Join('\n', match.Value.Split('\n').Where(line => !line.Contains("FOREIGN KEY"))), @",\s*\);", "\n);");
                 try { await db.Database.ExecuteSqlRawAsync(create); }

@@ -155,9 +155,9 @@ const AdminUsers = Loadable(lazy(() => import('pages/admin/users')));
 const AdminUserDetail = Loadable(lazy(() => import('pages/admin/user-detail')));
 const AdminStorage = Loadable(lazy(() => import('pages/admin/storage')));
 const AdminSettings = Loadable(lazy(() => import('pages/admin/settings')));
-const AdminStripePayees = Loadable(lazy(() => import('pages/admin/stripe-payees')));
+
 const AdminShortStayCollection = Loadable(lazy(() => import('pages/admin/short-stay-collection')));
-const AdminRentPaymentAccess = Loadable(lazy(() => import('pages/admin/rent-payment-access')));
+
 const AdminMessages = Loadable(lazy(() => import('pages/admin/messages')));
 const AdminUpcomingFeatures = Loadable(lazy(() => import('pages/admin/upcoming-features')));
 const AdminJobs = Loadable(lazy(() => import('pages/admin/jobs')));
@@ -1346,14 +1346,7 @@ const MainRoutes = {
             </AdminRoute>
           )
         },
-        {
-          path: 'admin/stripe-payees',
-          element: (
-            <AdminRoute>
-              <AdminStripePayees />
-            </AdminRoute>
-          )
-        },
+
         {
           path: 'admin/short-stay-collection',
           element: (
@@ -1362,26 +1355,12 @@ const MainRoutes = {
             </AdminRoute>
           )
         },
-        {
-          path: 'admin/rent-payment-access',
-          element: (
-            <AdminRoute>
-              <AdminRentPaymentAccess />
-            </AdminRoute>
-          )
-        },
+
         {
           path: 'landlord/tasks',
           element: <Navigate to="/landlord/dashboard?tab=tasks" replace />
         },
-        {
-          path: 'admin/rent-payment-access/:publicId',
-          element: (
-            <AdminRoute>
-              <AdminRentPaymentAccess />
-            </AdminRoute>
-          )
-        },
+
         {
           path: 'admin/settings',
           element: (

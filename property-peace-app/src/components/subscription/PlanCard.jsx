@@ -159,7 +159,7 @@ export default function PlanCard({
                     <CheckCircleIcon sx={{ fontSize: 18, color: 'success.main', mt: 0.15, flexShrink: 0 }} />
                     <Typography variant="body2">{feature}</Typography>
                     {isOnlineRentCollectionFeature && (
-                      <Chip label="Approval required" size="small" variant="outlined" color={rentReadiness?.canInvoke ? 'success' : 'default'} sx={{ height: 22, flexShrink: 0 }} />
+                      <Chip label={rentReadiness?.canInvoke ? 'Ready' : 'Setup required'} size="small" variant="outlined" color={rentReadiness?.canInvoke ? 'success' : 'default'} sx={{ height: 22, flexShrink: 0 }} />
                     )}
                   </Box>
                 );

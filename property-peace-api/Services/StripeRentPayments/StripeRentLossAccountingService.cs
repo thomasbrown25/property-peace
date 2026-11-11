@@ -163,7 +163,7 @@ public sealed class StripeRentLossAccountingService(
                 aggregate.DisputedAmountCents = Math.Max(aggregate.DisputedAmountCents, command.AmountCents);
             var targetReversalAmount = Math.Min(aggregate.AmountCents,
                 checked(aggregate.RefundedAmountCents + aggregate.DisputedAmountCents));
-            if (!string.IsNullOrWhiteSpace(aggregate.StripeTransferId)
+            if (aggregate.ChargeStripeAccountId == null && !string.IsNullOrWhiteSpace(aggregate.StripeTransferId)
                 && targetReversalAmount > aggregate.ReversedAmountCents)
                 aggregate.Status = StripeRentPaymentStatus.ReversalPending;
             else if (aggregate.Status is StripeRentPaymentStatus.TransferPending or StripeRentPaymentStatus.TransferReconciliationPending)
@@ -298,11 +298,12 @@ public sealed class StripeRentLossAccountingService(
 
             aggregate.StripeDisputeStatus = "won";
             aggregate.DisputeClosedAt ??= occurredAt;
-            var requiresManualDestinationFunding = aggregate.DisputeRecoveredAmountCents > 0
+            var requiresManualDestinationFunding = aggregate.ChargeStripeAccountId == null && aggregate.DisputeRecoveredAmountCents > 0
                 && reversalExposureBeforeRecovery > aggregate.RefundedAmountCents;
             aggregate.Status = requiresManualDestinationFunding
                 ? StripeRentPaymentStatus.RecoveryFailed
-                : StripeRentPaymentStatus.Blocked;
+                : aggregate.ChargeStripeAccountId != null && aggregate.RefundedAmountCents == 0
+                    ? StripeRentPaymentStatus.Succeeded : StripeRentPaymentStatus.Blocked;
             aggregate.RiskReason = requiresManualDestinationFunding
                 ? "Won dispute recovery followed a transfer reversal; manual destination funding and reconciliation are required."
                 : aggregate.RiskReason;

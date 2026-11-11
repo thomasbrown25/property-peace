@@ -30,6 +30,19 @@ public static class LeaseAgreementWriter
 
         // Null collections preserve existing rows; [] explicitly clears them. Child identity and
         // ownership supplied by the client are ignored; both derive from the authorized parent.
+        if (dto.LeaseLandlords != null)
+        {
+            context.LeaseLandlords.RemoveRange(await context.LeaseLandlords
+                .Where(x => x.LeaseId == lease.Id).ToListAsync());
+            context.LeaseLandlords.AddRange(dto.LeaseLandlords.Select(x => new LeaseLandlord
+            {
+                LeaseId = lease.Id,
+                EntityType = x.EntityType, FirstName = x.FirstName, LastName = x.LastName,
+                CompanyName = x.CompanyName, Email = x.Email, Phone = x.Phone,
+                StreetAddress = x.StreetAddress, Unit = x.Unit, City = x.City,
+                State = x.State, ZipCode = x.ZipCode, SortOrder = x.SortOrder
+            }));
+        }
         if (dto.Pets != null)
         {
             context.Pets.RemoveRange(await context.Pets.Where(x => x.LeaseId == lease.Id).ToListAsync());

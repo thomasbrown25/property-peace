@@ -6,6 +6,7 @@ namespace brownstone_hub_api.Services.BankAccountService
     {
         Task<ServiceResponse<List<LoadBankAccountDto>>> GetBankAccountsByOrganizationIdAsync(long organizationId);
         Task<ServiceResponse<LoadBankAccountDto>> GetBankAccountByIdAsync(long id, long organizationId);
+        Task<ServiceResponse<BankAccountBalanceDto>> GetBankAccountBalanceAsync(long id, long organizationId);
         Task<ServiceResponse<LoadBankAccountDto>> CreateBankAccountAsync(CreateBankAccountDto bankAccount);
         Task<ServiceResponse<LoadBankAccountDto>> UpdateBankAccountAsync(UpdateBankAccountDto bankAccount, long organizationId);
         Task<ServiceResponse<bool>> DeleteBankAccountAsync(long id, long organizationId);

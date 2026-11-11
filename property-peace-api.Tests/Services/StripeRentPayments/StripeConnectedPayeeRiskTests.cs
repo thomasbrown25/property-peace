@@ -230,27 +230,36 @@ public sealed class StripeConnectedPayeeRiskTests
     }
 
     [Fact]
-    public async Task RiskGate_RequiresApprovedPayeeAndFreshHealthyStripeSnapshot()
+    public async Task RiskGate_UnreviewedPayeeWithFreshHealthyStripeSnapshot_IsEligibleWithoutApprovalQueue()
     {
         await using var context = StripeRentPaymentFlowTests.CreateContext();
         var payment = StripeRentPaymentFlowTests.NewPayment("pi_gate");
         payment.DestinationStripeAccountId = "acct_gate";
+        await StripeRentPaymentFlowTests.SeedLeaseAsync(context, 1, 2);
+        await StripeRentPaymentFlowTests.SeedLeaseDestinationAsync(context, 1, 2, "acct_gate");
         context.StripeConnectedPayeeReviews.Add(new StripeConnectedPayeeReview
         {
-            UserId = 42, StripeAccountId = "acct_gate", Status = StripePayeeReviewStatus.PayoutApproved,
-            PropertyAuthorityAttested = true, ApprovedOrganizationId = 2, ApprovedAt = Now.AddDays(-1), CreatedAt = Now.AddDays(-10),
+            UserId = 42, StripeAccountId = "acct_gate", Status = StripePayeeReviewStatus.StripeVerified,
+            PropertyAuthorityAttested = false, CreatedAt = Now.AddDays(-10),
             UpdatedAt = Now.AddDays(-1), ExternalAccountFingerprint = "ba_fp_1"
         });
         AddActiveAuthority(context);
         await context.SaveChangesAsync();
         var snapshotGateway = new StubSnapshotGateway(new StripeConnectedAccountSnapshot(
-            "acct_gate", Now, true, true, true, "active", [], [], null, "ba_fp_1", "manual", false));
+            "acct_gate", Now, true, true, false, null, [], [], null, "ba_fp_1", "daily", false,
+            ChargesEnabled: true, CardPaymentsCapabilityStatus: "active",
+            DashboardType: "full", LossesPayments: "stripe", FeesPayer: "account"));
+        payment.ChargeStripeAccountId = "acct_gate";
         var risk = new StripeRentRiskService(context, snapshotGateway, Configuration(), new FixedTimeProvider(Now));
 
         var decision = await risk.EvaluatePayeeAsync(payment);
 
         decision.Approved.Should().BeTrue();
         context.StripeConnectedPayeeReviews.Single().LastStripeSnapshotAt.Should().Be(Now);
+        context.StripeConnectedPayeeReviews.Single().ApprovedAt.Should().BeNull();
+        context.RentPaymentAccessRequests.Should().BeEmpty();
+        payment.ChargeStripeAccountId = null; // Collection preflight has no persisted charge provenance yet.
+        (await risk.EvaluateCollectionPayeeAsync(payment)).Approved.Should().BeTrue();
     }
 
     [Theory]
@@ -568,7 +577,7 @@ public sealed class StripeConnectedPayeeRiskTests
     }
 
     [Fact]
-    public async Task AccountUpdate_BankFingerprintChange_AutoSuspendsApprovedPayee()
+    public async Task AccountUpdate_HealthyBankFingerprintChange_RefreshesDestinationWithoutReview()
     {
         await using var context = StripeRentPaymentFlowTests.CreateContext();
         context.StripeConnectedPayeeReviews.Add(new StripeConnectedPayeeReview
@@ -584,8 +593,9 @@ public sealed class StripeConnectedPayeeRiskTests
             "acct_bank", Now, true, true, true, "active", [], [], null, "new_fp", "manual", false), "evt_account_updated");
 
         var review = context.StripeConnectedPayeeReviews.Single();
-        review.Status.Should().Be(StripePayeeReviewStatus.Suspended);
-        review.SuspensionReason.Should().Contain("bank account changed");
+        review.Status.Should().Be(StripePayeeReviewStatus.PayoutApproved);
+        review.SuspensionReason.Should().BeNull();
+        review.ExternalAccountFingerprint.Should().Be("new_fp");
     }
 
     [Fact]
@@ -623,7 +633,7 @@ public sealed class StripeConnectedPayeeRiskTests
         review.PropertyAuthorityAttested.Should().BeFalse();
         review.ApprovedOrganizationId.Should().BeNull();
         context.Users.Single().StripeAccountEnabled.Should().BeFalse();
-        context.Users.Single().StripeAccountStatus.Should().Be("stripe_verified_pending_review");
+        context.Users.Single().StripeAccountStatus.Should().Be("stripe_verified");
     }
 
     [Fact]
@@ -692,7 +702,7 @@ public sealed class StripeConnectedPayeeRiskTests
         var persisted = context.StripeConnectedPayeeReviews.Single();
         persisted.Status.Should().Be(StripePayeeReviewStatus.Suspended);
         persisted.ExternalAccountFingerprint.Should().BeNull();
-        persisted.SuspensionReason.Should().Contain("payout destination");
+        persisted.SuspensionReason.Should().BeNull("an existing unclassified hold must not be converted into a recoverable Stripe-only hold");
     }
 
     [Fact]
@@ -820,7 +830,32 @@ public sealed class StripeConnectedPayeeRiskTests
 
         decision.Approved.Should().BeFalse();
         decision.Reason.Should().Contain("changed");
-        context.StripeConnectedPayeeReviews.Single().SuspensionReason.Should().Contain("bank account changed");
+        context.StripeConnectedPayeeReviews.Single().SuspensionReason.Should().BeNull();
+        (await risk.EvaluatePayeeAsync(payment)).Approved.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("Stripe payouts are disabled.", null, true)]
+    [InlineData("Stripe external bank account changed; internal re-review is required.", null, true)]
+    [InlineData("Automatic suspension for dispute dp_hold.", null, false)]
+    [InlineData("Stripe payouts are disabled.", 99L, false)]
+    public async Task HealthySnapshot_RecoversProviderOnlyHoldsWithoutReview_PreservesOtherHolds(
+        string reason, long? operatorId, bool recovers)
+    {
+        await using var context = StripeRentPaymentFlowTests.CreateContext();
+        context.Users.Add(new User { Id = 42, Email = "held@example.test", StripeAccountId = "acct_hold" });
+        context.StripeConnectedPayeeReviews.Add(new StripeConnectedPayeeReview {
+            UserId = 42, StripeAccountId = "acct_hold", Status = StripePayeeReviewStatus.Suspended,
+            SuspendedAt = Now.AddDays(-1), SuspendedByUserId = operatorId, SuspensionReason = reason });
+        await context.SaveChangesAsync();
+        await new StripeConnectedPayeeService(context, new FixedTimeProvider(Now)).SyncStripeSnapshotAsync(
+            new StripeConnectedAccountSnapshot("acct_hold", Now, true, true, true, "active", [], [], null, "fp", "manual", false), null);
+        var review = context.StripeConnectedPayeeReviews.Single();
+        review.Status.Should().Be(recovers ? StripePayeeReviewStatus.StripeVerified : StripePayeeReviewStatus.Suspended,
+            $"snapshot sync should reflect the provider hold policy (reason={review.SuspensionReason})");
+        context.Users.Single().StripeAccountEnabled.Should().Be(recovers);
+        review.ApprovedAt.Should().BeNull();
+        if (!recovers) review.SuspensionReason.Should().Be(reason);
     }
 
     private static void AddActiveAuthority(brownstone_hub_api.Data.DataContext context) =>

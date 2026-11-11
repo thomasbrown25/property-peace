@@ -108,12 +108,12 @@ public sealed class ShortStayIcalPersistenceTests
             var connection = new SqliteConnection("Data Source=:memory:");
             await connection.OpenAsync();
             var f = new Fixture(connection);
-            await f.Db.Database.ExecuteSqlRawAsync("CREATE TABLE Units (Id INTEGER PRIMARY KEY)");
+            await f.Db.Database.ExecuteSqlRawAsync("CREATE TABLE Units (Id INTEGER PRIMARY KEY, PropertyId INTEGER NOT NULL DEFAULT 0, OrganizationId INTEGER)");
             await f.Db.Database.ExecuteSqlRawAsync("CREATE TABLE Organizations (Id INTEGER PRIMARY KEY)");
             await f.Db.Database.ExecuteSqlRawAsync("INSERT INTO Units (Id) VALUES (1)");
             await f.Db.Database.ExecuteSqlRawAsync("INSERT INTO Organizations (Id) VALUES (2)");
             var ddl = f.Db.Database.GenerateCreateScript();
-            foreach (var table in new[] { "ShortStayIcalSubscriptions", "ShortStayIcalOccurrences" })
+            foreach (var table in new[] { "ActivityEvents", "ShortStayIcalSubscriptions", "ShortStayIcalOccurrences" })
             {
                 var create = Regex.Match(ddl, $"CREATE TABLE [^;]*\\\"{table}\\\"[^;]*;", RegexOptions.Singleline);
                 Assert.True(create.Success, $"Missing EF DDL for {table}");

@@ -1109,7 +1109,7 @@ public sealed class ShortStayCollectionApiTests
             var keep = new[] { typeof(Property), typeof(Unit), typeof(Organization), typeof(OrganizationMember), typeof(User), typeof(Role), typeof(UserRole),
                 typeof(StripeConnectedPayeeReview), typeof(ShortStayCollectionApplication), typeof(ShortStayCollectionApplicationProperty) };
             foreach (var entity in modelBuilder.Model.GetEntityTypes().ToList())
-                if (!keep.Contains(entity.ClrType)) modelBuilder.Ignore(entity.ClrType);
+                if (entity.ClrType != typeof(ActivityEvent) && !keep.Contains(entity.ClrType)) modelBuilder.Ignore(entity.ClrType);
             modelBuilder.Entity<StripeConnectedPayeeReview>().Property(x => x.RowVersion).ValueGeneratedNever();
             foreach (var entity in modelBuilder.Model.GetEntityTypes())
                 foreach (var property in entity.GetProperties())

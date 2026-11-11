@@ -421,7 +421,7 @@ public sealed class ShortStayListingApiTests
             base.OnModelCreating(modelBuilder);
             var keep = new[] { typeof(Property), typeof(Unit), typeof(Organization), typeof(OrganizationMember), typeof(ShortStayListing) };
             foreach (var entity in modelBuilder.Model.GetEntityTypes().ToList())
-                if (!keep.Contains(entity.ClrType)) modelBuilder.Ignore(entity.ClrType);
+                if (entity.ClrType != typeof(ActivityEvent) && !keep.Contains(entity.ClrType)) modelBuilder.Ignore(entity.ClrType);
             foreach (var entity in modelBuilder.Model.GetEntityTypes())
                 foreach (var property in entity.GetProperties())
                     if (property.GetColumnType()?.Contains("(max)", StringComparison.OrdinalIgnoreCase) == true)

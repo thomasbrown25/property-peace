@@ -21,12 +21,13 @@ namespace brownstone_hub_api.Tests.Controllers;
 public sealed class StripeWebhookControllerIdempotencyTests
 {
     private const string Secret = "whsec_exclusive_claim_test_secret";
+    private static readonly InMemoryDatabaseRoot SharedRoot = new();
 
     [Fact]
     public async Task ConcurrentDeliveries_OnlyClaimAndDispatchEventOnce()
     {
         var databaseName = Guid.NewGuid().ToString();
-        var root = new InMemoryDatabaseRoot();
+        var root = SharedRoot;
         await using var firstContext = CreateContext(databaseName, root);
         await using var secondContext = CreateContext(databaseName, root);
         var handlerStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -66,7 +67,7 @@ public sealed class StripeWebhookControllerIdempotencyTests
     public async Task ExpiredProcessingLease_IsAtomicallyReclaimedAndRetried()
     {
         var databaseName = Guid.NewGuid().ToString();
-        var root = new InMemoryDatabaseRoot();
+        var root = SharedRoot;
         await using (var seedContext = CreateContext(databaseName, root))
         {
             seedContext.StripeWebhookEvents.Add(new StripeWebhookEvent
@@ -103,7 +104,7 @@ public sealed class StripeWebhookControllerIdempotencyTests
     public async Task LiveHandler_RemainsFencedWhenHeartbeatInfrastructureFailsPastLeaseExpiry()
     {
         var databaseName = Guid.NewGuid().ToString();
-        var root = new InMemoryDatabaseRoot();
+        var root = SharedRoot;
         await using var firstContext = CreateContext(databaseName, root);
         await using var secondContext = CreateContext(databaseName, root);
         var handlerStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -144,7 +145,7 @@ public sealed class StripeWebhookControllerIdempotencyTests
     public async Task LiveHandler_RenewsLeaseAndCannotBeReclaimedAfterInitialBoundary()
     {
         var databaseName = Guid.NewGuid().ToString();
-        var root = new InMemoryDatabaseRoot();
+        var root = SharedRoot;
         using var services = CreateServices(databaseName, root);
         await using var firstContext = CreateContext(databaseName, root);
         await using var secondContext = CreateContext(databaseName, root);
@@ -187,6 +188,66 @@ public sealed class StripeWebhookControllerIdempotencyTests
         var inboxEvent = await verificationContext.StripeWebhookEvents.SingleAsync();
         inboxEvent.Status.Should().Be("Processed");
         inboxEvent.ProcessingAttempts.Should().Be(1);
+    }
+
+    [Theory]
+    [InlineData("acct_direct", false, true)]
+    [InlineData("acct_other", false, false)]
+    [InlineData("acct_direct", true, false)]
+    public async Task ConnectedRentDelivery_RequiresRegisteredOwnerAndRejectsShortStay(string eventAccount, bool shortStay, bool accepted)
+    {
+        await using var context = CreateContext(Guid.NewGuid().ToString(), SharedRoot);
+        var payment = Services.StripeRentPayments.StripeRentPaymentFlowTests.NewPayment("pi_exclusive_claim");
+        payment.ChargeStripeAccountId = "acct_direct";
+        context.StripeRentPayments.Add(payment);
+        await context.SaveChangesAsync();
+        var service = new Mock<IStripeWebhookService>();
+        service.Setup(x => x.HandlePaymentIntentSucceededAsync(It.IsAny<Event>())).Returns(Task.CompletedTask);
+        var payload = CreatePayload($"evt_direct_{Guid.NewGuid():N}")
+            .Replace("\"object\": \"event\",", $"\"object\": \"event\", \"account\": \"{eventAccount}\",");
+        if (shortStay) payload = payload.Replace("\"amount\": 1000,", "\"metadata\": {\"reservation_code\": \"ABC123\"}, \"amount\": 1000,");
+        var result = await CreateController(service.Object, context, payload).HandleWebhook();
+        if (accepted)
+        {
+            result.Should().BeOfType<OkObjectResult>();
+            service.Verify(x => x.HandlePaymentIntentSucceededAsync(It.Is<Event>(e => e.Account == "acct_direct")), Times.Once);
+            (await context.StripeWebhookEvents.SingleAsync()).Status.Should().Be("Processed");
+        }
+        else
+        {
+            result.Should().BeOfType<ObjectResult>().Which.StatusCode.Should().Be(409);
+            service.Verify(x => x.HandlePaymentIntentSucceededAsync(It.IsAny<Event>()), Times.Never);
+            (await context.StripeWebhookEvents.CountAsync()).Should().Be(0);
+        }
+    }
+
+    [Theory]
+    [InlineData("intent")]
+    [InlineData("charge")]
+    [InlineData("refund")]
+    [InlineData("dispute")]
+    public async Task ConnectedMoneyClassifier_UsesDurableIntentOrChargeOwner(string kind)
+    {
+        await using var context = CreateContext(Guid.NewGuid().ToString(), SharedRoot);
+        var payment = Services.StripeRentPayments.StripeRentPaymentFlowTests.NewPayment("pi_exclusive_claim");
+        payment.ChargeStripeAccountId = "acct_direct";
+        payment.StripeChargeId = "ch_direct";
+        context.StripeRentPayments.Add(payment);
+        await context.SaveChangesAsync();
+        var controller = CreateController(Mock.Of<IStripeWebhookService>(), context, CreatePayload("evt_classifier"));
+        IHasObject payload = kind switch
+        {
+            "intent" => new PaymentIntent { Id = "pi_exclusive_claim" },
+            "charge" => new Charge { Id = "ch_direct", PaymentIntentId = "pi_exclusive_claim" },
+            "refund" => new Refund { Id = "re_direct", ChargeId = "ch_direct" },
+            _ => new Dispute { Id = "dp_direct", ChargeId = "ch_direct" }
+        };
+        var evt = new Event { Account = "acct_direct", Data = new EventData { Object = payload } };
+        (await controller.IsRegisteredDirectRentEventAsync(evt)).Should().BeTrue();
+        evt.Account = "acct_foreign";
+        (await controller.IsRegisteredDirectRentEventAsync(evt)).Should().BeFalse();
+        evt.Account = null;
+        (await controller.IsRegisteredDirectRentEventAsync(evt)).Should().BeFalse();
     }
 
     private static StripeWebhookController CreateController(

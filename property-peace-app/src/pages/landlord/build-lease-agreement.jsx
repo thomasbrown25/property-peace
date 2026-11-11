@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Alert, Box, Button, Chip, CircularProgress, Container, Divider, Grid, LinearProgress,
+import { Alert, Box, Button, CircularProgress, Container, Divider, Drawer, Grid, LinearProgress,
   List, ListItemButton, ListItemText, Stack, Typography } from '@mui/material';
 import { CheckCircleOutlined, EditOutlined, EyeOutlined, FileTextOutlined } from '@ant-design/icons';
 import MainCard from 'components/MainCard';
+import LeaseSetupBuilder from 'sections/lease-builder/LeaseSetupBuilder';
 import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
 import LeasePreviewModal from 'components/dialogs/LeasePreviewModal';
 import axiosServices from 'utils/axios';
@@ -11,23 +12,30 @@ import { finishLeaseAgreement } from 'api/leaseGeneration';
 import { areAllLeasePreflightChecksComplete, computeLeasePreflightChecks } from 'utils/leasePreflight';
 import useOrganizationRole from 'hooks/useOrganizationRole';
 import { useOrganization } from 'contexts/OrganizationContext';
+import LandlordsPage from './build-lease-agreement/landlords';
 import PetsSmokingOtherPage from './build-lease-agreement/pets-smoking-other';
 import UtilitiesMaintenanceKeysPage from './build-lease-agreement/utilities-maintenance-keys';
 import ProvisionsAttachmentsPage from './build-lease-agreement/provisions-attachments';
 import { agreementSections, agreementLeaseFacts, loadAgreementContext, readAgreement, requireAgreementData } from './build-lease-agreement/agreementWorkflow.mjs';
 
-const editors = [PetsSmokingOtherPage, UtilitiesMaintenanceKeysPage, ProvisionsAttachmentsPage];
+import SelectAgreementLease from './build-lease-agreement/SelectAgreementLease';
+import { agreementBuilderPath } from './build-lease-agreement/leaseSelection.mjs';
 
-// Lease terms are a read-only reference here. Only the three document-specific sections can save.
+const contentBorderSx = { border: '1px solid', borderColor: 'divider', boxShadow: 'none', '&:hover': { borderColor: 'divider', boxShadow: 'none' } };
+const noBorderSx = { border: 0, boxShadow: 'none', '&:hover': { border: 0, boxShadow: 'none' }, '&::before, &::after': { display: 'none' } };
+
+const editors = [LandlordsPage, PetsSmokingOtherPage, UtilitiesMaintenanceKeysPage, ProvisionsAttachmentsPage];
+
+// Lease terms are a read-only reference here. Landlords and document-specific sections can save.
 export default function BuildLeaseAgreementPage() {
   const [params] = useSearchParams();
   const { currentOrganization } = useOrganization();
   const organizationId = readAgreement(currentOrganization, 'id');
   const leaseId = Number(params.get('leaseId'));
-  return <AgreementBuilder key={`${organizationId}:${leaseId}`} leaseId={leaseId} />;
+  return <AgreementBuilder key={`${organizationId}:${leaseId}`} leaseId={leaseId} confirmSelection={params.get('selectLease') === '1'} />;
 }
 
-function AgreementBuilder({ leaseId }) {
+function AgreementBuilder({ leaseId, confirmSelection }) {
   const navigate = useNavigate();
   const { currentOrganization } = useOrganization();
   const { hasPermission } = useOrganizationRole();
@@ -40,6 +48,9 @@ function AgreementBuilder({ leaseId }) {
   const [reload, setReload] = useState(0);
   const [active, setActive] = useState(0);
   const [dirty, setDirty] = useState({});
+  const [editOpen, setEditOpen] = useState(false);
+  const [editBusy, setEditBusy] = useState(false);
+  const [leaseRefreshNeeded, setLeaseRefreshNeeded] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [confirmMode, setConfirmMode] = useState(false);
   const [finishing, setFinishing] = useState(false);
@@ -47,6 +58,10 @@ function AgreementBuilder({ leaseId }) {
   const finishInFlight = useRef(false);
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, [active]);
 
   useEffect(() => {
     let live = true;
@@ -67,10 +82,29 @@ function AgreementBuilder({ leaseId }) {
   const completed = agreementSections.filter((section) => readAgreement(agreement, section.flag) === true && !dirty[section.id]).length;
   const checks = computeLeasePreflightChecks(lease);
   const missing = checks.flatMap((section) => section.checks.filter((check) => !check.ok).map((check) => `${section.section}: ${check.label}`));
-  const ready = completed === agreementSections.length && areAllLeasePreflightChecksComplete(checks) && !hasUnsavedChanges;
-  const editLease = () => {
-    if (hasUnsavedChanges && !window.confirm('Leave without saving your agreement changes?')) return;
-    navigate(`/landlord/leases/${leaseId}/builder`);
+  const ready = completed === agreementSections.length && areAllLeasePreflightChecksComplete(checks) && !hasUnsavedChanges && !leaseRefreshNeeded;
+  const editLease = () => { setEditOpen(true); };
+  const closeLeaseEditor = () => {
+    if (editBusy || !window.confirm('Close the lease editor? Any unsaved lease edits will be lost.')) return;
+    setEditOpen(false);
+  };
+  const refreshLease = async () => {
+    try {
+      const data = await loadAgreementContext(leaseId, axiosServices.get);
+      if (!mounted.current) return;
+      setContext(data);
+      setLeaseRefreshNeeded(false);
+      setError('');
+    } catch (err) {
+      if (!mounted.current) return;
+      setLeaseRefreshNeeded(true);
+      setError(`Lease saved, but agreement details could not be refreshed. ${err.message}`);
+    }
+  };
+  const onLeaseSaved = async () => {
+    setEditBusy(false);
+    setEditOpen(false);
+    await refreshLease();
   };
   const onSaved = async (sectionId) => {
     try {
@@ -119,15 +153,12 @@ function AgreementBuilder({ leaseId }) {
 
   if (loading) return <Box sx={{ py: 8, textAlign: 'center' }}><CircularProgress aria-label="Loading saved lease" /></Box>;
   if (loadError) return <Alert severity="error" action={<Button onClick={() => setReload((value) => value + 1)}>Retry</Button>}>{loadError}</Alert>;
-  if (!lease) return <MainCard><Stack spacing={2}>
-    <Typography variant="h3">Create a lease agreement</Typography>
-    <Typography color="text.secondary">An agreement belongs to a saved lease. Choose an existing lease, or create the lease first.</Typography>
-    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-      <Button variant="outlined" onClick={() => navigate('/landlord/leases')}>Choose a lease</Button>
-      <Button variant="contained" onClick={() => navigate('/landlord/leases/builder')}>Create a lease</Button>
-    </Stack>
-  </Stack></MainCard>;
   if (!canManage) return <Alert severity="warning">You do not have permission to manage lease agreements in this organization.</Alert>;
+  if (!lease || confirmSelection) return <SelectAgreementLease
+    initialLease={lease}
+    onContinue={(selectedLeaseId) => navigate(agreementBuilderPath(selectedLeaseId))}
+    onCreateLease={() => navigate('/landlord/leases/builder')}
+  />;
 
   return <Container maxWidth="xl" sx={{ py: 3 }}>
     <Stack spacing={3}>
@@ -136,21 +167,22 @@ function AgreementBuilder({ leaseId }) {
         { label: 'Leases', path: '/landlord/leases' },
         { label: 'Build lease agreement' }
       ]} />
-      {error && <Alert severity="error">{error}</Alert>}
+      {error && <Alert severity="error" action={leaseRefreshNeeded ? <Button onClick={refreshLease}>Retry</Button> : undefined}>{error}</Alert>}
       {finished && <Alert severity="success" icon={<CheckCircleOutlined />}>
         Lease agreement finalized. The signing PDF has been generated from your saved lease and agreement details.
       </Alert>}
+      {!locked && completed > 0 && <Alert severity="success" icon={<CheckCircleOutlined />}>Draft saved. You can return to this agreement from Leases → Lease agreements to finish it.</Alert>}
       <MainCard>
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} justifyContent="space-between">
           <Box>
             <Typography variant="overline" color="success.main">Lease agreement builder</Typography>
             <Typography variant="h3">{readAgreement(lease, 'name') || readAgreement(lease, 'propertyName') || `Lease #${leaseId}`}</Typography>
-            <Typography color="text.secondary" sx={{ mt: 1 }}>Your lease defines the rental terms and people. Add only the policies and disclosures needed for the agreement here.</Typography>
+            <Typography color="text.secondary" sx={{ mt: 1 }}>Your lease defines the rental terms and tenants. Define the landlord and add agreement policies and disclosures here.</Typography>
           </Box>
           <Button variant="outlined" sx={{ alignSelf: 'flex-start', flexShrink: 0 }} onClick={() => navigate(`/landlord/leases/${leaseId}`)}>View lease</Button>
         </Stack>
       </MainCard>
-      <MainCard title="From your lease" secondary={<Chip size="small" label="Read-only" variant="outlined" />}>
+      <MainCard title="From your lease" sx={contentBorderSx}>
         <Grid container spacing={2}>
           {agreementLeaseFacts(lease).map(([label, value]) => <Grid key={label} size={{ xs: 12, sm: 6, lg: 3 }}>
             <Typography variant="caption" color="text.secondary">{label}</Typography>
@@ -158,7 +190,7 @@ function AgreementBuilder({ leaseId }) {
           </Grid>)}
         </Grid>
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} justifyContent="space-between" alignItems={{ sm: 'center' }} sx={{ mt: 3 }}>
-          <Typography variant="body2" color="text.secondary">Need to change rent, dates, deposits, fees, or people? Edit the lease, then return here. The agreement uses the saved lease values.</Typography>
+          <Typography variant="body2" color="text.secondary">Need to change rent, dates, deposits, fees, tenants, or occupants? Edit the lease, then return here. The agreement uses the saved lease values.</Typography>
           <Button variant="outlined" startIcon={<EditOutlined />} onClick={editLease} sx={{ flexShrink: 0 }}>Edit lease</Button>
         </Stack>
       </MainCard>
@@ -171,14 +203,15 @@ function AgreementBuilder({ leaseId }) {
         </Stack>
       </Stack></MainCard> : <Grid container spacing={3} alignItems="flex-start">
         <Grid size={{ xs: 12, lg: 3 }}>
-          <MainCard sx={{ position: { lg: 'sticky' }, top: 88 }}>
-            <Typography variant="h5">Agreement setup</Typography>
+          <MainCard sx={{ ...noBorderSx, position: { lg: 'sticky' }, top: 88 }}>
             <Typography variant="body2" color="text.secondary" sx={{ my: 1 }}>{completed} of {agreementSections.length} sections saved</Typography>
             <LinearProgress variant="determinate" value={completed / agreementSections.length * 100} color="success" sx={{ height: 8, borderRadius: 2 }} />
             <List component="nav" aria-label="Agreement sections" sx={{ mt: 2 }}>
-              {agreementSections.map((section, index) => <ListItemButton key={section.id} selected={active === index} onClick={() => setActive(index)} disabled={finishing} sx={{ borderRadius: 1, mb: 1, gap: 1 }}>
-                {readAgreement(agreement, section.flag) === true && !dirty[section.id] ? <CheckCircleOutlined style={{ color: '#16a34a' }} /> : <FileTextOutlined />}
-                <ListItemText primary={section.title} secondary={dirty[section.id] ? 'Unsaved changes' : section.description} />
+              {agreementSections.map((section, index) => <ListItemButton key={section.id} selected={active === index} onClick={() => setActive(index)} disabled={finishing} sx={{ ...noBorderSx, borderRadius: 1, mb: 1, gap: 1, outline: 0, '&.Mui-selected, &.Mui-selected:hover, &:focus-visible': { border: 0, boxShadow: 'none' } }}>
+                <Box component="span" sx={{ display: 'inline-flex', fontSize: 24, flexShrink: 0 }}>
+                  {readAgreement(agreement, section.flag) === true && !dirty[section.id] ? <CheckCircleOutlined style={{ color: '#16a34a', fontSize: 28 }} /> : <FileTextOutlined />}
+                </Box>
+                <ListItemText primary={section.title} primaryTypographyProps={{ fontWeight: 700 }} secondary={dirty[section.id] ? 'Unsaved changes' : section.description} />
               </ListItemButton>)}
             </List>
             <Typography variant="caption" color="text.secondary">Save each section to keep your progress. Finalizing creates the signing PDF.</Typography>
@@ -186,7 +219,7 @@ function AgreementBuilder({ leaseId }) {
         </Grid>
         <Grid size={{ xs: 12, lg: 9 }}>
           <Stack spacing={3}>
-            <MainCard title={agreementSections[active].title}>
+            <MainCard title={agreementSections[active].title} sx={contentBorderSx}>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>{agreementSections[active].description}</Typography>
               {/* Keep each editor mounted so switching sections cannot discard unsaved input. */}
               {agreementSections.map((section, index) => {
@@ -198,18 +231,18 @@ function AgreementBuilder({ leaseId }) {
                 </Box>;
               })}
             </MainCard>
-            <MainCard title="Review & finalize">
+            <MainCard title="Review & finalize" sx={contentBorderSx}>
               <Stack spacing={2}>
                 <Typography color="text.secondary">The PDF combines your saved lease terms with these agreement policies. Preview shows saved values only.</Typography>
                 {hasUnsavedChanges && <Alert severity="warning">Save your changed sections before previewing or finalizing.</Alert>}
                 {!ready && <Alert severity="info">
-                  {completed < agreementSections.length && <Typography variant="body2">Save all three agreement sections.</Typography>}
+                  {completed < agreementSections.length && <Typography variant="body2">Save all agreement sections.</Typography>}
                   {missing.length > 0 && <Box component="ul" sx={{ my: 1, pl: 2 }}>{missing.map((item) => <li key={item}>{item}</li>)}</Box>}
                   {missing.some((item) => /Lease Specifics|Rent, Deposit|People on the Lease/.test(item)) && <Button onClick={editLease}>Complete missing details in the lease</Button>}
                 </Alert>}
                 <Divider />
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} justifyContent="flex-end">
-                  <Button variant="outlined" startIcon={<EyeOutlined />} disabled={hasUnsavedChanges || finishing} onClick={() => { setConfirmMode(false); setPreviewOpen(true); }}>Preview PDF</Button>
+                  <Button variant="outlined" startIcon={<EyeOutlined />} disabled={hasUnsavedChanges || finishing || leaseRefreshNeeded} onClick={() => { setConfirmMode(false); setPreviewOpen(true); }}>Preview PDF</Button>
                   <Button variant="contained" disabled={!ready || finishing} onClick={() => { setConfirmMode(true); setPreviewOpen(true); }}>Finalize agreement</Button>
                 </Stack>
               </Stack>
@@ -218,6 +251,17 @@ function AgreementBuilder({ leaseId }) {
         </Grid>
       </Grid>}
     </Stack>
+    <Drawer anchor="right" open={editOpen} onClose={closeLeaseEditor}
+      PaperProps={{ sx: { width: { xs: '100%', md: 960 }, maxWidth: '100%' }, role: 'dialog', 'aria-labelledby': 'agreement-edit-lease-title' }}>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ p: 3 }}>
+        <Typography variant="h4" id="agreement-edit-lease-title">Edit lease</Typography>
+        <Button onClick={closeLeaseEditor} disabled={editBusy}>Close</Button>
+      </Stack>
+      <Divider />
+      <Box sx={{ p: { xs: 2, sm: 3 } }}>
+        {editOpen && <LeaseSetupBuilder embedded leaseId={leaseId} onSaved={onLeaseSaved} onBusyChange={setEditBusy} />}
+      </Box>
+    </Drawer>
     <LeasePreviewModal open={previewOpen} onClose={() => { if (!finishing) setPreviewOpen(false); }} leaseId={leaseId}
       confirmMode={confirmMode} onConfirm={confirmComplete} submitting={finishing} confirmLabel="Confirm & finalize agreement" />
   </Container>;

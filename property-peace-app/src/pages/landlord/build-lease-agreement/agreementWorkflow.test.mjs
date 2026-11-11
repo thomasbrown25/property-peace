@@ -32,11 +32,11 @@ const lease = { id: 7, propertyId: 10, unitId: 20, leaseLength: 12, propertyName
 const ok = (data) => ({ data: { success: true, data } });
 
 test('agreement has only supplemental sections, not duplicate lease editing', () => {
-  assert.deepEqual(agreementSections.map((section) => section.id), ['pets-smoking-other', 'utilities-maintenance-keys', 'provisions-attachments']);
+  assert.deepEqual(agreementSections.map((section) => section.id), ['landlords', 'pets-smoking-other', 'utilities-maintenance-keys', 'provisions-attachments']);
   const main = read('../build-lease-agreement.jsx');
   assert.doesNotMatch(main, /<LeaseSpecificsPage|<RentDepositFeesPage|<PeopleOnLeasePage|updateLease\(/);
   assert.match(main, /From your lease/);
-  assert.match(main, /leases\/\$\{leaseId\}\/builder/);
+  assert.match(main, /<LeaseSetupBuilder embedded leaseId=\{leaseId\}/);
   assert.match(main, /display: active === index \? 'block' : 'none'/);
   assert.match(main, /hasUnsavedChanges/);
   parse(main, { sourceType: 'module', plugins: ['jsx'] });
@@ -45,8 +45,27 @@ test('canonical lease endpoint loads requested lease rather than property active
   const calls = [];
   const data = await loadAgreementContext(7, async (url) => { calls.push(url); return ok(url.endsWith('/instances') ? [] : lease); });
   assert.equal(data.lease.id, 7);
-  assert.deepEqual(calls, ['/api/Lease/7', '/api/LeaseGeneration/lease/7/instances']);
+  assert.deepEqual(calls, ['/api/Lease/by-id/7', '/api/LeaseGeneration/lease/7/instances']);
   await assert.rejects(loadAgreementContext(7, async () => ok({ ...lease, id: 8 })), /could not be found/);
+});
+test('successful responses missing required data show a load error, never the success message', async () => {
+  for (const missingAt of ['lease', 'instances']) {
+    const calls = [];
+    await assert.rejects(loadAgreementContext(244, async (url) => {
+      calls.push(url);
+      const isInstances = url.endsWith('/instances');
+      if (isInstances === (missingAt === 'instances')) return { data: { success: true, data: null, message: 'Request was successful' } };
+      return ok({ ...lease, id: 244, unitId: 261 });
+    }), { message: missingAt === 'lease' ? 'Could not load the saved lease.' : 'Could not check agreement status.' });
+    assert.equal(calls[0], '/api/Lease/by-id/244');
+    assert.equal(calls.length, missingAt === 'lease' ? 1 : 2);
+  }
+});
+test('edit lease uses the lease-ID endpoint instead of the legacy unit lookup', () => {
+  const source = read('../../../sections/lease-builder/LeaseSetupBuilder.jsx');
+  assert.match(source, /axiosServices\.get\(`\/api\/Lease\/by-id\/\$\{leaseId\}`\)/);
+  assert.doesNotMatch(source, /axiosServices\.get\(`\/api\/Lease\/\$\{leaseId\}`\)/);
+  parse(source, { sourceType: 'module', plugins: ['jsx'] });
 });
 test('missing/invalid saved ID does not issue requests', async () => {
   for (const id of [0, -1, NaN, 1.5]) await assert.rejects(loadAgreementContext(id, () => { throw new Error('must not call'); }), /Choose a saved lease/);
@@ -144,10 +163,9 @@ test('percentage late-fee facts display percentage, not a fabricated flat dollar
 test('agreement selection hands off the exact saved lease without claiming a fake creation success', () => {
   const source = read('../leases.jsx');
   parse(source, { sourceType: 'module', plugins: ['jsx'] });
-  const start = source.indexOf('function CreateLeaseAgreementDrawer');
-  const selector = source.slice(start, source.indexOf('export default function LeasesPage', start));
-  assert.match(selector, /result.set\(Number\(initialLease.id\), initialLease\)/);
-  assert.match(selector, /onSetup\(selected\)/);
+  assert.doesNotMatch(source, /function CreateLeaseAgreementDrawer/);
+  const selector = read('./SelectAgreementLease.jsx');
+  assert.match(selector, /if \(selected\) onContinue\(selected.id\)/);
   assert.doesNotMatch(selector, /Created successfully|localStorage|axiosServices\.post/);
 });
 

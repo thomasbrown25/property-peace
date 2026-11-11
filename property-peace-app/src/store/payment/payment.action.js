@@ -26,10 +26,13 @@ export const getPayments = (leaseId) => async (dispatch) => {
       type: PAYMENT_ACTION_TYPES.GET_PAYMENTS_SUCCESS,
       payload: response.data
     });
+    return { payments: response.data, error: null };
   } catch (error) {
+    const message = error?.response?.data?.errors || error.message;
     dispatch({
       type: PAYMENT_ACTION_TYPES.GET_PAYMENTS_FAILURE,
-      payload: error?.response?.data?.errors || error.message
+      payload: message
     });
+    return { payments: [], error: message };
   }
 };

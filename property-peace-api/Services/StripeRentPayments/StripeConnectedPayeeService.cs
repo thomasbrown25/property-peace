@@ -153,7 +153,7 @@ namespace brownstone_hub_api.Services.StripeRentPayments
             user.StripeAccountStatus = status switch
             {
                 StripePayeeReviewStatus.PayoutApproved => "payout_approved",
-                StripePayeeReviewStatus.StripeVerified or StripePayeeReviewStatus.UnderReview => "stripe_verified_pending_review",
+                StripePayeeReviewStatus.StripeVerified or StripePayeeReviewStatus.UnderReview => "stripe_verified",
                 StripePayeeReviewStatus.Suspended => "suspended",
                 _ => "pending"
             };
@@ -328,7 +328,7 @@ namespace brownstone_hub_api.Services.StripeRentPayments
             if (review == null) return null;
             if (!string.IsNullOrWhiteSpace(eventId) && review.LastStripeEventId == eventId) return review;
 
-            var previousFingerprint = review.ExternalAccountFingerprint;
+
             review.LastStripeSnapshotAt = snapshot.RetrievedAt;
             review.StripeDetailsSubmitted = snapshot.DetailsSubmitted;
             review.StripePayoutsEnabled = snapshot.PayoutsEnabled;
@@ -339,9 +339,8 @@ namespace brownstone_hub_api.Services.StripeRentPayments
             review.StripeDisabledReason = snapshot.DisabledReason;
             review.PayoutSchedulePolicy = snapshot.PayoutSchedulePolicy?.Trim() ?? "unknown";
             // Stripe's available_payout_methods reports technical eligibility, not
-            // Property Peace authorization. Property Peace never authorizes instant
-            // payouts; the only money movement implemented here is a platform transfer,
-            // and connected-account payout scheduling must remain manual.
+            // Property Peace authorization. Direct-charge payout timing belongs to
+            // Stripe and the account owner; this platform never invokes the Payout API.
             review.InstantPayoutsAllowed = false;
             review.LastStripeEventId = eventId;
             // The snapshot is authoritative. Clear stale destination trust when Stripe no
@@ -353,47 +352,94 @@ namespace brownstone_hub_api.Services.StripeRentPayments
 
             var restriction = RestrictionReason(snapshot);
             if (restriction != null)
-                Suspend(review, null, restriction);
-            else if (review.Status == StripePayeeReviewStatus.PayoutApproved
-                && (string.IsNullOrWhiteSpace(previousFingerprint)
-                    || string.IsNullOrWhiteSpace(snapshot.ExternalAccountFingerprint)
-                    || !string.Equals(previousFingerprint, snapshot.ExternalAccountFingerprint, StringComparison.Ordinal)))
-                Suspend(review, null, "Stripe external bank account changed; internal re-review is required.");
+            {
+                if (review.Status != StripePayeeReviewStatus.Suspended || IsStripeReadinessHold(review))
+                    Suspend(review, null, restriction);
+            }
+            else if (IsStripeReadinessHold(review) &&
+                snapshot.RetrievedAt >= timeProvider.GetUtcNow().AddMinutes(-5) &&
+                snapshot.RetrievedAt <= timeProvider.GetUtcNow().AddMinutes(1))
+            {
+                // Stripe remediations are provider-driven, never an internal review queue.
+                // Dispute, authority, fraud and explicit operator holds remain untouched.
+                review.Status = StripePayeeReviewStatus.StripeVerified;
+                review.SuspendedAt = null;
+                review.SuspensionReason = null;
+            }
             else if (review.Status == StripePayeeReviewStatus.Onboarding && snapshot.DetailsSubmitted)
                 review.Status = StripePayeeReviewStatus.StripeVerified;
 
             if (review.Status == StripePayeeReviewStatus.Suspended)
                 await DisableLinkedUserAsync(review, cancellationToken);
+            else if (review.UserId.HasValue)
+            {
+                var user = await context.Users.FindAsync([review.UserId.Value], cancellationToken);
+                if (user != null && user.StripeAccountId == snapshot.StripeAccountId)
+                {
+                    user.StripeAccountEnabled = restriction == null;
+                    user.StripeAccountStatus = restriction == null ? "account_transfer_ready" : "onboarding";
+                }
+            }
             await context.SaveChangesAsync(cancellationToken);
             return review;
         }
 
-        public static string? RestrictionReason(StripeConnectedAccountSnapshot snapshot)
+        public static bool IsStripeReadinessHold(StripeConnectedPayeeReview review) =>
+            review.Status == StripePayeeReviewStatus.Suspended && review.SuspendedByUserId == null &&
+            review.SuspensionReason is { } reason &&
+            (reason == "Stripe external bank account changed; internal re-review is required." ||
+             reason == "Stripe onboarding requirements regressed after approval." ||
+             reason == "Stripe details are no longer submitted." ||
+             reason == "Stripe payouts are disabled." ||
+             reason == "Stripe transfer capability is not active." ||
+             reason == "Stripe charges are disabled." ||
+             reason == "Stripe card payments capability is not active." ||
+             reason == "Stripe direct-charge controller configuration is invalid." ||
+             reason == "Stripe payout schedule is invalid." ||
+             reason == "Stripe has currently-due requirements." ||
+             reason == "Stripe has past-due requirements." ||
+             reason == "Stripe has no eligible payout destination." ||
+             reason == "Stripe payout schedule is not manual." ||
+             reason.StartsWith("Stripe disabled the account: ", StringComparison.Ordinal));
+
+        public static string? RestrictionReason(StripeConnectedAccountSnapshot snapshot, bool? directCharge = null)
         {
+            // Account refreshes infer the policy from Stripe's controller. Payment checks
+            // explicitly select their recorded charge flow so legacy transfers stay fail closed.
+            var requiresDirectCharge = directCharge ??
+                (string.Equals(snapshot.LossesPayments, "stripe", StringComparison.OrdinalIgnoreCase)
+                 || string.Equals(snapshot.DashboardType, "full", StringComparison.OrdinalIgnoreCase));
             if (!snapshot.DetailsSubmitted) return "Stripe details are no longer submitted.";
             if (!snapshot.PayoutsEnabled) return "Stripe payouts are disabled.";
-            if (!snapshot.TransfersActive || !string.Equals(snapshot.TransferCapabilityStatus, "active", StringComparison.OrdinalIgnoreCase))
+            if (requiresDirectCharge)
+            {
+                if (!snapshot.IsStripeManagedDirectCharge) return "Stripe direct-charge controller configuration is invalid.";
+                if (!snapshot.ChargesEnabled) return "Stripe charges are disabled.";
+                if (!string.Equals(snapshot.CardPaymentsCapabilityStatus, "active", StringComparison.OrdinalIgnoreCase))
+                    return "Stripe card payments capability is not active.";
+            }
+            else if (!snapshot.TransfersActive || !string.Equals(snapshot.TransferCapabilityStatus, "active", StringComparison.OrdinalIgnoreCase))
                 return "Stripe transfer capability is not active.";
             if (snapshot.CurrentlyDue.Count > 0) return "Stripe has currently-due requirements.";
             if (snapshot.PastDue.Count > 0) return "Stripe has past-due requirements.";
             if (!string.IsNullOrWhiteSpace(snapshot.DisabledReason)) return $"Stripe disabled the account: {snapshot.DisabledReason}.";
             if (string.IsNullOrWhiteSpace(snapshot.ExternalAccountFingerprint))
                 return "Stripe has no eligible payout destination.";
-            if (!string.Equals(snapshot.PayoutSchedulePolicy, "manual", StringComparison.OrdinalIgnoreCase))
+            if (!requiresDirectCharge && !string.Equals(snapshot.PayoutSchedulePolicy, "manual", StringComparison.OrdinalIgnoreCase))
                 return "Stripe payout schedule is not manual.";
-            // InstantPayoutMethodsAvailable is Stripe eligibility, not authorization.
-            // Internal authorization remains false and there is no Payout API path.
+            if (requiresDirectCharge && snapshot.PayoutSchedulePolicy?.ToLowerInvariant() is not ("manual" or "daily" or "weekly" or "monthly"))
+                return "Stripe payout schedule is invalid.";
+            // Stripe-managed accounts control their payout timing in the full Dashboard.
+            // Technical instant-payout eligibility does not authorize a platform Payout API.
             return null;
         }
 
         public Task<bool> IsApprovedDestinationAsync(long userId, long organizationId, string stripeAccountId,
             CancellationToken cancellationToken = default) =>
             context.StripeConnectedPayeeReviews.AnyAsync(x => x.UserId == userId
-                && x.ApprovedOrganizationId == organizationId
+                && (x.ApprovedOrganizationId == null || x.ApprovedOrganizationId == organizationId)
                 && x.StripeAccountId == stripeAccountId
-                && x.Status == StripePayeeReviewStatus.PayoutApproved
-                && x.PropertyAuthorityAttested
-                && x.ApprovedAt != null
+                && x.Status != StripePayeeReviewStatus.Suspended && x.SuspendedAt == null
                 && context.Users.Any(user => user.Id == userId && !user.IsDeleted
                     && user.StripeAccountId == stripeAccountId)
                 && context.OrganizationMembers.Any(member => member.UserId == userId
@@ -413,7 +459,7 @@ namespace brownstone_hub_api.Services.StripeRentPayments
                 && (member.Role == "Owner" || member.Role == "Manager"), cancellationToken);
             if (!actorAuthorized) return null;
 
-            // There must be exactly one selected, approved destination. Ambiguous approval state
+            // There must be exactly one organization-owned destination. Ambiguous ownership
             // fails closed rather than choosing an account by recency or by the actor's global link.
             var destinations = await (
                     from review in context.StripeConnectedPayeeReviews.AsNoTracking()
@@ -421,10 +467,8 @@ namespace brownstone_hub_api.Services.StripeRentPayments
                         on review.UserId equals payeeMember.UserId
                     join payeeUser in context.Users.AsNoTracking()
                         on review.UserId equals payeeUser.Id
-                    where review.ApprovedOrganizationId == organizationId
-                        && review.Status == StripePayeeReviewStatus.PayoutApproved
-                        && review.PropertyAuthorityAttested
-                        && review.ApprovedAt != null
+                    where (review.ApprovedOrganizationId == null || review.ApprovedOrganizationId == organizationId)
+                        && review.Status != StripePayeeReviewStatus.Suspended && review.SuspendedAt == null
                         && payeeMember.OrganizationId == organizationId
                         && payeeMember.IsActive
                         && (payeeMember.Role == "Owner" || payeeMember.Role == "Manager")

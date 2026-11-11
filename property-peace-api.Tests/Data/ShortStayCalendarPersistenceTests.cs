@@ -80,10 +80,10 @@ public sealed class ShortStayCalendarPersistenceTests
             var connection = new SqliteConnection("Data Source=:memory:");
             await connection.OpenAsync();
             var f = new Fixture(connection);
-            await f.Db.Database.ExecuteSqlRawAsync("CREATE TABLE Units (Id INTEGER PRIMARY KEY)");
+            await f.Db.Database.ExecuteSqlRawAsync("CREATE TABLE Units (Id INTEGER PRIMARY KEY, PropertyId INTEGER NOT NULL DEFAULT 0, OrganizationId INTEGER)");
             await f.Db.Database.ExecuteSqlRawAsync("INSERT INTO Units (Id) VALUES (1)");
             var ddl = f.Db.Database.GenerateCreateScript();
-            foreach (var table in new[] { "ShortStayBlocks", "ShortStayNightlyRateOverrides" })
+            foreach (var table in new[] { "ActivityEvents", "ShortStayBlocks", "ShortStayNightlyRateOverrides" })
             {
                 var create = Regex.Match(ddl, $"CREATE TABLE [^;]*\\\"{table}\\\"[^;]*;", RegexOptions.Singleline);
                 Assert.True(create.Success, $"Missing EF DDL for {table}");

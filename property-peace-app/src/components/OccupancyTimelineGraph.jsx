@@ -37,7 +37,7 @@ function rentDueDayLabel(day) {
  * @param {Date} [props.windowStart] - Optional start of the window (first day of first month). When provided with windowMonthCount, overrides year/monthRange.
  * @param {number} [props.windowMonthCount] - Number of months to show starting at windowStart (e.g. 12).
  */
-function OccupancyTimelineGraph({ calendarData, year, loading, monthRange, windowStart, windowMonthCount, fallbackPropertyName, onMonthClick, maxVisibleUnits }) {
+function OccupancyTimelineGraph({ calendarData, year, loading, monthRange, windowStart, windowMonthCount, fallbackPropertyName, onMonthClick, maxVisibleUnits, showUnitColumn = true }) {
   const allMonths = useMemo(() => {
     if (windowStart && windowMonthCount > 0) {
       return Array.from({ length: windowMonthCount }, (_, i) => addMonths(windowStart, i));
@@ -206,7 +206,7 @@ function OccupancyTimelineGraph({ calendarData, year, loading, monthRange, windo
         <Table stickyHeader size="small">
           <TableHead>
             <TableRow>
-              <TableCell
+              {showUnitColumn && <TableCell
                 sx={{
                   minWidth: 180,
                   maxWidth: 180,
@@ -221,7 +221,7 @@ function OccupancyTimelineGraph({ calendarData, year, loading, monthRange, windo
                 }}
               >
                 Property / Unit
-              </TableCell>
+              </TableCell>}
               {months.map((month) => (
                 <TableCell
                   key={format(month, 'yyyy-MM')}
@@ -248,7 +248,7 @@ function OccupancyTimelineGraph({ calendarData, year, loading, monthRange, windo
 
                 return (
                   <TableRow key={unitKey} hover>
-                    <TableCell
+                    {showUnitColumn && <TableCell
                       sx={{
                         position: 'sticky',
                         left: 0,
@@ -285,7 +285,7 @@ function OccupancyTimelineGraph({ calendarData, year, loading, monthRange, windo
                           </Typography>
                         </Box>
                       )}
-                    </TableCell>
+                    </TableCell>}
                     {months.map((month) => {
                       const monthKey = format(month, 'yyyy-MM');
                       const status = unitMonthStatus[unitKey]?.[monthKey];

@@ -5,10 +5,10 @@ import { Alert, Box, Button, Checkbox, CircularProgress, Dialog, DialogActions, 
   Divider, FormControlLabel, Grid, List, ListItemButton, ListItemText, MenuItem, Stack, TextField, Typography } from '@mui/material';
 import { CheckCircleOutlined, DollarOutlined, FileTextOutlined, TeamOutlined } from '@ant-design/icons';
 import MainCard from 'components/MainCard';
+import RentEstimateCard from 'components/RentEstimateCard';
 import ConfigureLateFeesModal from 'components/dialogs/ConfigureLateFeesModal';
 import useFetchProperties from 'hooks/useFetchProperties';
 import useOrganizationRole from 'hooks/useOrganizationRole';
-import useAuth from 'hooks/useAuth';
 import { useOrganization } from 'contexts/OrganizationContext';
 import axiosServices from 'utils/axios';
 import { isDetachedSingleUnitType } from 'utils/propertyType';
@@ -22,24 +22,22 @@ import { persistLeaseSetup, readSetup, requireSetupSuccess, setupDefaults, setup
 const sections = [
   { title: 'Lease specifics', description: 'Choose the property and lease terms.', icon: <FileTextOutlined /> },
   { title: 'Rent, deposit, & fees', description: 'Set rent, deposits, fees, and collection methods.', icon: <DollarOutlined /> },
-  { title: 'People on the lease', description: 'Add tenants, landlords, occupants, and cosigners.', icon: <TeamOutlined /> }
+  { title: 'People on the lease', description: 'Add tenants, occupants, and cosigners.', icon: <TeamOutlined /> }
 ];
 const labels = { firstName: 'First name', lastName: 'Last name', email: 'Email', phone: 'Phone', companyName: 'Company name',
   streetAddress: 'Street address', city: 'City', state: 'State', zipCode: 'ZIP code' };
 const emptyPerson = { firstName: '', lastName: '', email: '' };
 
-export default function LeaseSetupBuilder({ leaseId, initialPropertyId, initialUnitId }) {
+export default function LeaseSetupBuilder({ leaseId, initialPropertyId, initialUnitId, embedded = false, onSaved, onBusyChange }) {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const { currentOrganization } = useOrganization();
   const { hasPermission } = useOrganizationRole();
   const organizationRole = readSetup(currentOrganization, 'userRole');
   const canManage = ['Owner', 'Admin'].includes(organizationRole) ||
     (hasPermission('CanManageLeases') && readSetup(currentOrganization, 'canManageLeases') !== false);
-  const { properties = [], isLoading, propertiesError, propertiesRefetch } = useFetchProperties();
+  const { properties = [], isLoading, propertiesError, propertiesRefetch } = useFetchProperties({ refreshOnMount: true });
   const [values, setValues] = useState(() => ({ ...setupDefaults(), propertyId: initialPropertyId || '', unitId: initialUnitId || '',
-    leaseLandlords: [{ ...emptyPerson, entityType: 'Individual', firstName: user?.firstName ?? user?.firstname ?? '',
-      lastName: user?.lastName ?? user?.lastname ?? '', email: user?.email || '' }] }));
+  }));
   const [existing, setExisting] = useState(null);
   const [loading, setLoading] = useState(Boolean(leaseId));
   const [loadError, setLoadError] = useState('');
@@ -54,13 +52,19 @@ export default function LeaseSetupBuilder({ leaseId, initialPropertyId, initialU
   const [lateFeesOpen, setLateFeesOpen] = useState(false);
   const checkpoint = useRef({ leaseId: null, linked: new Set() });
   const inFlight = useRef(false);
+  const formRef = useRef(null);
+
+  useEffect(() => {
+    const scrollOwner = formRef.current?.closest('.MuiDrawer-paper') || window;
+    scrollOwner.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, [active]);
 
   useEffect(() => {
     if (!leaseId) return;
     let live = true;
     setLoading(true);
     setLoadError('');
-    axiosServices.get(`/api/Lease/${leaseId}`).then((response) => {
+    axiosServices.get(`/api/Lease/by-id/${leaseId}`).then((response) => {
       const lease = requireSetupSuccess(response.data, 'Could not load the lease.');
       if (setupId(lease) !== Number(leaseId)) throw new Error('The requested lease could not be loaded.');
       if (!live) return;
@@ -73,6 +77,8 @@ export default function LeaseSetupBuilder({ leaseId, initialPropertyId, initialU
       .finally(() => { if (live) setLoading(false); });
     return () => { live = false; };
   }, [leaseId, loadVersion]);
+
+  useEffect(() => { onBusyChange?.(saving); }, [saving, onBusyChange]);
 
   const property = properties.find((item) => setupId(item) === Number(values.propertyId));
   const units = readSetup(property, 'units') || [];
@@ -93,16 +99,12 @@ export default function LeaseSetupBuilder({ leaseId, initialPropertyId, initialU
   const money = (key, label, options = {}) => field(key, label, { type: 'number', inputProps: { min: 0, step: '0.01' }, ...options });
   const toggle = (key, label) => <FormControlLabel control={<Checkbox checked={Boolean(values[key])}
     onChange={(event) => change(key, event.target.checked)} />} label={label} />;
-  const rows = (key, title, person = false, landlord = false) => <Stack spacing={2}>
+  const rows = (key, title, person = false) => <Stack spacing={2}>
     <Typography variant="h5">{title}</Typography>
     {values[key].map((row, index) => key === 'fees' && row.isLateFee ? null : <MainCard key={index} contentSX={{ p: 2 }}>
       <Stack spacing={2}>
-        {landlord && <TextField select label="Landlord type" value={row.entityType || 'Individual'}
-          onChange={(event) => change(key, values[key].map((item, i) => i === index ? { ...item, entityType: event.target.value } : item))}>
-          <MenuItem value="Individual">Individual</MenuItem><MenuItem value="Company">Company</MenuItem>
-        </TextField>}
         <Grid container spacing={2}>
-          {(person ? (landlord ? Object.keys(labels) : Object.keys(emptyPerson)) : ['name', 'amount', 'dueDate']).map((name) => <Grid key={name} size={{ xs: 12, sm: 6 }}>
+          {(person ? Object.keys(emptyPerson) : ['name', 'amount', 'dueDate']).map((name) => <Grid key={name} size={{ xs: 12, sm: 6 }}>
             <TextField fullWidth label={labels[name] || ({ name: 'Name', amount: 'Amount', dueDate: 'Due date' })[name]}
               type={name === 'amount' ? 'number' : name === 'dueDate' ? 'date' : name === 'email' ? 'email' : 'text'}
               InputLabelProps={name === 'dueDate' ? { shrink: true } : undefined}
@@ -115,7 +117,7 @@ export default function LeaseSetupBuilder({ leaseId, initialPropertyId, initialU
       </Stack>
     </MainCard>)}
     <Button variant="outlined" sx={{ alignSelf: 'flex-start' }} onClick={() => change(key, [...values[key],
-      person ? { ...emptyPerson, ...(landlord ? { entityType: 'Individual' } : {}), sortOrder: values[key].length } : { name: '', amount: '', dueDate: values.startDate }])}>Add {title.toLowerCase().replace(/s$/, '')}</Button>
+      person ? { ...emptyPerson, sortOrder: values[key].length } : { name: '', amount: '', dueDate: values.startDate }])}>Add {title.toLowerCase().replace(/s$/, '')}</Button>
   </Stack>;
 
   const validate = (specificsOnly = false) => {
@@ -146,7 +148,7 @@ export default function LeaseSetupBuilder({ leaseId, initialPropertyId, initialU
     }
     if (specificsOnly === 'rent') return null;
     if (!values.addTenantsLater && !tenants.length) return 'Select at least one tenant or choose Add tenants later.';
-    for (const person of [...values.leaseLandlords, ...values.leaseCoSigners, ...values.leaseAdditionalSigners, ...values.leaseOccupants]) {
+    for (const person of [...values.leaseCoSigners, ...values.leaseAdditionalSigners, ...values.leaseOccupants]) {
       if (!(person.companyName?.trim() || person.firstName?.trim() || person.lastName?.trim())) return 'Enter a name for each person on the lease, or remove the empty entry.';
       if (person.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(person.email)) return 'Enter a valid email address for each person.';
     }
@@ -173,6 +175,7 @@ export default function LeaseSetupBuilder({ leaseId, initialPropertyId, initialU
         checkpoint: checkpoint.current, saveLease: addOrUpdateLease, linkTenant: addTenantToLease, unlinkTenant: removeTenantFromLease,
         onCheckpoint: () => setPartial(true) });
       setSaved(result);
+      if (embedded) await onSaved?.(result);
       // Refresh is best effort and cannot turn a persisted lease into a failed creation.
       void propertiesRefetch();
     } catch (err) {
@@ -184,26 +187,28 @@ export default function LeaseSetupBuilder({ leaseId, initialPropertyId, initialU
   if (loadError) return <Alert severity="error" action={<Button onClick={() => setLoadVersion((v) => v + 1)}>Retry</Button>}>{loadError}</Alert>;
   if (!canManage) return <Alert severity="warning">You do not have permission to manage leases in this organization.</Alert>;
   const destinations = saved ? setupDestinations(saved) : null;
-  return <Stack spacing={3}>
-    <Box><Typography variant="h3">{leaseId ? 'Edit lease' : 'Create a lease'}</Typography>
-      <Typography color="text.secondary" sx={{ mt: 1 }}>Set up your lease record. You can create a lease agreement after saving.</Typography></Box>
+  return <Stack ref={formRef} spacing={3}>
+    {!embedded && <Box><Typography variant="overline" color="success.main">Create lease builder</Typography>
+      <Typography variant="h3">{leaseId ? 'Edit lease' : 'Create a lease'}</Typography>
+      <Typography color="text.secondary" sx={{ mt: 1 }}>Set up your lease record. You can create a lease agreement after saving.</Typography></Box>}
     {propertiesError && <Alert severity="error" action={<Button onClick={propertiesRefetch}>Retry</Button>}>Could not load properties.</Alert>}
     {error && <Alert severity="error">{error}</Alert>}
     {partial && !saved && <Alert severity="warning">Lease #{checkpoint.current.leaseId} is saved. Tenant changes are not finished. Retry to finish without creating another lease. Your form is preserved.</Alert>}
     <Grid container spacing={3}>
-      <Grid size={{ xs: 12, md: 4 }}>
-        <MainCard><Typography variant="h5" sx={{ mb: 2 }}>Lease setup</Typography>
+      <Grid size={{ xs: 12, md: embedded ? 12 : 4 }}>
+        <MainCard>
           <List component="nav" aria-label="Lease setup sections">{sections.map((section, index) => <ListItemButton key={section.title}
             selected={active === index} onClick={() => setActive(index)} sx={{ borderRadius: 1, mb: 1, gap: 2 }}>
-            {section.icon}<ListItemText primary={`${index + 1}. ${section.title}`} secondary={section.description} />
-            {completedSteps[index] && !validate(index === 0 ? true : index === 1 ? 'rent' : false) && <Box component="span" sx={{ color: 'success.main', display: 'inline-flex', flexShrink: 0 }}>
+            <Box component="span" sx={{ display: 'inline-flex', fontSize: 24, flexShrink: 0 }}>{section.icon}</Box>
+            <ListItemText primary={`${index + 1}. ${section.title}`} primaryTypographyProps={{ fontWeight: 700 }} secondary={section.description} />
+            {completedSteps[index] && !validate(index === 0 ? true : index === 1 ? 'rent' : false) && <Box component="span" sx={{ color: 'success.main', display: 'inline-flex', fontSize: 28, flexShrink: 0 }}>
               <CheckCircleOutlined aria-label={`${section.title} completed`} />
             </Box>}
           </ListItemButton>)}</List>
           <Typography variant="body2" color="text.secondary">Step {active + 1} of {sections.length}</Typography>
         </MainCard>
       </Grid>
-      <Grid size={{ xs: 12, md: 8 }}>
+      <Grid size={{ xs: 12, md: embedded ? 12 : 8 }}>
         <MainCard title={sections[active].title}>
           <Box component="fieldset" disabled={saving || partial || Boolean(saved)} sx={{ border: 0, p: 0, m: 0, minWidth: 0 }}>
             <Stack spacing={3}>
@@ -242,6 +247,8 @@ export default function LeaseSetupBuilder({ leaseId, initialPropertyId, initialU
                   value={values.rentAmount ?? ''} onValueChange={({ floatValue }) => change('rentAmount', floatValue ?? '')}
                   thousandSeparator prefix="$" decimalScale={2} fixedDecimalScale allowNegative={false}
                   placeholder="$0.00" inputProps={{ inputMode: 'decimal' }} />
+                {property && unit && <RentEstimateCard key={`${setupId(property)}:${setupId(unit)}`}
+                  propertyId={setupId(property)} unitId={setupId(unit)} />}
                 {field('rentDueDay', 'Rent due day', { select: true, children: Array.from({ length: 31 }, (_, i) => <MenuItem key={i + 1} value={i + 1}>{i + 1}</MenuItem>) })}
                 {toggle('proratedRentDue', 'Prorated rent is due')}
                 {values.proratedRentDue && <>
@@ -267,7 +274,6 @@ export default function LeaseSetupBuilder({ leaseId, initialPropertyId, initialU
               {active === 2 && <>
                 {toggle('addTenantsLater', 'Add tenants later')}
                 {!values.addTenantsLater && <TenantSelector selectedTenants={tenants} onSelectTenants={setTenants} propertyId={Number(values.propertyId) || null} unitId={Number(values.unitId) || null} />}
-                <Divider />{rows('leaseLandlords', 'Landlords', true, true)}
                 {toggle('tenantMailingAddressDiffers', 'Tenant mailing address differs from the rental address')}
                 {values.tenantMailingAddressDiffers && <>
                   {field('tenantMailingStreetAddress', 'Mailing street address')}{field('tenantMailingUnit', 'Mailing unit')}
@@ -292,7 +298,7 @@ export default function LeaseSetupBuilder({ leaseId, initialPropertyId, initialU
     <ConfigureLateFeesModal open={lateFeesOpen} onClose={() => setLateFeesOpen(false)} leaseId={setupId(existing) || 0}
       propertyState={readSetup(property, 'state')} existingLateFees={values.fees.filter((fee) => fee.isLateFee)}
       onSave={(fees) => { change('fees', [...values.fees.filter((fee) => !fee.isLateFee), ...fees]); setLateFeesOpen(false); }} />
-    <Dialog open={Boolean(saved)} maxWidth="sm" fullWidth aria-labelledby="lease-setup-success">
+    <Dialog open={!embedded && Boolean(saved)} maxWidth="sm" fullWidth aria-labelledby="lease-setup-success">
       <DialogTitle id="lease-setup-success">{leaseId ? 'Lease saved successfully' : 'Lease created successfully'}</DialogTitle>
       <DialogContent><Stack spacing={2} alignItems="center" sx={{ py: 2 }}>
         <Box sx={{ color: 'success.main', fontSize: 64, lineHeight: 1 }}><CheckCircleOutlined /></Box>
@@ -300,7 +306,7 @@ export default function LeaseSetupBuilder({ leaseId, initialPropertyId, initialU
       </Stack></DialogContent>
       <DialogActions sx={{ px: 3, pb: 3, flexWrap: 'wrap', gap: 1 }}>
         <Button variant="outlined" onClick={() => navigate(destinations.view)}>View lease</Button>
-        <Button variant="contained" onClick={() => navigate(destinations.agreement)}>Create lease agreement</Button>
+        <Button variant="contained" onClick={() => navigate(`${destinations.agreement}&selectLease=1`)}>Create lease agreement</Button>
       </DialogActions>
     </Dialog>
   </Stack>;

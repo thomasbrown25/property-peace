@@ -12,6 +12,10 @@ namespace brownstone_hub_api.Configurations
             builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(32);
             builder.Property(x => x.AmountCents).IsRequired();
             builder.Property(x => x.RowVersion).IsRowVersion();
+            builder.Property(x => x.ChargeStripeAccountId).Metadata.SetAfterSaveBehavior(
+                Microsoft.EntityFrameworkCore.Metadata.PropertySaveBehavior.Throw);
+            builder.Property(x => x.DestinationStripeAccountId).Metadata.SetAfterSaveBehavior(
+                Microsoft.EntityFrameworkCore.Metadata.PropertySaveBehavior.Throw);
             builder.ToTable(table =>
             {
                 table.HasCheckConstraint("CK_StripeRentPayments_PositiveAmount", "[AmountCents] > 0");

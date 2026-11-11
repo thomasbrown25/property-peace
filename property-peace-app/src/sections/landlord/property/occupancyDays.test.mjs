@@ -25,12 +25,11 @@ test('leap years, occupied availability and vacant gaps render daily', () => {
   assert.equal(days[28].occupied, true);
 });
 
-test('property occupancy tab precedes expenses and uses the scoped 12-month calendar and unit modal', async () => {
+test('occupancy is absent from property navigation while its calendar retains scoped loading and the unit modal', async () => {
   const tabs = await read('./PropertyRecordsTabs.jsx');
   const view = await read('./PropertyOccupancyTab.jsx');
   const timeline = await read('../../../components/OccupancyTimelineGraph.jsx');
-  assert.match(tabs, /value="occupancy" label="Occupancy"\s*\/><Tab value="expenses" label="Expenses"/);
-  assert.match(tabs, /active === 'occupancy' && <PropertyOccupancyTab/);
+  assert.doesNotMatch(tabs, /<Tab value="occupancy"/);
   assert.match(view, /getUnitAvailabilityCalendar\(landlordId, propertyId, windowStart, endOfMonth\(addMonths\(windowStart, 11\)\), controller.signal\)/);
   assert.match(view, /Promise.race\(/);
   assert.match(view, /String\(unit.propertyId\) === String\(propertyId\)/);

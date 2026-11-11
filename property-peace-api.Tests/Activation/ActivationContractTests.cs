@@ -163,8 +163,13 @@ public sealed class ActivationContractTests
             "a configured durable rent schedule is core; online payments are optional");
     }
 
-    [Fact]
-    public async Task Evaluate_ReportsTruthfulPersistedPaymentReadiness_WithoutBlockingCore()
+    [Theory]
+    [InlineData("manual", true, "active", false)]
+    [InlineData("daily", false, "inactive", true)]
+    [InlineData("weekly", false, null, false)]
+    [InlineData("monthly", false, null, false)]
+    public async Task Evaluate_ReportsTruthfulPersistedPaymentReadiness_WithoutBlockingCore(
+        string schedule, bool transfersActive, string? transferCapability, bool instantPayouts)
     {
         await using var db = Context();
         SeedMembership(db, 1, 10, "Owner");
@@ -177,8 +182,9 @@ public sealed class ActivationContractTests
             Id = 700, UserId = 1, StripeAccountId = "acct_must_not_leak",
             ApprovedOrganizationId = 10, Status = StripePayeeReviewStatus.PayoutApproved,
             ApprovedAt = Now, PropertyAuthorityAttested = true, StripeDetailsSubmitted = true,
-            StripePayoutsEnabled = true, StripeTransfersActive = true,
-            StripeTransferCapabilityStatus = "active", LastStripeSnapshotAt = Now,
+            StripePayoutsEnabled = true, StripeTransfersActive = transfersActive,
+            StripeTransferCapabilityStatus = transferCapability, LastStripeSnapshotAt = Now,
+            PayoutSchedulePolicy = schedule, InstantPayoutsAllowed = instantPayouts,
             CurrentlyDueRequirementCount = 0, PastDueRequirementCount = 0,
             ExternalAccountFingerprint = "persisted-fingerprint"
         });

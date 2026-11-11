@@ -42,6 +42,7 @@ public sealed class PropertyCreationRelationalEntitlementTests
         await using var verification = database.Context();
         Assert.Empty(await verification.Properties.AsNoTracking().ToListAsync());
         Assert.Empty(await verification.Units.AsNoTracking().ToListAsync());
+        Assert.Empty(await verification.ActivityEvents.AsNoTracking().ToListAsync());
     }
 
     [Fact]
@@ -83,6 +84,9 @@ public sealed class PropertyCreationRelationalEntitlementTests
         Assert.Equal(5, await verification.Units.CountAsync(unit =>
             unit.Property.OrganizationId == OrganizationId && !unit.Property.IsDeleted));
         Assert.Equal(2, await verification.Properties.CountAsync(property => !property.IsDeleted));
+        Assert.Equal(2, await verification.ActivityEvents.CountAsync(activity =>
+            activity.ActivityType == "Property" && activity.Operation == "Created" &&
+            activity.OrganizationId == OrganizationId));
     }
 
     private static async Task<bool> CreateAgainstLastSlotAsync(
@@ -210,6 +214,11 @@ public sealed class PropertyCreationRelationalEntitlementTests
                     RentalMode TEXT NOT NULL DEFAULT 'LongTerm'
                         CHECK (RentalMode IN ('LongTerm', 'ShortTerm')));
                 """);
+            var activityTable = System.Text.RegularExpressions.Regex.Match(
+                context.Database.GenerateCreateScript(), "CREATE TABLE \"ActivityEvents\"[^;]*;",
+                System.Text.RegularExpressions.RegexOptions.Singleline);
+            Assert.True(activityTable.Success, "Missing EF DDL for ActivityEvents");
+            await context.Database.ExecuteSqlRawAsync(activityTable.Value);
             return database;
         }
 

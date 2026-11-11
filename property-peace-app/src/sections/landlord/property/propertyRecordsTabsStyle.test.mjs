@@ -15,7 +15,7 @@ test('property tabs match listing detail spacing, bottom border, and interaction
 
 test('property tabs retain scrollable navigation and all property sections', () => {
   assert.match(propertySource, /variant="scrollable" scrollButtons="auto" aria-label="Property sections"/);
-  for (const tab of ['overview', 'leases', 'tenants', 'maintenances', 'payments', 'expenses', 'occupancy', 'documents']) {
+  for (const tab of ['overview', 'leases', 'tenants', 'payments', 'maintenances', 'listings', 'applications', 'expenses', 'documents', 'settings']) {
     assert.ok(propertySource.includes(`<Tab value="${tab}"`));
   }
 });

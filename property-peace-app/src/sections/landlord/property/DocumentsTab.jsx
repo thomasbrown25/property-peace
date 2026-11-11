@@ -46,24 +46,18 @@ import {
 } from '@ant-design/icons';
 import MainCard from 'components/MainCard';
 import useAuth from 'hooks/useAuth';
+import { useOrganization } from 'contexts/OrganizationContext';
 import { tenantDocumentAPI } from 'api';
 import { fileAPI } from 'api';
 import { formatDate } from 'utils/formatters';
 import { openSnackbar } from 'api/snackbar';
 import ConfirmationDialog from 'components/dialogs/ConfirmationDialog';
 import useFetchTenants from 'hooks/useFetchTenants';
-import useFetchProperties from 'hooks/useFetchProperties';
-
-// Document category labels for property documents
-const DOCUMENT_CATEGORY_LABELS = {
-  1: 'Landlord Insurance Policy',
-  2: 'Utility & Maintenance',
-  3: 'Loan & Financial Documents',
-  4: 'Other Documents'
-};
+import axiosServices from 'utils/axios';
+import { documentCategory, documentTypeLabel, propertyDocumentContext } from './propertyDocuments.mjs';
 
 // Document category options for filter
-const DOCUMENT_CATEGORY_OPTIONS = [
+const UPLOAD_CATEGORY_OPTIONS = [
   { value: 'all', label: 'All Categories' },
   { value: 1, label: 'Landlord Insurance Policy' },
   { value: 2, label: 'Utility & Maintenance' },
@@ -73,11 +67,18 @@ const DOCUMENT_CATEGORY_OPTIONS = [
 
 export default function DocumentsTab({ property, onRefresh }) {
   const { user } = useAuth();
+  const { currentOrganization } = useOrganization();
+  const organizationId = currentOrganization?.id ?? currentOrganization?.Id;
+  const scope = `${organizationId}:${user?.id}:${property?.id}`;
+  const [loadedScope, setLoadedScope] = useState(null);
   const { tenants } = useFetchTenants();
-  const { properties } = useFetchProperties();
+
   const theme = useTheme();
 
   const [documents, setDocuments] = useState([]);
+  const [leases, setLeases] = useState([]);
+  const [loadError, setLoadError] = useState('');
+  const requestId = useRef(0);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -112,128 +113,50 @@ export default function DocumentsTab({ property, onRefresh }) {
     return property.units;
   }, [property]);
 
-  // Helper functions to get document unit and tenant
-  const getDocumentUnit = (document) => {
-    const tenant = tenants?.find((t) => t.id === document.tenantId);
-    if (!tenant) return null;
+  const getDocumentUnit = document => propertyDocumentContext(document, property, leases, tenants).unit;
+  const getDocumentTenant = document => propertyDocumentContext(document, property, leases, tenants).tenant;
 
-    // Check tenant's unitId (direct relationship)
-    if (tenant.unitId) {
-      const unit = propertyUnits.find((u) => u.id === tenant.unitId);
-      if (unit) return unit;
-    }
-
-    // Check document's lease's unit
-    if (document.leaseId) {
-      const unit = propertyUnits.find((u) => u.lease?.id === document.leaseId);
-      if (unit) return unit;
-    }
-
-    // Check tenant's leaseId
-    if (tenant.leaseId) {
-      const unit = propertyUnits.find((u) => u.lease?.id === tenant.leaseId);
-      if (unit) return unit;
-    }
-
-    return null;
-  };
-
-  const getDocumentTenant = (document) => {
-    return tenants?.find((t) => t.id === document.tenantId);
-  };
-
-  // Fetch documents function - can be called independently
   const refreshDocuments = useCallback(async () => {
-    if (!user?.id) return;
-
+    const currentRequest = ++requestId.current;
+    setDocuments([]);
+    setPropertyFiles([]);
+    setLeases([]);
+    setSelectedDocuments([]);
+    setLoadError('');
+    setLoadedScope(null);
+    setLoading(false);
+    if (!user?.id || !property?.id) return;
+    setLoading(true);
     try {
-      // Fetch tenant documents
-      const tenantDocsResponse = await tenantDocumentAPI.getTenantDocumentsByLandlord(user.id);
-      if (tenantDocsResponse.success && tenantDocsResponse.data) {
-        setDocuments(tenantDocsResponse.data);
+      const [tenantResponse, filesResponse, leaseResponse] = await Promise.all([
+        tenantDocumentAPI.getTenantDocumentsByLandlord(user.id),
+        fileAPI.getFiles({ propertyId: property.id }),
+        axiosServices.get(`/api/lease/property/${property.id}/all`)
+      ]);
+      if (currentRequest !== requestId.current) return;
+      const savedLeases = leaseResponse.data;
+      if (![tenantResponse, filesResponse, savedLeases].every(response => response?.success && Array.isArray(response.data))) {
+        throw new Error('Documents could not be loaded.');
       }
-
-      // Fetch property-level files
-      if (property?.id) {
-        const filesResponse = await fileAPI.getFiles({ propertyId: property.id });
-        if (filesResponse.success && filesResponse.data) {
-          setPropertyFiles(filesResponse.data);
-        }
-      }
+      setLoadedScope(scope);
+      setDocuments(tenantResponse.data);
+      setPropertyFiles(filesResponse.data);
+      setLeases(savedLeases.data.filter(lease => !lease.isDeleted && !lease.IsDeleted));
     } catch (error) {
-      console.error('Error fetching documents:', error);
-      openSnackbar({
-        open: true,
-        message: 'Failed to load documents',
-        variant: 'alert',
-        alert: { color: 'error' }
-      });
+      if (currentRequest === requestId.current) setLoadError('Documents could not be loaded. Please retry.');
+    } finally {
+      if (currentRequest === requestId.current) setLoading(false);
     }
-  }, [user?.id, property?.id]);
+  }, [user?.id, property?.id, scope]);
 
-  // Fetch documents for the landlord
   useEffect(() => {
-    const fetchDocuments = async () => {
-      if (!user?.id) return;
+    refreshDocuments();
+    return () => { requestId.current += 1; };
+  }, [onRefresh, refreshDocuments]);
 
-      setLoading(true);
-      try {
-        await refreshDocuments();
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchDocuments();
-  }, [user?.id, property?.id, onRefresh, refreshDocuments]);
-
-  // Filter documents by property and combine with property files
   const propertyDocuments = useMemo(() => {
-    const tenantDocs = [];
-    const allDocs = [];
-
-    // Filter tenant documents by property
-    if (property?.id && documents.length) {
-      const filteredTenantDocs = documents.filter((doc) => {
-        // Find the tenant for this document
-        const tenant = tenants?.find((t) => t.id === doc.tenantId);
-        if (!tenant) return false;
-
-        // Check if tenant's propertyId matches (direct relationship)
-        if (tenant.propertyId === property.id) {
-          return true;
-        }
-
-        // Check if tenant's unitId belongs to this property
-        if (tenant.unitId) {
-          const unit = propertyUnits.find((u) => u.id === tenant.unitId);
-          if (unit) {
-            return true;
-          }
-        }
-
-        // Check if document has a leaseId that links to this property
-        if (doc.leaseId) {
-          // Find lease in property's units
-          const unitWithLease = propertyUnits.find((u) => u.lease?.id === doc.leaseId);
-          if (unitWithLease) {
-            return true;
-          }
-        }
-
-        // Check if tenant's leaseId links to a unit in this property
-        if (tenant.leaseId) {
-          const unitWithLease = propertyUnits.find((u) => u.lease?.id === tenant.leaseId);
-          if (unitWithLease) {
-            return true;
-          }
-        }
-
-        return false;
-      });
-      tenantDocs.push(...filteredTenantDocs);
-      allDocs.push(...filteredTenantDocs);
-    }
+    if (loadedScope !== scope) return [];
+    const allDocs = documents.filter(doc => propertyDocumentContext(doc, property, leases, tenants).belongs);
 
     // Convert property files to document format and add to all documents
     if (propertyFiles.length) {
@@ -256,7 +179,7 @@ export default function DocumentsTab({ property, onRefresh }) {
     }
 
     return allDocs;
-  }, [documents, property?.id, propertyUnits, tenants, propertyFiles]);
+  }, [documents, property, leases, tenants, propertyFiles, loadedScope, scope]);
 
   // Group documents by identity (same document sent to multiple tenants)
   const groupedDocuments = useMemo(() => {
@@ -273,10 +196,10 @@ export default function DocumentsTab({ property, onRefresh }) {
       
       const unitId = unit?.id || doc.unitId || null;
       
-      // Key: fileName + documentType + leaseId + unitId + isPropertyFile
+      // Key: stored blob identity + type + lease + unit + source
       // This groups documents that are the same but sent to different tenants
       // Property files are grouped separately from tenant documents
-      const groupKey = `${doc.fileName || ''}_${doc.documentType}_${doc.leaseId || 'null'}_${unitId || 'null'}_${doc.isPropertyFile ? 'prop' : 'tenant'}`;
+      const groupKey = `${doc.blobName || doc.blobUrl?.split('?')[0] || doc.id}_${doc.documentType}_${doc.leaseId || 'null'}_${unitId || 'null'}_${doc.isPropertyFile ? 'prop' : 'tenant'}`;
       
       if (!groups.has(groupKey)) {
         groups.set(groupKey, {
@@ -304,7 +227,14 @@ export default function DocumentsTab({ property, onRefresh }) {
     });
     
     return Array.from(groups.values());
-  }, [propertyDocuments, tenants, propertyUnits]);
+  }, [propertyDocuments, tenants, propertyUnits, leases]);
+
+  const categoryOptions = useMemo(() => [
+    { value: 'all', label: 'All Categories' },
+    ...Array.from(new Map(propertyDocuments.map(doc => [documentCategory(doc), {
+      value: documentCategory(doc), label: `${doc.isPropertyFile ? 'Property' : 'Tenant'} · ${documentTypeLabel(doc)}`
+    }])).values())
+  ], [propertyDocuments]);
 
   // Apply filters
   const filteredDocuments = useMemo(() => {
@@ -313,11 +243,7 @@ export default function DocumentsTab({ property, onRefresh }) {
     // Filter by category
     if (categoryFilter !== 'all') {
       filtered = filtered.filter((group) => {
-        // For property files, use categoryId; for tenant documents, use documentType
-        const category = group.document.isPropertyFile 
-          ? group.document.categoryId || group.document.documentType
-          : group.document.documentType;
-        return category === Number(categoryFilter);
+        return documentCategory(group.document) === categoryFilter;
       });
     }
 
@@ -338,9 +264,7 @@ export default function DocumentsTab({ property, onRefresh }) {
       filtered = filtered.filter((group) => {
         const doc = group.document;
         // Use category label for property files, document type for tenant documents
-        const categoryLabel = doc.isPropertyFile
-          ? (DOCUMENT_CATEGORY_LABELS[doc.categoryId || doc.documentType] || 'Unknown')
-          : (DOCUMENT_CATEGORY_LABELS[doc.documentType] || 'Unknown');
+        const categoryLabel = documentTypeLabel(doc);
         const tenantNames = group.tenants.map(t => `${t.firstname || ''} ${t.lastname || ''}`.trim()).join(' ');
         
         return (
@@ -656,7 +580,7 @@ export default function DocumentsTab({ property, onRefresh }) {
                 onChange={(e) => setCategoryFilter(e.target.value)}
                 label="Category"
               >
-                {DOCUMENT_CATEGORY_OPTIONS.map((option) => (
+                {categoryOptions.map((option) => (
                   <MenuItem key={option.value} value={option.value}>
                     {option.label}
                   </MenuItem>
@@ -719,13 +643,14 @@ export default function DocumentsTab({ property, onRefresh }) {
         </Stack>
       </MainCard>
 
+      {loadError && <Alert severity="error" sx={{ mb: 2 }} action={<Button color="inherit" onClick={refreshDocuments}>Retry</Button>}>{loadError}</Alert>}
       {/* Documents List */}
       {filteredDocuments.length === 0 ? (
         <MainCard sx={property ? { minHeight: { xs: 260, sm: 360 } } : undefined}>
           <Box sx={{ textAlign: 'center', py: 6 }}>
             <FileTextOutlined style={{ fontSize: 64, color: 'rgba(0,0,0,0.12)' }} />
             <Typography variant="h6" color="text.secondary" sx={{ mt: 2 }}>
-              {groupedDocuments.length === 0 ? 'No documents found for this property' : 'No documents match your filters'}
+              {groupedDocuments.length === 0 ? (loadError ? 'Documents are temporarily unavailable' : 'No documents found for this property') : 'No documents match your filters'}
             </Typography>
           </Box>
         </MainCard>
@@ -786,9 +711,7 @@ export default function DocumentsTab({ property, onRefresh }) {
                   const document = group.document; // Representative document
                   const unit = group.unit;
                   // Use category label for property files, document type for tenant documents
-                  const docTypeLabel = document.isPropertyFile
-                    ? (DOCUMENT_CATEGORY_LABELS[document.categoryId || document.documentType] || 'Unknown')
-                    : (DOCUMENT_CATEGORY_LABELS[document.documentType] || 'Unknown');
+                  const docTypeLabel = documentTypeLabel(document);
 
                   // Check if any document in this group is selected
                   const isGroupSelected = group.documents.some(doc => 
@@ -1103,7 +1026,7 @@ export default function DocumentsTab({ property, onRefresh }) {
                 onChange={(e) => setUploadForm({ ...uploadForm, categoryId: e.target.value })}
                 disabled={uploading}
               >
-                {DOCUMENT_CATEGORY_OPTIONS.filter(opt => opt.value !== 'all').map((option) => (
+                {UPLOAD_CATEGORY_OPTIONS.filter(opt => opt.value !== 'all').map((option) => (
                   <MenuItem key={option.value} value={option.value}>
                     {option.label}
                   </MenuItem>

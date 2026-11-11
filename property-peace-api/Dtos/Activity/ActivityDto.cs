@@ -5,6 +5,8 @@ namespace brownstone_hub_api.Dtos.Activity
     public class ActivityDto
     {
         public long Id { get; set; }
+        public string? EventKey { get; set; }
+        public string? Operation { get; set; }
         public string ActivityType { get; set; } = string.Empty; // Payment, Maintenance, Lease, Property, Tenant, Expense, File, Message, Application, System, Notification
         public ENotificationType? NotificationType { get; set; } // For compatibility with existing notifications
         public string Title { get; set; } = string.Empty;

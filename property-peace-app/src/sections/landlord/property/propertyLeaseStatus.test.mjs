@@ -25,6 +25,18 @@ test('property lease rows honor draft state even without signature status or lea
   }
 });
 
+test('property lease request uses the endpoint that includes authoritative draft state', async () => {
+  assert.ok(source.includes('axiosServices.get(`/api/lease/property/${propertyId}/all`)'));
+  const controller = await readFile(new URL('../../../../../property-peace-api/Controllers/LeaseController.cs', import.meta.url), 'utf8');
+  const endpoint = controller.match(/public async Task<IActionResult> GetAllPropertyLeases\([\s\S]*?return Ok\([\s\S]*?\n        \}/)?.[0];
+  assert.ok(endpoint, 'property lease-history endpoint exists');
+  assert.match(endpoint, /IsDrafted = lease\.LeaseAgreement != null && lease\.LeaseAgreement\.IsDrafted == true/);
+  // The response must retain the flag: dates and IsActive alone cannot identify a draft.
+  const apiDraft = { id: 229, unitId: 1, startDate: '2026-05-02', endDate: '2027-05-02', isActive: true, isDrafted: true };
+  assert.equal(leaseStatus(apiDraft), 'Draft');
+  assert.deepEqual(filterPropertyRows([apiDraft], '', 'Active', row => [row.id], leaseStatus), []);
+});
+
 test('legacy signature drafts and non-draft lifecycle labels remain supported', () => {
   for (const signatureStatus of [0, 'NotSent', 'notsent']) assert.equal(leaseStatus({ signatureStatus }), 'Draft');
   assert.equal(leaseStatus({ SignatureStatus: 0 }), 'Draft');
@@ -39,6 +51,11 @@ test('draft rows appear in the Draft filter, not the Active filter or green high
   const rows = [draft, active];
   assert.deepEqual(filterPropertyRows(rows, '', 'Draft', row => [row.id], leaseStatus), [draft]);
   assert.deepEqual(filterPropertyRows(rows, '', 'Active', row => [row.id], leaseStatus), [active]);
-  assert.match(source, /getStatus=\{leaseStatus\} highlightStatus="Active"/);
-  assert.match(source, /highlightStatus && getStatus\(row\) === highlightStatus/);
+  assert.doesNotMatch(source, /highlightStatus/);
+  const statusColumn = source.match(/\{ label: 'Status', value: leaseStatus, sx: (.*?) \}\r?\n/)[1];
+  const style = new Function('leaseStatus', `return (${statusColumn});`)(leaseStatus);
+  assert.equal(style(active).color, 'success.main');
+  assert.equal(style(draft).color, 'text.primary');
+  assert.equal(style({ endDate: '2020-01-01' }).color, 'text.primary');
+  assert.equal(style({ startDate: '2099-01-01' }).color, 'text.primary');
 });

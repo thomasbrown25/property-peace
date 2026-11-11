@@ -97,6 +97,30 @@ namespace brownstone_hub_api.Controllers
             }
         }
 
+        /// <summary>Get the connected account's Stripe funds, not its external bank balance.</summary>
+        [HttpGet("{id:long}/balance")]
+        public async Task<IActionResult> GetBankAccountBalance(long id)
+        {
+            var organizationId = this.GetCurrentOrganizationIdOrForbid();
+            if (!organizationId.HasValue)
+            {
+                return StatusCode(403, ServiceResponse<BankAccountBalanceDto>.CreateError(
+                    "Organization context is required", statusCode: 403, suppressDetailedErrors: true));
+            }
+
+            try
+            {
+                var response = await _bankAccountService.GetBankAccountBalanceAsync(id, organizationId.Value);
+                return StatusCode(response.Success ? 200 : response.StatusCode, response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting Stripe funds for bank account {Id}", id);
+                return StatusCode(500, ServiceResponse<BankAccountBalanceDto>.CreateError(
+                    "Unable to retrieve Stripe funds. Please try again later.", statusCode: 500, suppressDetailedErrors: true));
+            }
+        }
+
         /// <summary>
         /// Create a new bank account
         /// </summary>
@@ -137,16 +161,15 @@ namespace brownstone_hub_api.Controllers
                 var approvedForOrganization = await _context.StripeConnectedPayeeReviews.AsNoTracking().AnyAsync(x =>
                     x.UserId == userId
                     && x.StripeAccountId == linkedAccount
-                    && x.Status == StripePayeeReviewStatus.PayoutApproved
-                    && x.PropertyAuthorityAttested
-                    && x.ApprovedOrganizationId == bankAccountDto.OrganizationId
+                    && x.Status != StripePayeeReviewStatus.Suspended && x.SuspendedAt == null
+                    && (x.ApprovedOrganizationId == null || x.ApprovedOrganizationId == bankAccountDto.OrganizationId)
                     && _context.OrganizationMembers.Any(member => member.UserId == userId
                         && member.OrganizationId == bankAccountDto.OrganizationId
                         && member.IsActive
                         && (member.Role == "Owner" || member.Role == "Manager")));
                 if (!approvedForOrganization)
                 {
-                    return StatusCode(403, new { Message = "The Stripe payee is not approved for this organization." });
+                    return StatusCode(403, new { Message = "The Stripe payee is not authorized for this organization." });
                 }
 
                 var response = await _bankAccountService.CreateBankAccountAsync(bankAccountDto);

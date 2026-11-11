@@ -21,12 +21,14 @@ import axios from 'utils/axios';
 import { format } from 'date-fns';
 import { formatCurrency, formatPhoneInput } from 'utils/formatters';
 import { buildLeasePaymentTimeline } from 'utils/leasePaymentTimeline';
+import { getLeasePaymentOrigin } from 'utils/leasePaymentActivity';
 import { getLeaseHeaderBalance } from 'utils/leaseHeaderSummary';
 import { buildDocumentRows, filterDocumentRows, paginateDocumentRows } from './leaseDocumentTable.mjs';
 import { leaseDetailTitle } from 'utils/leaseDetailTitle.mjs';
 import { renterProfileRoute } from 'utils/renterWorkspace';
 import LeaseChargesTab from './LeaseChargesTab';
 import { buildLeaseChecklistCards, sortLeaseChecklistSteps } from 'utils/leaseMoveIn';
+import { findLinkedChecklist } from 'utils/checklistLeaseOptions.mjs';
 
 const detailCardSx = {
   p: 2,
@@ -48,6 +50,18 @@ const detailHeaderSx = {
 };
 
 const subtleDivider = (theme, darkAlpha = 0.22, lightAlpha = 0.12) => alpha(theme.palette.divider, theme.palette.mode === 'dark' ? darkAlpha : lightAlpha);
+
+const cardDealAnimationSx = {
+  '@keyframes dealRentCard': {
+    from: { opacity: 0, transform: 'translateX(-28px) rotate(-4deg) scale(0.96)' },
+    to: { opacity: 1, transform: 'translateX(0) rotate(0deg) scale(1)' }
+  },
+  '& > *': {
+    animation: 'dealRentCard 420ms cubic-bezier(0.22, 1, 0.36, 1) both',
+    animationDelay: 'var(--deal-delay)', transformOrigin: 'bottom left'
+  },
+  '@media (prefers-reduced-motion: reduce)': { '& > *': { animation: 'none' } }
+};
 
 
 
@@ -74,8 +88,8 @@ function LeaseMoveInCard({
     tenants: { label: 'Assign tenants', onClick: onAssignTenants },
     agreement: { label: hasAgreement ? 'View agreement' : 'Build agreement', onClick: hasAgreement ? onViewAgreement : onBuildAgreement },
     signatures: { label: 'Open signatures', onClick: onOpenSignature, disabled: !eSignatureReadiness?.canInvoke },
-    checklist: { label: 'View checklists', onClick: () => onViewChecklists('move-in') },
-    'move-out': { label: 'View checklists', onClick: () => onViewChecklists('move-out') }
+    checklist: { label: !Array.isArray(checklists) || findLinkedChecklist(checklists, lease?.id ?? lease?.Id, 'move-in') ? 'View checklist' : 'Create checklist', onClick: () => onViewChecklists('move-in') },
+    'move-out': { label: !Array.isArray(checklists) || findLinkedChecklist(checklists, lease?.id ?? lease?.Id, 'move-out') ? 'View checklist' : 'Create checklist', onClick: () => onViewChecklists('move-out') }
   };
 
   return (
@@ -314,6 +328,7 @@ function TenantsCard({ tenants, property, onAddTenant, onViewProfile }) {
 
 export default function LeaseDetailView({
   lease, tenants, property, payments, deposits, rentRecord,
+  paymentsLoading = true, paymentsError, onRetryPayments,
   propertyDisplay, unitDisplay, isDraftLease, isNotStarted, leaseId,
   dashboardSummary, user, leaseDocuments, leaseAgreement, moveInReadiness, leaseChecklists, eSignatureReadiness,
   handleEndLeaseClick, handleReopenLeaseClick,
@@ -522,7 +537,7 @@ export default function LeaseDetailView({
       items.push({
         date,
         label: type === 'deposit' ? 'Deposit received' : `${tenantFullName || 'Tenant'} paid ${formatCurrency(amt)}`,
-        sub: type === 'deposit' ? `${formatCurrency(amt)} · deposit` : `${format(date, 'MMM d')} · on time · auto-payment`,
+        sub: [type === 'deposit' ? `${formatCurrency(amt)} · deposit` : `${format(date, 'MMM d')} · on time`, getLeasePaymentOrigin(p)].filter(Boolean).join(' · '),
         amount: `+${formatCurrency(amt)}`,
         payment: p,
         dot: true
@@ -800,20 +815,27 @@ export default function LeaseDetailView({
       {activeTab === 0 && (
         <Stack spacing={2}>
           <SectionCard title="Rent payment history">
-            {paymentTimeline.length ? (
+            {paymentsLoading ? (
+              <Box role="status" aria-busy="true" aria-label="Loading payment history" sx={{ minHeight: 126 }} />
+            ) : paymentsError ? (
+              <Stack role="alert" alignItems="center" justifyContent="center" spacing={1} sx={{ minHeight: 126, bgcolor: (t) => alpha(t.palette.grey[500], 0.09), borderRadius: 1.5 }}>
+                <Typography sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>Payment history couldn’t be loaded.</Typography>
+                <Button size="small" onClick={onRetryPayments}>Try again</Button>
+              </Stack>
+            ) : paymentTimeline.length ? (
               <>
                 <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', mb: 1.5 }}>
                   Full lease term · Each tile represents a scheduled rent payment. On time includes the lease grace period.
                 </Typography>
-                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(78px, 1fr))', gap: 1 }}>
-                  {paymentTimeline.map((cycle) => {
+                <Box sx={{ ...cardDealAnimationSx, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(78px, 1fr))', gap: 1, overflow: 'hidden' }}>
+                  {paymentTimeline.map((cycle, index) => {
                     const tone = cycle.status === 'on-time' ? 'success' : cycle.status === 'late' ? 'warning' : cycle.status === 'overdue' ? 'error' : 'grey';
                     const color = (t) => tone === 'grey' ? t.palette.grey[500] : t.palette[tone].main;
                     const label = cycle.status === 'on-time' ? 'Paid on time' : cycle.status === 'late' ? 'Paid late' : cycle.status === 'overdue' ? 'Overdue' : 'Upcoming';
                     return (
-                      <Box key={cycle.key} title={`${cycle.dueDate} · ${label}${cycle.paidAt ? ` · paid ${format(cycle.paidAt, 'MMM d, yyyy')}` : ''}`} aria-label={`${format(new Date(`${cycle.dueDate}T00:00:00`), 'MMMM yyyy')} rent due ${cycle.dueDate}: ${label}`} sx={{ p: 1, borderRadius: 1.5, textAlign: 'center', border: '1px solid', borderColor: (t) => alpha(color(t), 0.4), bgcolor: (t) => alpha(color(t), 0.12) }}>
-                        <Typography sx={{ fontSize: '0.72rem', fontWeight: 750, color }}>{cycle.label} {cycle.dueDate.slice(2, 4)}</Typography>
-                        <Typography sx={{ fontSize: '0.61rem', color: 'text.secondary' }}>{cycle.isProrated ? 'Move-in' : `Due ${cycle.dueDate.slice(8)}`}</Typography>
+                      <Box key={cycle.key} style={{ '--deal-delay': `${Math.min(index * 55, 660)}ms` }} title={`${cycle.dueDate} · ${label}${cycle.paidAt ? ` · paid ${format(cycle.paidAt, 'MMM d, yyyy')}` : ''}`} aria-label={`${format(new Date(`${cycle.dueDate}T00:00:00`), 'MMMM yyyy')} rent due ${cycle.dueDate}: ${label}`} sx={{ p: 1, borderRadius: 1.5, textAlign: 'center', border: '1px solid', borderColor: (t) => alpha(color(t), 0.4), bgcolor: (t) => alpha(color(t), 0.12) }}>
+                        <Typography sx={{ fontSize: '0.72rem', fontWeight: 750, color }}>{cycle.label} {Number(cycle.dueDate.slice(8))}</Typography>
+                        <Typography sx={{ fontSize: '0.61rem', color: 'text.secondary' }}>{cycle.status === 'on-time' ? 'On-time' : cycle.status === 'late' ? 'Late' : cycle.status === 'overdue' ? 'Overdue' : 'Upcoming'}</Typography>
                       </Box>
                     );
                   })}

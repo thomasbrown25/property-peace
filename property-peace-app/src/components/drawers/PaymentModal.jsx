@@ -1,6 +1,6 @@
 import { isDetachedSingleUnitType } from 'utils/propertyType';
 import ThemeAdaptiveDrawer from 'components/drawers/shared/ThemeAdaptiveDrawer';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -18,7 +18,8 @@ import {
   Chip,
   alpha,
   CircularProgress,
-  Alert
+  Alert,
+  MenuItem
 } from '@mui/material';
 import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -38,21 +39,15 @@ import { getTenantPaymentSubmissionCopy } from 'utils/paymentSafety';
 import { normalizeRentBalance } from 'utils/rentBalance';
 import { feeAmountCents, feeAttempt, feeIntentPayload, feeSubmissionCopy } from 'utils/feeCheckout';
 import { createPaymentIntentSync } from 'utils/paymentIntentSync';
+import { createRentStripeLoader, createRentMethodsApi } from 'utils/connectedRentStripe.mjs';
 import axiosServices from 'utils/axios';
 import { openSnackbar } from 'api/snackbar';
 import useAuth from 'hooks/useAuth';
 import useRentPaymentActionReadiness from 'hooks/useRentPaymentActionReadiness';
 import moment from 'moment';
 
-// Initialize Stripe
-let stripePromise;
-const getStripe = () => {
-  if (!stripePromise) {
-    // We'll fetch the publishable key from the API
-    stripePromise = loadStripe(''); // Will be set dynamically
-  }
-  return stripePromise;
-};
+const getRentStripe = createRentStripeLoader(loadStripe);
+const rentMethodsApi = createRentMethodsApi(axiosServices);
 
 const onlinePaymentErrorMessage = (error, fallback) => {
   const status = error?.response?.status;
@@ -465,6 +460,7 @@ function LandlordPaymentForm({ rent, onSuccess, onClose }) {
 // Payment Form Component for Tenants (with Stripe Payment Element)
 function TenantPaymentElementCheckout({
   rent,
+  stripeAccountId,
   amount,
   setAmount,
   paymentDate,
@@ -480,6 +476,21 @@ function TenantPaymentElementCheckout({
   const stripe = useStripe();
   const elements = useElements();
   const [processing, setProcessing] = useState(false);
+  const [savedMethods, setSavedMethods] = useState([]);
+  const [savedMethodId, setSavedMethodId] = useState('');
+  const [methodsError, setMethodsError] = useState('');
+  useEffect(() => {
+    let active = true;
+    setSavedMethods([]);
+    setSavedMethodId('');
+    setMethodsError('');
+    rentMethodsApi.list(rent?.leaseId, stripeAccountId).then((methods) => {
+      if (active) setSavedMethods(methods);
+    }).catch(() => {
+      if (active) setMethodsError('Saved methods could not be loaded. You can still enter a new payment method below.');
+    });
+    return () => { active = false; };
+  }, [rent?.leaseId, stripeAccountId]);
   const numericAmount = Number(amount || 0);
   const numericIntentAmount = Number(intentAmount || 0);
   const amountExceedsDue = totalDue > 0 && numericAmount > totalDue;
@@ -500,7 +511,7 @@ function TenantPaymentElementCheckout({
     setError(null);
 
     try {
-      const { error: submitError } = await elements.submit();
+      const { error: submitError } = savedMethodId ? {} : await elements.submit();
       if (!isCurrent()) {
         setError('Payment amount changed. Please wait for the payment form to update.');
         return;
@@ -512,18 +523,19 @@ function TenantPaymentElementCheckout({
       }
 
       const { error: stripeError, paymentIntent } = await stripe.confirmPayment({
-        elements,
+        ...(savedMethodId ? {} : { elements }),
         clientSecret,
         redirect: 'if_required',
         confirmParams: {
           return_url: window.location.href,
-          payment_method_data: {
+          ...(savedMethodId ? { payment_method: savedMethodId } : { payment_method_data: {
             billing_details: {
               name: `${rent?.tenantFirstName || ''} ${rent?.tenantLastName || ''}`.trim() || 'Tenant'
             }
-          }
+          } })
         }
       });
+      if (!isCurrent()) return;
 
       if (stripeError) {
         setError(stripeError.message || 'Payment failed');
@@ -570,7 +582,12 @@ function TenantPaymentElementCheckout({
             Want to pay by ACH? Choose <Box component="span" sx={{ fontWeight: 700, color: 'text.primary' }}>US bank account</Box> or{' '}
             <Box component="span" sx={{ fontWeight: 700, color: 'text.primary' }}>Try paying by bank</Box> options below to securely connect a bank account.
           </Typography>
-          <PaymentElement />
+          {methodsError && <Alert severity="info" sx={{ mb: 2 }}>{methodsError}</Alert>}
+          {savedMethods.length > 0 && <TextField select fullWidth label="Payment method" value={savedMethodId} onChange={(event) => setSavedMethodId(event.target.value)} disabled={processing} sx={{ mb: 2 }}>
+            <MenuItem value="">Use a new payment method</MenuItem>
+            {savedMethods.map((method) => <MenuItem key={method.id} value={method.id}>{method.brand || method.bankName || method.type} ending in {method.last4}{method.isDefault ? ' (default)' : ''}</MenuItem>)}
+          </TextField>}
+          {!savedMethodId && <PaymentElement />}
           {!intentMatchesAmount && (
             <Alert severity="info" sx={{ mt: 2, borderRadius: 1.5 }}>
               Updating secure payment form for {formatCurrency(numericAmount)}...
@@ -887,10 +904,12 @@ function TenantPaymentSubmitted({ payment, onClose, isFee }) {
   );
 }
 
-function TenantPaymentForm({ rent, onSuccess, onClose }) {
+function TenantPaymentForm({ rent, publishableKey, onSuccess, onClose }) {
   const [paymentDate, setPaymentDate] = useState(new Date());
   const [amount, setAmount] = useState(0);
   const [clientSecret, setClientSecret] = useState(null);
+  const [stripeAccountId, setStripeAccountId] = useState(null);
+  const stripePromise = useMemo(() => stripeAccountId ? getRentStripe(publishableKey, stripeAccountId) : null, [publishableKey, stripeAccountId]);
   const [paymentIntentId, setPaymentIntentId] = useState(null);
   const [intentAmount, setIntentAmount] = useState(0);
   const [error, setError] = useState(null);
@@ -922,7 +941,8 @@ function TenantPaymentForm({ rent, onSuccess, onClose }) {
     checkoutRef.current?.coordinator.dispose();
     const coordinator = createPaymentIntentSync({
       post: (path, payload) => axiosServices.post(path, payload),
-      onState: ({ clientSecret: secret, paymentIntentId: id, intentAmountCents, error: syncError }) => {
+      onState: ({ clientSecret: secret, stripeAccountId: account, paymentIntentId: id, intentAmountCents, error: syncError }) => {
+        setStripeAccountId(account);
         setClientSecret(secret);
         setPaymentIntentId(id);
         setIntentAmount(intentAmountCents == null ? 0 : intentAmountCents / 100);
@@ -938,6 +958,7 @@ function TenantPaymentForm({ rent, onSuccess, onClose }) {
       setPaymentDate(new Date());
       setError(null);
       setClientSecret(null);
+      setStripeAccountId(null);
       setPaymentIntentId(null);
       setIntentAmount(0);
       setSubmittedPayment(null);
@@ -983,7 +1004,7 @@ function TenantPaymentForm({ rent, onSuccess, onClose }) {
     });
   }, [scopeKey, amount, propertyDisplay, totalDue, submittedPayment, feeCheckoutReady, validAmount]);
 
-  const checkoutReady = validAmount && !!clientSecret && !!paymentIntentId &&
+  const checkoutReady = validAmount && !!clientSecret && !!paymentIntentId && !!stripeAccountId && !!stripePromise &&
     checkoutRef.current?.key === scopeKey && Math.round(Number(intentAmount) * 100) === requestedCents &&
     checkoutRef.current.coordinator.ready;
 
@@ -1037,9 +1058,10 @@ function TenantPaymentForm({ rent, onSuccess, onClose }) {
   }
 
   return (
-    <Elements stripe={stripePromise} options={elementsOptions} key={clientSecret}>
+    <Elements stripe={stripePromise} options={elementsOptions} key={JSON.stringify([scopeKey, stripeAccountId, clientSecret])}>
       <TenantPaymentElementCheckout
         rent={rent}
+        stripeAccountId={stripeAccountId}
         amount={amount}
         setAmount={setAmount}
         paymentDate={paymentDate}
@@ -1097,7 +1119,7 @@ export default function PaymentModal({ rent, defaultAmount, onClose: onCloseProp
         const response = await axiosServices.get('/api/stripe/publishable-key');
         if (response.data && response.data.publishableKey) {
           setPublishableKey(response.data.publishableKey);
-          stripePromise = loadStripe(response.data.publishableKey);
+
         } else {
           console.error('Failed to get publishable key');
         }
@@ -1159,7 +1181,7 @@ export default function PaymentModal({ rent, defaultAmount, onClose: onCloseProp
   ) : isLandlord ? (
     <LandlordPaymentForm rent={rent} onSuccess={handleSuccess} onClose={handleClose} />
   ) : (
-    <TenantPaymentForm rent={rent} onSuccess={handleTenantSuccess} onClose={handleClose} />
+    <TenantPaymentForm key={JSON.stringify([open, rent?.leaseId, rent?.chargeId, rent?.isFee])} rent={rent} publishableKey={publishableKey} onSuccess={handleTenantSuccess} onClose={handleClose} />
   );
 
   if (useDrawerShell) {
