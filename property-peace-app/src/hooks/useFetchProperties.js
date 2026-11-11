@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { getProperties } from 'store/property/property.action';
 import { selectProperties, selectPropertiesLoadedAt, selectPropertiesOrganizationId } from 'store/property/property.selector';
@@ -7,7 +7,8 @@ import useAuth from './useAuth';
 
 const STALE_MS = 5 * 60 * 1000; // 5 minutes
 
-export default function useFetchProperties() {
+export default function useFetchProperties({ refreshOnMount = false } = {}) {
+  const refreshedOrganization = useRef(null);
   const dispatch = useDispatch();
   const { user, isLoggedIn } = useAuth();
   const { currentOrganization } = useOrganization();
@@ -36,9 +37,11 @@ export default function useFetchProperties() {
 
   useEffect(() => {
     if (!isLoggedIn || !user?.id || !organizationId) return;
-    if (loadedOrganizationId === organizationId && loadedAt && Date.now() - loadedAt < STALE_MS) return;
+    const needsEntryRefresh = refreshOnMount && refreshedOrganization.current !== organizationId;
+    if (!needsEntryRefresh && loadedOrganizationId === organizationId && loadedAt && Date.now() - loadedAt < STALE_MS) return;
+    refreshedOrganization.current = organizationId;
     propertiesRefetch();
-  }, [isLoggedIn, user?.id, organizationId, loadedOrganizationId, loadedAt, propertiesRefetch]);
+  }, [isLoggedIn, user?.id, organizationId, loadedOrganizationId, loadedAt, propertiesRefetch, refreshOnMount]);
 
   const visibleProperties = loadedOrganizationId === organizationId ? properties : [];
   return { properties: visibleProperties, propertiesRefetch, isLoading, propertiesError, propertiesLoadedAt: loadedAt };

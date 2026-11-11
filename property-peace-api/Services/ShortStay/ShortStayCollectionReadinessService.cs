@@ -81,8 +81,7 @@ public sealed class ShortStayCollectionReadinessService(DataContext db, IConfigu
             if (review.UserId != payeeUserId || review.StripeAccountId != account ||
                 (review.ApprovedOrganizationId is not null && review.ApprovedOrganizationId != organizationId) ||
                 review.Status == StripePayeeReviewStatus.Suspended || review.SuspendedAt is not null ||
-                (requireApplication && (review.ApprovedOrganizationId != organizationId ||
-                    review.Status != StripePayeeReviewStatus.PayoutApproved || review.ApprovedAt is null)) ||
+
                 review.LastStripeSnapshotAt is not { } snapshot || snapshot < now.AddMinutes(-5) || snapshot > now.AddMinutes(1) ||
                 !review.StripeDetailsSubmitted || !review.StripePayoutsEnabled || !review.StripeTransfersActive ||
                 !string.Equals(review.StripeTransferCapabilityStatus, "active", StringComparison.OrdinalIgnoreCase) ||

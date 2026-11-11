@@ -145,11 +145,11 @@ public sealed class ShortStayStripeWebhookTests
         await connection.OpenAsync();
         await using var db = new DataContext(new DbContextOptionsBuilder<DataContext>().UseSqlite(connection).Options);
         foreach (var table in new[] { "Units", "Properties", "Organizations", "Users" })
-            await db.Database.ExecuteSqlRawAsync($"CREATE TABLE {table} (Id INTEGER PRIMARY KEY)");
+            await db.Database.ExecuteSqlRawAsync($"CREATE TABLE {table} (Id INTEGER PRIMARY KEY{(table == "Properties" ? ", OrganizationId INTEGER" : "")})");
         foreach (var (table, id) in new[] { ("Units", 1), ("Properties", 2), ("Organizations", 3), ("Users", 4), ("Users", 5) })
             await db.Database.ExecuteSqlRawAsync($"INSERT INTO {table} (Id) VALUES ({id})");
         var ddl = db.Database.GenerateCreateScript();
-        foreach (var table in new[] { "ShortStayReservations", "ShortStayReservationNights", "ShortStayOccupancyClaims" })
+        foreach (var table in new[] { "ActivityEvents", "ShortStayReservations", "ShortStayReservationNights", "ShortStayOccupancyClaims" })
         {
             var create = System.Text.RegularExpressions.Regex.Match(ddl, $"CREATE TABLE [^;]*\\\"{table}\\\"[^;]*;", System.Text.RegularExpressions.RegexOptions.Singleline);
             await db.Database.ExecuteSqlRawAsync(create.Value);

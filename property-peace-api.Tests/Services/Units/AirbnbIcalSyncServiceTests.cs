@@ -304,7 +304,7 @@ public sealed class AirbnbIcalSyncServiceTests
         {
             base.OnModelCreating(modelBuilder);
             var keep = new[] { typeof(Property), typeof(Unit), typeof(Organization), typeof(OrganizationMember), typeof(ShortStayIcalSubscription), typeof(ShortStayIcalOccurrence), typeof(ShortStayBlock), typeof(ShortStayReservation), typeof(ShortStayReservationNight), typeof(ShortStayOccupancyClaim) };
-            foreach (var entity in modelBuilder.Model.GetEntityTypes().ToList()) if (!keep.Contains(entity.ClrType)) modelBuilder.Ignore(entity.ClrType);
+            foreach (var entity in modelBuilder.Model.GetEntityTypes().ToList()) if (entity.ClrType != typeof(ActivityEvent) && entity.ClrType != typeof(ExtendedStayAgreement) && !keep.Contains(entity.ClrType)) modelBuilder.Ignore(entity.ClrType);
             foreach (var entity in modelBuilder.Model.GetEntityTypes())
                 foreach (var property in entity.GetProperties())
                     if (property.GetColumnType()?.Contains("(max)", StringComparison.OrdinalIgnoreCase) == true) property.SetColumnType("TEXT");

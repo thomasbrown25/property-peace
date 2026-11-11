@@ -22,6 +22,33 @@ namespace brownstone_hub_api.Tests.Services;
 
 public sealed class StripeServiceChargeAdapterTests
 {
+    [Fact]
+    public async Task NewAccounts_ExplicitStandardFullDashboardStripeLossesAndAccountFees()
+    {
+        await using var db = StripeRentPaymentFlowTests.CreateContext();
+        var users = new Mock<IUserRepository>();
+        users.Setup(x => x.GetUser(42)).ReturnsAsync(new User { Id = 42, Email = "owner@example.test" });
+        Stripe.AccountCreateOptions? captured = null;
+        var gateway = new Mock<IStripeConnectedAccountGateway>();
+        gateway.Setup(x => x.CreateOnboardingAccountAsync(It.IsAny<Stripe.AccountCreateOptions>(),
+            "https://app.test/return", It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Callback<Stripe.AccountCreateOptions, string, string, CancellationToken>((options, _, _, _) => captured = options)
+            .ReturnsAsync(new StripeConnectedAccountOnboardingResult("acct_standard", false, "https://stripe.test/onboard"));
+        var service = new StripeServiceImpl(users.Object, Mock.Of<ILeaseRepository>(), Mock.Of<IPropertyRepository>(),
+            Mock.Of<IPaymentService>(), Mock.Of<INotificationService>(), db, new ConfigurationBuilder().Build(),
+            Mock.Of<ILogger<StripeServiceImpl>>(), new HttpContextAccessor(), Mock.Of<IStripeRentPaymentService>(),
+            Mock.Of<IStripeConnectedPayeeService>(), gateway.Object, TimeProvider.System);
+        var response = await service.CreateConnectAccountAsync(42, "owner@example.test", "https://app.test/return", null);
+        response.Success.Should().BeTrue(response.Message);
+        captured.Should().NotBeNull();
+        captured!.Type.Should().BeNull("controller properties define Standard-equivalent behavior");
+        captured.Controller.Losses.Payments.Should().Be("stripe");
+        captured.Controller.Fees.Payer.Should().Be("account");
+        captured.Controller.RequirementCollection.Should().Be("stripe");
+        captured.Controller.StripeDashboard.Type.Should().Be("full");
+        captured.Settings.Should().BeNull("Standard owners manage their payout schedule");
+    }
+
     private static StripeServiceImpl Adapter(DataContext db, IStripeRentPaymentService rent, long organizationId = 9)
     {
         var http = new DefaultHttpContext
@@ -54,10 +81,11 @@ public sealed class StripeServiceChargeAdapterTests
                 && c.OperationId == "operation" && c.AmountCents == 5000
                 && c.DestinationStripeAccountId == "acct_snapshot" && c.ChargeId == chargeId),
             It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new StripeRentPaymentClientResult("pi_created", "secret"));
+            .ReturnsAsync(new StripeRentPaymentClientResult("pi_created", "secret", "acct_immutable"));
         var result = await Adapter(db, rent.Object).CreatePaymentIntentAsync(44, 50m, "operation", null, chargeId);
         result.Success.Should().BeTrue(result.Message);
         result.Data!.PaymentIntentId.Should().Be("pi_created");
+        result.Data.StripeAccountId.Should().Be("acct_immutable");
         rent.VerifyAll();
     }
 
@@ -72,9 +100,10 @@ public sealed class StripeServiceChargeAdapterTests
         rent.Setup(x => x.UpdateAsync(It.Is<UpdateStripeRentPaymentCommand>(c =>
                 c.PaymentIntentId == "pi_existing" && c.LeaseId == 44 && c.TenantUserId == 7
                 && c.AmountCents == 5000 && c.ChargeId == chargeId), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new StripeRentPaymentClientResult("pi_existing", "secret"));
+            .ReturnsAsync(new StripeRentPaymentClientResult("pi_existing", "secret", "acct_immutable"));
         var result = await Adapter(db, rent.Object).UpdatePaymentIntentAsync("pi_existing", 44, 50m, null, chargeId);
         result.Success.Should().BeTrue(result.Message);
+        result.Data!.StripeAccountId.Should().Be("acct_immutable");
         rent.VerifyAll();
     }
 

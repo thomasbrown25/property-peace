@@ -4,10 +4,12 @@ import { format } from 'date-fns';
 import { ArrowRightOutlined } from '@ant-design/icons';
 import placeholderImage from 'assets/images/placeholder-house.png';
 import PropertyOperations from 'sections/landlord/properties/PropertyOperations';
+import OwnerHomeSidebar from './OwnerHomeSidebar';
+import { dashboardEntranceDelay, dashboardSlideDownSx } from './dashboardEntrance.mjs';
 import { getOwnerNextStep, getOwnerProperties, getPropertyMonthRent, getPropertyOverdueRent } from 'utils/ownerHome';
 
 const money = (value) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(value);
-const columns = 'minmax(220px, 1.3fr) minmax(170px, 1fr) minmax(140px, .8fr) minmax(170px, 1fr)';
+const columns = 'minmax(190px, 1.3fr) minmax(140px, 1fr) minmax(110px, .8fr) minmax(150px, 1fr)';
 
 export default function OwnerTodayHome({ reminders = [], properties = [], propertiesLoading = false, propertiesError = false, rentRecords = [], rentLoading = false, rentError = false, rentReady = false }) {
   const theme = useTheme();
@@ -25,10 +27,15 @@ export default function OwnerTodayHome({ reminders = [], properties = [], proper
         </Typography>
       </Box>
 
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: '280px minmax(0, 1fr)' }, gap: { xs: 0, lg: 6 }, alignItems: 'start' }}>
+        <Box sx={{ pt: { xs: 3, md: 4 }, pb: { xs: 1, lg: 0 }, minWidth: 0 }}>
+          <OwnerHomeSidebar />
+        </Box>
+        <Box sx={{ minWidth: 0 }}>
       <Box component="section" aria-labelledby="owner-next-heading" sx={{ py: { xs: 3, md: 4 }, borderBottom: '1px solid', borderColor: 'divider' }}>
         <Typography id="owner-next-heading" component="h2" variant="h5" sx={{ mb: 1.5, fontWeight: 700 }}>Tasks</Typography>
         {next ? (
-          <Box sx={{ display: 'flex', alignItems: { xs: 'flex-start', sm: 'center' }, justifyContent: 'space-between', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, p: { xs: 2, sm: 2.5 }, bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
+          <Box sx={{ ...dashboardSlideDownSx, display: 'flex', alignItems: { xs: 'flex-start', sm: 'center' }, justifyContent: 'space-between', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, p: { xs: 2, sm: 2.5 }, bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
             <Box sx={{ minWidth: 0 }}>
               <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>{next.label}</Typography>
               <Typography variant="h5" sx={{ mt: 0.5, overflowWrap: 'anywhere', color: 'text.primary' }}>{next.title}</Typography>
@@ -51,7 +58,7 @@ export default function OwnerTodayHome({ reminders = [], properties = [], proper
           <Typography color="text.secondary">Properties could not be loaded. Try again later.</Typography>
         ) : places.length ? (
           <Box sx={{ bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', borderRadius: 2, overflow: 'hidden' }}>
-            <Box sx={{ display: { xs: 'none', md: 'grid' }, gridTemplateColumns: columns, gap: 2, px: 2, py: 1.15, bgcolor: alpha(theme.palette.primary.main, 0.025) }}>
+            <Box sx={{ display: { xs: 'none', xl: 'grid' }, gridTemplateColumns: columns, gap: 2, px: 2, py: 1.15, bgcolor: alpha(theme.palette.primary.main, 0.025) }}>
               {['Property', 'Rent paid', 'Rent status', 'Operations'].map((label) => (
                 <Typography key={label} sx={{ fontSize: '0.66rem', fontWeight: 750, letterSpacing: 0.65, textTransform: 'uppercase', color: 'text.secondary' }}>{label}</Typography>
               ))}
@@ -60,7 +67,7 @@ export default function OwnerTodayHome({ reminders = [], properties = [], proper
               const rent = getPropertyMonthRent(property.id, rentRecords, rentError || !rentReady);
               const overdue = getPropertyOverdueRent(property.id, rentRecords, rentError || !rentReady);
               return (
-                <Box key={property.id} sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: columns }, alignItems: 'center', gap: { xs: 1.5, md: 2 }, px: 2, py: 1.5, borderTop: index ? '1px solid' : { xs: 0, md: '1px solid' }, borderColor: 'divider' }}>
+                <Box key={property.id} style={{ '--dashboard-deal-delay': dashboardEntranceDelay(index) }} sx={{ ...dashboardSlideDownSx, display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', xl: columns }, alignItems: 'center', gap: { xs: 1.5, xl: 2 }, px: 2, py: 1.5, borderTop: index ? '1px solid' : { xs: 0, xl: '1px solid' }, borderColor: 'divider' }}>
                   <Stack component={RouterLink} to={property.href} direction="row" spacing={1.4} alignItems="center" sx={{ minWidth: 0, color: 'inherit', textDecoration: 'none', '&:hover .owner-property-name': { textDecoration: 'underline' }, '&:focus-visible': { outline: `2px solid ${theme.palette.primary.main}`, outlineOffset: 2 } }}>
                     <Box component="img" src={property.imageUrl || placeholderImage} alt="" sx={{ width: 58, height: 58, borderRadius: 1.8, objectFit: 'cover', bgcolor: alpha(theme.palette.primary.main, 0.08), flexShrink: 0 }} />
                     <Box sx={{ minWidth: 0 }}>
@@ -69,7 +76,7 @@ export default function OwnerTodayHome({ reminders = [], properties = [], proper
                     </Box>
                   </Stack>
                   <Box>
-                    <Typography sx={{ display: { xs: 'block', md: 'none' }, mb: 0.5, fontSize: '0.66rem', fontWeight: 750, textTransform: 'uppercase', color: 'text.secondary' }}>Rent paid</Typography>
+                    <Typography sx={{ display: { xs: 'block', xl: 'none' }, mb: 0.5, fontSize: '0.66rem', fontWeight: 750, textTransform: 'uppercase', color: 'text.secondary' }}>Rent paid</Typography>
                     {property.activeLeaseCount === 0 ? <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>No lease</Typography> : rentLoading && !rentReady ? <Typography sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>Loading rent…</Typography> : rent ? (
                       <>
                         <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
@@ -82,13 +89,13 @@ export default function OwnerTodayHome({ reminders = [], properties = [], proper
                     ) : <Typography sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>{rentError ? 'Rent data unavailable' : rentReady ? 'No rent scheduled this month' : 'Loading rent…'}</Typography>}
                   </Box>
                   <Box>
-                    <Typography sx={{ display: { xs: 'block', md: 'none' }, mb: 0.5, fontSize: '0.66rem', fontWeight: 750, textTransform: 'uppercase', color: 'text.secondary' }}>Rent status</Typography>
+                    <Typography sx={{ display: { xs: 'block', xl: 'none' }, mb: 0.5, fontSize: '0.66rem', fontWeight: 750, textTransform: 'uppercase', color: 'text.secondary' }}>Rent status</Typography>
                     <Typography sx={{ fontSize: '0.8rem', fontWeight: overdue > 0 ? 650 : 400, color: overdue > 0 ? 'error.main' : 'text.secondary' }}>
                       {overdue === null ? (rentError ? 'Rent data unavailable' : 'Loading rent…') : overdue > 0 ? `${money(overdue)} overdue` : property.activeLeaseCount === 0 ? 'No lease' : 'Up to date'}
                     </Typography>
                   </Box>
                   <Box>
-                    <Typography sx={{ display: { xs: 'block', md: 'none' }, mb: 0.5, fontSize: '0.66rem', fontWeight: 750, textTransform: 'uppercase', color: 'text.secondary' }}>Operations</Typography>
+                    <Typography sx={{ display: { xs: 'block', xl: 'none' }, mb: 0.5, fontSize: '0.66rem', fontWeight: 750, textTransform: 'uppercase', color: 'text.secondary' }}>Operations</Typography>
                     <PropertyOperations property={property.original} showOverdue={false} />
                   </Box>
                 </Box>
@@ -96,6 +103,8 @@ export default function OwnerTodayHome({ reminders = [], properties = [], proper
             })}
           </Box>
         ) : <Typography color="text.secondary">No properties yet. Add one to start organizing your portfolio.</Typography>}
+      </Box>
+        </Box>
       </Box>
     </Box>
   );

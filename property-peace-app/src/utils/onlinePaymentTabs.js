@@ -6,16 +6,9 @@ const tabs = Object.freeze({
 
 export const DEFAULT_ONLINE_PAYMENT_TAB = tabs.transactions.id;
 
-const normalizeStatus = (access) =>
-  String(access?.status ?? access?.Status ?? '')
-    .replace(/[ _-]/g, '')
-    .toLowerCase();
-
-export const isRentPaymentAccessApproved = (access) => normalizeStatus(access) === 'approved';
-
-export function getOnlinePaymentTabs(access, canConfigure = false) {
+export function getOnlinePaymentTabs(canConfigure = false) {
   const setupTabs = canConfigure ? [tabs.bankAccounts, tabs.payoutAssignments] : [tabs.bankAccounts];
-  return isRentPaymentAccessApproved(access) ? [tabs.transactions, ...setupTabs] : setupTabs;
+  return [tabs.transactions, ...setupTabs];
 }
 
 export function getSelectedOnlinePaymentTab(activeTab, paymentTabs) {

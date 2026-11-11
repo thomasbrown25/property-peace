@@ -33,7 +33,10 @@ test('tenant payments fail closed and never mount or open payment UI while rent 
 test('tenant dashboard gates payment, payment-method setup, Stripe initialization, and providers', async () => {
   const text = await source(tenantDashboardPath);
   assert.match(text, /useRentPaymentActionReadiness\('Pay'\)/);
-  assert.match(text, /if \(!open \|\| !canInvoke\) return;/);
+  assert.match(text, /if \(!open \|\| !canInvoke \|\| !leaseId\) return;/);
+  assert.match(text, /\}, \[open, canInvoke, leaseId\]\);/);
+  assert.match(text, /canInvoke && leaseId && stripeAccountId && stripePromise && clientSecret \? \(/);
+  assert.match(text, /requireRentStripeAccount\(data\.stripeAccountId\)/);
   assert.match(text, /disabled=\{!canInvoke \|\| !paymentAllocation \|\| totalAmountDue <= 0\}/);
   assert.match(text, /disabled=\{!canInvoke\}[\s\S]*Edit payment method/);
   assert.match(text, /\{canInvoke && paymentMethodModalOpen && \(\s*<TenantPaymentMethodModal/s);
@@ -57,12 +60,12 @@ test('external syndication fails closed while hosted publication remains availab
 
 test('landlord rent collection fails closed before checking Stripe or offering bank setup', async () => {
   const text = await source(landlordRentCollectionPath);
-  assert.match(text, /canInvoke: rentCanInvoke/);
+  assert.match(text, /rentCanInvoke = rentPaymentAccess\.presentation\.canPay/);
   assert.match(text, /if \(!rentCanInvoke\) \{\s*setAccountStatus\(null\);\s*setCheckingBankStatus\(false\);\s*return;\s*\}/s);
   assert.match(text, /if \(!rentCanInvoke \|\| \(!user\?\.id && !user\?\.Id\)\) return;/);
   assert.match(text, /\}, \[user, rentCanInvoke\]\);/);
   assert.match(text, /\{rentCanInvoke && !checkingBankStatus && !isBankConnected && \(/);
-  assert.match(text, /FeatureReadinessNotice[\s\S]*Online rent collection/);
+  assert.match(text, /RentPaymentAccessPanel/);
 });
 
 test('lease gates Stripe account onboarding with online rent readiness independently of e-signature', async () => {
@@ -155,9 +158,9 @@ test('contact-details save clears hidden tenant-screening settings while readine
 
 test('bank settings never call or mount Stripe provider setup while rent collection is blocked', async () => {
   const text = await source(paymentsSettingsPath);
-  assert.match(text, /canInvoke: rentCanInvoke[\s\S]*useFeatureReadiness\(FEATURE_KEYS\.onlineRentCollection\)/);
-  assert.match(text, /if \(isDemo \|\| rentReadinessLoading \|\| rentReadinessError \|\| !rentCanInvoke\) \{[\s\S]*setCheckingStatus\(false\);[\s\S]*setShowOnboarding\(false\);[\s\S]*setStripeConnectInstance\(null\);[\s\S]*return;/);
-  assert.match(text, /if \(!rentCanInvoke\) \{[\s\S]*FeatureReadinessNotice[\s\S]*Online rent collection/);
+  assert.match(text, /rentCanInvoke = rentPresentation\?\.canConfigure === true/);
+  assert.match(text, /if \(!stripeScopeKey \|\| isDemo \|\| rentReadinessLoading \|\| rentReadinessError \|\| !rentCanInvoke\) \{[\s\S]*setCheckingStatus\(false\);[\s\S]*setShowOnboarding\(false\);[\s\S]*setStripeConnectInstance\(null\);[\s\S]*return;/);
+  assert.match(text, /if \(!rentCanInvoke\) \{[\s\S]*RentPaymentAccessPanel/);
   assert.ok(text.indexOf('if (!rentCanInvoke)') < text.indexOf('<Dialog'));
 });
 
@@ -196,9 +199,12 @@ test('pricing preserves plan entitlement and qualifies operational readiness', a
   assert.match(card, /rentReadiness/);
   assert.match(card, /isOnlineRentCollectionFeature/);
   assert.match(card, /rentReadiness\?\.canInvoke/);
-  assert.match(card, /Operational status:/);
+  assert.match(card, /'Ready' : 'Setup required'/);
+  assert.doesNotMatch(card, /Approval required/);
   assert.match(comparison, /if \(!hasFeature\(plan, feature\.check\)\)/);
-  assert.match(comparison, /if \(feature\.check === 'online rent' && !rentReadiness\.canInvoke\)/);
+  assert.match(comparison, /if \(feature\.check === 'online rent'\)/);
+  assert.match(comparison, /Included · Setup required/);
+  assert.doesNotMatch(comparison, /Approval required/);
   assert.match(comparison, /if \(feature\.check === 'external listing' && !syndicationReadiness\.canInvoke\)/);
   assert.match(comparison, /-15%/);
 });

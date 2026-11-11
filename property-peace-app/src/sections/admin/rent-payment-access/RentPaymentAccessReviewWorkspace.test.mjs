@@ -1,43 +1,18 @@
-import assert from 'node:assert/strict';
 import test from 'node:test';
-import { readFile } from 'node:fs/promises';
+import assert from 'node:assert/strict';
+import { readFile, access } from 'node:fs/promises';
 
-const workspace = () => readFile(new URL('./RentPaymentAccessReviewWorkspace.jsx', import.meta.url), 'utf8');
-const routes = () => readFile(new URL('../../../routes/MainRoutes.jsx', import.meta.url), 'utf8');
+const root = new URL('../../../', import.meta.url);
 
-test('admin routes provide a GET-only email landing path', async () => {
-  const routeSource = await routes();
-  assert.match(routeSource, /lazy\(\(\) => import\('pages\/admin\/rent-payment-access'\)\)/);
-  assert.match(routeSource, /path: 'admin\/rent-payment-access'/);
-  assert.match(routeSource, /path: 'admin\/rent-payment-access\/:publicId'/);
+test('internal payment approval workspaces have no routes or admin navigation', async () => {
+  for (const path of ['routes/MainRoutes.jsx', 'menu-items/admin-pages.js', 'layout/Dashboard/Header/HeaderContent/Notification.jsx']) {
+    const text = await readFile(new URL(path, root), 'utf8');
+    assert.doesNotMatch(text, /admin\/rent-payment-access|admin\/stripe-payees|AdminRentPaymentAccess|AdminStripePayees/);
+  }
 });
 
-test('review workspace keeps decisions explicit and recovery-safe', async () => {
-  const source = await workspace();
-  assert.match(source, /getRentPaymentAccessRequest\(publicId\)/);
-  assert.match(source, /approveRentPaymentAccessRequest/);
-  assert.match(source, /rejectRentPaymentAccessRequest/);
-  assert.match(source, /suspendRentPaymentAccessRequest/);
-  assert.match(source, /unlocks payment onboarding, not tenant payments/);
-  assert.match(source, /Admin-only internal notes/);
-  assert.match(source, /409/);
-  assert.match(source, /Refresh.*latest/);
-  assert.match(source, /Pending[\s\S]*Approved[\s\S]*Rejected[\s\S]*Suspended/);
-  assert.match(source, /onClick=\{\(\) => openDecision/);
-  assert.match(source, /requestedBy \|\| detail\?\.RequestedBy/);
-  assert.match(source, /requestedAtUtc \|\| detail\?\.RequestedAtUtc/);
-  assert.match(source, /auditEvents \|\| detail\?\.AuditEvents/);
-  assert.match(source, /occurredAtUtc \|\| item\.OccurredAtUtc/);
-  assert.match(source, /nextStatus \|\| item\.NextStatus/);
-  assert.match(source, /request\.requestedBy \|\| request\.RequestedBy/);
-  assert.match(source, /connectedPayeeExists \|\| detail\?\.ConnectedPayeeExists/);
-});
-
-test('review workspace exposes only legal access transitions', async () => {
-  const source = await workspace();
-  assert.match(source, /Pending: \['approve', 'reject', 'suspend'\]/);
-  assert.match(source, /Approved: \['suspend'\]/);
-  assert.doesNotMatch(source, /status !== 'Approved'/);
-  assert.doesNotMatch(source, /status !== 'Rejected'/);
-  assert.doesNotMatch(source, /status !== 'Suspended'/);
+test('obsolete internal review pages and mutation workspaces are removed', async () => {
+  for (const path of ['pages/admin/rent-payment-access.jsx', 'pages/admin/stripe-payees.jsx', 'sections/admin/rent-payment-access/RentPaymentAccessReviewWorkspace.jsx', 'sections/admin/stripe-payees/StripePayeeReviewWorkspace.jsx']) {
+    await assert.rejects(access(new URL(path, root)), { code: 'ENOENT' });
+  }
 });

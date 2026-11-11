@@ -124,7 +124,7 @@ export default function RentCollectionSingle() {
     <Box>
       {/* Enhanced Header */}
       <RentCollectionSingleHeader rent={rent} />
-      <RentPaymentAccessPanel {...rentPaymentAccess} onRequest={rentPaymentAccess.requestAccess} onRefresh={rentPaymentAccess.refresh} onConfigure={() => navigate('/landlord/settings?tab=payments')} compact />
+      <RentPaymentAccessPanel {...rentPaymentAccess} onRefresh={rentPaymentAccess.refresh} onConfigure={() => navigate('/landlord/settings?tab=payments')} compact />
 
       {/* Enhanced Metrics */}
       <RentCollectionSingleMetrics rent={rent} collectedLifetime={collectedLifetime} outstanding={outstanding} />

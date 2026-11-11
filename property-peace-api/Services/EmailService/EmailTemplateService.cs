@@ -226,7 +226,7 @@ namespace brownstone_hub_api.Services.EmailService
         {
             return new EmailTemplate
             {
-                Subject = "Payment Received - Property Peace",
+                Subject = "Payment Received",
                 HtmlBody = GetDefaultHtmlBody(),
                 PlainTextBody = "Payment Received: {Message}"
             };

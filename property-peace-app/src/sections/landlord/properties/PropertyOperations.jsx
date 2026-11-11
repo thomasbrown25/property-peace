@@ -41,7 +41,7 @@ export default function PropertyOperations({ property, summary = getPropertyOper
       <Stack direction="row" spacing={0.65} alignItems="center">
         <CalendarOutlined style={{ color: theme.palette.text.secondary, fontSize: 13 }} />
         <Typography sx={{ fontSize: '0.75rem', color: summary.expiringSoon ? 'warning.main' : 'text.secondary', fontWeight: summary.expiringSoon ? 650 : 400 }}>
-          {summary.nextLeaseEnd ? `Next lease ${summary.nextLeaseEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : 'No upcoming'}
+          {summary.nextLeaseEnd ? `Next availability ${summary.nextLeaseEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : 'No upcoming'}
         </Typography>
       </Stack>
     </Stack>

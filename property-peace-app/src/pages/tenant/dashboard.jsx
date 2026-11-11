@@ -60,17 +60,12 @@ import FeatureReadinessNotice from 'components/feature-readiness/FeatureReadines
 import useRentPaymentActionReadiness from 'hooks/useRentPaymentActionReadiness';
 import { classifyPaymentStatus, isBalanceCreditingPayment } from 'utils/paymentSafety';
 import { normalizeRentBalance } from 'utils/rentBalance';
+import { createRentStripeLoader, requireRentStripeAccount } from 'utils/connectedRentStripe.mjs';
+import SavedRentPaymentMethods from 'components/payments/SavedRentPaymentMethods';
 
 // ==============================|| TENANT - DASHBOARD ||============================== //
 
-let tenantDashboardStripePromise;
-const getTenantDashboardStripe = async () => {
-  if (!tenantDashboardStripePromise) {
-    const response = await axiosServices.get('/api/stripe/publishable-key');
-    tenantDashboardStripePromise = loadStripe(response.data.publishableKey);
-  }
-  return tenantDashboardStripePromise;
-};
+const getTenantDashboardStripe = createRentStripeLoader(loadStripe);
 
 function formatTenantSmsPhone(raw) {
   if (!raw) return '';
@@ -327,6 +322,11 @@ function SavePaymentMethodForm({ onClose, onSaved }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [saved, setSaved] = useState(false);
+  const activeRef = useRef(false);
+  useEffect(() => {
+    activeRef.current = true;
+    return () => { activeRef.current = false; };
+  }, []);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -335,7 +335,9 @@ function SavePaymentMethodForm({ onClose, onSaved }) {
     setSaving(true);
     setError(null);
 
+    try {
     const { error: submitError } = await elements.submit();
+    if (!activeRef.current) return;
     if (submitError) {
       setError(submitError.message || 'Please check your payment method details.');
       setSaving(false);
@@ -344,9 +346,11 @@ function SavePaymentMethodForm({ onClose, onSaved }) {
 
     const result = await stripe.confirmSetup({
       elements,
+      confirmParams: { return_url: window.location.href },
       redirect: 'if_required'
     });
 
+    if (!activeRef.current) return;
     if (result.error) {
       setError(result.error.message || 'We could not save that payment method. Please try again.');
       setSaving(false);
@@ -354,8 +358,18 @@ function SavePaymentMethodForm({ onClose, onSaved }) {
     }
 
     setSaving(false);
+    if (result.setupIntent?.status !== 'succeeded') {
+      setError('Your payment method is not ready yet. Complete any required bank verification before using it.');
+      onSaved?.();
+      return;
+    }
     setSaved(true);
     onSaved?.();
+    } catch (err) {
+      if (activeRef.current) setError(err.message || 'Unable to save your payment method. Please try again.');
+    } finally {
+      if (activeRef.current) setSaving(false);
+    }
   };
 
   if (saved) {
@@ -431,9 +445,11 @@ function SavePaymentMethodForm({ onClose, onSaved }) {
   );
 }
 
-function TenantPaymentMethodModal({ open, onClose, canInvoke }) {
+function TenantPaymentMethodModal({ open, onClose, canInvoke, leaseId }) {
   const [stripePromise, setStripePromise] = useState(null);
   const [clientSecret, setClientSecret] = useState('');
+  const [stripeAccountId, setStripeAccountId] = useState(null);
+  const [refresh, setRefresh] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -441,23 +457,29 @@ function TenantPaymentMethodModal({ open, onClose, canInvoke }) {
     let active = true;
 
     const prepareSetupIntent = async () => {
-      if (!open || !canInvoke) return;
+      if (!open || !canInvoke || !leaseId) return;
       setLoading(true);
       setError(null);
       setClientSecret('');
+      setStripePromise(null);
+      setStripeAccountId(null);
 
       try {
-        const [stripeInstance, setupResponse] = await Promise.all([
-          getTenantDashboardStripe(),
-          axiosServices.post('/api/stripe/create-setup-intent')
+        const [keyResponse, setupResponse] = await Promise.all([
+          axiosServices.get('/api/stripe/publishable-key'),
+          axiosServices.post(`/api/stripe/create-setup-intent?leaseId=${encodeURIComponent(leaseId)}`)
         ]);
 
         if (!active) return;
-        setStripePromise(stripeInstance);
-        setClientSecret(setupResponse.data?.data?.clientSecret || setupResponse.data?.clientSecret || '');
+        const data = setupResponse.data?.data;
+        if (!setupResponse.data?.success || !data?.clientSecret) throw new Error('Unable to prepare a payment method for this lease.');
+        const account = requireRentStripeAccount(data.stripeAccountId);
+        setStripePromise(getTenantDashboardStripe(keyResponse.data?.publishableKey, account));
+        setStripeAccountId(account);
+        setClientSecret(data.clientSecret);
       } catch (err) {
         if (!active) return;
-        setError(err.response?.data?.message || err.response?.data?.Message || 'We could not load the payment method form. Please try again.');
+        setError(err.response?.data?.message || err.response?.data?.Message || err.message || 'We could not load the payment method form. Please try again.');
       } finally {
         if (active) setLoading(false);
       }
@@ -468,7 +490,7 @@ function TenantPaymentMethodModal({ open, onClose, canInvoke }) {
     return () => {
       active = false;
     };
-  }, [open, canInvoke]);
+  }, [open, canInvoke, leaseId]);
 
   const handleClose = () => {
     setClientSecret('');
@@ -509,10 +531,13 @@ function TenantPaymentMethodModal({ open, onClose, canInvoke }) {
             </Button>
           </DialogActions>
         </>
-      ) : stripePromise && clientSecret ? (
-        <Elements stripe={stripePromise} options={{ clientSecret, appearance: { theme: 'stripe' } }}>
-          <SavePaymentMethodForm onClose={handleClose} />
-        </Elements>
+      ) : canInvoke && leaseId && stripeAccountId && stripePromise && clientSecret ? (
+        <>
+          <SavedRentPaymentMethods key={JSON.stringify([leaseId, stripeAccountId])} leaseId={leaseId} stripeAccountId={stripeAccountId} refresh={refresh} />
+          <Elements key={JSON.stringify([leaseId, stripeAccountId, clientSecret])} stripe={stripePromise} options={{ clientSecret, appearance: { theme: 'stripe' } }}>
+            <SavePaymentMethodForm onClose={handleClose} onSaved={() => setRefresh((value) => value + 1)} />
+          </Elements>
+        </>
       ) : null}
     </Dialog>
   );
@@ -1396,6 +1421,8 @@ export default function TenantDashboard() {
       {/* Payment Method Modal */}
       {canInvoke && paymentMethodModalOpen && (
         <TenantPaymentMethodModal
+          key={selectedLeaseId}
+          leaseId={selectedLeaseId}
           open={paymentMethodModalOpen}
           onClose={() => setPaymentMethodModalOpen(false)}
           canInvoke={canInvoke}

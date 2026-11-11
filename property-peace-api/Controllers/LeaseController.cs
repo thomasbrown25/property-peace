@@ -112,7 +112,32 @@ namespace brownstone_hub_api.Controllers
             return Ok(response);
         }
 
-        /// <summary>Updates the lease agreement step-completion flags (builder steps). Step flags are append-only — once true they stay true.</summary>
+        /// <summary>Reloads persisted builder progress even before a document has been generated.</summary>
+        [Authorize(Roles = "Landlord,Admin")]
+        [HttpGet("{leaseId}/agreement")]
+        public async Task<IActionResult> GetLeaseAgreementProgress(long leaseId)
+        {
+            var organizationId = this.GetCurrentOrganizationIdOrForbid();
+            var userId = HttpContext.Items.TryGetValue("UserId", out var userIdObject) && userIdObject is long id ? id : 0;
+            var canManageLeases = userId > 0 && await _dataContext.OrganizationMembers.AsNoTracking().AnyAsync(member =>
+                member.UserId == userId && member.OrganizationId == organizationId && member.IsActive
+                && (member.Role == "Owner" || member.Role == "Admin"
+                    || member.Role == "Manager" && member.CanManageLeases));
+            if (!canManageLeases) return Forbid();
+
+            var lease = await _dataContext.Leases.AsNoTracking().Include(l => l.LeaseAgreement)
+                .FirstOrDefaultAsync(l => l.Id == leaseId && !l.IsDeleted
+                    && l.Unit.Property.OrganizationId == organizationId
+                    && (!l.OrganizationId.HasValue || l.OrganizationId == organizationId));
+            if (lease?.LeaseAgreement == null)
+                return NotFound(new { Message = "Lease agreement has not been started." });
+
+            var isFinalized = await _dataContext.LeaseInstances.AsNoTracking()
+                .AnyAsync(i => i.LeaseId == leaseId && i.IsFinalized);
+            return Ok(new { success = true, data = LeaseAgreementProgressDto.From(lease.LeaseAgreement, isFinalized) });
+        }
+
+        /// <summary>Saves supplemental agreement data and durable builder progress atomically. Step flags are append-only.</summary>
         [Authorize(Roles = "Landlord,Admin")]
         [HttpPatch("{leaseId}/agreement")]
         public async Task<IActionResult> UpdateLeaseAgreement(long leaseId, [FromBody] UpdateLeaseAgreementDto dto)
@@ -126,7 +151,7 @@ namespace brownstone_hub_api.Controllers
             if (!canManageLeases) return Forbid();
 
             // Start an agreement only for a real, saved lease. Never accept a second copy of
-            // location, terms, financials, or people through the agreement endpoint.
+            // location, terms, financials, or non-landlord people through the agreement endpoint.
             var lease = await _dataContext.Leases.Include(l => l.LeaseAgreement)
                 .FirstOrDefaultAsync(l => l.Id == leaseId && !l.IsDeleted
                     && l.Unit.Property.OrganizationId == organizationId
@@ -157,12 +182,7 @@ namespace brownstone_hub_api.Controllers
             if (dto.IsProvisionsAttachmentsComplete == true) agreement.IsProvisionsAttachmentsComplete = true;
 
             await _dataContext.SaveChangesAsync();
-            return Ok(new { success = true, data = new {
-                agreement.Id, agreement.LeaseId,
-                agreement.IsLeaseSpecificsComplete, agreement.IsRentDepositFeesComplete,
-                agreement.IsPeopleOnLeaseComplete, agreement.IsPetsSmokingOtherComplete,
-                agreement.IsUtilitiesMaintenanceKeysComplete, agreement.IsProvisionsAttachmentsComplete
-            }});
+            return Ok(new { success = true, data = LeaseAgreementProgressDto.From(agreement, isFinalized: false) });
         }
 
         /// <summary>Marks the lease as no longer a draft (IsDrafted = false). Call when user completes all "Finish Setting Up" steps on the lease page.</summary>
@@ -393,6 +413,22 @@ namespace brownstone_hub_api.Controllers
         public async Task<IActionResult> GetLease(long unitId)
         {
             var response = await _leaseService.GetLease(unitId);
+
+            if (!response.Success)
+                return StatusCode(response.StatusCode, new
+                {
+                    response.Message,
+                    response.Errors
+                });
+
+            return Ok(response);
+        }
+
+        [Authorize(Roles = "Landlord,Admin")]
+        [HttpGet("by-id/{leaseId:long}")]
+        public async Task<IActionResult> GetLeaseById(long leaseId)
+        {
+            var response = await _leaseService.GetLeaseById(leaseId);
 
             if (!response.Success)
                 return StatusCode(response.StatusCode, new

@@ -9,6 +9,7 @@ namespace brownstone_hub_api.Controllers;
 [ApiController]
 [Route("api/admin/rent-payment-access/requests")]
 [Authorize(Roles = "Admin")]
+[NonController] // Historical workflow only; not exposed by MVC.
 public sealed class AdminRentPaymentAccessController(IRentPaymentAccessService service) : ControllerBase
 {
     [HttpGet]

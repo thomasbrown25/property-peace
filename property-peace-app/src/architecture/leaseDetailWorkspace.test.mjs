@@ -49,6 +49,38 @@ test('Overview shows full-term rent payment history above move-in readiness inst
   assert.doesNotMatch(afterMoveIn, /<Grid[^>]+size=/, 'move-in readiness should not be constrained to a grid column');
 });
 
+test('rent history tiles show month and due day above payment status', () => {
+  const tiles = between('{paymentTimeline.map((cycle, index) => {', '</SectionCard>');
+  assert.match(tiles, /\{cycle\.label\} \{Number\(cycle\.dueDate\.slice\(8\)\)\}/);
+  assert.match(tiles, /cycle\.status === 'on-time' \? 'On-time' : cycle\.status === 'late' \? 'Late' : cycle\.status === 'overdue' \? 'Overdue' : 'Upcoming'/);
+  assert.doesNotMatch(tiles, /cycle\.dueDate\.slice\(2, 4\)|`Due \$\{/);
+  assert.match(tiles, /aria-label=\{/);
+});
+
+test('payment history stays visually blank while loading and preserves errors and retry', () => {
+  const loading = between('{paymentsLoading ? (', ') : paymentsError ? (');
+  assert.match(loading, /<Box role="status" aria-busy="true" aria-label="Loading payment history" sx=\{\{ minHeight: 126 \}\} \/>/);
+  assert.doesNotMatch(loading, /CircularProgress|Typography|bgcolor/);
+  const error = between(') : paymentsError ? (', ') : paymentTimeline.length ? (');
+  assert.match(error, /role="alert"/);
+  assert.match(error, /onClick=\{onRetryPayments\}/);
+});
+
+test('payment tiles keep slide-in animation while checklist cards remain static', () => {
+  const animation = between('const cardDealAnimationSx = {', 'function LeaseMoveInCard(');
+  assert.match(animation, /translateX\(-28px\) rotate\(-4deg\) scale\(0\.96\)/);
+  assert.match(animation, /dealRentCard 420ms cubic-bezier\(0\.22, 1, 0\.36, 1\) both/);
+  assert.match(animation, /prefers-reduced-motion: reduce/);
+  assert.match(animation, /animation: 'none'/);
+  const checklist = between('function LeaseMoveInCard(', '// ─── Section card');
+  const history = between('<SectionCard title="Rent payment history">', '</SectionCard>');
+  assert.match(history, /\.\.\.cardDealAnimationSx/);
+  assert.match(history, /'--deal-delay': `\$\{Math\.min\(index \* 55, 660\)\}ms`/);
+  assert.doesNotMatch(checklist, /cardDealAnimationSx|--deal-delay|dealRentCard/);
+  assert.match(checklist, /\.map\(\(step\) =>/);
+  assert.match(checklist, /role=\{cardAction \? 'button' : undefined\}/);
+});
+
 test('lease checklist shows only the requested steps and no setup chip', () => {
   const card = between('function LeaseMoveInCard(', '// ─── Section card');
   assert.match(card, /Lease checklist/);

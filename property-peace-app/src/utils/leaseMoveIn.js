@@ -1,3 +1,5 @@
+import { getRoomProgress } from './checklistRoomProgress.mjs';
+
 const firstDefined = (...values) => values.find((value) => value !== undefined && value !== null);
 
 export const normalizeLeaseText = (value) => String(value ?? '').trim().replace(/\s+/g, ' ');
@@ -65,7 +67,12 @@ const isChecklistComplete = (record) => {
   const id = firstDefined(record?.id, record?.Id, record?.checklistId, record?.ChecklistId);
   if (id === undefined || id === null) return false;
   const status = normalizeLeaseText(firstDefined(record?.status, record?.Status)).toLowerCase();
-  return Boolean(firstDefined(record?.completedAt, record?.CompletedAt, record?.isCompleted, record?.IsCompleted)) || status === 'completed' || status === 'complete';
+  // Match the portfolio's item-level completion, including inspections needing repairs.
+  // Keep explicit saved completion evidence for older records without item details.
+  const items = firstDefined(record?.items, record?.Items);
+  const { done, total } = getRoomProgress(Array.isArray(items) ? items : []);
+  return Boolean(firstDefined(record?.completedAt, record?.CompletedAt, record?.isCompleted, record?.IsCompleted)) ||
+    status === 'completed' || status === 'complete' || (total > 0 && done === total);
 };
 
 // Keep the checklist's natural order within each status group without mutating its source.
@@ -83,7 +90,8 @@ export function buildLeaseChecklistCards({ readiness, lease = {}, checklists, no
     ['signatures', 'Lease agreement signed'],
     ['checklist', 'Move-in checklist complete']
   ];
-  const steps = requested.map(([key, label]) => ({
+  const agreementCreated = readiness?.steps?.some((step) => step.key === 'agreement' && step.status === 'complete');
+  const steps = requested.filter(([key]) => key !== 'signatures' || agreementCreated).map(([key, label]) => ({
     ...(readiness?.steps?.find((step) => step.key === key) ?? { status: 'unavailable', detail: 'Lease records unavailable' }),
     key, label
   }));
@@ -93,8 +101,8 @@ export function buildLeaseChecklistCards({ readiness, lease = {}, checklists, no
   if (validEndDay) {
     const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
     const daysUntilEnd = (Date.parse(`${endDay}T00:00:00Z`) - today) / 86400000;
-    // The first lease-expiration alert is scheduled for 90 days before the end date.
-    if (daysUntilEnd <= 90) {
+    // Show move-out preparation five calendar days before the lease ends and afterward.
+    if (daysUntilEnd <= 5) {
       const id = firstDefined(lease?.id, lease?.Id);
       const complete = Array.isArray(checklists) && id != null && checklists.some((record) => {
         const recordLeaseId = firstDefined(record?.leaseId, record?.LeaseId);

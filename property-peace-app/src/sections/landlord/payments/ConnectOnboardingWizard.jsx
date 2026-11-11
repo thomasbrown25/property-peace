@@ -450,8 +450,8 @@ export default function ConnectOnboardingWizard({
               </Stack>
             </Paper>
 
-            <Alert severity="warning" icon={<SafetyCertificateOutlined />}>
-              Completing Stripe verification does not automatically approve rent payouts. Property Peace payout approval is also required before transfers are enabled.
+            <Alert severity="info" icon={<SafetyCertificateOutlined />}>
+              Stripe verifies your account details. Manage your account, payout settings, and bank accounts in your full Stripe Dashboard.
             </Alert>
 
             <Box>

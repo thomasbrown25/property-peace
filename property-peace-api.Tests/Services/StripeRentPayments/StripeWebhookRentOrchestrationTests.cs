@@ -471,6 +471,90 @@ public sealed class StripeWebhookRentOrchestrationTests
         gateway.VerifyNoOtherCalls();
     }
 
+    [Theory]
+    [InlineData("card")]
+    [InlineData("us_bank_account")]
+    public async Task DirectSuccess_AllocatesOnceOnImmutableOwner_WithoutPlatformTransfer(string method)
+    {
+        await using var context = StripeRentPaymentFlowTests.CreateContext();
+        await StripeRentPaymentFlowTests.SeedLeaseAsync(context, 1, 2);
+        await StripeRentPaymentFlowTests.SeedLeaseDestinationAsync(context, 1, 2, "acct_replacement");
+        var payment = StripeRentPaymentFlowTests.NewPayment("pi_webhook_success");
+        payment.ChargeStripeAccountId = "acct_original";
+        context.StripeRentPayments.Add(payment);
+        await context.SaveChangesAsync();
+        var gateway = new Mock<IStripeRentGateway>(MockBehavior.Strict);
+        gateway.Setup(x => x.GetPaymentMethodTypeAsync(payment.PaymentIntentId, "acct_original", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(method);
+        var accounting = AccountingBoundary(context);
+        var rentPayments = StripeRentPaymentFlowTests.CreateService(context, gateway.Object, true, transfersEnabled: true);
+        var service = CreateWebhookService(context, rentPayments,
+            new StripeRentAllocationService(context, accounting.Object, Mock.Of<ILogger<StripeRentAllocationService>>()),
+            new StripeRentLossAccountingService(context, Mock.Of<ILogger<StripeRentLossAccountingService>>()), gateway.Object);
+        var stripeEvent = PaymentIntentSucceededEvent(DateTimeOffset.UtcNow.AddDays(-30));
+        stripeEvent.Account = "acct_original";
+        ((PaymentIntent)stripeEvent.Data.Object).Metadata["paymentFlow"] = "direct_charge";
+
+        await service.HandlePaymentIntentSucceededAsync(stripeEvent);
+        await service.HandlePaymentIntentSucceededAsync(stripeEvent);
+        await rentPayments.ProcessEligibleTransfersAsync();
+
+        payment.Status.Should().Be(StripeRentPaymentStatus.Succeeded);
+        payment.ChargeStripeAccountId.Should().Be("acct_original");
+        payment.StripeChargeId.Should().Be("ch_signed");
+        payment.TransferEligibleAt.Should().BeNull();
+        payment.NextTransferAttemptAt.Should().BeNull();
+        payment.StripeTransferId.Should().BeNull();
+        payment.TransferAttemptCount.Should().Be(0);
+        (await context.Payments.CountAsync()).Should().Be(1);
+        (await context.GeneralLedgerEntries.CountAsync()).Should().Be(1);
+        accounting.Verify(x => x.AddPayment(It.IsAny<AddPaymentDto>()), Times.Once);
+        gateway.Verify(x => x.GetPaymentMethodTypeAsync(payment.PaymentIntentId, "acct_original", It.IsAny<CancellationToken>()), Times.Once);
+        gateway.VerifyNoOtherCalls();
+    }
+
+    [Theory]
+    [InlineData("acct_original", "acct_other")]
+    [InlineData("acct_original", null)]
+    [InlineData(null, "acct_other")]
+    public async Task CrossAccountEvents_CannotMutateRentOrCallProvider(string? owner, string? eventAccount)
+    {
+        await using var context = StripeRentPaymentFlowTests.CreateContext();
+        var payment = StripeRentPaymentFlowTests.NewPayment("pi_webhook_success");
+        payment.ChargeStripeAccountId = owner;
+        payment.StripeChargeId = "ch_signed";
+        context.StripeRentPayments.Add(payment);
+        await context.SaveChangesAsync();
+        var gateway = new Mock<IStripeRentGateway>(MockBehavior.Strict);
+        var rentPayments = new Mock<IStripeRentPaymentService>(MockBehavior.Strict);
+        var allocation = new Mock<IStripeRentAllocationService>(MockBehavior.Strict);
+        var loss = new Mock<IStripeRentLossAccountingService>(MockBehavior.Strict);
+        var service = CreateWebhookService(context, rentPayments.Object, allocation.Object, loss.Object, gateway.Object);
+        var stripeEvent = PaymentIntentSucceededEvent(DateTimeOffset.UtcNow);
+        stripeEvent.Account = eventAccount;
+        ((PaymentIntent)stripeEvent.Data.Object).Metadata["paymentFlow"] = owner == null ? "separate_charges_and_transfers" : "direct_charge";
+
+        await service.HandlePaymentIntentSucceededAsync(stripeEvent);
+        await service.HandlePaymentIntentProcessingAsync(stripeEvent);
+        await service.HandlePaymentIntentPaymentFailedAsync(stripeEvent);
+        await service.HandlePaymentIntentCanceledAsync(stripeEvent);
+        stripeEvent.Data.Object = new Charge { Id = "ch_signed", PaymentIntentId = payment.PaymentIntentId };
+        await service.HandleChargeRefundedAsync(stripeEvent);
+        stripeEvent.Data.Object = new Refund { Id = "re_cross", ChargeId = "ch_signed" };
+        await service.HandleRefundCreatedAsync(stripeEvent);
+        stripeEvent.Data.Object = new Dispute { Id = "dp_cross", ChargeId = "ch_signed", PaymentIntentId = payment.PaymentIntentId };
+        await service.HandleChargeDisputeCreatedAsync(stripeEvent);
+        await service.HandleChargeDisputeClosedAsync(stripeEvent);
+
+        payment.Status.Should().Be(StripeRentPaymentStatus.Created);
+        payment.ChargeStripeAccountId.Should().Be(owner);
+        (await context.Payments.CountAsync()).Should().Be(0);
+        gateway.VerifyNoOtherCalls();
+        rentPayments.VerifyNoOtherCalls();
+        allocation.VerifyNoOtherCalls();
+        loss.VerifyNoOtherCalls();
+    }
+
     private static Mock<IPaymentService> AccountingBoundary(DataContext context)
     {
         var accounting = new Mock<IPaymentService>(MockBehavior.Strict);

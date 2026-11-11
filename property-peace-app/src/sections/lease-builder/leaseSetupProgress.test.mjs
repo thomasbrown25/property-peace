@@ -74,7 +74,7 @@ test('all three checks appear after final validation, but success modal waits fo
     const pending = new Promise((resolve, reject) => { resolveSave = resolve; rejectSave = reject; });
     const inFlight = { current: false };
     const submit = productionFunction('submit', {
-      inFlight, saved, setError: (value) => { error = value; }, validate: () => scenario === 'invalid' ? 'Select a tenant.' : null,
+      inFlight, saved, embedded: false, setError: (value) => { error = value; }, validate: () => scenario === 'invalid' ? 'Select a tenant.' : null,
       setCompletedSteps: (value) => { completed = value; }, setSaving: () => {},
       setupPayload: () => ({}), values: { addTenantsLater: true }, existing: null, setupId, currentOrganization: { id: 1 },
       persistLeaseSetup: () => pending, tenants: [], checkpoint: { current: {} },
@@ -99,5 +99,5 @@ test('sidebar checks require completion and current validity; sidebar navigation
   assert.match(source, /onClick=\{continueStep\}>Continue/);
   assert.match(source, /\[completedSteps, setCompletedSteps\] = useState\(\[false, false, false\]\)/);
   assert.match(source, /onClick=\{\(\) => setActive\(index\)\}/);
-  assert.match(source, /<Dialog open=\{Boolean\(saved\)\}/);
+  assert.match(source, /<Dialog open=\{!embedded && Boolean\(saved\)\}/);
 });

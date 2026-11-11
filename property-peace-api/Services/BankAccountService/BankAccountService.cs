@@ -11,15 +11,44 @@ namespace brownstone_hub_api.Services.BankAccountService
         private readonly IBankAccountRepository _bankAccountRepository;
         private readonly IMapper _mapper;
         private readonly ILogger<BankAccountService> _logger;
+        private readonly IStripeConnectedBalanceGateway _balanceGateway;
 
         public BankAccountService(
             IBankAccountRepository bankAccountRepository,
             IMapper mapper,
-            ILogger<BankAccountService> logger)
+            ILogger<BankAccountService> logger,
+            IStripeConnectedBalanceGateway balanceGateway)
         {
             _bankAccountRepository = bankAccountRepository;
             _mapper = mapper;
             _logger = logger;
+            _balanceGateway = balanceGateway;
+        }
+
+        /// <summary>Read Stripe-held funds, never the external bank's balance.</summary>
+        public async Task<ServiceResponse<BankAccountBalanceDto>> GetBankAccountBalanceAsync(long id, long organizationId)
+        {
+            try
+            {
+                var account = await _bankAccountRepository.GetBankAccountByIdAsync(id, organizationId);
+                if (account == null || !account.IsActive || account.OrganizationId != organizationId
+                    || string.IsNullOrWhiteSpace(account.StripeAccountId)
+                    || !account.StripeAccountId.StartsWith("acct_", StringComparison.Ordinal))
+                {
+                    return ServiceResponse<BankAccountBalanceDto>.CreateError(
+                        "Connected bank account not found", statusCode: 404, suppressDetailedErrors: true);
+                }
+
+                var balance = await _balanceGateway.GetAsync(account.StripeAccountId);
+                return ServiceResponse<BankAccountBalanceDto>.CreateSuccess(
+                    StripeBalanceMapper.Map(balance), "Stripe funds retrieved; this is not an external bank balance");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting Stripe funds for bank account {Id} in organization {OrganizationId}", id, organizationId);
+                return ServiceResponse<BankAccountBalanceDto>.CreateError(
+                    "Unable to retrieve Stripe funds. Please try again later.", statusCode: 502, suppressDetailedErrors: true);
+            }
         }
 
         public async Task<ServiceResponse<List<LoadBankAccountDto>>> GetBankAccountsByOrganizationIdAsync(long organizationId)

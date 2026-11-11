@@ -159,7 +159,7 @@ public sealed class StripeRentPaymentFlowTests
         payment.AmountCents.Should().Be(10_000);
     }
     [Fact]
-    public async Task CreateAsync_CreatesPlatformIntentAndPersistsAuthorizedReservation()
+    public async Task CreateAsync_CreatesDirectIntentAndPersistsAuthorizedReservation()
     {
         await using var context = CreateContext();
         await SeedLeaseAsync(context, 44, 9);
@@ -174,8 +174,13 @@ public sealed class StripeRentPaymentFlowTests
 
         result.PaymentIntentId.Should().Be("pi_123");
         captured!.IdempotencyKey.Should().Be("rent-payment:op_123");
+        captured.StripeAccountId.Should().Be("acct_snapshot");
+        captured.CustomerId.Should().Be("cus_acct_snapshot_7");
+        captured.Metadata["paymentFlow"].Should().Be("direct_charge");
+        result.StripeAccountId.Should().Be("acct_snapshot");
         var stored = await context.StripeRentPayments.SingleAsync();
         stored.DestinationStripeAccountId.Should().Be("acct_snapshot");
+        stored.ChargeStripeAccountId.Should().Be("acct_snapshot");
         stored.Status.Should().Be(StripeRentPaymentStatus.Created);
     }
 
@@ -591,6 +596,104 @@ public sealed class StripeRentPaymentFlowTests
         await act.Should().ThrowAsync<RentPaymentsDisabledException>(); gateway.VerifyNoOtherCalls();
     }
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData("acct_original")]
+    public async Task ReplayAndUpdate_PreserveChargeOwnerInsteadOfCurrentDestination(string? owner)
+    {
+        await using var context = CreateContext();
+        await SeedLeaseAsync(context, 1, 2);
+        await SeedLeaseDestinationAsync(context, 1, 2, "acct_replacement");
+        var payment = NewPayment("pi_owner_snapshot");
+        payment.ChargeStripeAccountId = owner;
+        payment.DestinationStripeAccountId = "acct_replacement";
+        context.StripeRentPayments.Add(payment);
+        if (owner != null)
+            context.Set<StripeRentCustomer>().Add(new() { TenantUserId = 3, StripeAccountId = owner, CustomerId = "cus_original" });
+        await context.SaveChangesAsync();
+        var gateway = new Mock<IStripeRentGateway>(MockBehavior.Strict);
+        var requests = new List<StripeRentIntentRequest>();
+        gateway.Setup(x => x.CreatePaymentIntentAsync(It.IsAny<StripeRentIntentRequest>(), It.IsAny<CancellationToken>()))
+            .Callback<StripeRentIntentRequest, CancellationToken>((request, _) => requests.Add(request))
+            .ReturnsAsync(new StripeRentIntentResult(payment.PaymentIntentId, "secret"));
+        gateway.Setup(x => x.UpdatePaymentIntentAsync(payment.PaymentIntentId, It.IsAny<StripeRentIntentRequest>(), It.IsAny<CancellationToken>()))
+            .Callback<string, StripeRentIntentRequest, CancellationToken>((_, request, _) => requests.Add(request))
+            .ReturnsAsync(new StripeRentIntentResult(payment.PaymentIntentId, "secret"));
+        var service = CreateService(context, gateway.Object, true);
+
+        var replay = await service.CreateAsync(new(1, 2, 3, payment.OperationId, 10_000, "usd", "acct_replacement", null));
+        var update = await service.UpdateAsync(new(payment.PaymentIntentId, 1, 3, 9_000, null));
+
+        requests.Should().HaveCount(2);
+        requests.Should().OnlyContain(x => x.StripeAccountId == owner);
+        requests.Should().OnlyContain(x => x.Metadata["paymentFlow"] == (owner == null ? "separate_charges_and_transfers" : "direct_charge"));
+        replay.StripeAccountId.Should().Be(owner);
+        update.StripeAccountId.Should().Be(owner);
+        payment.ChargeStripeAccountId.Should().Be(owner);
+        if (owner != null) requests[0].CustomerId.Should().Be("cus_original");
+        gateway.Verify(x => x.CreatePaymentIntentAsync(It.IsAny<StripeRentIntentRequest>(), It.IsAny<CancellationToken>()), Times.Once);
+        gateway.Verify(x => x.UpdatePaymentIntentAsync(payment.PaymentIntentId, It.IsAny<StripeRentIntentRequest>(), It.IsAny<CancellationToken>()), Times.Once);
+        gateway.VerifyNoOtherCalls();
+    }
+
+    [Theory]
+    [InlineData("card", null)]
+    [InlineData("unsupported", "ch_invalid")]
+    public async Task DirectSettlement_InvalidAuthorityDoesNotLeakTrackedCompletion(string method, string? charge)
+    {
+        await using var context = CreateContext();
+        var payment = NewPayment("pi_invalid_direct");
+        payment.ChargeStripeAccountId = "acct_original";
+        context.Add(payment);
+        AddAllocation(context, payment.PaymentIntentId);
+        await context.SaveChangesAsync();
+        var gateway = new Mock<IStripeRentGateway>(MockBehavior.Strict);
+        gateway.Setup(x => x.GetPaymentMethodTypeAsync(payment.PaymentIntentId, "acct_original", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(method);
+        var service = CreateService(context, gateway.Object, true);
+
+        await ((Func<Task>)(() => service.MarkSucceededAsync(new(payment.PaymentIntentId, charge, method, DateTimeOffset.UtcNow))))
+            .Should().ThrowAsync<InvalidOperationException>().WithMessage("*authoritative supported charge*");
+        // A subsequent unit-of-work save must not persist a partially applied failed settlement.
+        await context.SaveChangesAsync();
+        context.ChangeTracker.Clear();
+        var stored = await context.StripeRentPayments.SingleAsync();
+        stored.Status.Should().Be(StripeRentPaymentStatus.Created);
+        stored.StripeChargeId.Should().BeNull();
+        stored.HeldAt.Should().BeNull();
+        stored.AllocationCompletedAt.Should().BeNull();
+        stored.PaymentMethodType.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData(StripeRentPaymentStatus.Held)]
+    [InlineData(StripeRentPaymentStatus.TransferPending)]
+    [InlineData(StripeRentPaymentStatus.TransferReconciliationPending)]
+    [InlineData(StripeRentPaymentStatus.ReversalPending)]
+    public async Task TransferWorkers_ExcludeDirectChargesEvenWithLegacySchedulingState(StripeRentPaymentStatus status)
+    {
+        await using var context = CreateContext();
+        var payment = NewPayment("pi_direct_worker");
+        payment.ChargeStripeAccountId = "acct_original";
+        payment.Status = status;
+        payment.TransferEligibleAt = DateTimeOffset.UtcNow.AddDays(-1);
+        payment.NextTransferAttemptAt = DateTimeOffset.UtcNow.AddDays(-1);
+        payment.StripeChargeId = "ch_direct_worker";
+        payment.StripeTransferId = "tr_inconsistent_legacy";
+        payment.RefundedAmountCents = 5_000;
+        context.Add(payment);
+        await context.SaveChangesAsync();
+        var gateway = new Mock<IStripeRentGateway>(MockBehavior.Strict);
+
+        var processed = await CreateService(context, gateway.Object, true, transfersEnabled: true).ProcessEligibleTransfersAsync();
+
+        processed.Should().Be(0);
+        payment.Status.Should().Be(status);
+        payment.TransferAttemptCount.Should().Be(0);
+        payment.ReversalAttemptCount.Should().Be(0);
+        gateway.VerifyNoOtherCalls();
+    }
+
     private static Mock<IStripeRentGateway> IntentGateway(string id)
     {
         var gateway = new Mock<IStripeRentGateway>();
@@ -614,6 +717,10 @@ public sealed class StripeRentPaymentFlowTests
             OrganizationId = organizationId, RentalMode = ERentalMode.LongTerm });
         foreach (var userId in new long[] { 3, 7 })
         {
+            // Existing connected customer fixtures keep balance/reservation tests provider-independent.
+            foreach (var account in new[] { "acct_snapshot", "acct_landlord", "acct_replay", "acct_shared" })
+                if (!await context.Set<StripeRentCustomer>().AnyAsync(x => x.TenantUserId == userId && x.StripeAccountId == account))
+                    context.Set<StripeRentCustomer>().Add(new() { TenantUserId = userId, StripeAccountId = account, CustomerId = $"cus_{account}_{userId}" });
             var tenant = new Tenant { Id = leaseId * 100 + userId, UserId = userId, OrganizationId = organizationId,
                 Firstname = "Test", Lastname = "Tenant" };
             context.Tenants.Add(tenant);

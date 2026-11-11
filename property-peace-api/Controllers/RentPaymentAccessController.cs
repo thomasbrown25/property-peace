@@ -11,6 +11,7 @@ namespace brownstone_hub_api.Controllers;
 [Route("api/rent-payment-access")]
 [Authorize(Roles = "Landlord,Admin")]
 [RequireOrganizationRole("Owner", "Manager")]
+[NonController] // Historical workflow only; not exposed by MVC.
 public sealed class RentPaymentAccessController(
     IRentPaymentAccessService service,
     IOrganizationAuthorityResolver authorityResolver) : ControllerBase

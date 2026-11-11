@@ -6,7 +6,13 @@ namespace brownstone_hub_api.Data
 {
     public class DataContext : DbContext
     {
-        public DataContext(DbContextOptions<DataContext> options) : base(options) { }
+        public DataContext(DbContextOptions<DataContext> options, IHttpContextAccessor? httpContextAccessor = null) : base(options)
+        {
+            _activityHttpContext = httpContextAccessor ?? new HttpContextAccessor();
+        }
+
+        private readonly IHttpContextAccessor _activityHttpContext;
+        public DbSet<ActivityEvent> ActivityEvents => Set<ActivityEvent>();
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
@@ -29,7 +35,9 @@ namespace brownstone_hub_api.Data
             RejectAppendOnly<RentPaymentAccessAuditEvent>();
             RejectInvalidMessageDeliveryEvidenceMutation();
             RejectShortStayReservationMutation();
-            return base.SaveChanges(acceptAllChangesOnSuccess);
+            RejectAppendOnly<ActivityEvent>();
+            return ActivityRecorder.Save(this, _activityHttpContext.HttpContext?.User,
+                acceptAllChangesOnSuccess, () => base.SaveChanges(false));
         }
 
         public override Task<int> SaveChangesAsync(CancellationToken ct = default) =>
@@ -102,7 +110,9 @@ namespace brownstone_hub_api.Data
                     });
                 }
             }
-            return await base.SaveChangesAsync(acceptAllChangesOnSuccess, ct);
+            RejectAppendOnly<ActivityEvent>();
+            return await ActivityRecorder.SaveAsync(this, _activityHttpContext.HttpContext?.User,
+                acceptAllChangesOnSuccess, () => base.SaveChangesAsync(false, ct), ct);
 
             static string ToCamel(string s) =>
                 string.IsNullOrEmpty(s) ? s : char.ToLowerInvariant(s[0]) + s[1..];

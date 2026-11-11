@@ -12,6 +12,7 @@ import MainCard from 'components/MainCard';
 import Avatar from 'components/@extended/Avatar';
 import useFetchActivities from 'hooks/useFetchActivities';
 import { formatRelativeTime } from 'utils/formatters';
+import { getActivityDestination, getActivityKey } from 'utils/activityNavigation.mjs';
 import CircularLoader from 'components/CircularLoader';
 import AnimateItem from 'components/AnimateItem';
 
@@ -74,49 +75,7 @@ export default function RecentActivity() {
   }, [activities]);
 
   const handleActivityClick = (activity) => {
-    // Navigate based on activity type
-    switch (activity.activityType) {
-      case 'Payment':
-        navigate('/landlord/finances?tab=payments');
-        break;
-      case 'Maintenance':
-        if (activity.relatedId) {
-          navigate(`/landlord/maintenance/${activity.relatedId}`);
-        }
-        break;
-      case 'Lease':
-        if (activity.relatedId) {
-          navigate(`/landlord/leases/${activity.relatedId}`);
-        }
-        break;
-      case 'Property':
-        if (activity.relatedId) {
-          navigate(`/landlord/property/${activity.relatedId}`);
-        }
-        break;
-      case 'Tenant':
-        if (activity.relatedId) {
-          navigate(`/landlord/tenants/${activity.relatedId}`);
-        }
-        break;
-      case 'StaffMember':
-        if (activity.relatedId) {
-          navigate(`/landlord/staff-member/${activity.relatedId}`);
-        } else {
-          navigate('/landlord/staff-members');
-        }
-        break;
-      case 'Message':
-        if (activity.conversationId) {
-          navigate(`/landlord/messages?conversationId=${activity.conversationId}`);
-        } else {
-          navigate('/landlord/messages');
-        }
-        break;
-      default:
-        // Navigate to activity page
-        navigate('/landlord/activity');
-    }
+    navigate(getActivityDestination(activity) || '/landlord/activity');
   };
 
   return (
@@ -182,7 +141,7 @@ export default function RecentActivity() {
               const displayTime = formatRelativeTime(activity.createdAt);
 
               return (
-                <AnimateItem key={`${activity.activityType}-${activity.id}`} delay={index * 50} direction="bottom">
+                <AnimateItem key={getActivityKey(activity, index)} delay={index * 50} direction="bottom">
                   <Box>
                     <Box
                       sx={{
@@ -230,6 +189,9 @@ export default function RecentActivity() {
                         }
                       }}
                       onClick={() => handleActivityClick(activity)}
+                      role="link"
+                      tabIndex={0}
+                      onKeyDown={(event) => { if (event.key === 'Enter') handleActivityClick(activity); }}
                     >
                       <Box>
                         <Typography variant="caption" color="secondary" display="block">

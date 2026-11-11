@@ -15,7 +15,8 @@ export const calendarDate = (value) => {
 
 export const incumbentLease = (unit) => {
   const lease = unit?.lease ?? unit?.Lease ?? unit?.activeLease ?? unit?.ActiveLease;
-  if (!lease || lease.isActive === false || lease.IsActive === false) return null;
+  if (!lease || lease.isDeleted === true || lease.IsDeleted === true ||
+      lease.isActive === false || lease.IsActive === false) return null;
   if (['inactive', 'ended', 'expired', 'cancelled', 'canceled', 'terminated'].includes(String(lease.status ?? lease.Status ?? '').toLowerCase())) return null;
   return lease;
 };

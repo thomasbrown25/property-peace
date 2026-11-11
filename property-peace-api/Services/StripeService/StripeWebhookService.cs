@@ -948,6 +948,7 @@ namespace brownstone_hub_api.Services.StripeService
 
         public async Task HandlePaymentIntentSucceededAsync(Event stripeEvent)
         {
+            if (!await HasRentAccountAuthorityAsync(stripeEvent)) return;
             var paymentIntent = stripeEvent.Data.Object as Stripe.PaymentIntent;
             if (paymentIntent == null)
             {
@@ -958,7 +959,7 @@ namespace brownstone_hub_api.Services.StripeService
             // A signed Stripe event is necessary but not sufficient: every rent settlement must
             // match the immutable durable aggregate and all server-issued metadata before accounting.
             if (!paymentIntent.Metadata.TryGetValue("paymentFlow", out var paymentFlow)
-                || paymentFlow != "separate_charges_and_transfers"
+                || paymentFlow is not ("separate_charges_and_transfers" or "direct_charge")
                 || !paymentIntent.Metadata.TryGetValue("leaseId", out var leaseIdStr)
                 || !long.TryParse(leaseIdStr, out var leaseId)
                 || !paymentIntent.Metadata.TryGetValue("organizationId", out var organizationIdStr)
@@ -975,7 +976,7 @@ namespace brownstone_hub_api.Services.StripeService
             var settledAt = new DateTimeOffset(stripeEvent.Created);
             var authority = new StripeRentPaymentSettlementAuthority(
                 paymentIntent.Id, paymentIntent.LatestChargeId, paymentIntent.Amount,
-                paymentIntent.Currency, leaseId, organizationId, tenantUserId, operationId, settledAt.UtcDateTime);
+                paymentIntent.Currency, leaseId, organizationId, tenantUserId, operationId, settledAt.UtcDateTime, stripeEvent.Account);
             await _stripeRentPaymentService.ValidateSucceededAsync(authority);
             var authoritativePaymentMethodType = await _stripeRentPaymentService
                 .ResolveSucceededPaymentMethodTypeAsync(paymentIntent.Id);
@@ -1008,6 +1009,7 @@ namespace brownstone_hub_api.Services.StripeService
 
         public async Task HandlePaymentIntentProcessingAsync(Event stripeEvent)
         {
+            if (!await HasRentAccountAuthorityAsync(stripeEvent)) return;
             var paymentIntent = stripeEvent.Data.Object as Stripe.PaymentIntent;
             if (paymentIntent == null)
             {
@@ -1026,6 +1028,7 @@ namespace brownstone_hub_api.Services.StripeService
 
         public async Task HandlePaymentIntentPaymentFailedAsync(Event stripeEvent)
         {
+            if (!await HasRentAccountAuthorityAsync(stripeEvent)) return;
             var paymentIntent = stripeEvent.Data.Object as Stripe.PaymentIntent;
             if (paymentIntent == null)
             {
@@ -1049,7 +1052,9 @@ namespace brownstone_hub_api.Services.StripeService
             StripeRentPaymentIntentState currentState;
             try
             {
-                currentState = await _stripeRentGateway.GetPaymentIntentStateAsync(paymentIntent.Id);
+                currentState = aggregate?.ChargeStripeAccountId == null
+                    ? await _stripeRentGateway.GetPaymentIntentStateAsync(paymentIntent.Id)
+                    : await _stripeRentGateway.GetPaymentIntentStateAsync(paymentIntent.Id, aggregate.ChargeStripeAccountId);
             }
             catch (Exception ex)
             {
@@ -1106,6 +1111,7 @@ namespace brownstone_hub_api.Services.StripeService
 
         public async Task HandlePaymentIntentCanceledAsync(Event stripeEvent)
         {
+            if (!await HasRentAccountAuthorityAsync(stripeEvent)) return;
             var paymentIntent = stripeEvent.Data.Object as Stripe.PaymentIntent;
             if (paymentIntent == null)
             {
@@ -1125,6 +1131,7 @@ namespace brownstone_hub_api.Services.StripeService
 
         public async Task HandleChargeDisputeCreatedAsync(Event stripeEvent)
         {
+            if (!await HasRentAccountAuthorityAsync(stripeEvent)) return;
             var dispute = stripeEvent.Data.Object as Stripe.Dispute;
             if (dispute == null)
             {
@@ -1174,8 +1181,9 @@ namespace brownstone_hub_api.Services.StripeService
             // contaminate the accounting writes and webhook redelivery retries it idempotently.
             if (string.IsNullOrWhiteSpace(result.DestinationStripeAccountId))
                 throw new InvalidOperationException($"Disputed rent payment {dispute.PaymentIntentId} has no durable destination account to suspend.");
-            await _stripeConnectedPayeeService.SuspendAsync(result.DestinationStripeAccountId, null,
-                $"Automatic safety suspension after rent payment dispute {dispute.Id}.");
+            if (string.IsNullOrWhiteSpace(stripeEvent.Account))
+                await _stripeConnectedPayeeService.SuspendAsync(result.DestinationStripeAccountId, null,
+                    $"Automatic safety suspension after rent payment dispute {dispute.Id}.");
 
             _logger.LogWarning("charge.dispute.created: Applied exact loss accounting to {Count} payment record(s) for PaymentIntent {PaymentIntentId}, Dispute {DisputeId}",
                 payments.Count, dispute.PaymentIntentId, dispute.Id);
@@ -1183,6 +1191,7 @@ namespace brownstone_hub_api.Services.StripeService
 
         public async Task HandleChargeDisputeClosedAsync(Event stripeEvent)
         {
+            if (!await HasRentAccountAuthorityAsync(stripeEvent)) return;
             if (stripeEvent.Data.Object is not Stripe.Dispute dispute)
                 throw new InvalidOperationException($"charge.dispute.closed event {stripeEvent.Id} did not contain a dispute.");
             if (string.IsNullOrWhiteSpace(dispute.PaymentIntentId) || string.IsNullOrWhiteSpace(dispute.ChargeId))
@@ -1218,10 +1227,11 @@ namespace brownstone_hub_api.Services.StripeService
 
         public async Task HandleChargeRefundedAsync(Event stripeEvent)
         {
+            if (!await HasRentAccountAuthorityAsync(stripeEvent)) return;
             if (stripeEvent.Data.Object is not Stripe.Charge charge || string.IsNullOrWhiteSpace(charge.PaymentIntentId))
                 throw new InvalidOperationException($"charge.refunded event {stripeEvent.Id} is missing charge provenance.");
             var authority = await ValidateRefundAuthorityAsync(charge.Id, charge.PaymentIntentId,
-                charge.Amount, charge.Currency);
+                charge.Amount, charge.Currency, stripeEvent.Account);
             var occurredAt = new DateTimeOffset(stripeEvent.Created);
             await _stripeRentPaymentService.ReconcileRefundExposureAsync(authority.PaymentIntentId, charge.Id,
                 string.Empty, "Stripe reported authoritative successful refund exposure for the source charge.",
@@ -1232,12 +1242,13 @@ namespace brownstone_hub_api.Services.StripeService
 
         public async Task HandleRefundCreatedAsync(Event stripeEvent)
         {
+            if (!await HasRentAccountAuthorityAsync(stripeEvent)) return;
             if (stripeEvent.Data.Object is not Stripe.Refund refund)
                 throw new InvalidOperationException($"Refund event {stripeEvent.Id} did not contain a refund.");
             if (string.IsNullOrWhiteSpace(refund.ChargeId))
                 throw new InvalidOperationException($"Refund {refund.Id} did not identify its source charge.");
 
-            var authority = await ValidateRefundAuthorityAsync(refund.ChargeId, refund.PaymentIntentId, null, null);
+            var authority = await ValidateRefundAuthorityAsync(refund.ChargeId, refund.PaymentIntentId, null, null, stripeEvent.Account);
             var occurredAt = new DateTimeOffset(stripeEvent.Created);
             await _stripeRentPaymentService.ReconcileRefundExposureAsync(authority.PaymentIntentId, refund.ChargeId,
                 refund.Id, "Stripe reported authoritative successful refund exposure for the source charge.",
@@ -1247,9 +1258,11 @@ namespace brownstone_hub_api.Services.StripeService
         }
 
         private async Task<(string PaymentIntentId, long RefundedAmountCents)> ValidateRefundAuthorityAsync(
-            string chargeId, string? eventPaymentIntentId, long? eventChargeAmount, string? eventCurrency)
+            string chargeId, string? eventPaymentIntentId, long? eventChargeAmount, string? eventCurrency, string? stripeAccountId)
         {
-            var source = await _stripeRentGateway.GetSourceStateAsync(chargeId);
+            var source = stripeAccountId == null
+                ? await _stripeRentGateway.GetSourceStateAsync(chargeId)
+                : await _stripeRentGateway.GetSourceStateAsync(chargeId, stripeAccountId);
             if (!source.Exists || !source.Paid || source.RefundedAmountCents == null
                 || string.IsNullOrWhiteSpace(source.PaymentIntentId))
                 throw new InvalidOperationException($"Could not reconcile authoritative successful refund exposure for charge {chargeId}.");
@@ -1270,6 +1283,34 @@ namespace brownstone_hub_api.Services.StripeService
                 || source.RefundedAmountCents < 0 || source.RefundedAmountCents > aggregate.AmountCents)
                 throw new InvalidOperationException("Refund charge provenance does not match the durable rent payment.");
             return (aggregate.PaymentIntentId, source.RefundedAmountCents.Value);
+        }
+
+        private async Task<bool> HasRentAccountAuthorityAsync(Event stripeEvent)
+        {
+            var (intentId, chargeId) = stripeEvent.Data.Object switch
+            {
+                Stripe.PaymentIntent intent => (intent.Id, (string?)null),
+                Stripe.Charge charge => (charge.PaymentIntentId, charge.Id),
+                Stripe.Refund refund => (refund.PaymentIntentId, refund.ChargeId),
+                Stripe.Dispute dispute => (dispute.PaymentIntentId, dispute.ChargeId),
+                _ => ((string?)null, (string?)null)
+            };
+            var aggregate = await _context.StripeRentPayments.AsNoTracking().SingleOrDefaultAsync(x =>
+                (intentId != null && x.PaymentIntentId == intentId) || (chargeId != null && x.StripeChargeId == chargeId));
+            if (aggregate == null) return false;
+            if (!string.Equals(aggregate.ChargeStripeAccountId, stripeEvent.Account, StringComparison.Ordinal))
+            {
+                _logger.LogWarning("Ignoring rent event {EventId}: event account does not match immutable charge owner", stripeEvent.Id);
+                return false;
+            }
+            if (stripeEvent.Data.Object is Stripe.PaymentIntent pi)
+            {
+                var expectedFlow = aggregate.ChargeStripeAccountId == null ? "separate_charges_and_transfers" : "direct_charge";
+                if (pi.Metadata != null && pi.Metadata.TryGetValue("paymentFlow", out var actualFlow) && actualFlow != expectedFlow) return false;
+                if (pi.Metadata != null && pi.Metadata.TryGetValue("leaseId", out var leaseId)
+                    && leaseId != aggregate.LeaseId.ToString()) return false;
+            }
+            return true;
         }
 
         private async Task ContainAllocatedPaymentForProviderReconciliationAsync(StripeRentPayment? aggregate)

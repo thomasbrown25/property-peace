@@ -18,6 +18,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using Stripe;
+using brownstone_hub_api.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace brownstone_hub_api.Controllers
 {
@@ -37,6 +39,9 @@ namespace brownstone_hub_api.Controllers
         private readonly IStripeConnectedPayeeService? _stripeConnectedPayeeService;
         private readonly IStripePaymentTransactionQueryService? _stripePaymentTransactionQueryService;
         private readonly IStripeConnectPreparationService? _stripeConnectPreparationService;
+        private readonly DataContext? _context;
+        private readonly IStripeRentGateway? _rentGateway;
+        private readonly IStripeRentRiskService? _rentRisk;
 
         public StripeController(
             IStripeService stripeService,
@@ -49,7 +54,8 @@ namespace brownstone_hub_api.Controllers
             IConfiguration? configuration = null,
             IStripeConnectedPayeeService? stripeConnectedPayeeService = null,
             IStripePaymentTransactionQueryService? stripePaymentTransactionQueryService = null,
-            IStripeConnectPreparationService? stripeConnectPreparationService = null)
+            IStripeConnectPreparationService? stripeConnectPreparationService = null,
+            DataContext? context = null, IStripeRentGateway? rentGateway = null, IStripeRentRiskService? rentRisk = null)
         {
             _stripeService = stripeService;
             _userService = userService;
@@ -62,6 +68,9 @@ namespace brownstone_hub_api.Controllers
             _stripeConnectedPayeeService = stripeConnectedPayeeService;
             _stripePaymentTransactionQueryService = stripePaymentTransactionQueryService;
             _stripeConnectPreparationService = stripeConnectPreparationService;
+            _context = context;
+            _rentGateway = rentGateway;
+            _rentRisk = rentRisk;
         }
 
         [RequireOrganizationRole("Owner", "Manager")]
@@ -766,7 +775,8 @@ namespace brownstone_hub_api.Controllers
         [Authorize(Roles = "Tenant")]
         [HttpPost("create-setup-intent")]
         [RequireRentPaymentActionReady(RentPaymentAction.Pay)]
-        public async Task<IActionResult> CreateSetupIntent()
+        [TenantSelfOrganization]
+        public async Task<IActionResult> CreateSetupIntent([FromQuery] long leaseId = 0)
         {
             try
             {
@@ -788,52 +798,39 @@ namespace brownstone_hub_api.Controllers
                     return BadRequest(new { Message = "Payment method setup is not available in demo mode." });
                 }
 
-                var customerId = dbUser.StripeCustomerId;
-                if (string.IsNullOrWhiteSpace(customerId))
+                if (_context == null || _rentGateway == null || _rentRisk == null)
+                    return StatusCode(503, new { Message = "Payment method setup is unavailable." });
+                var organizationId = this.GetCurrentOrganizationIdOrForbid();
+                var destination = await _context.Leases.Where(l => l.Id == leaseId && l.IsActive && !l.IsDeleted
+                    && l.OrganizationId == organizationId && l.Unit.RentalMode == brownstone_hub_api.Enums.ERentalMode.LongTerm
+                    && l.TenantLeases.Any(t => t.Tenant.UserId == userId.Value && !t.Tenant.IsDeleted
+                        && t.Tenant.OrganizationId == l.OrganizationId))
+                    .Select(l => l.OperatingAccount != null && l.OperatingAccount.IsActive ? l.OperatingAccount.StripeAccountId
+                        : l.Unit.Property.OperatingAccount != null && l.Unit.Property.OperatingAccount.IsActive ? l.Unit.Property.OperatingAccount.StripeAccountId
+                        : l.Unit.Property.Landlord.StripeAccountEnabled && !l.Unit.Property.Landlord.IsDeleted ? l.Unit.Property.Landlord.StripeAccountId : null)
+                    .SingleOrDefaultAsync(HttpContext.RequestAborted);
+                if (string.IsNullOrWhiteSpace(destination) || !organizationId.HasValue)
+                    return StatusCode(403, new { Message = "An authorized active lease with a connected payee is required." });
+                var readiness = await _rentRisk.EvaluateCollectionPayeeAsync(new StripeRentPayment
                 {
-                    var fullName = string.Join(" ", new[] { dbUser.Firstname, dbUser.Lastname }.Where(x => !string.IsNullOrWhiteSpace(x)));
-                    var customerResponse = await _stripeService.CreateCustomerAsync(
-                        dbUser.Email,
-                        string.IsNullOrWhiteSpace(fullName) ? dbUser.Email : fullName,
-                        new Dictionary<string, string>
-                        {
-                            { "userId", dbUser.Id.ToString() },
-                            { "role", "Tenant" }
-                        }
-                    );
+                    LeaseId = leaseId, OrganizationId = organizationId.Value, TenantUserId = userId.Value,
+                    DestinationStripeAccountId = destination, Currency = "usd"
+                }, HttpContext.RequestAborted);
+                if (!readiness.Approved) return Conflict(new { Message = "The lease payee is not currently ready for payment method setup." });
+                var customerId = await StripeRentCustomerAccounts.GetOrCreateAsync(_context, _rentGateway,
+                    userId.Value, destination, HttpContext.RequestAborted);
 
-                    if (!customerResponse.Success || customerResponse.Data == null)
-                    {
-                        return BadRequest(customerResponse);
-                    }
-
-                    customerId = customerResponse.Data.Id;
-                    await _userRepository.UpdateStripeCustomerIdAsync(dbUser.Id, customerId);
-                }
-
-                var setupIntentService = new SetupIntentService();
-                var setupIntent = await setupIntentService.CreateAsync(new SetupIntentCreateOptions
-                {
-                    Customer = customerId,
-                    Usage = "off_session",
-                    AutomaticPaymentMethods = new SetupIntentAutomaticPaymentMethodsOptions
-                    {
-                        Enabled = true
-                    },
-                    Metadata = new Dictionary<string, string>
-                    {
-                        { "userId", dbUser.Id.ToString() },
-                        { "role", "Tenant" }
-                    }
-                });
+                var setupIntent = await _rentGateway.CreateSetupIntentAsync(customerId, destination,
+                    userId.Value, leaseId, HttpContext.RequestAborted);
 
                 return Ok(new ServiceResponse<CreateSetupIntentResponseDto>
                 {
                     Data = new CreateSetupIntentResponseDto
                     {
                         ClientSecret = setupIntent.ClientSecret,
-                        SetupIntentId = setupIntent.Id,
-                        CustomerId = customerId
+                        SetupIntentId = setupIntent.SetupIntentId,
+                        CustomerId = customerId,
+                        StripeAccountId = destination
                     },
                     Message = "Setup intent created successfully"
                 });

@@ -40,9 +40,12 @@ export const computeLeasePreflightChecks = (lease) => {
     {
       section: 'People on the Lease',
       checks: [
-        { label: 'Tenant(s) added', ok: lease.tenants?.length > 0 || lease.addTenantsLater === true },
-        { label: 'Landlord info', ok: lease.leaseLandlords?.length > 0 || isNonEmptyString(lease.landlordName) }
+        { label: 'Tenant(s) added', ok: lease.tenants?.length > 0 || lease.addTenantsLater === true }
       ]
+    },
+    {
+      section: 'Landlords',
+      checks: [{ label: 'Landlord info', ok: lease.leaseLandlords?.length > 0 || isNonEmptyString(lease.landlordName) }]
     },
     {
       section: 'Pets, Smoking & Other',

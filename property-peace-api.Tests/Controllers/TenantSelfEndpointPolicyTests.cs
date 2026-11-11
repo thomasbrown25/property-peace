@@ -15,6 +15,7 @@ public sealed class TenantSelfEndpointPolicyTests
     [InlineData(typeof(PaymentController), nameof(PaymentController.GetTenantLeasePaymentHistory), true)]
     [InlineData(typeof(RentCollectionController), nameof(RentCollectionController.GetMyRentCollection), false)]
     [InlineData(typeof(FeatureReadinessController), nameof(FeatureReadinessController.GetRentPaymentPayReadiness), false)]
+    [InlineData(typeof(StripeController), nameof(StripeController.CreateSetupIntent), false)]
     [InlineData(typeof(StripeController), nameof(StripeController.CreatePaymentIntent), false)]
     [InlineData(typeof(StripeController), nameof(StripeController.UpdatePaymentIntent), false)]
     public void OnlyDesignatedTenantSelfEndpointsOptIn(Type controller, string action, bool headerless)
@@ -27,8 +28,6 @@ public sealed class TenantSelfEndpointPolicyTests
     [InlineData(typeof(PaymentController), nameof(PaymentController.AddPayment))]
     [InlineData(typeof(RentCollectionController), nameof(RentCollectionController.AddPayment))]
     [InlineData(typeof(RentCollectionController), nameof(RentCollectionController.GetRentCollection))]
-
-    [InlineData(typeof(StripeController), nameof(StripeController.CreateSetupIntent))]
     public void BroadOrMutationEndpointsNeverInheritTenantSelfAuthority(Type controller, string action)
     {
         var method = controller.GetMethod(action)!;

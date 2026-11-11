@@ -332,11 +332,44 @@ public sealed class StripeRentLossAccountingTests
         (await db.Payments.CountAsync()).Should().Be(1);
     }
 
+    [Fact]
+    public async Task DirectDispute_WonRecoveryRestoresReceiptOnceWithoutManualPlatformFunding()
+    {
+        await using var context = StripeRentPaymentFlowTests.CreateContext();
+        var aggregate = await SeedCompletedPaymentAsync(context, refundedCents: 0, disputedCents: 10_000, chargeAccount: "acct_original");
+        aggregate.StripeDisputeId = "dp_direct";
+        aggregate.Status = StripeRentPaymentStatus.Succeeded;
+        await context.SaveChangesAsync();
+        var service = new StripeRentLossAccountingService(context, Mock.Of<ILogger<StripeRentLossAccountingService>>());
+        var occurredAt = DateTimeOffset.UtcNow;
+        var outstandingBefore = await Utils.RentCalculator.GetOutstandingForTenantAsync(context, 1);
+
+        var command = new StripeRentDisputeCreatedCommand("pi_loss", "ch_loss", "dp_direct", 10_000, occurredAt, "Direct charge disputed.");
+        await service.ApplyDisputeCreatedAsync(command);
+        await service.ApplyDisputeCreatedAsync(command);
+        (await Utils.RentCalculator.GetOutstandingForTenantAsync(context, 1)).Should().Be(outstandingBefore + 100m);
+        aggregate.Status.Should().Be(StripeRentPaymentStatus.Blocked);
+        aggregate.StripeTransferId.Should().BeNull();
+        await service.RecoverWonDisputeAsync("pi_loss", "ch_loss", "dp_direct", 10_000, "usd", occurredAt.AddMinutes(1));
+        await service.RecoverWonDisputeAsync("pi_loss", "ch_loss", "dp_direct", 10_000, "usd", occurredAt.AddMinutes(1));
+
+        aggregate.Status.Should().Be(StripeRentPaymentStatus.Succeeded);
+        aggregate.ChargeStripeAccountId.Should().Be("acct_original");
+        aggregate.DisputedAmountCents.Should().Be(0);
+        aggregate.TransferEligibleAt.Should().BeNull();
+        aggregate.NextTransferAttemptAt.Should().BeNull();
+        (await Utils.RentCalculator.GetOutstandingForTenantAsync(context, 1)).Should().Be(outstandingBefore);
+        (await context.Payments.SingleAsync(x => x.Reference == "pi_loss:loss")).Amount.Should().Be(-100m);
+        (await context.Payments.SingleAsync(x => x.Reference == "pi_loss:dispute-recovery")).Amount.Should().Be(100m);
+        (await context.Payments.SingleAsync(x => x.Reference == "pi_loss")).Status.Should().Be("Completed");
+    }
+
     internal static async Task<StripeRentPayment> SeedCompletedPaymentAsync(
-        Data.DataContext context, long refundedCents, long disputedCents, bool includeLedger = true)
+        Data.DataContext context, long refundedCents, long disputedCents, bool includeLedger = true, string? chargeAccount = null)
     {
         await StripeRentPaymentFlowTests.SeedLeaseAsync(context, 1, 2);
         var aggregate = StripeRentPaymentFlowTests.NewPayment("pi_loss");
+        aggregate.ChargeStripeAccountId = chargeAccount;
         aggregate.Status = StripeRentPaymentStatus.Blocked;
         aggregate.StripeChargeId = "ch_loss";
         aggregate.AllocationCompletedAt = DateTimeOffset.UtcNow;

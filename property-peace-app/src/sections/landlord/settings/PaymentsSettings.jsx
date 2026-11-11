@@ -341,8 +341,6 @@ export function PaymentsSettingsContent({ rentPaymentAccess, headerActionElement
           ChargesEnabled: data?.chargesEnabled === true,
           PayoutsEnabled: data?.payoutsEnabled === true,
           DetailsSubmitted: data?.detailsSubmitted === true,
-          InternalReviewStatus: data?.internalReviewStatus || 'Onboarding',
-          IsInternallyPayoutApproved: data?.isInternallyPayoutApproved === true,
           IsAccountReadyForRentTransfers: data?.isAccountReadyForRentTransfers === true,
           AccountReadinessReason: data?.accountReadinessReason || null,
           CanManageAccount: data?.canManageAccount === true
@@ -443,6 +441,29 @@ export function PaymentsSettingsContent({ rentPaymentAccess, headerActionElement
         setConnecting(false);
       }
     });
+  };
+
+  // Full-dashboard Standard accounts use Stripe-hosted onboarding, not embedded sessions.
+  const openStripeHostedOnboarding = async () => {
+    if (!canManageAccount || !stripeScopeKey || !accountStatus?.AccountId) return;
+    setFetchingSession(true);
+    return requestLifecycleRef.current.run({
+      scopeKey: stripeScopeKey,
+      channel: 'hosted-onboarding',
+      request: ({ signal }) => axiosServices.post('/api/stripe/account-link', {}, { signal }),
+      onSuccess: (response) => {
+        const url = response.data?.onboardingUrl;
+        if (!url) throw new Error('Stripe did not return an onboarding link.');
+        window.location.assign(url);
+      },
+      onError: (error) => openSnackbar({ open: true, message: error?.response?.data?.message || error.message || 'Unable to open Stripe onboarding.', variant: 'alert', alert: { color: 'error' } }),
+      onFinally: () => setFetchingSession(false)
+    });
+  };
+
+  const openStripeDashboard = () => {
+    if (!canManageAccount || !stripeScopeKey || !accountStatus?.AccountId) return;
+    window.open('https://dashboard.stripe.com/', '_blank', 'noopener,noreferrer');
   };
 
   const openEmbeddedOnboarding = async () => {
@@ -639,7 +660,7 @@ export function PaymentsSettingsContent({ rentPaymentAccess, headerActionElement
       
       openSnackbar({
         open: true,
-        message: 'Stripe received your information. We will show any remaining verification or Property Peace review steps here.',
+        message: 'Stripe received your information. Any remaining Stripe verification requirements will appear here.',
         variant: 'alert',
         alert: { color: 'info' }
       });
@@ -665,7 +686,6 @@ export function PaymentsSettingsContent({ rentPaymentAccess, headerActionElement
     return (
       <RentPaymentAccessPanel
         {...rentPaymentAccess}
-        onRequest={rentPaymentAccess.requestAccess}
         onRefresh={rentPaymentAccess.refresh}
       />
     );
@@ -686,12 +706,10 @@ export function PaymentsSettingsContent({ rentPaymentAccess, headerActionElement
   const entityName = bankAccounts.find((account) => account.accountName)?.accountName || organizationName;
   const entityStatus = accountStatus?.IsEnabled === true
     ? { label: 'Enabled', color: 'success', variant: 'filled' }
-    : accountStatus?.InternalReviewStatus === 'Suspended'
-      ? { label: 'Suspended', color: 'error', variant: 'filled' }
-      : needsOnboarding
+    : needsOnboarding
         ? { label: 'Setup required', color: 'warning', variant: 'outlined' }
         : accountStatus?.DetailsSubmitted === true
-          ? { label: 'Under review', color: 'info', variant: 'outlined' }
+          ? { label: 'Stripe verification pending', color: 'info', variant: 'outlined' }
           : { label: 'Not connected', color: 'default', variant: 'outlined' };
   const bankManagementTitle = bankManagementMode === 'entity'
     ? 'Edit payment entity'
@@ -707,8 +725,8 @@ export function PaymentsSettingsContent({ rentPaymentAccess, headerActionElement
       onClick={hasNoAccount
         ? openConnectPreparation
         : needsOnboarding
-          ? openEmbeddedOnboarding
-          : () => openBankAccountManagement('add')}
+          ? openStripeHostedOnboarding
+          : openStripeDashboard}
       disabled={
         (hasNoAccount ? !canCreateInitialAccount : !canManageAccount) ||
         connecting ||
@@ -753,11 +771,10 @@ export function PaymentsSettingsContent({ rentPaymentAccess, headerActionElement
 
         <RentPaymentAccessPanel
           {...rentPaymentAccess}
-          onRequest={rentPaymentAccess.requestAccess}
           onRefresh={rentPaymentAccess.refresh}
           onConfigure={hasNoAccount
             ? (canCreateInitialAccount ? openConnectPreparation : undefined)
-            : (canManageAccount ? openEmbeddedOnboarding : undefined)}
+            : (canManageAccount ? openStripeHostedOnboarding : undefined)}
         />
 
         {/* Payment entity */}
@@ -805,7 +822,7 @@ export function PaymentsSettingsContent({ rentPaymentAccess, headerActionElement
               <Button
                 variant="outlined"
                 startIcon={<EditOutlined />}
-                onClick={needsOnboarding ? openEmbeddedOnboarding : () => openBankAccountManagement('entity')}
+                onClick={needsOnboarding ? openStripeHostedOnboarding : openStripeDashboard}
                 disabled={fetchingSession || openingBankManagement}
               >
                 Edit entity
@@ -890,20 +907,10 @@ export function PaymentsSettingsContent({ rentPaymentAccess, headerActionElement
                               variant="outlined"
                               size="small"
                               startIcon={<EditOutlined />}
-                              onClick={() => openBankAccountManagement('edit')}
+                              onClick={openStripeDashboard}
                               disabled={openingBankManagement}
                             >
-                              Edit
-                            </Button>
-                            <Button
-                              variant="outlined"
-                              color="error"
-                              size="small"
-                              startIcon={<DeleteOutlined />}
-                              onClick={() => openBankAccountManagement('remove')}
-                              disabled={openingBankManagement}
-                            >
-                              Remove
+                              Manage in Stripe
                             </Button>
                           </Stack>
                         )}

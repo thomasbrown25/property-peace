@@ -106,8 +106,8 @@ public sealed class AdminShortStayCollectionService(DataContext db, IHttpContext
         var r = reviews[0];
         var now = DateTimeOffset.UtcNow;
         return r.UserId == app.ApplicantUserId && r.StripeAccountId == app.StripeAccountId &&
-            r.ApprovedOrganizationId == app.OrganizationId && r.Status == StripePayeeReviewStatus.PayoutApproved &&
-            r.ApprovedAt is not null && r.LastStripeSnapshotAt is { } snapshot &&
+            (r.ApprovedOrganizationId == null || r.ApprovedOrganizationId == app.OrganizationId) &&
+            r.Status != StripePayeeReviewStatus.Suspended && r.SuspendedAt == null && r.LastStripeSnapshotAt is { } snapshot &&
             snapshot >= now.AddMinutes(-5) && snapshot <= now.AddMinutes(1) &&
             r.StripeDetailsSubmitted && r.StripePayoutsEnabled && r.StripeTransfersActive &&
             string.Equals(r.StripeTransferCapabilityStatus, "active", StringComparison.OrdinalIgnoreCase) &&

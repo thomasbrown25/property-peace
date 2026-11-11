@@ -16,11 +16,13 @@ import listingApi from 'api/listing';
 import { getApplicationsByProperty } from 'api/application';
 import { isActiveListing } from 'pages/landlord/listing-readiness.mjs';
 import { isLeaseDraft } from 'utils/leaseStatus';
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 import PropertyOverview from './PropertyOverview';
 import DocumentsTab from './DocumentsTab';
 import PaymentsTab from './PaymentsTab';
 import ExpensesTab from './ExpensesTab';
 import PropertyOccupancyTab from './PropertyOccupancyTab';
+import PropertyLeaseActions from './PropertyLeaseActions';
 import { filterPropertyRows, maintenanceTableColumns, maintenanceUnitName, scopePropertyRecords } from './propertyRecords.mjs';
 
 const read = (row, key) => row?.[key] ?? row?.[key[0].toUpperCase() + key.slice(1)];
@@ -34,7 +36,8 @@ const leaseStatus = lease => {
 };
 const tenantName = tenant => `${read(tenant, 'firstname') || ''} ${read(tenant, 'lastname') || ''}`.trim() || read(tenant, 'name') || 'Unnamed tenant';
 
-function RecordsTable({ label, rows, columns, searchFields, getStatus, highlightStatus, emptyMessage, loading, error, onAdd, addLabel }) {
+function RecordsTable({ label, rows, columns: allColumns, showUnitColumn = true, searchFields, getStatus, emptyMessage, loading, error, onAdd, addLabel }) {
+  const columns = showUnitColumn ? allColumns : allColumns.filter(column => column.label !== 'Unit');
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState('all');
   const [page, setPage] = useState(0);
@@ -72,17 +75,11 @@ function RecordsTable({ label, rows, columns, searchFields, getStatus, highlight
               <TableHead><TableRow>{columns.map(column => <TableCell key={column.label}>{column.label}</TableCell>)}</TableRow></TableHead>
               <TableBody>
                 {filtered.slice(safePage * rowsPerPage, safePage * rowsPerPage + rowsPerPage).map((row, index) => (
-                  <TableRow hover key={read(row, 'id') ?? index} onClick={event => { if (event.target.closest('a')) return; if (detailColumn && read(row, 'id')) navigate(detailColumn.link(row)); }}
+                  <TableRow hover key={read(row, 'id') ?? index} onClick={event => { if (!event.currentTarget.contains(event.target) || event.target.closest('a, button, input, [role="menuitem"]')) return; if (detailColumn && read(row, 'id')) navigate(detailColumn.link(row)); }}
                     onKeyDown={event => { if (event.target !== event.currentTarget) return; if ((event.key === 'Enter' || event.key === ' ') && detailColumn && read(row, 'id')) { event.preventDefault(); navigate(detailColumn.link(row)); } }}
                     tabIndex={detailColumn && read(row, 'id') ? 0 : undefined} role={detailColumn && read(row, 'id') ? 'link' : undefined}
                     aria-label={detailColumn && read(row, 'id') ? `View ${label.toLowerCase()} ${detailColumn.value(row)}` : undefined}
-                    sx={theme => ({
-                      ...(detailColumn && read(row, 'id') ? { cursor: 'pointer' } : {}),
-                      ...(highlightStatus && getStatus(row) === highlightStatus ? {
-                        bgcolor: alpha(theme.palette.success.main, 0.1),
-                        '&.MuiTableRow-hover:hover': { bgcolor: alpha(theme.palette.success.main, 0.16) }
-                      } : {})
-                    })}>
+                    sx={{ ...(detailColumn && read(row, 'id') ? { cursor: 'pointer' } : {}) }}>
                     {columns.map(column => <TableCell key={column.label} sx={{ whiteSpace: 'nowrap', ...column.sx?.(row) }}>
                       {column.link && read(row, 'id') ? <Typography component={Link} to={column.link(row)} sx={{ color: 'primary.main', fontWeight: 600, textDecoration: 'none', '&:hover': { textDecoration: 'underline' }, '&:focus-visible': { outline: '2px solid', outlineColor: 'primary.main' } }}>{column.value(row)}</Typography> : column.value(row)}
                     </TableCell>)}
@@ -105,7 +102,7 @@ const leaseColumns = [
   { label: 'Unit', value: row => read(row, 'unitName') || '—' },
   { label: 'Start', value: row => displayDate(read(row, 'startDate')) },
   { label: 'End', value: row => displayDate(read(row, 'endDate')) },
-  { label: 'Status', value: leaseStatus }
+  { label: 'Status', value: leaseStatus, sx: row => ({ color: leaseStatus(row) === 'Active' ? 'success.main' : 'text.primary' }) }
 ];
 const tenantColumns = [
   { label: 'Tenant', value: tenantName, link: row => `/landlord/tenants/${read(row, 'id')}` },
@@ -137,7 +134,7 @@ const applicationColumns = [
   { label: 'Status', value: applicationStatus }
 ];
 
-function PropertyLeasingRecords({ kind, propertyId, onAdd }) {
+function PropertyLeasingRecords({ kind, propertyId, showUnitColumn, onAdd }) {
   const [result, setResult] = useState({ propertyId: null, rows: [], loading: true, error: '' });
   const label = kind === 'listings' ? 'Listings' : 'Applications';
   useEffect(() => {
@@ -154,14 +151,15 @@ function PropertyLeasingRecords({ kind, propertyId, onAdd }) {
     return () => { cancelled = true; };
   }, [propertyId, kind, label]);
   const current = result.propertyId === propertyId;
-  return <RecordsTable label={label} onAdd={onAdd} addLabel={kind === 'listings' ? 'Add listing' : 'Add application'} rows={current ? result.rows : []}
+  return <RecordsTable label={label} showUnitColumn={showUnitColumn} onAdd={onAdd} addLabel={kind === 'listings' ? 'Add listing' : 'Add application'} rows={current ? result.rows : []}
     columns={kind === 'listings' ? listingColumns : applicationColumns}
     searchFields={row => kind === 'listings' ? [read(row, 'propertyName'), read(row, 'unitName'), read(row, 'listingNumber'), read(row, 'id')] : [applicantName(row), read(row, 'email'), read(row, 'unitName')]}
     getStatus={kind === 'listings' ? listingStatus : applicationStatus}
     emptyMessage={`No ${kind} for this property.`} loading={!!propertyId && (!current || result.loading)} error={current ? result.error : ''} />;
 }
 
-export default function PropertyRecordsTabs({ property, propertyId, rentRecords, rentLoading, rentError, maintenances, historyMaintenances, maintenanceError, tab, onTabChange }) {
+export default function PropertyRecordsTabs({ property, propertyId, rentRecords, rentLoading, rentError, maintenances, historyMaintenances, maintenanceError, tab, onTabChange, onLeaseDeleted }) {
+  const showUnitColumn = !isDetachedSingleUnitType(read(property, 'propertyType'));
   const dispatch = useDispatch();
   const drawer = useDrawer();
   const navigate = useNavigate();
@@ -176,6 +174,13 @@ export default function PropertyRecordsTabs({ property, propertyId, rentRecords,
   const [leases, setLeases] = useState([]);
   const [leaseLoading, setLeaseLoading] = useState(false);
   const [leaseError, setLeaseError] = useState('');
+  const handleLeaseDeleted = async id => {
+    setLeases(current => current.filter(lease => String(read(lease, 'id')) !== String(id)));
+    await onLeaseDeleted?.(id);
+  };
+  const propertyLeaseColumns = [...leaseColumns, {
+    label: 'Actions', value: lease => <PropertyLeaseActions key={`${propertyId}-${read(lease, 'id')}`} lease={lease} onDeleted={handleLeaseDeleted} />
+  }];
   const { tenants, isLoading: tenantsLoading } = useFetchTenants();
 
   useEffect(() => {
@@ -184,7 +189,7 @@ export default function PropertyRecordsTabs({ property, propertyId, rentRecords,
     setLeaseLoading(true);
     setLeaseError('');
     setLeases([]);
-    axiosServices.get(`/api/lease/property/${propertyId}`).then(response => {
+    axiosServices.get(`/api/lease/property/${propertyId}/all`).then(response => {
       if (cancelled) return;
       if (!response.data?.success || !Array.isArray(response.data.data)) throw new Error('Leases could not be loaded.');
       setLeases(response.data.data);
@@ -195,7 +200,7 @@ export default function PropertyRecordsTabs({ property, propertyId, rentRecords,
 
   const scopedTenants = useMemo(() => scopePropertyRecords(tenants, propertyId), [tenants, propertyId]);
   const scopedMaintenance = useMemo(() => scopePropertyRecords([...(maintenances || []), ...(historyMaintenances || [])], propertyId), [maintenances, historyMaintenances, propertyId]);
-  const tabs = ['overview', 'leases', 'tenants', 'payments', 'maintenances', 'listings', 'applications', 'occupancy', 'expenses', 'documents'];
+  const tabs = ['overview', 'leases', 'tenants', 'payments', 'maintenances', 'listings', 'applications', 'expenses', 'documents', 'settings'];
   const requestedTab = tab === 'finances' ? 'payments' : tab;
   const active = tabs.includes(requestedTab) ? requestedTab : 'overview';
   const previousTab = useRef({ propertyId, active });
@@ -228,7 +233,7 @@ export default function PropertyRecordsTabs({ property, propertyId, rentRecords,
         <Tabs value={active} onChange={(_, value) => onTabChange(value)} variant="scrollable" scrollButtons="auto" aria-label="Property sections">
           <Tab value="overview" label="Overview" /><Tab value="leases" label="Leases" /><Tab value="tenants" label="Tenants" /><Tab value="payments" label="Payments" />
           <Tab value="maintenances" label="Maintenances" /><Tab value="listings" label="Listings" /><Tab value="applications" label="Applications" />
-          <Tab value="occupancy" label="Occupancy" /><Tab value="expenses" label="Expenses" /><Tab value="documents" label="Documents" />
+          <Tab value="expenses" label="Expenses" /><Tab value="documents" label="Documents" /><Tab value="settings" label="Settings" />
         </Tabs>
       </Box>
       <Box sx={{ position: 'relative', overflow: 'hidden' }}>
@@ -238,15 +243,27 @@ export default function PropertyRecordsTabs({ property, propertyId, rentRecords,
             transition={{ duration: reduceMotion ? 0 : 0.22, ease: 'easeInOut' }}
             role="tabpanel" aria-label={`${active[0].toUpperCase()}${active.slice(1)}`}>
       {active === 'overview' && <PropertyOverview property={property} propertyId={propertyId} rentRecords={rentRecords} />}
-      {active === 'leases' && <RecordsTable label="Leases" onAdd={() => addRecord('leases')} addLabel="Add lease" rows={leases} columns={leaseColumns} searchFields={row => [read(row, 'leaseNickname'), read(row, 'unitName'), read(row, 'id')]} getStatus={leaseStatus} highlightStatus="Active" emptyMessage="No leases for this property." loading={leaseLoading} error={leaseError} />}
-      {active === 'tenants' && <RecordsTable label="Tenants" onAdd={() => addRecord('tenants')} addLabel="Add tenant" rows={scopedTenants} columns={tenantColumns} searchFields={row => [tenantName(row), read(row, 'email'), read(row, 'unitName')]} getStatus={row => read(row, 'isActive') === false ? 'Inactive' : 'Active'} emptyMessage="No tenants for this property." loading={tenantsLoading} />}
+      {active === 'leases' && <RecordsTable label="Leases" showUnitColumn={showUnitColumn} onAdd={() => addRecord('leases')} addLabel="Create lease" rows={leases} columns={propertyLeaseColumns} searchFields={row => [read(row, 'leaseNickname'), read(row, 'unitName'), read(row, 'id')]} getStatus={leaseStatus} emptyMessage="No leases for this property." loading={leaseLoading} error={leaseError} />}
+      {active === 'tenants' && <RecordsTable label="Tenants" showUnitColumn={showUnitColumn} onAdd={() => addRecord('tenants')} addLabel="Add tenant" rows={scopedTenants} columns={tenantColumns} searchFields={row => [tenantName(row), read(row, 'email'), read(row, 'unitName')]} getStatus={row => read(row, 'isActive') === false ? 'Inactive' : 'Active'} emptyMessage="No tenants for this property." loading={tenantsLoading} />}
       {active === 'maintenances' && <RecordsTable label="Maintenances" onAdd={() => addRecord('maintenances')} addLabel="Add maintenance" rows={scopedMaintenance} columns={maintenanceTableColumns(property)} searchFields={row => [read(row, 'title'), maintenanceUnitName(row, property), read(row, 'priority')]} getStatus={row => read(row, 'status')} emptyMessage="No maintenance requests for this property." error={maintenanceError} />}
-      {active === 'listings' && <PropertyLeasingRecords key="listings" kind="listings" propertyId={propertyId} onAdd={() => addRecord('listings')} />}
-      {active === 'applications' && <PropertyLeasingRecords key="applications" kind="applications" propertyId={propertyId} onAdd={() => addRecord('applications')} />}
+      {active === 'listings' && <PropertyLeasingRecords key="listings" kind="listings" propertyId={propertyId} showUnitColumn={showUnitColumn} onAdd={() => addRecord('listings')} />}
+      {active === 'applications' && <PropertyLeasingRecords key="applications" kind="applications" propertyId={propertyId} showUnitColumn={showUnitColumn} onAdd={() => addRecord('applications')} />}
       {active === 'occupancy' && <PropertyOccupancyTab propertyId={propertyId} property={property} />}
       {active === 'payments' && <PaymentsTab propertyId={propertyId} property={property} rentRecords={rentRecords} rentLoading={rentLoading} rentError={rentError} />}
       {active === 'expenses' && <ExpensesTab propertyId={propertyId} property={property} />}
       {active === 'documents' && <DocumentsTab property={property} />}
+      {active === 'settings' && <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ sm: 'center' }} justifyContent="space-between">
+          <Box>
+            <Typography variant="h5" sx={{ mb: 0.5 }}>Property details</Typography>
+            <Typography color="text.secondary">Manage this property's name, address, and details.</Typography>
+          </Box>
+          <Button variant="outlined" disabled={!read(property, 'id')} onClick={() => {
+            dispatch(setProperty(property));
+            drawer.openPropertyEditDrawer();
+          }} sx={{ flexShrink: 0, alignSelf: { xs: 'flex-start', sm: 'center' } }}>Edit property</Button>
+        </Stack>
+      </Paper>}
           </motion.div>
         </AnimatePresence>
       </Box>

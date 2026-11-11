@@ -47,7 +47,6 @@ public sealed class StripeAccountReadinessTests
     {
         yield return [new StripeConnectedAccountSnapshot("acct_control", Now, true, true, true, "active", ["company.tax_id"], [], null, "approved-fingerprint", "manual", false), "currently-due"];
         yield return [new StripeConnectedAccountSnapshot("acct_control", Now, true, true, true, "active", [], [], "requirements.pending_verification", "approved-fingerprint", "manual", false), "disabled"];
-        yield return [new StripeConnectedAccountSnapshot("acct_control", Now, true, true, true, "active", [], [], null, "changed-fingerprint", "manual", false), "changed"];
         yield return [new StripeConnectedAccountSnapshot("acct_control", Now, true, true, true, "active", [], [], null, null, "manual", false), "payout destination"];
         yield return [new StripeConnectedAccountSnapshot("acct_control", Now, true, true, true, "active", [], [], null, "approved-fingerprint", "daily", false), "not manual"];
         yield return [new StripeConnectedAccountSnapshot("acct_control", Now.AddMinutes(-6), true, true, true, "active", [], [], null, "approved-fingerprint", "manual", false), "stale"];
@@ -85,7 +84,7 @@ public sealed class StripeAccountReadinessTests
         var response = await service.GetAccountStatusAsync("acct_authority", 42, 2);
 
         response.Data!.IsAccountReadyForRentTransfers.Should().BeFalse();
-        response.Data.AccountReadinessReason.Should().Contain("current organization authority");
+        response.Data.AccountReadinessReason.Should().Contain("Current organization authority");
     }
 
     [Fact]

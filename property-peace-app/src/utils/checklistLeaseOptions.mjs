@@ -2,9 +2,15 @@ const dateKey = (value) => value ? String(value).slice(0, 10) : '';
 const todayKey = (now) => `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
 export function findLinkedChecklist(checklists, leaseId, type) {
-  if (!leaseId || !type) return null;
+  if (leaseId == null || !['move-in', 'move-out'].includes(type)) return null;
   const checklistType = type === 'move-in' ? 40 : 41;
-  return checklists.find((checklist) => String(checklist.leaseId) === String(leaseId) && Number(checklist.checklistType) === checklistType) || null;
+  const typeName = type === 'move-in' ? 'moveinchecklist' : 'moveoutchecklist';
+  return (checklists || []).find((checklist) => {
+    const recordType = checklist.checklistType ?? checklist.ChecklistType;
+    const normalizedType = String(recordType ?? '').toLowerCase().replace(/[^a-z]/g, '');
+    return String(checklist.leaseId ?? checklist.LeaseId) === String(leaseId) &&
+      (Number(recordType) === checklistType || normalizedType === typeName);
+  }) || null;
 }
 
 export function getLeaseOptions(leases, unitId, now = new Date()) {

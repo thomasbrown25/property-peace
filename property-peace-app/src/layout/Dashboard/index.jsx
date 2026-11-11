@@ -32,6 +32,7 @@ import { useGetMenuMaster } from 'api/menu';
 export default function DashboardLayout() {
   const { pathname } = useLocation();
   const isAdminPortal = pathname === '/admin' || pathname.startsWith('/admin/');
+  const isLandlordDashboard = pathname === '/landlord/dashboard' || pathname === '/landlord/dashboard/';
   const [adminMobileMenuOpen, setAdminMobileMenuOpen] = useState(false);
   // Standalone property onboarding supplies its own logo, Save & exit, and step footer.
   const isAddPropertyPage = pathname === '/landlord/properties/add' || pathname === '/landlord/property-add-workflow';
@@ -202,9 +203,9 @@ export default function DashboardLayout() {
               {/* Keep page gutters separate from the header and footer. */}
               <Box data-testid="main-app-page-content" sx={{
                 width: '100%',
-                maxWidth: isAddPropertyPage ? 'none' : 1120,
+                maxWidth: isAddPropertyPage ? 'none' : isLandlordDashboard ? 1280 : 1120,
                 mx: 'auto',
-                px: isAddPropertyPage ? 0 : { xs: 0, sm: 1, md: 2, lg: 3 },
+                px: isAddPropertyPage || isLandlordDashboard ? 0 : { xs: 0, sm: 1, md: 2, lg: 3 },
                 boxSizing: 'border-box',
                 minWidth: 0,
                 flex: 1,

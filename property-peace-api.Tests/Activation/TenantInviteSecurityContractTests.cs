@@ -83,7 +83,26 @@ public sealed class TenantInviteSecurityContractTests
         }
 
         Assert.Contains("OrganizationMembers.AsNoTracking().AnyAsync", controller, StringComparison.Ordinal);
-        Assert.Contains("la.Lease.Unit.Property.OrganizationId == organizationId", controller, StringComparison.Ordinal);
+        foreach (var method in new[] { "GetLeaseAgreementProgress", "UpdateLeaseAgreement" })
+        {
+            var start = controller.IndexOf($" {method}(", StringComparison.Ordinal);
+            Assert.True(start >= 0, $"{method} must exist");
+            var end = controller.IndexOf("\n        [Authorize", start + 1, StringComparison.Ordinal);
+            var body = controller[start..(end < 0 ? controller.Length : end)];
+            Assert.Contains("GetCurrentOrganizationIdOrForbid()", body, StringComparison.Ordinal);
+            Assert.Contains("member.UserId == userId && member.OrganizationId == organizationId && member.IsActive", body, StringComparison.Ordinal);
+            Assert.Contains("member.Role == \"Owner\" || member.Role == \"Admin\"", body, StringComparison.Ordinal);
+            Assert.Contains("member.Role == \"Manager\" && member.CanManageLeases", body, StringComparison.Ordinal);
+            Assert.Contains("if (!canManageLeases) return Forbid();", body, StringComparison.Ordinal);
+            // Resolve the requested lease in scope before reading or writing its agreement.
+            Assert.Contains("Include(l => l.LeaseAgreement)", body, StringComparison.Ordinal);
+            Assert.Contains("l.Id == leaseId && !l.IsDeleted", body, StringComparison.Ordinal);
+            Assert.Contains("l.Unit.Property.OrganizationId == organizationId", body, StringComparison.Ordinal);
+            Assert.Contains("!l.OrganizationId.HasValue || l.OrganizationId == organizationId", body, StringComparison.Ordinal);
+            Assert.Contains("return NotFound(", body, StringComparison.Ordinal);
+            Assert.True(body.IndexOf("if (!canManageLeases) return Forbid();", StringComparison.Ordinal)
+                < body.IndexOf("_dataContext.Leases", StringComparison.Ordinal));
+        }
         Assert.DoesNotContain("error = ex.Message", controller, StringComparison.Ordinal);
     }
 

@@ -664,7 +664,7 @@ public sealed class UnitRentalModeSwitchTests
             base.OnModelCreating(modelBuilder);
             var keep = new[] { typeof(Property), typeof(Unit), typeof(Lease), typeof(Deposit), typeof(Payment), typeof(StripeRentPayment), typeof(Tenant), typeof(Organization), typeof(OrganizationMember), typeof(Listing), typeof(RentalApplication), typeof(ShortStayIcalSubscription), typeof(ShortStayIcalOccurrence), typeof(ShortStayBlock), typeof(ShortStayGuidebookDraft), typeof(ShortStayReservation), typeof(ShortStayReservationNight), typeof(ShortStayOccupancyClaim) };
             foreach (var entity in modelBuilder.Model.GetEntityTypes().ToList())
-                if (!keep.Contains(entity.ClrType)) modelBuilder.Ignore(entity.ClrType);
+                if (entity.ClrType != typeof(ActivityEvent) && !keep.Contains(entity.ClrType)) modelBuilder.Ignore(entity.ClrType);
             foreach (var entity in modelBuilder.Model.GetEntityTypes())
                 foreach (var property in entity.GetProperties())
                     if (property.GetColumnType()?.Contains("(max)", StringComparison.OrdinalIgnoreCase) == true)

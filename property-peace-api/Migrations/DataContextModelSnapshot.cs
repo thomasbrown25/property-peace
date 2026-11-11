@@ -191,6 +191,68 @@ namespace brownstone_hub_api.Migrations
                         });
                 });
 
+            modelBuilder.Entity("brownstone_hub_api.Models.ActivityEvent", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("ActivityType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("LeaseId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Operation")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<long>("OrganizationId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("PerformedByName")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<long?>("PerformedByUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("PropertyId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("RelatedId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId", "ActivityType", "RelatedId");
+
+                    b.HasIndex("OrganizationId", "CreatedAt", "Id");
+
+                    b.ToTable("ActivityEvents", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ActivityEvents_Organization", "[OrganizationId] > 0");
+                        });
+                });
+
             modelBuilder.Entity("brownstone_hub_api.Models.Admin", b =>
                 {
                     b.Property<long>("Id")
@@ -11397,6 +11459,28 @@ namespace brownstone_hub_api.Migrations
                     b.ToTable("StripePaymentMethods");
                 });
 
+            modelBuilder.Entity("brownstone_hub_api.Models.StripeRentCustomer", b =>
+                {
+                    b.Property<long>("TenantUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("StripeAccountId")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<string>("CustomerId")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.HasKey("TenantUserId", "StripeAccountId");
+
+                    b.HasIndex("StripeAccountId", "CustomerId")
+                        .IsUnique();
+
+                    b.ToTable("StripeRentCustomers", "financial");
+                });
+
             modelBuilder.Entity("brownstone_hub_api.Models.StripeRentPayment", b =>
                 {
                     b.Property<long>("Id")
@@ -11412,6 +11496,10 @@ namespace brownstone_hub_api.Migrations
                         .HasColumnType("bigint");
 
                     b.Property<string>("ChargeId")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<string>("ChargeStripeAccountId")
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)");
 

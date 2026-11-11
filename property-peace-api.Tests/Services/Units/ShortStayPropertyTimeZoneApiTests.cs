@@ -275,7 +275,7 @@ public sealed class ShortStayPropertyTimeZoneApiTests
                 typeof(ShortStayListing), typeof(ShortStayBlock), typeof(ShortStayNightlyRateOverride),
                 typeof(ShortStayIcalSubscription), typeof(ShortStayIcalOccurrence) };
             foreach (var entity in modelBuilder.Model.GetEntityTypes().ToList())
-                if (!keep.Contains(entity.ClrType)) modelBuilder.Ignore(entity.ClrType);
+                if (entity.ClrType != typeof(ActivityEvent) && !keep.Contains(entity.ClrType)) modelBuilder.Ignore(entity.ClrType);
             foreach (var entity in modelBuilder.Model.GetEntityTypes())
                 foreach (var property in entity.GetProperties())
                     if (property.GetColumnType()?.Contains("(max)", StringComparison.OrdinalIgnoreCase) == true)

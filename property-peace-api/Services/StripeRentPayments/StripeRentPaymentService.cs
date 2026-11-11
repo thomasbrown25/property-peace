@@ -64,7 +64,8 @@ namespace brownstone_hub_api.Services.StripeRentPayments
                 await EnsureLongTermLeaseAsync(command.LeaseId, command.OrganizationId, cancellationToken);
                 var existing = await _context.StripeRentPayments.SingleOrDefaultAsync(x => x.OperationId == command.OperationId, cancellationToken);
                 var request = BuildIntentRequest(command.OperationId, command.LeaseId, command.OrganizationId, command.TenantUserId,
-                    command.AmountCents, command.Currency, command.Description);
+                    command.AmountCents, command.Currency, command.Description,
+                    existing == null ? command.DestinationStripeAccountId : existing.ChargeStripeAccountId, command.CustomerId);
                 if (existing != null)
                 {
                     EnsureReplayMatches(existing, command);
@@ -74,11 +75,14 @@ namespace brownstone_hub_api.Services.StripeRentPayments
                     await EnsureCollectionPayeeEligibleAsync(existing.Id, existing.LeaseId, existing.OrganizationId,
                         existing.TenantUserId, existing.AmountCents, existing.Currency,
                         existing.DestinationStripeAccountId, cancellationToken);
+                    if (existing.ChargeStripeAccountId != null)
+                        request = request with { CustomerId = await StripeRentCustomerAccounts.GetOrCreateAsync(
+                            _context, _gateway, existing.TenantUserId, existing.ChargeStripeAccountId, cancellationToken) };
                     var replay = await _gateway.CreatePaymentIntentAsync(request, cancellationToken);
                     if (replay.PaymentIntentId != existing.PaymentIntentId)
                         throw new InvalidOperationException("Stripe idempotency response does not match the registered payment intent.");
                     if (transaction != null) await transaction.CommitAsync(cancellationToken);
-                    return new StripeRentPaymentClientResult(replay.PaymentIntentId, replay.ClientSecret);
+                    return new StripeRentPaymentClientResult(replay.PaymentIntentId, replay.ClientSecret, existing.ChargeStripeAccountId);
                 }
 
                 if (command.ChargeId == null)
@@ -90,6 +94,8 @@ namespace brownstone_hub_api.Services.StripeRentPayments
                 await EnsureCollectionPayeeEligibleAsync(0, command.LeaseId, command.OrganizationId,
                     command.TenantUserId, command.AmountCents, command.Currency,
                     command.DestinationStripeAccountId, cancellationToken);
+                request = request with { CustomerId = await StripeRentCustomerAccounts.GetOrCreateAsync(
+                    _context, _gateway, command.TenantUserId, command.DestinationStripeAccountId, cancellationToken) };
                 var result = await _gateway.CreatePaymentIntentAsync(request, cancellationToken);
                 var now = _timeProvider.GetUtcNow();
                 _context.StripeRentPayments.Add(new StripeRentPayment
@@ -103,13 +109,14 @@ namespace brownstone_hub_api.Services.StripeRentPayments
                     AmountCents = command.AmountCents,
                     Currency = command.Currency.ToLowerInvariant(),
                     DestinationStripeAccountId = command.DestinationStripeAccountId,
+                    ChargeStripeAccountId = command.DestinationStripeAccountId,
                     Status = StripeRentPaymentStatus.Created,
                     CreatedAt = now,
                     UpdatedAt = now
                 });
                 await _context.SaveChangesAsync(cancellationToken);
                 if (transaction != null) await transaction.CommitAsync(cancellationToken);
-                return new StripeRentPaymentClientResult(result.PaymentIntentId, result.ClientSecret);
+                return new StripeRentPaymentClientResult(result.PaymentIntentId, result.ClientSecret, request.StripeAccountId);
             }
             finally
             {
@@ -163,7 +170,7 @@ namespace brownstone_hub_api.Services.StripeRentPayments
                     payment.TenantUserId, command.AmountCents, payment.Currency,
                     payment.DestinationStripeAccountId, cancellationToken);
                 var request = BuildIntentRequest(payment.OperationId, payment.LeaseId, payment.OrganizationId, payment.TenantUserId,
-                    command.AmountCents, payment.Currency, command.Description);
+                    command.AmountCents, payment.Currency, command.Description, payment.ChargeStripeAccountId);
                 var result = await _gateway.UpdatePaymentIntentAsync(payment.PaymentIntentId, request, cancellationToken);
                 if (result.PaymentIntentId != payment.PaymentIntentId)
                     throw new InvalidOperationException("Stripe update returned a different PaymentIntent.");
@@ -171,7 +178,7 @@ namespace brownstone_hub_api.Services.StripeRentPayments
                 payment.UpdatedAt = _timeProvider.GetUtcNow();
                 await _context.SaveChangesAsync(cancellationToken);
                 if (transaction != null) await transaction.CommitAsync(cancellationToken);
-                return new StripeRentPaymentClientResult(result.PaymentIntentId, result.ClientSecret);
+                return new StripeRentPaymentClientResult(result.PaymentIntentId, result.ClientSecret, request.StripeAccountId);
             }
             finally
             {
@@ -193,6 +200,7 @@ namespace brownstone_hub_api.Services.StripeRentPayments
                 or StripeRentPaymentStatus.Reversed or StripeRentPaymentStatus.RecoveryFailed)
                 throw new InvalidOperationException("Succeeded rent PaymentIntent is in a blocked or terminal recovery state.");
             if (payment.AmountCents != authority.AmountCents
+                || !string.Equals(payment.ChargeStripeAccountId, authority.StripeAccountId, StringComparison.Ordinal)
                 || !string.Equals(payment.Currency, authority.Currency, StringComparison.OrdinalIgnoreCase)
                 || payment.LeaseId != authority.LeaseId
                 || payment.OrganizationId != authority.OrganizationId
@@ -211,7 +219,7 @@ namespace brownstone_hub_api.Services.StripeRentPayments
             if (!string.IsNullOrWhiteSpace(payment.PaymentMethodType))
                 return payment.PaymentMethodType;
 
-            var paymentMethodType = await _gateway.GetPaymentMethodTypeAsync(paymentIntentId, cancellationToken);
+            var paymentMethodType = await GetOwnedPaymentMethodTypeAsync(payment, cancellationToken);
             if (paymentMethodType is not ("card" or "us_bank_account"))
             {
                 payment.Status = StripeRentPaymentStatus.Blocked;
@@ -237,7 +245,7 @@ namespace brownstone_hub_api.Services.StripeRentPayments
                 _logger.LogWarning("Ignoring succeeded rent PaymentIntent {PaymentIntentId} because no durable aggregate exists", succeeded.PaymentIntentId);
                 return;
             }
-            if (payment.Status == StripeRentPaymentStatus.Held && payment.HeldAt.HasValue)
+            if ((payment.Status == StripeRentPaymentStatus.Held || payment.Status == StripeRentPaymentStatus.Succeeded) && payment.HeldAt.HasValue)
             {
                 await RecordSuccessfulActivationAsync(payment, payment.HeldAt.Value, cancellationToken);
                 return;
@@ -250,13 +258,26 @@ namespace brownstone_hub_api.Services.StripeRentPayments
                 throw new InvalidOperationException("Succeeded rent payment cannot be held until its authoritative allocation is complete.");
 
             var actualPaymentMethodType = payment.PaymentMethodType
-                ?? await _gateway.GetPaymentMethodTypeAsync(payment.PaymentIntentId, cancellationToken)
+                ?? await GetOwnedPaymentMethodTypeAsync(payment, cancellationToken)
                 ?? "unknown";
+            if (payment.ChargeStripeAccountId != null
+                && (actualPaymentMethodType is not ("card" or "us_bank_account") || string.IsNullOrWhiteSpace(succeeded.StripeChargeId)))
+                throw new InvalidOperationException("Direct rent settlement requires an authoritative supported charge.");
             payment.StripeChargeId = succeeded.StripeChargeId;
             payment.PaymentMethodType = actualPaymentMethodType;
             payment.HeldAt = succeeded.SucceededAt;
             payment.AllocationCompletedAt = _timeProvider.GetUtcNow();
             payment.UpdatedAt = payment.AllocationCompletedAt.Value;
+            if (payment.ChargeStripeAccountId != null)
+            {
+                payment.Status = StripeRentPaymentStatus.Succeeded;
+                payment.TransferEligibleAt = null;
+                payment.NextTransferAttemptAt = null;
+                payment.RiskReason = null;
+                await _context.SaveChangesAsync(cancellationToken);
+                await RecordSuccessfulActivationAsync(payment, succeeded.SucceededAt, cancellationToken);
+                return;
+            }
             // Conservative elapsed holds guarantee at least the policy minimum across weekends and
             // ordinary U.S. banking holidays without pretending a weekends-only helper is a bank calendar.
             var holdDays = actualPaymentMethodType switch { "card" => 7, "us_bank_account" => 14, _ => 0 };
@@ -311,7 +332,7 @@ namespace brownstone_hub_api.Services.StripeRentPayments
         private async Task MarkTerminalAsync(string paymentIntentId, StripeRentPaymentStatus status, string reason, CancellationToken cancellationToken)
         {
             var payment = await _context.StripeRentPayments.SingleOrDefaultAsync(x => x.PaymentIntentId == paymentIntentId, cancellationToken);
-            if (payment == null || payment.Status is StripeRentPaymentStatus.Transferred
+            if (payment == null || payment.Status is StripeRentPaymentStatus.Transferred or StripeRentPaymentStatus.Succeeded
                 or StripeRentPaymentStatus.TransferReconciliationPending or StripeRentPaymentStatus.ReversalPending
                 or StripeRentPaymentStatus.Reversed or StripeRentPaymentStatus.RecoveryFailed or StripeRentPaymentStatus.Blocked
                 or StripeRentPaymentStatus.Failed or StripeRentPaymentStatus.Canceled)
@@ -397,7 +418,9 @@ namespace brownstone_hub_api.Services.StripeRentPayments
                     // A refund can legitimately fail after initially succeeding, but a delayed successful-refund
                     // handler may also carry an older cumulative charge snapshot. Re-read Stripe while holding the
                     // durable per-PaymentIntent lock before allowing exposure or ledger state to move backward.
-                    var latestSource = await _gateway.GetSourceStateAsync(stripeChargeId, cancellationToken);
+                    var latestSource = payment.ChargeStripeAccountId == null
+                        ? await _gateway.GetSourceStateAsync(stripeChargeId, cancellationToken)
+                        : await _gateway.GetSourceStateAsync(stripeChargeId, payment.ChargeStripeAccountId, cancellationToken);
                     if (!latestSource.Exists || !latestSource.Paid || latestSource.RefundedAmountCents == null
                         || !string.Equals(latestSource.PaymentIntentId, paymentIntentId, StringComparison.Ordinal)
                         || latestSource.AmountCents != payment.AmountCents
@@ -452,8 +475,8 @@ namespace brownstone_hub_api.Services.StripeRentPayments
             var now = _timeProvider.GetUtcNow();
             var maxAttempts = Math.Max(1, _configuration.GetValue<int?>("Stripe:TransferMaxAttempts") ?? 5);
             var candidates = await _context.StripeRentPayments
-                .Where(x =>
-                    (x.Status == StripeRentPaymentStatus.Held && x.TransferAttemptCount < maxAttempts
+                .Where(x => x.ChargeStripeAccountId == null)
+                .Where(x => (x.Status == StripeRentPaymentStatus.Held && x.TransferAttemptCount < maxAttempts
                         && x.TransferEligibleAt != null && x.TransferEligibleAt <= now)
                     || (x.Status == StripeRentPaymentStatus.TransferPending
                         && (x.NextTransferAttemptAt == null
@@ -702,6 +725,7 @@ IF @result < 0 THROW 51000, 'Unable to acquire connected-payee transfer lock.', 
             var now = _timeProvider.GetUtcNow();
             var maxReplayFailures = Math.Max(1, _configuration.GetValue<int?>("Stripe:TransferMaxAttempts") ?? 5);
             var candidates = await _context.StripeRentPayments
+                .Where(x => x.ChargeStripeAccountId == null)
                 .Where(x => x.Status == StripeRentPaymentStatus.TransferReconciliationPending
                     && x.TransferReplayFailureCount < maxReplayFailures
                     && !x.TransferReconciliationPaused
@@ -969,6 +993,7 @@ IF @result < 0 THROW 51000, 'Unable to acquire connected-payee transfer reconcil
         {
             var maxAttempts = Math.Max(1, _configuration.GetValue<int?>("Stripe:ReversalMaxAttempts") ?? 10);
             var candidates = await _context.StripeRentPayments
+                .Where(x => x.ChargeStripeAccountId == null)
                 .Where(x => x.Status == StripeRentPaymentStatus.ReversalPending
                     && x.StripeTransferId != null && x.ReversalAttemptCount < maxAttempts)
                 .OrderBy(x => x.UpdatedAt).Take(100).ToListAsync(cancellationToken);
@@ -1363,10 +1388,17 @@ IF @lockResult < 0
             if (!string.Equals(currency, "usd", StringComparison.OrdinalIgnoreCase)) throw new ArgumentException("Only USD rent payments are supported.", nameof(currency));
         }
 
-        private static StripeRentIntentRequest BuildIntentRequest(string operationId, long leaseId, long organizationId, long tenantUserId, long amountCents, string currency, string? description) =>
+        private Task<string?> GetOwnedPaymentMethodTypeAsync(StripeRentPayment payment, CancellationToken cancellationToken) =>
+            payment.ChargeStripeAccountId == null
+                ? _gateway.GetPaymentMethodTypeAsync(payment.PaymentIntentId, cancellationToken)
+                : _gateway.GetPaymentMethodTypeAsync(payment.PaymentIntentId, payment.ChargeStripeAccountId, cancellationToken);
+
+        private static StripeRentIntentRequest BuildIntentRequest(string operationId, long leaseId, long organizationId, long tenantUserId, long amountCents, string currency, string? description,
+            string? stripeAccountId = null, string? customerId = null) =>
             new(amountCents, currency.ToLowerInvariant(), description ?? $"Payment for lease #{leaseId}", $"rent:{operationId}",
                 $"rent-payment:{operationId}", new Dictionary<string, string> { ["operationId"] = operationId,
                     ["leaseId"] = leaseId.ToString(), ["organizationId"] = organizationId.ToString(),
-                    ["tenantUserId"] = tenantUserId.ToString(), ["paymentFlow"] = "separate_charges_and_transfers" });
+                    ["tenantUserId"] = tenantUserId.ToString(), ["paymentFlow"] = stripeAccountId == null ? "separate_charges_and_transfers" : "direct_charge" },
+                stripeAccountId, customerId);
     }
 }

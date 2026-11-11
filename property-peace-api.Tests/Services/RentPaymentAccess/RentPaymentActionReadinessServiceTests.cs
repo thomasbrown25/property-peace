@@ -51,19 +51,19 @@ public sealed class RentPaymentActionReadinessServiceTests
     public static TheoryData<RentPaymentAccessStatus?, RentPaymentAction, bool, string?> AccessCases => new()
     {
         { null, RentPaymentAction.RequestAccess, true, null },
-        { null, RentPaymentAction.Configure, false, "access_not_requested" },
-        { RentPaymentAccessStatus.Pending, RentPaymentAction.RequestAccess, false, "access_pending" },
-        { RentPaymentAccessStatus.Pending, RentPaymentAction.Pay, false, "access_pending" },
+        { null, RentPaymentAction.Configure, true, null },
+        { RentPaymentAccessStatus.Pending, RentPaymentAction.RequestAccess, true, null },
+        { RentPaymentAccessStatus.Pending, RentPaymentAction.Pay, true, null },
         { RentPaymentAccessStatus.Rejected, RentPaymentAction.RequestAccess, true, null },
-        { RentPaymentAccessStatus.Rejected, RentPaymentAction.Configure, false, "access_rejected" },
-        { RentPaymentAccessStatus.Suspended, RentPaymentAction.RequestAccess, false, "access_suspended" },
-        { RentPaymentAccessStatus.Suspended, RentPaymentAction.Transfer, false, "access_suspended" },
-        { RentPaymentAccessStatus.Approved, RentPaymentAction.RequestAccess, false, "access_not_approved" }
+        { RentPaymentAccessStatus.Rejected, RentPaymentAction.Configure, true, null },
+        { RentPaymentAccessStatus.Suspended, RentPaymentAction.RequestAccess, true, null },
+        { RentPaymentAccessStatus.Suspended, RentPaymentAction.Transfer, true, null },
+        { RentPaymentAccessStatus.Approved, RentPaymentAction.RequestAccess, true, null }
     };
 
     [Theory]
     [MemberData(nameof(AccessCases))]
-    public async Task Access_state_controls_action(
+    public async Task Historical_access_state_does_not_control_action(
         RentPaymentAccessStatus? status, RentPaymentAction action, bool allowed, string? blocker)
     {
         await using var db = CreateContext();
@@ -75,7 +75,7 @@ public sealed class RentPaymentActionReadinessServiceTests
         var result = await CreateService(db, transfersEnabled: true).EvaluateAsync(
             ActorUserId, OrganizationId, action, CancellationToken.None);
         result.Allowed.Should().Be(allowed);
-        result.AccessStatus.Should().Be(status?.ToString() ?? "NotRequested");
+        result.AccessStatus.Should().Be("Available");
         if (blocker is null) result.Blockers.Should().BeEmpty();
         else result.Blockers.Should().Contain(blocker);
     }
@@ -116,7 +116,7 @@ public sealed class RentPaymentActionReadinessServiceTests
     public static TheoryData<StripePayeeReviewStatus?, bool, string> PayeeCases => new()
     {
         { null, false, "connected_payee_missing" },
-        { StripePayeeReviewStatus.UnderReview, false, "connected_payee_under_review" },
+        { StripePayeeReviewStatus.UnderReview, false, "connected_payee_not_ready" },
         { StripePayeeReviewStatus.PayoutApproved, false, "connected_payee_not_ready" }
     };
 
@@ -135,8 +135,61 @@ public sealed class RentPaymentActionReadinessServiceTests
         result.Allowed.Should().BeFalse();
         result.Blockers.Should().Contain(blocker);
         result.ConnectedPayeeExists.Should().Be(status.HasValue);
-        result.ConnectedPayeeApproved.Should().Be(status == StripePayeeReviewStatus.PayoutApproved);
+        result.ConnectedPayeeApproved.Should().Be(status.HasValue);
         result.ConnectedPayeeReady.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("daily", false, "inactive", true)]
+    [InlineData("daily", true, "active", false)]
+    [InlineData("manual", false, "inactive", false)]
+    [InlineData("manual", true, "active", true)]
+    public async Task Direct_charge_pay_preflight_does_not_relax_legacy_transfer_policy(
+        string schedule, bool transfersActive, string transferCapability, bool instantPayouts)
+    {
+        await using var db = CreateContext();
+        SeedOrganization(db, "Viewer");
+        SeedPayee(db, StripePayeeReviewStatus.StripeVerified, true);
+        var snapshot = new StripeConnectedAccountSnapshot(
+            "acct_ready", Now, true, true, transfersActive, transferCapability, [], [], null,
+            "fingerprint", schedule, instantPayouts, true, CardPaymentsCapabilityStatus: "active",
+            DashboardType: "full", LossesPayments: "stripe", FeesPayer: "account");
+        var payees = new StripeConnectedPayeeService(db, new FixedTimeProvider(Now));
+        await db.SaveChangesAsync();
+        await payees.SyncStripeSnapshotAsync(snapshot, null);
+        // Exercise the legacy guard even if an old cached row reports instant payouts.
+        db.StripeConnectedPayeeReviews.Single().InstantPayoutsAllowed = instantPayouts;
+        await db.SaveChangesAsync();
+        var service = CreateService(db, transfersEnabled: true);
+
+        var pay = await service.EvaluateAsync(
+            ActorUserId, OrganizationId, RentPaymentAction.Pay, CancellationToken.None);
+        var transfer = await service.EvaluateAsync(
+            ActorUserId, OrganizationId, RentPaymentAction.Transfer, CancellationToken.None);
+
+        pay.Allowed.Should().BeTrue();
+        pay.ConnectedPayeeReady.Should().BeTrue();
+        pay.Blockers.Should().BeEmpty();
+        transfer.Allowed.Should().BeFalse();
+        transfer.Blockers.Should().ContainSingle().Which.Should().Be("connected_payee_not_ready");
+    }
+
+    [Theory]
+    [InlineData("unknown")]
+    [InlineData("")]
+    public async Task Pay_preflight_rejects_invalid_payout_schedule(string schedule)
+    {
+        await using var db = CreateContext();
+        SeedOrganization(db, "Viewer");
+        SeedPayee(db, StripePayeeReviewStatus.StripeVerified, true);
+        db.StripeConnectedPayeeReviews.Local.Single().PayoutSchedulePolicy = schedule;
+        await db.SaveChangesAsync();
+
+        var result = await CreateService(db).EvaluateAsync(
+            ActorUserId, OrganizationId, RentPaymentAction.Pay, CancellationToken.None);
+
+        result.Allowed.Should().BeFalse();
+        result.Blockers.Should().Contain("connected_payee_not_ready");
     }
 
     [Fact]
@@ -265,7 +318,7 @@ public sealed class RentPaymentActionReadinessServiceTests
 
         result.Allowed.Should().BeFalse();
         result.ConnectedPayeeApproved.Should().BeFalse();
-        result.Blockers.Should().Contain("connected_payee_under_review");
+        result.Blockers.Should().Contain("connected_payee_not_ready");
     }
 
     [Theory]
@@ -300,7 +353,7 @@ public sealed class RentPaymentActionReadinessServiceTests
             ActorUserId, OrganizationId, RentPaymentAction.Transfer, CancellationToken.None);
 
         result.Allowed.Should().BeFalse();
-        result.Blockers.Should().Contain("connected_payee_under_review");
+        result.Blockers.Should().Contain("connected_payee_not_ready");
         result.Blockers.Should().NotContain("transfers_disabled");
     }
 
@@ -316,7 +369,25 @@ public sealed class RentPaymentActionReadinessServiceTests
             ActorUserId, OrganizationId, RentPaymentAction.Configure, CancellationToken.None);
         result.Allowed.Should().BeFalse();
         result.Blockers.Should().Equal(
-            "provider_disabled", "access_not_approved", "actor_not_authorized");
+            "provider_disabled", "actor_not_authorized");
+    }
+
+    [Theory]
+    [InlineData(RentPaymentAction.Configure)]
+    [InlineData(RentPaymentAction.Pay)]
+    [InlineData(RentPaymentAction.Transfer)]
+    public async Task Unreviewed_organization_and_payee_can_act_with_healthy_Stripe_snapshot(RentPaymentAction action)
+    {
+        await using var db = CreateContext();
+        SeedOrganization(db, "Manager");
+        SeedPayee(db, StripePayeeReviewStatus.StripeVerified, true);
+        await db.SaveChangesAsync();
+        var result = await CreateService(db).EvaluateAsync(ActorUserId, OrganizationId, action, CancellationToken.None);
+        result.Allowed.Should().BeTrue();
+        result.Blockers.Should().BeEmpty();
+        db.RentPaymentAccessRequests.Should().BeEmpty();
+        db.RentPaymentAccessAuditEvents.Should().BeEmpty();
+        db.StripeConnectedPayeeReviews.Single().ApprovedAt.Should().BeNull();
     }
 
     private static RentPaymentActionReadinessService CreateService(

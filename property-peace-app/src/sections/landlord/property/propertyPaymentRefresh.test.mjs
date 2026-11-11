@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { parseSync, transformFromAstSync } from '@babel/core';
+import { loadPaymentTimings } from './paymentTiming.mjs';
 
 // Exercise the actual saved handlers/effects without needing a browser or API.
 function source(path) {
@@ -86,8 +87,8 @@ test('payment list refetches after mutation and ignores aborted old-property res
   assert.match(paymentEffect.arguments[1].elements.map(code).join(' '), /drawer\.financeMutationVersion/);
   const requests = [], results = [];
   const axios = { get: (url, options) => new Promise(resolve => requests.push({ url, ...options, resolve })) };
-  const run = id => new Function('propertyId', 'setResult', 'axiosServices', `return (${code(paymentEffect.arguments[0])})();`)(
-    id, result => results.push(result), axios);
+  const run = id => new Function('propertyId', 'setResult', 'axiosServices', 'loadPaymentTimings', `return (${code(paymentEffect.arguments[0])})();`)(
+    id, result => results.push(result), axios, loadPaymentTimings);
   const cleanup = run(7);
   cleanup();
   run(8);
@@ -96,6 +97,21 @@ test('payment list refetches after mutation and ignores aborted old-property res
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(requests[0].signal.aborted, true);
   assert.equal(requests[1].url, '/api/payment/all?propertyId=8');
-  assert.deepEqual(results.at(-1), { propertyId: 8, payments: [{ id: 'recorded-payment' }], loading: false, error: '' });
+  assert.deepEqual(results.at(-1), { propertyId: 8, payments: [{ id: 'recorded-payment', paymentTiming: null }], timingError: false, loading: false, error: '' });
   assert.ok(!results.some(r => r.payments.some(p => p.id === 'old-property-payment')));
+});
+
+test('aborting during charge loading cannot publish stale payment timing', async () => {
+  const requests = [], results = [];
+  const axios = { get: (url, options) => new Promise(resolve => requests.push({ url, ...options, resolve })) };
+  const cleanup = new Function('propertyId', 'setResult', 'axiosServices', 'loadPaymentTimings', `return (${code(paymentEffect.arguments[0])})();`)(
+    7, result => results.push(result), axios, loadPaymentTimings);
+  requests[0].resolve({ data: [{ id: 12, leaseId: 7, amount: 100, status: 'Completed', paymentDate: '2026-03-02' }] });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(requests[1].url, '/api/payment/7/charges');
+  cleanup();
+  assert.equal(requests[1].signal.aborted, true);
+  requests[1].resolve({ data: [] });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(results, [{ propertyId: 7, payments: [], loading: true, error: '' }]);
 });

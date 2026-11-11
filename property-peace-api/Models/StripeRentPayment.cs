@@ -16,7 +16,8 @@ namespace brownstone_hub_api.Models
         Failed,
         Canceled,
         // Appended to preserve the persisted numeric values of existing lifecycle states.
-        Processing
+        Processing,
+        Succeeded
     }
 
     public class StripeRentPayment
@@ -32,6 +33,8 @@ namespace brownstone_hub_api.Models
         public long AmountCents { get; set; }
         [MaxLength(3)] public string Currency { get; set; } = "usd";
         [MaxLength(255)] public string DestinationStripeAccountId { get; set; } = string.Empty;
+        // Immutable charge owner. Null denotes historical platform charges only.
+        [MaxLength(255)] public string? ChargeStripeAccountId { get; set; }
         public StripeRentPaymentStatus Status { get; set; }
         [MaxLength(255)] public string? StripeChargeId { get; set; }
         [MaxLength(50)] public string? PaymentMethodType { get; set; }

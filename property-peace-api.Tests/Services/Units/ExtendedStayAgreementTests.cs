@@ -88,7 +88,7 @@ public sealed class ExtendedStayAgreementTests
                 typeof(ShortStayIcalSubscription), typeof(ShortStayIcalOccurrence), typeof(ShortStayReservation),
                 typeof(ShortStayReservationNight), typeof(ShortStayOccupancyClaim), typeof(ExtendedStayAgreement) };
             foreach (var entity in modelBuilder.Model.GetEntityTypes().ToList())
-                if (!keep.Contains(entity.ClrType)) modelBuilder.Ignore(entity.ClrType);
+                if (entity.ClrType != typeof(ActivityEvent) && !keep.Contains(entity.ClrType)) modelBuilder.Ignore(entity.ClrType);
             foreach (var entity in modelBuilder.Model.GetEntityTypes())
                 foreach (var property in entity.GetProperties())
                     if (property.GetColumnType()?.Contains("(max)", StringComparison.OrdinalIgnoreCase) == true) property.SetColumnType("TEXT");

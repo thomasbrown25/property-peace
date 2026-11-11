@@ -199,7 +199,14 @@ namespace brownstone_hub_api.Services.StripeService
                 // Create a new Stripe Connect account
                 var accountOptions = new AccountCreateOptions
                 {
-                    Type = "express", // Use Express accounts for simpler onboarding
+                    // Standard-equivalent controller properties explicitly assign direct-charge fees/losses.
+                    Controller = new AccountControllerOptions
+                    {
+                        Losses = new AccountControllerLossesOptions { Payments = "stripe" },
+                        Fees = new AccountControllerFeesOptions { Payer = "account" },
+                        RequirementCollection = "stripe",
+                        StripeDashboard = new AccountControllerStripeDashboardOptions { Type = "full" }
+                    },
                     Country = "US", // Default to US, can be made configurable
                     Email = email,
                     BusinessProfile = new AccountBusinessProfileOptions
@@ -216,16 +223,9 @@ namespace brownstone_hub_api.Services.StripeService
                         {
                             Requested = true
                         },
-                        Transfers = new AccountCapabilitiesTransfersOptions
+                        UsBankAccountAchPayments = new AccountCapabilitiesUsBankAccountAchPaymentsOptions
                         {
                             Requested = true
-                        }
-                    },
-                    Settings = new AccountSettingsOptions
-                    {
-                        Payouts = new AccountSettingsPayoutsOptions
-                        {
-                            Schedule = new AccountSettingsPayoutsScheduleOptions { Interval = "manual" }
                         }
                     }
                 };
@@ -245,9 +245,9 @@ namespace brownstone_hub_api.Services.StripeService
                 var account = await _stripeConnectedAccountGateway.CreateOnboardingAccountAsync(
                     accountOptions,
                     returnUrl,
-                    $"property-peace-connect-account-user-{userId}-v1");
+                    $"property-peace-connect-account-user-{userId}-standard-v2");
 
-                // DetailsSubmitted is Stripe verification input only; internal payout approval is a separate durable decision.
+                // DetailsSubmitted alone is insufficient: a fresh capability, bank and payout snapshot is required.
                 await _stripeConnectedPayeeService.RegisterAsync(userId, account.AccountId, account.DetailsSubmitted);
 
                 response.Data = new CreateStripeAccountResponseDto
@@ -334,15 +334,7 @@ namespace brownstone_hub_api.Services.StripeService
                         : !snapshotIsFresh
                             ? "The Stripe connected-account snapshot is stale."
                             : StripeConnectedPayeeService.RestrictionReason(snapshot);
-                var fingerprintReason = snapshot != null && snapshotMatchesAccount && snapshotIsFresh
-                    ? string.IsNullOrWhiteSpace(review?.ExternalAccountFingerprint)
-                        || string.IsNullOrWhiteSpace(snapshot.ExternalAccountFingerprint)
-                            ? "A complete external-account fingerprint and approval baseline are required."
-                            : !string.Equals(review.ExternalAccountFingerprint, snapshot.ExternalAccountFingerprint,
-                                StringComparison.Ordinal)
-                                ? "The Stripe external bank account changed; internal re-review is required."
-                                : null
-                    : null;
+
 
                 // Sync only a fresh snapshot for the exact account. This retains the same fail-closed
                 // suspension behavior used by the pre-transfer gate without accepting stale data.
@@ -352,40 +344,29 @@ namespace brownstone_hub_api.Services.StripeService
                     if (syncedReview != null)
                     {
                         review = syncedReview;
-                        if (syncedReview.Status != StripePayeeReviewStatus.PayoutApproved)
-                            internallyApproved = false;
+                        internallyApproved = userId.HasValue && organizationId.HasValue &&
+                            await _stripeConnectedPayeeService.IsApprovedDestinationAsync(userId.Value, organizationId.Value, accountId);
                     }
                 }
 
                 var reviewStatus = review?.Status ?? StripePayeeReviewStatus.Onboarding;
-                if (reviewStatus == StripePayeeReviewStatus.PayoutApproved && !internallyApproved)
-                    reviewStatus = StripePayeeReviewStatus.UnderReview;
-                var accountReadinessReason = restrictionReason ?? fingerprintReason
+                var accountReadinessReason = restrictionReason
                     ?? (!internallyApproved
-                        ? "Current scoped internal approval and current organization authority are required."
+                        ? "Current organization authority and an eligible connected account are required."
                         : null);
                 var isAccountReady = accountReadinessReason == null;
-                string? cardPaymentsCapabilityStatus = null;
-                if (snapshot != null && snapshotMatchesAccount && snapshotIsFresh)
-                {
-                    try
-                    {
-                        var capability = await new Stripe.AccountService().Capabilities.GetAsync(accountId, "card_payments",
-                            null, new RequestOptions { ApiKey = _stripeSecretKey });
-                        cardPaymentsCapabilityStatus = capability.Status;
-                    }
-                    catch (StripeException ex)
-                    {
-                        _logger.LogWarning(ex, "Could not retrieve Stripe card payments capability for {AccountId}", accountId);
-                    }
-                }
+                // The same authoritative snapshot drives both readiness and capability display.
+                // Avoid a second, independently timed capability request.
+                var cardPaymentsCapabilityStatus = snapshot != null && snapshotMatchesAccount && snapshotIsFresh
+                    ? snapshot.CardPaymentsCapabilityStatus
+                    : null;
                 response.Data = new StripeAccountStatusDto
                 {
                     AccountId = accountId,
                     Status = snapshot != null && !snapshot.DetailsSubmitted ? "onboarding"
                         : isAccountReady ? "account_transfer_ready"
                         : reviewStatus == StripePayeeReviewStatus.Suspended ? "suspended"
-                        : "under_review",
+                        : "not_ready",
                     IsEnabled = isAccountReady,
                     ChargesEnabled = snapshot?.ChargesEnabled ?? false,
                     PayoutsEnabled = snapshot?.PayoutsEnabled ?? false,
@@ -471,6 +452,13 @@ namespace brownstone_hub_api.Services.StripeService
                 // According to Stripe.NET source: AccountService has a LoginLinks property that returns AccountLoginLinkService
                 // API endpoint: POST /v1/accounts/:id/login_links (no parameters needed)
                 var accountService = new Stripe.AccountService();
+                var account = await accountService.GetAsync(accountId);
+                if (account.Controller?.StripeDashboard?.Type == "full" || account.Type == "standard")
+                {
+                    response.Data = "https://dashboard.stripe.com/";
+                    response.Message = "Open the Stripe Dashboard and sign in to your account";
+                    return response;
+                }
                 var loginLink = await accountService.LoginLinks.CreateAsync(accountId);
 
                 response.Data = loginLink.Url;
@@ -599,7 +587,7 @@ namespace brownstone_hub_api.Services.StripeService
                     return response;
                 }
 
-                // Linking an existing account never bypasses internal payout review.
+                // Linking records ownership; collection still requires fresh Stripe readiness and organization authority.
                 await _stripeConnectedPayeeService.RegisterAsync(userId, accountId, account.DetailsSubmitted);
                 response.Data = true;
                 response.Message = "Account linked successfully";
@@ -671,7 +659,8 @@ namespace brownstone_hub_api.Services.StripeService
                 response.Data = new CreatePaymentIntentResponseDto
                 {
                     ClientSecret = paymentIntent.ClientSecret,
-                    PaymentIntentId = paymentIntent.PaymentIntentId
+                    PaymentIntentId = paymentIntent.PaymentIntentId,
+                    StripeAccountId = paymentIntent.StripeAccountId
                 };
                 response.Message = "Payment intent created successfully";
             }
@@ -724,7 +713,8 @@ namespace brownstone_hub_api.Services.StripeService
                 response.Data = new CreatePaymentIntentResponseDto
                 {
                     ClientSecret = paymentIntent.ClientSecret,
-                    PaymentIntentId = paymentIntent.PaymentIntentId
+                    PaymentIntentId = paymentIntent.PaymentIntentId,
+                    StripeAccountId = paymentIntent.StripeAccountId
                 };
                 response.Message = "Payment intent updated successfully";
             }
@@ -752,10 +742,11 @@ namespace brownstone_hub_api.Services.StripeService
             {
                 // Verify payment intent status
                 var paymentIntentService = new PaymentIntentService();
+                var requestOptions = await RentRequestOptionsAsync(paymentIntentId, leaseId);
                 var paymentIntent = await paymentIntentService.GetAsync(paymentIntentId, new PaymentIntentGetOptions
                 {
                     Expand = new List<string> { "payment_method" }
-                });
+                }, requestOptions);
 
                 if (paymentIntent.Status != "succeeded" && !(recordAsProcessing && paymentIntent.Status == "processing"))
                 {
@@ -907,10 +898,11 @@ namespace brownstone_hub_api.Services.StripeService
             try
             {
                 var paymentIntentService = new PaymentIntentService();
+                var requestOptions = await RentRequestOptionsAsync(paymentIntentId, leaseId);
                 var paymentIntent = await paymentIntentService.GetAsync(paymentIntentId, new PaymentIntentGetOptions
                 {
                     Expand = new List<string> { "payment_method" }
-                });
+                }, requestOptions);
 
                 if (paymentIntent.Status != "succeeded" && !(recordAsProcessing && paymentIntent.Status == "processing"))
                 {
@@ -1157,6 +1149,17 @@ namespace brownstone_hub_api.Services.StripeService
             return response;
         }
 
+        private async Task<RequestOptions> RentRequestOptionsAsync(string paymentIntentId, long leaseId)
+        {
+            // Charge provenance is immutable; never use today's payee for historical reads.
+            var rent = await _context.StripeRentPayments.AsNoTracking().SingleOrDefaultAsync(x =>
+                x.PaymentIntentId == paymentIntentId && x.LeaseId == leaseId);
+            if (rent == null && !await _context.Payments.AnyAsync(x => x.LeaseId == leaseId
+                && (x.StripePaymentIntentId == paymentIntentId || x.Reference == paymentIntentId)))
+                throw new InvalidOperationException("Unknown rent payment.");
+            return new RequestOptions { ApiKey = _stripeSecretKey, StripeAccount = rent?.ChargeStripeAccountId };
+        }
+
         private async Task StoreStripePaymentMethodAsync(Payment payment, PaymentIntent paymentIntent)
         {
             if (payment == null || string.IsNullOrWhiteSpace(paymentIntent.Id))
@@ -1168,7 +1171,8 @@ namespace brownstone_hub_api.Services.StripeService
                 try
                 {
                     var paymentMethodService = new PaymentMethodService();
-                    paymentMethod = await paymentMethodService.GetAsync(paymentIntent.PaymentMethodId);
+                    paymentMethod = await paymentMethodService.GetAsync(paymentIntent.PaymentMethodId, null,
+                        await RentRequestOptionsAsync(paymentIntent.Id, payment.LeaseId));
                 }
                 catch (Exception ex)
                 {

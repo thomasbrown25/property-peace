@@ -1,6 +1,5 @@
 import { isDetachedSingleUnitType } from 'utils/propertyType';
 import { getPropertyOccupancy } from 'utils/occupancy.mjs';
-import ThemeAdaptiveDrawer from 'components/drawers/shared/ThemeAdaptiveDrawer';
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useDashboardLoading } from 'contexts/DashboardLoadingContext';
 import {
@@ -36,7 +35,6 @@ import {
   CardContent,
   Slide,
   LinearProgress,
-  TextField,
   Divider,
   Avatar
 } from '@mui/material';
@@ -66,7 +64,9 @@ import {
 } from '@ant-design/icons';
 
 import { useDispatch, useSelector } from 'react-redux';
-import { selectProperties, selectProperty } from 'store/property/property.selector';
+import { selectProperties, selectProperty, selectPropertiesOrganizationId } from 'store/property/property.selector';
+import { useOrganization } from 'contexts/OrganizationContext';
+import { agreementWorkspaceStatus, loadWorkspaceAgreements, startWorkspaceAgreementLoad } from './agreementWorkspace.mjs';
 import { setProperty } from 'store/property/property.action';
 import { selectUnit } from 'store/unit/unit.selector';
 import { setUnit } from 'store/unit/unit.action';
@@ -503,57 +503,10 @@ function PaymentHeartbeat({ lease, payments }) {
         })}
       </Stack>
       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.2 }}>
-        {isActiveLease ? `${visibleMonths}-month cycle · ${late} late this term` : 'Not started · no payment history'}
+        {isActiveLease ? `${late} late payment${late === 1 ? '' : 's'}` : 'Not started · no payment history'}
       </Typography>
     </Box>
   );
-}
-
-
-function CreateLeaseAgreementDrawer({ open, onClose, properties, initialLease, onSetup }) {
-  const [selectedId, setSelectedId] = useState('');
-  const options = useMemo(() => {
-    const result = new Map();
-    for (const property of properties || []) {
-      for (const unit of property.units || property.Units || []) {
-        const candidates = [unit.lease || unit.Lease, ...(unit.leases || unit.Leases || [])];
-        for (const lease of candidates) {
-          const id = lease?.id ?? lease?.Id;
-          if (!id) continue;
-          result.set(Number(id), { ...lease, id: Number(id), propertyId: property.id ?? property.Id,
-            propertyName: property.name || property.streetAddress, unitId: unit.id ?? unit.Id, unitName: unit.name ?? unit.Name });
-        }
-      }
-    }
-    // A menu action on a historical/successor lease must keep that exact lease, not its unit's current lease.
-    if (initialLease?.id) result.set(Number(initialLease.id), initialLease);
-    return [...result.values()];
-  }, [properties, initialLease]);
-  useEffect(() => { if (open) setSelectedId(initialLease?.id || ''); }, [open, initialLease]);
-  const selected = options.find((lease) => Number(lease.id) === Number(selectedId));
-  return <ThemeAdaptiveDrawer anchor="right" open={open} onClose={onClose}
-    PaperProps={{ sx: { width: { xs: '100%', sm: 520 }, bgcolor: 'background.paper' } }}>
-    <Stack spacing={3} sx={{ p: 3 }}>
-      <Stack direction="row" justifyContent="space-between" alignItems="center">
-        <Typography variant="h4">Create lease agreement</Typography>
-        <IconButton aria-label="Close lease selection" onClick={onClose}><CloseCircleOutlined /></IconButton>
-      </Stack>
-      <Typography color="text.secondary">Choose the saved lease this agreement belongs to. Its property, rent, terms, and people will be inherited automatically.</Typography>
-      <TextField select fullWidth label="Lease" value={selectedId} onChange={(event) => setSelectedId(event.target.value)}>
-        {options.map((lease) => <MenuItem key={lease.id} value={lease.id}>
-          {lease.propertyName || `Property ${lease.propertyId}`}{lease.unitName ? ` · ${lease.unitName}` : ''} · Lease #{lease.id}
-        </MenuItem>)}
-      </TextField>
-      {!options.length && <Typography color="text.secondary">Create a lease first, then return to build its agreement.</Typography>}
-      {selected && <MainCard>
-        <Stack spacing={1}>
-          <Typography fontWeight={700}>{getTenantDisplay(selected)}</Typography>
-          <Typography variant="body2" color="text.secondary">Starts {selected.startDate ? formatDate(selected.startDate) : 'Not set'} · Rent {selected.rentAmount != null ? `$${Number(selected.rentAmount).toLocaleString()}` : 'Not set'}</Typography>
-        </Stack>
-      </MainCard>}
-      <Button variant="contained" disabled={!selected} onClick={() => onSetup(selected)}>Continue to agreement builder</Button>
-    </Stack>
-  </ThemeAdaptiveDrawer>;
 }
 
 export default function LeasesPage({ onEditLease }) {
@@ -561,8 +514,11 @@ export default function LeasesPage({ onEditLease }) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const dispatch = useDispatch();
-  const { propertiesRefetch, isLoading: propertiesLoading } = useFetchProperties();
+  const { propertiesRefetch, isLoading: propertiesLoading, propertiesError } = useFetchProperties();
   const properties = useSelector(selectProperties);
+  const loadedPropertiesOrganizationId = useSelector(selectPropertiesOrganizationId);
+  const { currentOrganization } = useOrganization();
+  const organizationId = currentOrganization?.id ?? currentOrganization?.Id ?? null;
   const selectedProperty = useSelector(selectProperty);
   const selectedUnit = useSelector(selectUnit);
   const allPayments = useSelector(selectAllPayments);
@@ -621,8 +577,6 @@ export default function LeasesPage({ onEditLease }) {
   const [activeAgreementFilter, setActiveAgreementFilter] = useState(null);
   const [agreementActionMenuAnchor, setAgreementActionMenuAnchor] = useState(null);
   const [agreementActionMenuLease, setAgreementActionMenuLease] = useState(null);
-  const [createAgreementDrawerOpen, setCreateAgreementDrawerOpen] = useState(false);
-  const [createAgreementInitialLease, setCreateAgreementInitialLease] = useState(null);
 
   // Get initial view from URL parameter or default to 'current'
   // Support both 'view' and legacy 'tab' parameters for backward compatibility
@@ -655,27 +609,19 @@ export default function LeasesPage({ onEditLease }) {
     const viewParam = searchParams.get('view');
     const tabParam = searchParams.get('tab'); // Legacy support
     
-    if (viewParam === 'renewals') {
-      setView('renewals');
-      setFilters(prev => ({ ...prev, status: ['renewals'] }));
-    } else if (viewParam === 'history') {
-      setView('history');
-      setFilters(prev => ({ ...prev, status: ['history'] }));
-    } else if (viewParam === 'overdue') {
-      setView('overdue');
-      setFilters(prev => ({ ...prev, status: ['overdue'] }));
-    } else if (viewParam === 'notStarted') {
-      setView('notStarted');
-      setFilters(prev => ({ ...prev, status: ['notStarted'] }));
-    } else if (viewParam === 'active') {
-      setView('active');
-      setFilters(prev => ({ ...prev, status: ['active'] }));
+    let nextView;
+    if (['renewals', 'history', 'overdue', 'notStarted', 'active'].includes(viewParam)) {
+      nextView = viewParam;
     } else if (tabParam === 'history') {
-      setView('history'); // Legacy support
-      setFilters(prev => ({ ...prev, status: ['history'] }));
+      nextView = 'history'; // Legacy support
     } else if (viewParam === null || viewParam === 'current') {
-      setView('current');
-      setFilters(prev => ({ ...prev, status: ['current'] }));
+      nextView = 'current';
+    }
+    if (nextView) {
+      setView(nextView);
+      setFilters(prev => prev.status?.length === 1 && prev.status[0] === nextView
+        ? prev
+        : { ...prev, status: [nextView] });
     }
   }, [searchParams]);
 
@@ -690,7 +636,9 @@ export default function LeasesPage({ onEditLease }) {
       } else {
         newSearchParams.set('view', firstStatus);
       }
-      setSearchParams(newSearchParams);
+      if (newSearchParams.toString() !== searchParams.toString()) {
+        setSearchParams(newSearchParams);
+      }
     }
   }, [filters.status, searchParams, setSearchParams]);
   const [loading, setLoading] = useState(false);
@@ -715,6 +663,9 @@ export default function LeasesPage({ onEditLease }) {
   // Lease Agreements tab state
   const [leaseAgreements, setLeaseAgreements] = useState([]);
   const [loadingAgreements, setLoadingAgreements] = useState(false);
+  const [agreementsError, setAgreementsError] = useState(null);
+  const [agreementsOrganizationId, setAgreementsOrganizationId] = useState(null);
+  const [agreementsRetry, setAgreementsRetry] = useState(0);
   
   // Comprehensive loading state - tracks when ALL leases page components are loaded
   // This combines all individual component loading states
@@ -744,83 +695,29 @@ export default function LeasesPage({ onEditLease }) {
     propertiesRefetch().finally(() => setLoading(false));
   }, [propertiesRefetch]);
 
-  // Fetch lease agreements for all leases (for Lease Agreements tab)
+  // All saved leases include scheduled/historical supplemental drafts, not only unit.lease.
   useEffect(() => {
-    const fetchLeaseAgreements = async () => {
-      if (!properties || properties.length === 0) {
-        setLeaseAgreements([]);
-        return;
+    setLeaseAgreements([]);
+    setAgreementsError(null);
+    setAgreementsOrganizationId(null);
+    setAgreementActionMenuAnchor(null);
+    setAgreementActionMenuLease(null);
+    setLeaseAgreementsPage(0);
+    if (!organizationId || loadedPropertiesOrganizationId !== organizationId || propertiesLoading || propertiesError) {
+      setLoadingAgreements(false);
+      return undefined;
+    }
+    setLoadingAgreements(true);
+    const request = startWorkspaceAgreementLoad(
+      () => loadWorkspaceAgreements(properties || [], (url) => axiosServices.get(url), (id) => tenantDocumentAPI.getLeaseAgreement(id)),
+      {
+        onSuccess: (rows) => { setLeaseAgreements(rows); setAgreementsOrganizationId(organizationId); },
+        onError: () => setAgreementsError('Unable to load lease agreements. Please retry.'),
+        onFinally: () => setLoadingAgreements(false)
       }
-
-      setLoadingAgreements(true);
-      try {
-        const agreements = [];
-
-        // Get all leases from properties
-        const allLeases = [];
-        properties.forEach((p) => {
-          p.units?.forEach((u) => {
-            const unitLease = u.lease || u.Lease;
-            if (isPersistedLease(unitLease)) {
-              allLeases.push({
-                ...unitLease,
-                propertyName: p.name,
-                propertyStreetAddress: p.streetAddress,
-                propertyId: p.id,
-                propertyType: p.propertyType,
-                unitName: u.name,
-                unitId: u.id,
-                tenants: unitLease.tenants || [],
-                organizationId: p.organizationId
-              });
-            }
-          });
-        });
-
-        // Fetch lease agreement for each lease
-        for (const lease of allLeases) {
-          try {
-            const response = await tenantDocumentAPI.getLeaseAgreement(lease.id);
-            if (response.success && response.data) {
-              agreements.push({
-                ...lease,
-                agreement: response.data,
-                hasAgreement: true
-              });
-            } else {
-              // Lease exists but no agreement document
-              agreements.push({
-                ...lease,
-                agreement: null,
-                hasAgreement: false
-              });
-            }
-          } catch (error) {
-            // If 404 or 400, lease exists but no agreement
-            const status = error?.response?.status;
-            if (status === 404 || status === 400) {
-              agreements.push({
-                ...lease,
-                agreement: null,
-                hasAgreement: false
-              });
-            } else {
-              console.error(`Error fetching agreement for lease ${lease.id}:`, error);
-            }
-          }
-        }
-
-        setLeaseAgreements(agreements);
-      } catch (error) {
-        console.error('Error fetching lease agreements:', error);
-        setLeaseAgreements([]);
-      } finally {
-        setLoadingAgreements(false);
-      }
-    };
-
-    fetchLeaseAgreements();
-  }, [properties]);
+    );
+    return request.cancel;
+  }, [properties, organizationId, loadedPropertiesOrganizationId, propertiesLoading, propertiesError, agreementsRetry]);
 
   // Fetch lease history when filter includes history
   useEffect(() => {
@@ -1151,10 +1048,10 @@ export default function LeasesPage({ onEditLease }) {
 
   // Filter lease agreements (for Lease Agreements tab)
   const filteredLeaseAgreements = useMemo(() => {
-    let filtered = leaseAgreements || [];
+    let filtered = agreementsOrganizationId === organizationId ? leaseAgreements : [];
 
-    // Only show leases that have an agreement started
-    filtered = filtered.filter((la) => la.hasAgreement === true);
+    // Include durable supplemental drafts even before any PDF exists.
+    filtered = filtered.filter((la) => la.hasStartedAgreement === true);
 
     // Filter by property
     if (selectedProperty?.id) {
@@ -1174,7 +1071,7 @@ export default function LeasesPage({ onEditLease }) {
       const bUnit = b.unitName || '';
       return aUnit.localeCompare(bUnit);
     });
-  }, [leaseAgreements, selectedProperty, selectedUnit]);
+  }, [leaseAgreements, agreementsOrganizationId, organizationId, selectedProperty, selectedUnit]);
 
   // Calculate metrics for Lease Agreements tab
   const leaseAgreementsMetrics = useMemo(() => {
@@ -1290,7 +1187,7 @@ export default function LeasesPage({ onEditLease }) {
   };
 
   const handleViewAgreement = async (leaseAgreement) => {
-    if (!leaseAgreement.agreement) {
+    if (leaseAgreement.isAgreementDraft || !leaseAgreement.agreement) {
       openSnackbar({
         open: true,
         message: 'No lease agreement document available',
@@ -1333,33 +1230,11 @@ export default function LeasesPage({ onEditLease }) {
     navigate(`/landlord/leases/build-lease-agreement?${params.toString()}`);
   };
 
-  const handleSetupCreatedAgreement = (leaseAgreement) => {
-    const params = new URLSearchParams();
-    if (leaseAgreement.id) params.set('leaseId', leaseAgreement.id);
-    if (leaseAgreement.propertyId) params.set('propertyId', leaseAgreement.propertyId);
-    if (leaseAgreement.unitId) params.set('unitId', leaseAgreement.unitId);
-    setCreateAgreementDrawerOpen(false);
-    setCreateAgreementInitialLease(null);
-    navigate(`/landlord/leases/build-lease-agreement?${params.toString()}`);
-  };
-
-  const openCreateAgreementDrawer = (lease = null) => {
-    setCreateAgreementInitialLease(lease);
-    setCreateAgreementDrawerOpen(true);
-  };
-
   const handleSignLeaseFromAgreement = (leaseAgreement) => {
     navigate(`/landlord/leases/${leaseAgreement.id}?sign=true`);
   };
 
-  const getAgreementStatus = (leaseAgreement) => {
-    if (!leaseAgreement.hasAgreement) return 'incomplete';
-    const landlordSigned = !!(leaseAgreement.landlordSignedAt ?? leaseAgreement.LandlordSignedAt);
-    const tenants = leaseAgreement.tenants || [];
-    const allTenantsSigned = tenants.length === 0 || tenants.every((t) => !!(t.tenantSignedAt ?? t.TenantSignedAt));
-    if (landlordSigned && allTenantsSigned) return 'complete';
-    return 'need_to_be_signed';
-  };
+  const getAgreementStatus = agreementWorkspaceStatus;
 
   const overviewMetrics = useMemo(() => {
     const activeLeases = allLeases.filter((lease) => isStartedActiveLease(lease));
@@ -1433,7 +1308,7 @@ export default function LeasesPage({ onEditLease }) {
       variant="contained"
       color="primary"
       startIcon={<PlusOutlined />}
-      onClick={() => openCreateAgreementDrawer()}
+      onClick={() => navigate('/landlord/leases/build-lease-agreement')}
       sx={creationActionSx}
     >
       New agreement
@@ -1795,7 +1670,7 @@ export default function LeasesPage({ onEditLease }) {
                                     <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>
                                       <Typography variant="caption" fontWeight={700}>{getLeaseTermLabel({ hasLease, ...term })}</Typography>
                                       <Typography variant="caption" color={term.overDays ? 'warning.main' : 'text.secondary'} sx={{ fontWeight: term.overDays ? 700 : 400 }}>
-                                        {term.overDays ? `${term.overDays}d over` : term.daysLeft != null ? `${term.daysLeft}d left` : ''}
+                                        {term.overDays ? `${term.overDays}d over` : ''}
                                       </Typography>
                                     </Stack>
                                     <LinearProgress variant="determinate" value={term.progress} sx={{ height: 5, borderRadius: 99, bgcolor: (t) => alpha(t.palette.divider, t.palette.mode === 'dark' ? 0.32 : 0.28), '& .MuiLinearProgress-bar': { borderRadius: 99, bgcolor: term.overDays ? 'warning.main' : 'success.main' } }} />
@@ -1826,7 +1701,7 @@ export default function LeasesPage({ onEditLease }) {
                             <TableRow sx={{ bgcolor: (t) => alpha(t.palette.primary.main, t.palette.mode === 'dark' ? 0.07 : 0.025) }}>
                               <TableCell onClick={() => handleSort('property')} sx={{ cursor: 'pointer' }}>Property · Tenant</TableCell>
                               <TableCell align="right" onClick={() => handleSort('rentAmount')} sx={{ cursor: 'pointer', minWidth: 150, pr: 3.5 }}>Rent · Balance</TableCell>
-                              <TableCell sx={{ pl: 3 }}>Payment Heartbeat</TableCell>
+                              <TableCell sx={{ pl: 3 }}>Payment timing</TableCell>
                               <TableCell onClick={() => handleSort('startDate')} sx={{ cursor: 'pointer' }}>Term</TableCell>
                               <TableCell onClick={() => handleSort('status')} sx={{ cursor: 'pointer', minWidth: 120 }}>Status</TableCell>
                               <TableCell align="right" />
@@ -1880,7 +1755,7 @@ export default function LeasesPage({ onEditLease }) {
                                     <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>
                                       <Typography variant="body2" fontWeight={500}>{getLeaseTermLabel({ hasLease, ...term })}</Typography>
                                       <Typography variant="caption" color={term.overDays ? 'warning.main' : 'text.secondary'} sx={{ fontWeight: term.overDays ? 700 : 400 }}>
-                                        {term.overDays ? `${term.overDays}d over` : term.daysLeft != null ? `${term.daysLeft}d left` : ''}
+                                        {term.overDays ? `${term.overDays}d over` : ''}
                                       </Typography>
                                     </Stack>
                                     <LinearProgress variant="determinate" value={term.progress} sx={{ height: 5, borderRadius: 99, bgcolor: (t) => alpha(t.palette.divider, t.palette.mode === 'dark' ? 0.32 : 0.28), '& .MuiLinearProgress-bar': { borderRadius: 99, bgcolor: term.overDays ? 'warning.main' : 'success.main' } }} />
@@ -1999,7 +1874,7 @@ export default function LeasesPage({ onEditLease }) {
                   if (ml.propertyId) params.set('propertyId', ml.propertyId);
                   if (ml.unitId) params.set('unitId', ml.unitId);
                   close();
-                  openCreateAgreementDrawer(ml);
+                  navigate(`/landlord/leases/build-lease-agreement?${params.toString()}`);
                 };
                 return [
                   <MenuItem key="edit" onClick={() => { close(); navigate(`/landlord/leases/${ml.id}/edit`); }}>
@@ -2113,7 +1988,12 @@ export default function LeasesPage({ onEditLease }) {
             <AnimateIn direction="bottom" delay={500} distance={120}>
             <Grid container spacing={2.5} alignItems="flex-start">
               <Grid size={{ xs: 12 }}>
-                {loading || loadingAgreements ? (
+                {agreementsError || propertiesError ? (
+                  <Box role="alert" sx={{ p: 4, textAlign: 'center', width: '100%' }}>
+                    <Typography color="error">{agreementsError || 'Unable to load properties and lease agreements. Please retry.'}</Typography>
+                    <Button startIcon={<ReloadOutlined />} onClick={() => { propertiesRefetch(); setAgreementsRetry((value) => value + 1); }} sx={{ mt: 1 }}>Retry</Button>
+                  </Box>
+                ) : loading || propertiesLoading || loadingAgreements || agreementsOrganizationId !== organizationId ? (
                   <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
                     <CircularProgress />
                   </Box>
@@ -2182,6 +2062,7 @@ export default function LeasesPage({ onEditLease }) {
                                 <TableCell>
                                   {(() => {
                                     const statusConfig = {
+                                      draft: { label: 'Draft', color: 'default' },
                                       incomplete: { label: 'Incomplete', color: 'default' },
                                       need_to_be_signed: { label: 'Needs signature', color: 'warning' },
                                       complete: { label: 'Complete', color: 'success' }
@@ -2192,6 +2073,11 @@ export default function LeasesPage({ onEditLease }) {
                                 </TableCell>
                                 <TableCell align="right" onClick={(e) => e.stopPropagation()}>
                                   <Stack direction="row" spacing={0.5} justifyContent="flex-end" alignItems="center">
+                                    {agreementStatus === 'draft' && (
+                                      <Button size="small" variant="contained" startIcon={<EditOutlined />} onClick={() => handleViewLeaseFromAgreement(leaseAgreement)} sx={{ textTransform: 'none', whiteSpace: 'nowrap' }}>
+                                        Resume agreement
+                                      </Button>
+                                    )}
                                     {agreementStatus === 'need_to_be_signed' && (
                                       <Button size="small" variant="contained" startIcon={<FormOutlined style={{ fontSize: 14 }} />} onClick={() => handleSignLeaseFromAgreement(leaseAgreement)} sx={{ textTransform: 'none', px: 1.5 }}>
                                         Sign
@@ -2239,7 +2125,7 @@ export default function LeasesPage({ onEditLease }) {
             {/* Agreement action menu */}
             <Menu
               anchorEl={agreementActionMenuAnchor}
-              open={Boolean(agreementActionMenuAnchor)}
+              open={Boolean(agreementActionMenuAnchor) && agreementsOrganizationId === organizationId}
               onClose={() => { setAgreementActionMenuAnchor(null); setAgreementActionMenuLease(null); }}
               transformOrigin={{ horizontal: 'right', vertical: 'top' }}
               anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
@@ -2248,8 +2134,8 @@ export default function LeasesPage({ onEditLease }) {
                 const la = agreementActionMenuLease;
                 const close = () => { setAgreementActionMenuAnchor(null); setAgreementActionMenuLease(null); };
                 return [
-                  <MenuItem key="view-lease" onClick={() => { close(); handleViewLeaseFromAgreement(la); }}>View Lease</MenuItem>,
-                  la.hasAgreement && <MenuItem key="view-agreement" onClick={() => { close(); handleViewAgreement(la); }}>View Agreement</MenuItem>,
+                  <MenuItem key="view-lease" onClick={() => { close(); handleViewLeaseFromAgreement(la); }}>{la.isAgreementDraft ? 'Resume agreement' : 'View Lease'}</MenuItem>,
+                  !la.isAgreementDraft && la.hasAgreement && <MenuItem key="view-agreement" onClick={() => { close(); handleViewAgreement(la); }}>View Agreement</MenuItem>,
                   getAgreementStatus(la) === 'need_to_be_signed' && <MenuItem key="sign" onClick={() => { close(); handleSignLeaseFromAgreement(la); }}>Sign Agreement</MenuItem>,
                 ].filter(Boolean);
               })()}
@@ -2303,13 +2189,6 @@ export default function LeasesPage({ onEditLease }) {
 
       <LeaseAddDrawer />
       <TenantAddDrawer />
-      <CreateLeaseAgreementDrawer
-        open={createAgreementDrawerOpen}
-        onClose={() => { setCreateAgreementDrawerOpen(false); setCreateAgreementInitialLease(null); }}
-        properties={properties}
-        initialLease={createAgreementInitialLease}
-        onSetup={handleSetupCreatedAgreement}
-      />
       <RenewLeaseDrawer onRenewSuccess={() => propertiesRefetch()} />
       <LeaseViewDrawer />
       </Box>

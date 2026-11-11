@@ -29,7 +29,17 @@ namespace brownstone_hub_api.Services.StripeRentPayments
         string? PayoutSchedulePolicy = null,
         bool InstantPayoutMethodsAvailable = false,
         bool ChargesEnabled = false,
-        StripePayoutBankSnapshot? PayoutBank = null);
+        StripePayoutBankSnapshot? PayoutBank = null,
+        string? CardPaymentsCapabilityStatus = null,
+        string? DashboardType = null,
+        string? LossesPayments = null,
+        string? FeesPayer = null)
+    {
+        public bool IsStripeManagedDirectCharge =>
+            string.Equals(DashboardType, "full", StringComparison.OrdinalIgnoreCase)
+            && string.Equals(LossesPayments, "stripe", StringComparison.OrdinalIgnoreCase)
+            && string.Equals(FeesPayer, "account", StringComparison.OrdinalIgnoreCase);
+    }
 
     public sealed record StripeConnectedAccountOnboardingResult(
         string AccountId,
@@ -89,6 +99,8 @@ namespace brownstone_hub_api.Services.StripeRentPayments
                 new RequestOptions { IdempotencyKey = idempotencyKey },
                 cancellationToken);
 
+            if (accountOptions.Controller?.Losses?.Payments != "stripe")
+            {
             const string stripeTransfersCapability = "stripe_balance.stripe_transfers";
             var connectedAccountOptions = new RequestOptions { StripeAccount = account.Id };
             try
@@ -108,6 +120,7 @@ namespace brownstone_hub_api.Services.StripeRentPayments
             catch (StripeException)
             {
                 // Preserve the existing best-effort behavior; onboarding can continue and readiness remains fail closed.
+            }
             }
 
             var accountLink = await _accountLinkService.CreateAsync(new AccountLinkCreateOptions
@@ -209,7 +222,11 @@ namespace brownstone_hub_api.Services.StripeRentPayments
                 account.Settings?.Payouts?.Schedule?.Interval,
                 instantPayoutMethodsAvailable,
                 account.ChargesEnabled,
-                payoutBank);
+                payoutBank,
+                account.Capabilities?.CardPayments,
+                account.Controller?.StripeDashboard?.Type,
+                account.Controller?.Losses?.Payments,
+                account.Controller?.Fees?.Payer);
         }
 
         private static string GetFingerprintMaterial(IExternalAccount externalAccount) => externalAccount switch

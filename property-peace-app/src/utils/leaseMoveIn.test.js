@@ -97,8 +97,44 @@ describe('buildLeaseChecklistCards', () => {
     assert.equal(result.steps[2].detail, 'Landlord signature required');
   });
 
-  it('shows move-out starting on the 90-day alert date and uses only completed records for this lease', () => {
-    const atBoundary = { ...lease, endDate: '2026-04-01' };
+  it('hides signatures until agreement creation is confirmed and excludes them from progress', () => {
+    for (const status of ['pending', 'unavailable', undefined]) {
+      const steps = readiness.steps.filter((step) => step.key !== 'agreement');
+      if (status) steps.push({ key: 'agreement', status });
+      // Stale signature completion must not expose a card without an agreement.
+      const withoutAgreement = { steps: steps.map((step) => step.key === 'signatures' ? { ...step, status: 'complete' } : step) };
+      const result = buildLeaseChecklistCards({ readiness: withoutAgreement, lease, now });
+      assert.deepEqual(result.steps.map((step) => step.key), ['tenants', 'agreement', 'checklist']);
+      assert.equal(result.completed, 1);
+      assert.equal(result.totalTrackable, 3);
+      assert.equal(result.progress, 1 / 3 * 100);
+      assert.equal(result.ready, false);
+    }
+    assert.equal(buildLeaseChecklistCards({ lease, now }).steps.some((step) => step.key === 'signatures'), false);
+  });
+
+  it('shows completed signatures once an agreement exists', () => {
+    const signed = { steps: readiness.steps.map((step) => step.key === 'signatures' ? { ...step, status: 'complete' } : step) };
+    const result = buildLeaseChecklistCards({ readiness: signed, lease, now });
+    assert.equal(result.steps.find((step) => step.key === 'signatures').status, 'complete');
+    assert.equal(result.completed, 3);
+    assert.equal(result.totalTrackable, 4);
+    assert.equal(result.progress, 75);
+  });
+
+  it('hides move-out more than five days before the end, even with a completed record', () => {
+    const result = buildLeaseChecklistCards({
+      readiness, lease: { ...lease, endDate: '2026-01-07' }, now,
+      checklists: [{ id: 4, leaseId: 136, checklistType: 41, isCompleted: true }]
+    });
+    assert.equal(result.steps.some((step) => step.key === 'move-out'), false);
+    assert.equal(result.completed, 2);
+    assert.equal(result.totalTrackable, 4);
+    assert.equal(result.progress, 50);
+  });
+
+  it('shows move-out starting five days before the end and uses only completed records for this lease', () => {
+    const atBoundary = { ...lease, endDate: '2026-01-06' };
     const records = [
       { id: 1, leaseId: 135, checklistType: 41, isCompleted: true },
       { id: 2, leaseId: 136, checklistType: 40, isCompleted: true },
@@ -216,6 +252,49 @@ describe('buildLeaseMoveInReadiness', () => {
     });
     assert.equal(result.steps.find((step) => step.key === 'condition-report').status, 'complete');
     assert.equal(result.steps.find((step) => step.key === 'checklist').status, 'pending');
+  });
+
+  it('recognizes all inspected items even when the separate completion flag is false', () => {
+    for (const condition of ['GOOD', 'NR', 'FAIR']) {
+      const checklist = { id: 42, leaseId: 136, checklistType: 40, isCompleted: false,
+        items: [{ condition: 'GOOD' }, { condition }, { isChecked: true }] };
+      const readiness = buildLeaseMoveInReadiness({ lease: { id: 136 }, checklists: [checklist] });
+      const step = readiness.steps.find((item) => item.key === 'checklist');
+      assert.equal(step.status, 'complete');
+      assert.equal(step.detail, 'Completed checklist on file');
+      const cards = buildLeaseChecklistCards({ readiness, lease: { id: 136 }, checklists: [checklist] });
+      assert.equal(cards.steps.find((item) => item.key === 'checklist').status, 'complete');
+      assert.equal(cards.completed, 1);
+    }
+  });
+
+  it('does not infer completion from empty, partial, missing, or unsaved item records', () => {
+    for (const record of [
+      { id: 42, items: [] },
+      { id: 42, items: [{ condition: 'GOOD' }, {}] },
+      { id: 42 },
+      { items: [{ condition: 'GOOD' }] }
+    ]) {
+      const result = buildLeaseMoveInReadiness({ lease: { id: 136 },
+        checklists: [{ leaseId: 136, checklistType: 40, ...record }] });
+      assert.equal(result.steps.find((step) => step.key === 'checklist').status, 'pending');
+    }
+  });
+
+  it('keeps fully inspected items scoped to the exact lease and checklist type', () => {
+    const result = buildLeaseMoveInReadiness({ lease: { id: 136 }, checklists: [
+      { id: 43, leaseId: 136, checklistType: 41, items: [{ condition: 'GOOD' }] },
+      { id: 44, leaseId: 135, checklistType: 40, items: [{ condition: 'GOOD' }] }
+    ] });
+    assert.equal(result.steps.find((step) => step.key === 'checklist').status, 'pending');
+  });
+
+  it('recognizes item completion for move-out within its existing visibility window', () => {
+    const result = buildLeaseChecklistCards({ lease: { id: 136, endDate: '2026-01-06' },
+      now: new Date('2026-01-01T12:00:00'), checklists: [
+        { id: 43, leaseId: 136, checklistType: 41, isCompleted: false, items: [{ condition: 'NR' }] }
+      ] });
+    assert.equal(result.steps.find((step) => step.key === 'move-out').status, 'complete');
   });
 
   it('does not use a move-out report or a report belonging to another lease', () => {

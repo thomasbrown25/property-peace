@@ -51,9 +51,10 @@ test('property tabs replace current cards and expose searchable paginated detail
   assert.match(income, /mode="payments"/);
   assert.match(table, /<TablePagination/);
   assert.match(tabs, /<PaymentsTab/);
-  assert.match(tabs, /getStatus=\{leaseStatus\} highlightStatus="Active"/);
-  assert.match(tabs, /highlightStatus && getStatus\(row\) === highlightStatus/);
-  assert.match(tabs, /bgcolor: alpha\(theme\.palette\.success\.main, 0\.1\)/);
+  const leaseTable = tabs.match(/<RecordsTable label="Leases"[^\n]*/)?.[0];
+  assert.ok(leaseTable, 'Leases keep the shared records table');
+  assert.match(leaseTable, /getStatus=\{leaseStatus\}/);
+  assert.doesNotMatch(leaseTable, /highlightStatus=/, 'Lease status does not tint the whole row');
   assert.match(tabs, /\/landlord\/leases\/\$\{/);
   assert.match(tabs, /\/landlord\/tenants\/\$\{/);
   const records = await read('./propertyRecords.mjs');

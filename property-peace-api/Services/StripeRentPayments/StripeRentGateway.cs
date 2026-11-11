@@ -10,9 +10,12 @@ namespace brownstone_hub_api.Services.StripeRentPayments
         string Description,
         string TransferGroup,
         string IdempotencyKey,
-        IReadOnlyDictionary<string, string> Metadata);
+        IReadOnlyDictionary<string, string> Metadata,
+        string? StripeAccountId = null,
+        string? CustomerId = null);
 
     public sealed record StripeRentIntentResult(string PaymentIntentId, string ClientSecret);
+    public sealed record StripeRentSetupResult(string SetupIntentId, string ClientSecret);
 
     public sealed record StripeRentPaymentIntentState(bool Exists, string? Status);
 
@@ -57,12 +60,24 @@ namespace brownstone_hub_api.Services.StripeRentPayments
 
     public interface IStripeRentGateway
     {
+        Task<StripeRentSetupResult> CreateSetupIntentAsync(string customerId, string stripeAccountId, long tenantUserId, long leaseId, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException("Connected-account setup intent creation is required.");
+        Task<string> CreateCustomerAsync(long tenantUserId, string stripeAccountId, string? email, string? name, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException("Connected-account customer creation is required.");
         Task<StripeRentIntentResult> CreatePaymentIntentAsync(StripeRentIntentRequest request, CancellationToken cancellationToken = default);
         Task<StripeRentIntentResult> UpdatePaymentIntentAsync(string paymentIntentId, StripeRentIntentRequest request, CancellationToken cancellationToken = default);
         Task<string?> GetPaymentMethodTypeAsync(string paymentIntentId, CancellationToken cancellationToken = default);
         Task<StripeRentPaymentIntentState> GetPaymentIntentStateAsync(string paymentIntentId, CancellationToken cancellationToken = default);
         Task<StripeRentTransactionSnapshot> GetTransactionAsync(string paymentIntentId, CancellationToken cancellationToken = default);
         Task<StripeRentSourceState> GetSourceStateAsync(string chargeId, CancellationToken cancellationToken = default);
+        Task<string?> GetPaymentMethodTypeAsync(string paymentIntentId, string stripeAccountId, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException("Connected-account payment method lookup is required.");
+        Task<StripeRentPaymentIntentState> GetPaymentIntentStateAsync(string paymentIntentId, string stripeAccountId, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException("Connected-account intent lookup is required.");
+        Task<StripeRentTransactionSnapshot> GetTransactionAsync(string paymentIntentId, string stripeAccountId, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException("Connected-account transaction lookup is required.");
+        Task<StripeRentSourceState> GetSourceStateAsync(string chargeId, string stripeAccountId, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException("Connected-account charge lookup is required.");
         Task<string> CreateTransferAsync(StripeRentTransferRequest request, CancellationToken cancellationToken = default);
         Task<string> CreateTransferReversalAsync(string transferId, long amountCents, string idempotencyKey, CancellationToken cancellationToken = default);
     }
@@ -100,7 +115,7 @@ namespace brownstone_hub_api.Services.StripeRentPayments
         public async Task<StripeRentIntentResult> CreatePaymentIntentAsync(StripeRentIntentRequest request, CancellationToken cancellationToken = default)
         {
             var intent = await new PaymentIntentService(_stripeClient).CreateAsync(BuildPaymentIntentCreateOptions(request),
-                new RequestOptions { IdempotencyKey = request.IdempotencyKey }, cancellationToken);
+                new RequestOptions { IdempotencyKey = request.IdempotencyKey, StripeAccount = request.StripeAccountId }, cancellationToken);
             return new StripeRentIntentResult(intent.Id, intent.ClientSecret);
         }
 
@@ -110,9 +125,10 @@ namespace brownstone_hub_api.Services.StripeRentPayments
             Currency = request.Currency,
             Description = request.Description,
             PaymentMethodTypes = new List<string>(StripeRentPaymentMethodPolicy.SupportedTypes),
-            TransferGroup = request.TransferGroup,
+            Customer = request.CustomerId,
+            TransferGroup = request.StripeAccountId == null ? request.TransferGroup : null,
             Metadata = new Dictionary<string, string>(request.Metadata)
-            // Intentionally no TransferData or ApplicationFeeAmount. Rent is charged on the platform.
+            // Direct charges use Stripe-Account, with no destination transfer or application fee.
         };
 
         public async Task<StripeRentIntentResult> UpdatePaymentIntentAsync(string paymentIntentId, StripeRentIntentRequest request, CancellationToken cancellationToken = default)
@@ -122,7 +138,7 @@ namespace brownstone_hub_api.Services.StripeRentPayments
                 Amount = request.AmountCents,
                 Description = request.Description,
                 Metadata = new Dictionary<string, string>(request.Metadata)
-            }, new RequestOptions { IdempotencyKey = $"{request.IdempotencyKey}:update:{request.AmountCents}" }, cancellationToken);
+            }, new RequestOptions { IdempotencyKey = $"{request.IdempotencyKey}:update:{request.AmountCents}", StripeAccount = request.StripeAccountId }, cancellationToken);
             return new StripeRentIntentResult(intent.Id, intent.ClientSecret);
         }
 
@@ -216,6 +232,74 @@ namespace brownstone_hub_api.Services.StripeRentPayments
 
         internal static bool IsDefinitiveTransferFailure(StripeError? error) =>
             string.Equals(error?.Code, "balance_insufficient", StringComparison.Ordinal);
+
+        public async Task<string?> GetPaymentMethodTypeAsync(string paymentIntentId, string stripeAccountId, CancellationToken cancellationToken = default)
+        {
+            var intent = await new PaymentIntentService(_stripeClient).GetAsync(paymentIntentId,
+                new PaymentIntentGetOptions { Expand = new List<string> { "latest_charge" } }, AccountOptions(stripeAccountId), cancellationToken);
+            return intent.LatestCharge?.PaymentMethodDetails?.Type;
+        }
+
+        public async Task<StripeRentPaymentIntentState> GetPaymentIntentStateAsync(string paymentIntentId, string stripeAccountId, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var intent = await new PaymentIntentService(_stripeClient).GetAsync(paymentIntentId, requestOptions: AccountOptions(stripeAccountId), cancellationToken: cancellationToken);
+                return new(true, intent.Status);
+            }
+            catch (StripeException ex) when (ex.StripeError?.Code == "resource_missing") { return new(false, null); }
+        }
+
+        public async Task<StripeRentTransactionSnapshot> GetTransactionAsync(string paymentIntentId, string stripeAccountId, CancellationToken cancellationToken = default)
+        {
+            var intent = await new PaymentIntentService(_stripeClient).GetAsync(paymentIntentId,
+                new PaymentIntentGetOptions { Expand = new List<string> { "latest_charge" } }, AccountOptions(stripeAccountId), cancellationToken);
+            var details = intent.LatestCharge?.PaymentMethodDetails;
+            return new(true, intent.Id, intent.Amount, intent.Currency, intent.Status,
+                intent.LatestCharge?.Created ?? intent.Created, intent.Status == "succeeded" ? intent.LatestCharge?.Created : null,
+                details?.Type, details?.Card?.Brand, details?.Card?.Last4 ?? details?.UsBankAccount?.Last4,
+                details?.UsBankAccount?.BankName, details?.Card?.Wallet?.Type);
+        }
+
+        public async Task<StripeRentSourceState> GetSourceStateAsync(string chargeId, string stripeAccountId, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var charge = await new ChargeService(_stripeClient).GetAsync(chargeId, requestOptions: AccountOptions(stripeAccountId), cancellationToken: cancellationToken);
+                return new(true, charge.Paid, charge.Refunded, charge.Disputed, charge.FailureMessage,
+                    charge.PaymentIntentId, charge.Amount, charge.Currency, charge.AmountRefunded);
+            }
+            catch (StripeException ex) when (ex.StripeError?.Code == "resource_missing")
+            { return new(false, false, false, false, "Stripe source charge was not found.", null, null, null); }
+        }
+
+        public async Task<StripeRentSetupResult> CreateSetupIntentAsync(string customerId, string stripeAccountId, long tenantUserId, long leaseId, CancellationToken cancellationToken = default)
+        {
+            var intent = await new SetupIntentService(_stripeClient).CreateAsync(new SetupIntentCreateOptions
+            {
+                Customer = customerId, Usage = "off_session", PaymentMethodTypes = new List<string>(StripeRentPaymentMethodPolicy.SupportedTypes),
+                Metadata = new Dictionary<string, string> { ["tenantUserId"] = tenantUserId.ToString(), ["leaseId"] = leaseId.ToString(), ["paymentFlow"] = "direct_charge" }
+            }, AccountOptions(stripeAccountId), cancellationToken);
+            return new(intent.Id, intent.ClientSecret);
+        }
+
+        public async Task<string> CreateCustomerAsync(long tenantUserId, string stripeAccountId, string? email, string? name, CancellationToken cancellationToken = default)
+        {
+            var options = AccountOptions(stripeAccountId);
+            options.IdempotencyKey = $"rent-customer:{stripeAccountId}:{tenantUserId}";
+            var customer = await new CustomerService(_stripeClient).CreateAsync(new CustomerCreateOptions
+            {
+                Email = email, Name = name,
+                Metadata = new Dictionary<string, string> { ["tenantUserId"] = tenantUserId.ToString(), ["paymentFlow"] = "direct_charge" }
+            }, options, cancellationToken);
+            return customer.Id;
+        }
+
+        private static RequestOptions AccountOptions(string stripeAccountId)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(stripeAccountId);
+            return new RequestOptions { StripeAccount = stripeAccountId };
+        }
 
         internal static bool RequiresTransferOperatorReview(StripeError? error) =>
             !string.Equals(error?.Code, "idempotency_key_in_use", StringComparison.Ordinal)

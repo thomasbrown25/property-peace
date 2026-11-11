@@ -142,7 +142,7 @@ test('page and builder parse, use full section navigation and real APIs, exclude
   assert.match(source, /hasPermission\('CanManageLeases'\)/);
   assert.match(source, /rentalMode\(unit\) === 'shortTerm'/);
   assert.match(source, /isDetachedSingleUnitType/);
-  assert.match(source, /axiosServices.get\(`\/api\/Lease\/\$\{leaseId\}`\)/);
+  assert.match(source, /axiosServices.get\(`\/api\/Lease\/by-id\/\$\{leaseId\}`\)/);
   assert.match(source, /persistLeaseSetup/);
   assert.match(source, /CheckCircleOutlined/);
   assert.match(source, /View lease/);

@@ -5,10 +5,12 @@ import { LeftOutlined, RightOutlined, CloseOutlined } from '@ant-design/icons';
 import OccupancyTimelineGraph from 'components/OccupancyTimelineGraph';
 import { getUnitAvailabilityCalendar } from 'api/property-portfolio';
 import useAuth from 'hooks/useAuth';
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 import { daysInOccupancyMonth } from './occupancyDays.mjs';
 import { readOccupancyCalendar, storeOccupancyCalendar } from './occupancyCalendarCache.mjs';
 
 export default function PropertyOccupancyTab({ propertyId, property }) {
+  const showUnitColumn = !isDetachedSingleUnitType(property?.propertyType ?? property?.PropertyType);
   const { user } = useAuth();
   const landlordId = user?.id ?? user?.Id;
   const [windowStart, setWindowStart] = useState(() => startOfMonth(new Date()));
@@ -60,7 +62,7 @@ export default function PropertyOccupancyTab({ propertyId, property }) {
       <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ sm: 'center' }} gap={2} sx={{ mb: 2 }}>
         <Box>
           <Typography variant="h5">Occupancy timeline</Typography>
-          <Typography variant="body2" color="text.secondary">Select a unit’s month to view its daily occupancy.</Typography>
+          <Typography variant="body2" color="text.secondary">{showUnitColumn ? 'Select a unit’s month to view its daily occupancy.' : 'Select a month to view daily occupancy.'}</Typography>
         </Box>
         <Stack direction="row" alignItems="center" spacing={1}>
           <IconButton aria-label="Previous 12 months" onClick={() => setWindowStart(start => addMonths(start, -12))}><LeftOutlined /></IconButton>
@@ -76,7 +78,7 @@ export default function PropertyOccupancyTab({ propertyId, property }) {
           <CircularProgress aria-label="Loading occupancy" />
         </Box>}
         {!loading && !error && <OccupancyTimelineGraph calendarData={calendar} windowStart={windowStart} windowMonthCount={12}
-          fallbackPropertyName={property?.name} maxVisibleUnits={10} onMonthClick={(unit, month) => setSelection({ unit, month })} />}
+          showUnitColumn={showUnitColumn} fallbackPropertyName={property?.name} maxVisibleUnits={10} onMonthClick={(unit, month) => setSelection({ unit, month })} />}
       </Box>
       <Dialog open={Boolean(selection)} onClose={() => setSelection(null)} fullWidth maxWidth="sm" aria-labelledby="occupancy-month-title">
         <DialogTitle id="occupancy-month-title" sx={{ pr: 6 }}>

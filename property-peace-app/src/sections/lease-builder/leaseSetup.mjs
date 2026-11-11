@@ -8,7 +8,7 @@ export const setupDefaults = () => ({
   autoRenewLease: false, autoRenewLeaseLength: 12, autoRenewRentIncrement: false,
   autoRenewRentIncrementType: 'percentage', autoRenewRentIncrementValue: '',
   rentCollectionByPlatform: false, rentCollectionOther: false, rentCollectionOtherOptions: {}, rentCollectionOtherSpecify: '',
-  fees: [], leaseDeposits: [], leaseLandlords: [], leaseCoSigners: [], leaseAdditionalSigners: [], leaseOccupants: [],
+  fees: [], leaseDeposits: [], leaseCoSigners: [], leaseAdditionalSigners: [], leaseOccupants: [],
   addTenantsLater: false, tenantMailingAddressDiffers: false, tenantMailingStreetAddress: '', tenantMailingUnit: '',
   tenantMailingCity: '', tenantMailingState: '', tenantMailingZipCode: '', markPastPaymentsAsPaid: false
 });
@@ -18,7 +18,7 @@ export function setupFromLease(lease) {
   values.startDate = values.startDate?.slice(0, 10) || '';
   values.endDate = values.endDate?.slice(0, 10) || '';
   values.termType = Number(readSetup(lease, 'leaseLength')) === -1 || !values.endDate ? 'monthly' : 'fixed';
-  for (const key of ['fees', 'leaseDeposits', 'leaseLandlords', 'leaseCoSigners', 'leaseAdditionalSigners', 'leaseOccupants']) {
+  for (const key of ['fees', 'leaseDeposits', 'leaseCoSigners', 'leaseAdditionalSigners', 'leaseOccupants']) {
     values[key] = values[key].map((item) => Object.fromEntries(Object.entries(item).map(([k, v]) => [k[0].toLowerCase() + k.slice(1), v])));
   }
   try { if (typeof values.rentCollectionOtherOptions === 'string') values.rentCollectionOtherOptions = JSON.parse(values.rentCollectionOtherOptions); }

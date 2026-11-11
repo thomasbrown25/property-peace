@@ -1,3 +1,5 @@
+import { requireRentStripeAccount } from './connectedRentStripe.mjs';
+
 // One coordinator per open checkout. The create's idempotency key and amount cannot
 // change while it is in flight; reconcile the newest valid amount only after create.
 export function createPaymentIntentSync({ post, onState }) {
@@ -12,7 +14,7 @@ export function createPaymentIntentSync({ post, onState }) {
   const keyFor = (scope) => JSON.stringify([scope.leaseId, scope.chargeId ?? null, scope.operationId]);
   const publish = (extra = {}) => {
     if (!disposed) onState({ paymentIntentId: intent?.paymentIntentId ?? null, clientSecret: intent?.clientSecret ?? null,
-      intentAmountCents: intent?.amountCents ?? null, ...extra });
+      stripeAccountId: intent?.stripeAccountId ?? null, intentAmountCents: intent?.amountCents ?? null, ...extra });
   };
   const run = async () => {
     if (disposed || inFlight || blocked || !desired?.payload || (intent && intent.amountCents === desired.amountCents)) return;
@@ -27,7 +29,9 @@ export function createPaymentIntentSync({ post, onState }) {
       if (!response?.data?.success || (creating && (!data?.paymentIntentId || !data?.clientSecret))) {
         throw new Error(response?.data?.message || 'Failed to initialize payment');
       }
-      intent = { paymentIntentId: intent?.paymentIntentId || data.paymentIntentId,
+      const stripeAccountId = requireRentStripeAccount(data?.stripeAccountId);
+      if (intent && stripeAccountId !== intent.stripeAccountId) throw new Error('The rent recipient changed. Close and reopen checkout.');
+      intent = { stripeAccountId, paymentIntentId: intent?.paymentIntentId || data.paymentIntentId,
         clientSecret: intent?.clientSecret || data.clientSecret, amountCents: target.amountCents };
     } catch (error) {
       if (!disposed) { blocked = true; publish({ error }); }

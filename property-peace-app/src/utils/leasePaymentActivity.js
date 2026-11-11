@@ -19,18 +19,23 @@ const isCompletedRent = (payment) => {
     !String(payment.method ?? payment.Method ?? '').toLowerCase().includes('adjustment');
 };
 
-const originOf = (payment) => {
-  const method = String(payment.method ?? payment.Method ?? '').toLowerCase();
-  if (method.includes('auto-pay') || method.includes('autopay') || method.includes('auto payment')) return 'auto-payment';
-  if (method.includes('manual')) return 'manual payment';
-  if (method.includes('online') || method.includes('stripe') || payment.stripePaymentIntentId || payment.StripePaymentIntentId) return 'online payment';
+export const getLeasePaymentOrigin = (payment) => {
+  const method = String(payment.method ?? payment.Method ?? '').trim().toLowerCase();
+  const normalizedMethod = method.replace(/[\s_-]/g, '');
+  // A saved card, ACH method, or creator ID does not prove an automatic payment.
+  if (['autopay', 'autopayment'].includes(normalizedMethod)) return 'auto-payment';
+  if (payment.stripePaymentIntentId || payment.StripePaymentIntentId ||
+      payment.stripeChargeId || payment.StripeChargeId) return 'tenant-payment';
+  if (['onlinepayment', 'stripe', 'tenantpayment'].includes(normalizedMethod)) return 'tenant-payment';
+  if (['manual', 'manualentry', 'manualpayment', 'cash', 'check', 'cheque', 'banktransfer', 'moneyorder'].includes(normalizedMethod)) return 'manual entry';
+  // Legacy records without source evidence must not be presented as automatic.
   return null;
 };
 
 // A payment is on time or late only when it completes a scheduled rent installment.
 // A partial payment has no installment-level timing yet; online is not proof of auto-pay.
 export function describeLeasePaymentActivity(lease, payments = [], isDraft = false) {
-  const results = payments.map((payment) => ({ payment, origin: originOf(payment), timing: null }));
+  const results = payments.map((payment) => ({ payment, origin: getLeasePaymentOrigin(payment), timing: null }));
   if (isDraft) return results;
   const cycles = buildLeasePaymentSchedule(lease).cycles;
   if (!cycles.length) return results;

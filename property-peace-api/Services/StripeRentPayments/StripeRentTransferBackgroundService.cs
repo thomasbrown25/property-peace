@@ -11,6 +11,7 @@ namespace brownstone_hub_api.Services.StripeRentPayments
             {
                 try
                 {
+                    // Legacy platform-charge runoff only: scoped queries exclude every direct charge.
                     // Always run recovery processing. The scoped service independently fail-closes new
                     // transfers when Stripe:TransfersEnabled is missing/false, but transfer reversals
                     // must continue after that emergency switch is turned off.

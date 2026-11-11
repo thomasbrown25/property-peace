@@ -236,11 +236,11 @@ public sealed class ShortStayReservationPersistenceTests
             await connection.OpenAsync();
             var f = new Fixture(connection);
             foreach (var (table, id) in new[] { ("Units", 1), ("Properties", 2), ("Organizations", 3), ("Users", 4), ("Users", 5) }.DistinctBy(x => x.Item1))
-                await f.Db.Database.ExecuteSqlRawAsync($"CREATE TABLE {table} (Id INTEGER PRIMARY KEY)");
+                await f.Db.Database.ExecuteSqlRawAsync($"CREATE TABLE {table} (Id INTEGER PRIMARY KEY{(table == "Properties" ? ", OrganizationId INTEGER" : "")})");
             foreach (var (table, id) in new[] { ("Units", 1), ("Properties", 2), ("Organizations", 3), ("Users", 4), ("Users", 5) })
                 await f.Db.Database.ExecuteSqlRawAsync($"INSERT INTO {table} (Id) VALUES ({id})");
             var ddl = f.Db.Database.GenerateCreateScript();
-            foreach (var table in new[] { "ShortStayReservations", "ShortStayReservationNights", "ShortStayOccupancyClaims" })
+            foreach (var table in new[] { "ActivityEvents", "ShortStayReservations", "ShortStayReservationNights", "ShortStayOccupancyClaims" })
             {
                 var create = Regex.Match(ddl, $"CREATE TABLE [^;]*\\\"{table}\\\"[^;]*;", RegexOptions.Singleline);
                 Assert.True(create.Success, $"Missing EF DDL for {table}");

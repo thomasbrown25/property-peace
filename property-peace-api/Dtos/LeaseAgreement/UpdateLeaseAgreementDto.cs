@@ -1,15 +1,18 @@
 using brownstone_hub_api.Dtos.Lease;
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 
 namespace brownstone_hub_api.Dtos.LeaseAgreement
 {
-    // Deliberately not derived from UpdateLeaseDto: no location, term, money, or people writes.
+    // Deliberately not derived from UpdateLeaseDto: no location, term, money, or non-landlord people writes.
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
-    public class UpdateLeaseAgreementDto
+    public class UpdateLeaseAgreementDto : IValidatableObject
     {
         public bool? IsLeaseSpecificsComplete { get; set; }
         public bool? IsRentDepositFeesComplete { get; set; }
         public bool? IsPeopleOnLeaseComplete { get; set; }
+        // Omitted/null preserves saved landlords; [] explicitly clears them.
+        public List<AgreementLandlordDto>? LeaseLandlords { get; set; }
         public bool? IsPetsSmokingOtherComplete { get; set; }
         public bool? IsUtilitiesMaintenanceKeysComplete { get; set; }
         public bool? IsProvisionsAttachmentsComplete { get; set; }
@@ -32,5 +35,11 @@ namespace brownstone_hub_api.Dtos.LeaseAgreement
         public string? LeadPaintExplanation { get; set; }
         public bool? HasLeadPaintRecords { get; set; }
         public string? LeadPaintRecordsExplanation { get; set; }
+
+        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+        {
+            if (LeaseLandlords != null && LeaseLandlords.Any(x => x == null))
+                yield return new ValidationResult("Landlord entries cannot be null.", [nameof(LeaseLandlords)]);
+        }
     }
 }

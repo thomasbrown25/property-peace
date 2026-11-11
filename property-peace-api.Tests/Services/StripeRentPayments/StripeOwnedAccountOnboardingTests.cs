@@ -10,7 +10,7 @@ namespace brownstone_hub_api.Tests.Services.StripeRentPayments;
 public sealed class StripeOwnedAccountOnboardingTests
 {
     [Fact]
-    public async Task UnapprovedOwnedAccount_IsOnboardableButNeverApprovedForRent()
+    public async Task UnreviewedOwnedAccount_IsOnboardableAndResolvableWithoutApprovalQueue()
     {
         await using var db = Context();
         Seed(db);
@@ -20,8 +20,8 @@ public sealed class StripeOwnedAccountOnboardingTests
         var service = new StripeConnectedPayeeService(db, TimeProvider.System);
 
         (await service.ResolveOwnedAccountForOnboardingAsync(42, 77))!.StripeAccountId.Should().Be("acct_self");
-        (await service.ResolveApprovedDestinationAsync(42, 77)).Should().BeNull();
-        (await service.IsApprovedDestinationAsync(42, 77, "acct_self")).Should().BeFalse();
+        (await service.ResolveApprovedDestinationAsync(42, 77)).Should().Be(new ApprovedStripeDestination(42, "acct_self"));
+        (await service.IsApprovedDestinationAsync(42, 77, "acct_self")).Should().BeTrue();
     }
 
     [Theory]
