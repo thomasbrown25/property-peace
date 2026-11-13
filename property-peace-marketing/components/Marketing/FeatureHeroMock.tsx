@@ -842,11 +842,11 @@ function FeatureScreen({ step, benefits, showWhyItMatters }: { step: MockStep; b
   const tone = toneClasses[step.tone];
 
   return (
-    <div className="h-full bg-white p-5" style={{ fontFamily: '"Inter", sans-serif' }}>
+    <div className="h-full bg-brand-surface p-5" style={{ fontFamily: '"Inter", sans-serif' }}>
       <div className="mb-4 flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8A8A8A]">{step.eyebrow}</p>
-          <h3 className="mt-1 truncate text-base font-bold text-primary-main">{step.title}</h3>
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-brand-slate">{step.eyebrow}</p>
+          <h3 className="mt-1 truncate text-base font-extrabold text-primary-main">{step.title}</h3>
         </div>
         <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl ${tone.icon}`}>
           <Icon className="h-5 w-5" />
@@ -860,11 +860,11 @@ function FeatureScreen({ step, benefits, showWhyItMatters }: { step: MockStep; b
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.25, delay: index * 0.08 }}
-            className="flex items-center justify-between gap-3 rounded-xl border border-[#E5E5E5] bg-white px-3 py-2.5 shadow-sm"
+            className="flex items-center justify-between gap-3 rounded-xl border border-[var(--brand-border)] bg-brand-surface px-3 py-2.5 shadow-sm"
           >
             <div className="min-w-0">
               <p className="truncate text-xs font-bold text-primary-main">{row.label}</p>
-              <p className="text-[10px] text-[#8A8A8A]">{row.value}</p>
+              <p className="text-[10px] text-brand-slate">{row.value}</p>
             </div>
             <span className={`flex-shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold ${toneClasses[row.tone].pill}`}>
               {row.status}
@@ -874,13 +874,13 @@ function FeatureScreen({ step, benefits, showWhyItMatters }: { step: MockStep; b
       </div>
 
       {showWhyItMatters && (
-        <div className="rounded-2xl border border-[#dfeaf5] bg-[#F8FBFF] p-3">
-          <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.16em] text-[#8A8A8A]">Why it matters</p>
-          <p className="text-xs leading-relaxed text-[#405a70]">{step.note}</p>
+        <div className="rounded-2xl border border-[var(--brand-border)] bg-brand-ivory p-3">
+          <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.16em] text-brand-slate">Why it matters</p>
+          <p className="text-xs leading-relaxed text-brand-slate">{step.note}</p>
           {benefits.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-1.5">
               {benefits.slice(0, 2).map((benefit) => (
-                <span key={benefit} className="rounded-full bg-white px-2 py-1 text-[10px] font-semibold text-[#516A80] shadow-sm">
+                <span key={benefit} className="rounded-full bg-brand-surface px-2 py-1 text-[10px] font-semibold text-brand-slate shadow-sm">
                   {benefit}
                 </span>
               ))}
@@ -940,22 +940,22 @@ export default function FeatureHeroMock({ slug, title, benefits = [], theme = 'l
   const active = steps[activeStep];
   const isDarkTheme = theme === 'dark';
   const frameClassName = isDarkTheme
-    ? 'relative overflow-hidden rounded-[1.35rem] border border-white/10 bg-white shadow-[0_24px_70px_rgba(0,0,0,0.22)]'
-    : 'relative overflow-hidden rounded-[1.35rem] border border-[#dfeaf5] bg-white shadow-[0_24px_70px_rgba(10,45,82,0.16)]';
+    ? 'relative overflow-hidden rounded-[1.35rem] border border-white/10 bg-brand-surface shadow-[0_24px_70px_rgba(0,0,0,0.22)]'
+    : 'relative overflow-hidden rounded-[1.35rem] border border-[var(--brand-border)] bg-brand-surface shadow-[0_24px_70px_rgba(16,44,41,0.16)]';
   const captionClassName = isDarkTheme
     ? 'mt-4 p-4 text-center'
-    : 'mt-4 rounded-2xl border border-[#dfeaf5] bg-white/80 p-4 text-center shadow-sm backdrop-blur-sm';
+    : 'mt-4 rounded-2xl border border-[var(--brand-border)] bg-white/80 p-4 text-center shadow-sm backdrop-blur-sm';
   const captionTextClassName = isDarkTheme
     ? 'text-sm font-medium leading-relaxed text-white'
-    : 'text-sm font-medium leading-relaxed text-[#405a70]';
+    : 'text-sm font-medium leading-relaxed text-brand-slate';
 
   return (
     <div className="relative mx-auto w-full max-w-[460px] lg:mx-0" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
       <div className="absolute -left-8 top-8 h-40 w-40 rounded-full bg-primary-main/10 blur-3xl" />
-      <div className="absolute -right-8 bottom-10 h-48 w-48 rounded-full bg-emerald-300/20 blur-3xl" />
+      <div className="absolute -right-8 bottom-10 h-48 w-48 rounded-full bg-[color-mix(in_srgb,var(--brand-mint)_20%,transparent)] blur-3xl" />
 
       <div className={frameClassName}>
-        <div className="bg-[#1a2035]">
+        <div className="bg-brand-forest">
           <div className="flex items-stretch border-b border-white/[0.08]">
             <div className="flex flex-shrink-0 items-center gap-1.5 border-r border-white/[0.08] px-4 py-3">
               <div className="h-3 w-3 rounded-full bg-[#ff5f57]" />
@@ -978,7 +978,7 @@ export default function FeatureHeroMock({ slug, title, benefits = [], theme = 'l
                     <span className="block truncate">{step.label}</span>
                     {isActive && (
                       <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-white/10">
-                        <div className="h-full bg-blue-400" style={{ width: `${progress}%`, transition: 'none' }} />
+                        <div className="h-full bg-brand-mint" style={{ width: `${progress}%`, transition: 'none' }} />
                       </div>
                     )}
                   </button>
@@ -987,13 +987,13 @@ export default function FeatureHeroMock({ slug, title, benefits = [], theme = 'l
             </div>
           </div>
           <div className="flex items-center gap-3 px-4 py-2.5">
-            <div className="flex-1 rounded-md bg-[#252d42] px-3 py-1.5">
+            <div className="flex-1 rounded-md bg-brand-forest-raised px-3 py-1.5">
               <span className="block truncate font-mono text-[11px] text-white/35">app.propertypeace.io/{slug}</span>
             </div>
           </div>
         </div>
 
-        <div className={`relative overflow-hidden bg-[#f8fbff] ${slug === 'maintenance-tracking' && !showWhyItMatters ? 'h-[320px]' : slug === 'maintenance-tracking' ? 'h-[420px]' : 'h-[370px]'}`}>
+        <div className={`relative overflow-hidden bg-brand-ivory ${slug === 'maintenance-tracking' && !showWhyItMatters ? 'h-[320px]' : slug === 'maintenance-tracking' ? 'h-[420px]' : 'h-[370px]'}`}>
           <AnimatePresence mode="wait">
             <motion.div key={`${slug}-${activeStep}`} className="absolute inset-0" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.28, ease: 'easeInOut' }}>
               <FeatureScreen step={active} benefits={benefits} showWhyItMatters={showWhyItMatters} />

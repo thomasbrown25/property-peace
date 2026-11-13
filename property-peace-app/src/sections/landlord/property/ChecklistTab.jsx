@@ -536,10 +536,10 @@ export default function ChecklistTab({ propertyId, property }) {
                 <Table>
                   <TableHead>
                     <TableRow>
-                      <TableCell sx={{ fontWeight: 600 }}>Unit Name</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }} align="center">Move-In Checklist</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }} align="center">Move-Out Checklist</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }} align="right">Actions</TableCell>
+                      <TableCell>Unit Name</TableCell>
+                      <TableCell align="center">Move-In Checklist</TableCell>
+                      <TableCell align="center">Move-Out Checklist</TableCell>
+                      <TableCell align="right">Actions</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>

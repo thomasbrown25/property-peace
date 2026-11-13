@@ -3,6 +3,7 @@ import { Link as RouterLink } from 'react-router-dom';
 import { format } from 'date-fns';
 import { ArrowRightOutlined } from '@ant-design/icons';
 import placeholderImage from 'assets/images/placeholder-house.png';
+import { getTableStyles } from 'themes/tableStyles';
 import PropertyOperations from 'sections/landlord/properties/PropertyOperations';
 import OwnerHomeSidebar from './OwnerHomeSidebar';
 import { dashboardEntranceDelay, dashboardSlideDownSx } from './dashboardEntrance.mjs';
@@ -13,6 +14,7 @@ const columns = 'minmax(190px, 1.3fr) minmax(140px, 1fr) minmax(110px, .8fr) min
 
 export default function OwnerTodayHome({ reminders = [], properties = [], propertiesLoading = false, propertiesError = false, rentRecords = [], rentLoading = false, rentError = false, rentReady = false }) {
   const theme = useTheme();
+  const tableStyles = getTableStyles(theme);
   const next = getOwnerNextStep({ reminders, properties, propertiesLoading, propertiesError });
   const places = getOwnerProperties(properties);
 
@@ -57,17 +59,17 @@ export default function OwnerTodayHome({ reminders = [], properties = [], proper
         {propertiesLoading && !places.length ? <CircularProgress aria-label="Loading properties" size={24} /> : propertiesError && !places.length ? (
           <Typography color="text.secondary">Properties could not be loaded. Try again later.</Typography>
         ) : places.length ? (
-          <Box sx={{ bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', borderRadius: 2, overflow: 'hidden' }}>
-            <Box sx={{ display: { xs: 'none', xl: 'grid' }, gridTemplateColumns: columns, gap: 2, px: 2, py: 1.15, bgcolor: alpha(theme.palette.primary.main, 0.025) }}>
+          <Box style={tableStyles.container} sx={{ overflow: 'hidden' }}>
+            <Box style={{ ...tableStyles.header, borderBottom: tableStyles.headerCell.borderBottom }} sx={{ display: { xs: 'none', xl: 'grid' }, gridTemplateColumns: columns, gap: 2, px: 2, py: 1.15 }}>
               {['Property', 'Rent paid', 'Rent status', 'Operations'].map((label) => (
-                <Typography key={label} sx={{ fontSize: '0.66rem', fontWeight: 750, letterSpacing: 0.65, textTransform: 'uppercase', color: 'text.secondary' }}>{label}</Typography>
+                <Typography key={label} style={{ ...tableStyles.headerCell, padding: 0, borderBottom: 0 }}>{label}</Typography>
               ))}
             </Box>
             {places.slice(0, 4).map((property, index) => {
               const rent = getPropertyMonthRent(property.id, rentRecords, rentError || !rentReady);
               const overdue = getPropertyOverdueRent(property.id, rentRecords, rentError || !rentReady);
               return (
-                <Box key={property.id} style={{ '--dashboard-deal-delay': dashboardEntranceDelay(index) }} sx={{ ...dashboardSlideDownSx, display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', xl: columns }, alignItems: 'center', gap: { xs: 1.5, xl: 2 }, px: 2, py: 1.5, borderTop: index ? '1px solid' : { xs: 0, xl: '1px solid' }, borderColor: 'divider' }}>
+                <Box key={property.id} style={{ '--dashboard-deal-delay': dashboardEntranceDelay(index) }} sx={{ ...dashboardSlideDownSx, display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', xl: columns }, alignItems: 'center', gap: { xs: 1.5, xl: 2 }, px: 2, py: 1.5, borderTop: index ? '1px solid' : 0, borderColor: 'divider' }}>
                   <Stack component={RouterLink} to={property.href} direction="row" spacing={1.4} alignItems="center" sx={{ minWidth: 0, color: 'inherit', textDecoration: 'none', '&:hover .owner-property-name': { textDecoration: 'underline' }, '&:focus-visible': { outline: `2px solid ${theme.palette.primary.main}`, outlineOffset: 2 } }}>
                     <Box component="img" src={property.imageUrl || placeholderImage} alt="" sx={{ width: 58, height: 58, borderRadius: 1.8, objectFit: 'cover', bgcolor: alpha(theme.palette.primary.main, 0.08), flexShrink: 0 }} />
                     <Box sx={{ minWidth: 0 }}>

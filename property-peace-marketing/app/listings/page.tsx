@@ -37,21 +37,21 @@ const listingFeatures = [
 
 export default function ListingsPage() {
   return (
-    <div className="min-h-screen bg-[#061E35] w-full min-w-0 text-white">
+    <div className="min-h-screen bg-brand-forest w-full min-w-0 text-white">
       <main>
-        <section className="relative overflow-hidden bg-[#061E35] pt-32 pb-20 px-4 sm:px-6 lg:px-8">
+        <section className="relative overflow-hidden bg-brand-forest pt-32 pb-20 px-4 sm:px-6 lg:px-8">
           <div
             className="absolute inset-0 bg-cover bg-center bg-no-repeat lg:bg-[position:center_55%]"
             style={{ backgroundImage: 'url(/images/listings/hero.png)' }}
             aria-hidden="true"
           />
           <div
-            className="absolute inset-0 bg-[linear-gradient(to_top,#061E35_0%,rgba(6,30,53,0.98)_20%,rgba(6,30,53,0.82)_58%,rgba(6,30,53,0.72)_100%)] sm:bg-[linear-gradient(to_top,#061E35_0%,rgba(6,30,53,0.98)_18%,rgba(6,30,53,0.72)_60%,rgba(6,30,53,0.62)_100%)]"
+            className="marketing-hero-fade absolute inset-0"
             aria-hidden="true"
           />
           <div className="relative max-w-6xl mx-auto grid lg:grid-cols-[1.05fr_0.95fr] gap-12 items-center">
             <div>
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-tight mb-6" style={{ fontFamily: '"Poppins", sans-serif' }}>
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-white leading-tight mb-6" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>
                 Create rental listings without creating extra work.
               </h1>
               <p className="text-lg md:text-xl text-white/75 max-w-2xl mb-8" style={{ fontFamily: '"Inter", sans-serif' }}>
@@ -60,14 +60,14 @@ export default function ListingsPage() {
               <div className="flex flex-col sm:flex-row gap-4">
                 <Link
                   href="https://app.propertypeace.io/register"
-                  className="inline-flex justify-center px-7 py-3.5 rounded-none bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold hover:from-green-600 hover:to-green-700 hover:shadow-[0_10px_24px_rgba(34,197,94,0.25)] transition-colors"
+                  className="inline-flex justify-center px-7 py-3.5 rounded-none bg-gradient-to-r from-brand-teal to-brand-teal text-white font-semibold hover:from-brand-teal hover:to-brand-teal-hover hover:shadow-[0_10px_24px_rgba(36,117,104,0.25)] transition-colors"
                   style={{ fontFamily: '"Inter", sans-serif' }}
                 >
                   Start for free
                 </Link>
                 <Link
                   href="/demo"
-                  className="inline-flex justify-center px-7 py-3.5 rounded-none bg-white text-primary-main font-semibold border border-slate-200 shadow-sm hover:border-green-200 transition-colors"
+                  className="inline-flex justify-center px-7 py-3.5 rounded-none bg-brand-surface text-primary-main font-semibold border border-[var(--brand-border)] shadow-sm hover:border-brand-mint transition-colors"
                   style={{ fontFamily: '"Inter", sans-serif' }}
                 >
                   Book a demo
@@ -87,10 +87,10 @@ export default function ListingsPage() {
           </div>
         </section>
 
-        <section className="bg-[#061E35] py-20 px-4 sm:px-6 lg:px-8">
+        <section className="bg-brand-forest py-20 px-4 sm:px-6 lg:px-8">
           <div className="max-w-6xl mx-auto">
             <div className="max-w-3xl mb-10">
-              <h2 className="text-3xl md:text-4xl font-bold text-white mb-4" style={{ fontFamily: '"Poppins", sans-serif' }}>
+              <h2 className="text-3xl md:text-4xl font-extrabold text-white mb-4" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>
                 Listings that fit your leasing process
               </h2>
               <p className="text-lg text-white/75" style={{ fontFamily: '"Inter", sans-serif' }}>
@@ -101,12 +101,12 @@ export default function ListingsPage() {
               {listingFeatures.map((feature) => {
                 const Icon = feature.icon;
                 return (
-                  <article key={feature.title} className="rounded-2xl border border-white/5 bg-[#263e52] p-6 shadow-sm transition-colors hover:bg-[#304b60]">
+                  <article key={feature.title} className="rounded-2xl border border-white/5 bg-brand-forest-raised p-6 shadow-sm transition-colors hover:bg-brand-forest-raised">
                     <div className="mb-4 flex items-center gap-4">
-                      <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-[#061E35]">
-                        <Icon className="h-5 w-5 text-green-400" />
+                      <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-brand-forest">
+                        <Icon className="h-5 w-5 text-brand-mint" />
                       </div>
-                      <h3 className="text-lg font-bold leading-snug text-white" style={{ fontFamily: '"Poppins", sans-serif' }}>
+                      <h3 className="text-lg font-extrabold leading-snug text-white" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>
                         {feature.title}
                       </h3>
                     </div>

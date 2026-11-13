@@ -77,44 +77,44 @@ export default function RentCollectionFeaturePage() {
   const live = rentPaymentsAreLive;
 
   return (
-    <main className="bg-[#061E35] text-white">
-      <section data-marketing-hero-theme="dark" className="relative isolate overflow-hidden bg-[#061E35]">
+    <main className="bg-brand-forest text-white">
+      <section data-marketing-hero-theme="dark" className="relative isolate overflow-hidden bg-brand-forest">
         <div
           className="absolute inset-0 bg-cover bg-[position:70%_center] bg-no-repeat sm:bg-[position:65%_center] lg:bg-center"
           style={{ backgroundImage: 'url(/images/rent-collection/hero.png)' }}
           aria-hidden="true"
         />
         <div
-          className="absolute inset-0 bg-[linear-gradient(to_top,#061E35_0%,rgba(6,30,53,0.98)_20%,rgba(6,30,53,0.82)_58%,rgba(6,30,53,0.72)_100%)] sm:bg-[linear-gradient(to_top,#061E35_0%,rgba(6,30,53,0.98)_18%,rgba(6,30,53,0.72)_60%,rgba(6,30,53,0.62)_100%)]"
+          className="absolute inset-0 bg-[linear-gradient(to_top,#061E35_0%,rgba(16,44,41,0.98)_20%,rgba(16,44,41,0.82)_58%,rgba(16,44,41,0.72)_100%)] sm:bg-[linear-gradient(to_top,#061E35_0%,rgba(16,44,41,0.98)_18%,rgba(16,44,41,0.72)_60%,rgba(16,44,41,0.62)_100%)]"
           aria-hidden="true"
         />
         <div className="relative mx-auto max-w-6xl px-4 pb-16 pt-32 sm:px-6 sm:pt-36 lg:px-8 lg:pb-24">
           <div className="grid items-center gap-12 lg:grid-cols-[0.93fr_1.07fr]">
             <div>
-              <p className="mb-5 text-xs font-bold uppercase tracking-[0.2em] text-green-300">
+              <p className="mb-5 text-xs font-bold uppercase tracking-[0.2em] text-brand-mint">
                 COLLECT RENT ONLINE
               </p>
-              <h1 className="max-w-3xl text-[2.55rem] font-bold leading-[1.06] text-white sm:text-5xl md:text-6xl">
+              <h1 className="max-w-3xl text-[2.55rem] font-extrabold leading-[1.06] text-white sm:text-5xl md:text-6xl">
                 The smooth, secure way to collect rent.
               </h1>
-              <p className="mt-6 max-w-2xl text-lg leading-relaxed text-slate-200 md:text-xl">
+              <p className="mt-6 max-w-2xl text-lg leading-relaxed text-brand-ivory md:text-xl">
                 Custom late fees, automatic AI-assisted follow-ups, and secure bank connections help keep every rent cycle moving.
               </p>
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <Link href="https://app.propertypeace.io/register" className="inline-flex min-h-14 items-center justify-center gap-2 bg-[#16A34A] px-7 py-3 font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-[#15803D]">
+                <Link href="https://app.propertypeace.io/register" className="inline-flex min-h-14 items-center justify-center gap-2 bg-brand-teal px-7 py-3 font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-brand-teal">
                   <FiZap className="h-4 w-4" />
                   Get Started
                 </Link>
-                <Link href="/pricing" className="inline-flex min-h-14 items-center justify-center border border-[#D5E0E7] bg-white px-7 py-3 font-semibold text-[#061E35] transition hover:border-[#16A34A] hover:text-[#15803D]">
+                <Link href="/pricing" className="inline-flex min-h-14 items-center justify-center border border-[var(--brand-border)] bg-brand-surface px-7 py-3 font-semibold text-brand-forest transition hover:border-brand-teal hover:text-brand-teal">
                   View Pricing
                 </Link>
               </div>
 
-              <div className="mt-6 grid gap-2 text-sm font-semibold text-slate-200 sm:grid-cols-3">
+              <div className="mt-6 grid gap-2 text-sm font-semibold text-brand-ivory sm:grid-cols-3">
                 {trustItems.map((item) => (
                   <span key={item} className="inline-flex items-center gap-2">
-                    <FiCheck className="h-4 w-4 shrink-0 text-[#16A34A]" />
+                    <FiCheck className="h-4 w-4 shrink-0 text-brand-teal" />
                     {item}
                   </span>
                 ))}
@@ -135,11 +135,11 @@ export default function RentCollectionFeaturePage() {
       </section>
 
       <section className="mx-auto max-w-6xl px-4 py-20 text-center sm:px-6 lg:px-8">
-        <p className="text-xs font-bold uppercase tracking-[0.2em] text-green-300">Built for rental income</p>
-        <h2 className="mx-auto mt-4 max-w-4xl text-3xl font-bold leading-tight text-white md:text-5xl">
+        <p className="text-xs font-bold uppercase tracking-[0.2em] text-brand-mint">Built for rental income</p>
+        <h2 className="mx-auto mt-4 max-w-4xl text-3xl font-extrabold leading-tight text-white md:text-5xl">
           Make rent collection a smooth automated process for you and your tenants
         </h2>
-        <p className="mx-auto mt-5 max-w-3xl text-lg leading-relaxed text-slate-200">
+        <p className="mx-auto mt-5 max-w-3xl text-lg leading-relaxed text-brand-ivory">
           General-purpose transfers and paper checks leave landlords piecing records together. Property Peace keeps rent-specific charges, reminders, and verified payment activity connected to the right tenant and lease.
         </p>
 
@@ -149,35 +149,35 @@ export default function RentCollectionFeaturePage() {
             ["Follow up consistently", "Keep due-date and overdue reminders on a predictable schedule."],
             ["Reconcile with confidence", "Use verified payment events to update one organized rent ledger."],
           ].map(([title, body]) => (
-            <article key={title} className="border border-white/10 bg-[#263e52] p-7">
-              <FiCheck className="h-7 w-7 text-[#16A34A]" />
-              <h3 className="mt-5 text-xl font-bold text-white">{title}</h3>
-              <p className="mt-3 leading-relaxed text-slate-200">{body}</p>
+            <article key={title} className="border border-white/10 bg-brand-forest-raised p-7">
+              <FiCheck className="h-7 w-7 text-brand-teal" />
+              <h3 className="mt-5 text-xl font-extrabold text-white">{title}</h3>
+              <p className="mt-3 leading-relaxed text-brand-ivory">{body}</p>
             </article>
           ))}
         </div>
 
-        <Link href="https://app.propertypeace.io/register" className="mt-9 inline-flex min-h-14 items-center justify-center bg-[#16A34A] px-8 py-3 font-semibold text-white transition hover:bg-[#15803D]">
+        <Link href="https://app.propertypeace.io/register" className="mt-9 inline-flex min-h-14 items-center justify-center bg-brand-teal px-8 py-3 font-semibold text-white transition hover:bg-brand-teal">
           Get Started
         </Link>
       </section>
 
-      <section className="relative isolate overflow-hidden bg-[#061E35] px-4 py-20 text-white sm:px-6 lg:px-8">
+      <section className="relative isolate overflow-hidden bg-brand-forest px-4 py-20 text-white sm:px-6 lg:px-8">
         <div
           className="pointer-events-none absolute inset-0 bg-cover bg-[position:70%_center] bg-no-repeat lg:bg-center"
           style={{ backgroundImage: 'url(/images/rent-collection/tenants.png)' }}
           aria-hidden="true"
         />
         <div
-          className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom,#061E35_0%,rgba(6,30,53,0.82)_18%,rgba(6,30,53,0.65)_48%,rgba(6,30,53,0.78)_80%,#061E35_100%)]"
+          className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom,#061E35_0%,rgba(16,44,41,0.82)_18%,rgba(16,44,41,0.65)_48%,rgba(16,44,41,0.78)_80%,#061E35_100%)]"
           aria-hidden="true"
         />
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,rgba(6,30,53,0.6),transparent_85%)]" aria-hidden="true" />
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,rgba(16,44,41,0.6),transparent_85%)]" aria-hidden="true" />
         <div className="relative mx-auto max-w-6xl">
           <div className="max-w-3xl">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#5EE58A]">A better tenant experience</p>
-            <h2 className="mt-4 text-3xl font-bold md:text-5xl">Rent day should feel straightforward for tenants, too.</h2>
-            <p className="mt-5 text-lg leading-relaxed text-slate-200">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-brand-mint">A better tenant experience</p>
+            <h2 className="mt-4 text-3xl font-extrabold md:text-5xl">Rent day should feel straightforward for tenants, too.</h2>
+            <p className="mt-5 text-lg leading-relaxed text-brand-ivory">
               Give tenants a clear place to understand balances, follow payment instructions, and find their records.
             </p>
           </div>
@@ -185,12 +185,12 @@ export default function RentCollectionFeaturePage() {
           <div className="mt-12 grid gap-x-12 gap-y-8 md:grid-cols-2">
             {tenantBenefits.map((benefit) => (
               <article key={benefit.title} className="flex gap-4">
-                <span className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#16A34A]">
+                <span className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-teal">
                   <FiCheck className="h-4 w-4" />
                 </span>
                 <div>
-                  <h3 className="text-lg font-bold">{benefit.title}</h3>
-                  <p className="mt-2 leading-relaxed text-slate-200">{benefit.body}</p>
+                  <h3 className="text-lg font-extrabold">{benefit.title}</h3>
+                  <p className="mt-2 leading-relaxed text-brand-ivory">{benefit.body}</p>
                 </div>
               </article>
             ))}
@@ -201,46 +201,46 @@ export default function RentCollectionFeaturePage() {
       <section className="mx-auto max-w-6xl px-4 py-20 sm:px-6 lg:px-8">
         <div className="grid gap-12 lg:grid-cols-[1.05fr_0.95fr]">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-green-300">More than rent collection</p>
-            <h2 className="mt-4 text-3xl font-bold text-white md:text-5xl">Keep the whole rental workflow connected.</h2>
-            <p className="mt-5 max-w-2xl text-lg leading-relaxed text-slate-200">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-brand-mint">More than rent collection</p>
+            <h2 className="mt-4 text-3xl font-extrabold text-white md:text-5xl">Keep the whole rental workflow connected.</h2>
+            <p className="mt-5 max-w-2xl text-lg leading-relaxed text-brand-ivory">
               Property Peace brings the records around rent day into the same calm workspace as the rest of your property operations.
             </p>
 
             <div className="mt-9 grid gap-6 sm:grid-cols-2">
               {workflowItems.map(({ icon: Icon, title, body }) => (
                 <article key={title} className="flex gap-4">
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center bg-[#EAF9EF] text-[#15803D]">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center bg-brand-mint text-brand-teal">
                     <Icon className="h-5 w-5" />
                   </span>
                   <div>
-                    <h3 className="font-bold text-white">{title}</h3>
-                    <p className="mt-1 text-sm leading-relaxed text-slate-200">{body}</p>
+                    <h3 className="font-extrabold text-white">{title}</h3>
+                    <p className="mt-1 text-sm leading-relaxed text-brand-ivory">{body}</p>
                   </div>
                 </article>
               ))}
             </div>
           </div>
 
-          <aside className="self-center border border-white/10 bg-[#263e52] p-8 md:p-10">
-            <FiBookOpen className="h-9 w-9 text-[#16A34A]" />
-            <p className="mt-6 text-xs font-bold uppercase tracking-[0.18em] text-slate-200">Free landlord resource</p>
-            <h2 className="mt-3 text-2xl font-bold text-white">Rental property cash-flow template</h2>
-            <p className="mt-4 leading-relaxed text-slate-200">
+          <aside className="self-center border border-white/10 bg-brand-forest-raised p-8 md:p-10">
+            <FiBookOpen className="h-9 w-9 text-brand-teal" />
+            <p className="mt-6 text-xs font-bold uppercase tracking-[0.18em] text-brand-ivory">Free landlord resource</p>
+            <h2 className="mt-3 text-2xl font-extrabold text-white">Rental property cash-flow template</h2>
+            <p className="mt-4 leading-relaxed text-brand-ivory">
               Build a clearer monthly view of rental income, operating expenses, and the cash you can plan around.
             </p>
-            <Link className="mt-6 inline-flex items-center font-semibold text-green-300 underline decoration-2 underline-offset-4 hover:text-green-200" href="/blog/rental-property-cash-flow-template-landlords/">
+            <Link className="mt-6 inline-flex items-center font-semibold text-brand-mint underline decoration-2 underline-offset-4 hover:text-brand-mint" href="/blog/rental-property-cash-flow-template-landlords/">
               Get the cash-flow template
             </Link>
           </aside>
         </div>
       </section>
 
-      <section className="bg-[#061E35] px-4 py-20 sm:px-6 lg:px-8">
+      <section className="bg-brand-forest px-4 py-20 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-6xl text-center">
-          <FiShield className="mx-auto h-9 w-9 text-[#16A34A]" />
-          <h2 className="mt-5 text-3xl font-bold text-white md:text-4xl">Approval comes before payment setup.</h2>
-          <p className="mx-auto mt-4 max-w-3xl text-lg leading-relaxed text-slate-200">
+          <FiShield className="mx-auto h-9 w-9 text-brand-teal" />
+          <h2 className="mt-5 text-3xl font-extrabold text-white md:text-4xl">Approval comes before payment setup.</h2>
+          <p className="mx-auto mt-4 max-w-3xl text-lg leading-relaxed text-brand-ivory">
             Rent payment access starts off for every organization. An owner or manager requests access, Property Peace reviews the request, and Stripe onboarding plus connected-payee review happen separately before tenant payments can be enabled.
           </p>
           <div className="mx-auto mt-9 grid max-w-4xl gap-4 text-left md:grid-cols-3">
@@ -251,10 +251,10 @@ export default function RentCollectionFeaturePage() {
             ].map(([Icon, title, body]) => {
               const StepIcon = Icon as typeof FiCheck;
               return (
-                <article key={title as string} className="border border-white/10 bg-[#263e52] p-6">
-                  <StepIcon className="h-6 w-6 text-[#16A34A]" />
-                  <h3 className="mt-4 font-bold text-white">{title as string}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-slate-200">{body as string}</p>
+                <article key={title as string} className="border border-white/10 bg-brand-forest-raised p-6">
+                  <StepIcon className="h-6 w-6 text-brand-teal" />
+                  <h3 className="mt-4 font-extrabold text-white">{title as string}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-brand-ivory">{body as string}</p>
                 </article>
               );
             })}

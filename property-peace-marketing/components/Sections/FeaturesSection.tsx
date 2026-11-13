@@ -10,45 +10,45 @@ export default function FeaturesSection() {
       icon: FiMessageCircle,
       title: 'Tenant Portal',
       description: 'Give tenants a self-service portal to send messages, submit requests, and access important documents—all in one place.',
-      gradient: 'from-blue-50 to-blue-100',
-      iconColor: 'text-green-600',
-      iconBg: 'bg-blue-100',
+      surface: 'bg-brand-ivory',
+      iconColor: 'text-brand-teal',
+      iconBg: 'bg-brand-surface',
       link: '/features/tenant-portal',
     },
     {
       icon: FiCreditCard,
       title: 'Track Rent and Reminders',
       description: 'Record payments, see overdue balances, calculate late fees, and manage reminders. Online rent payments are included with Free. Organizations request access, complete secure payment setup, and pass account review before tenants can pay online.',
-      gradient: 'from-orange-50 to-orange-100',
-      iconColor: 'text-orange-600',
-      iconBg: 'bg-orange-100',
+      surface: 'bg-brand-ivory',
+      iconColor: 'text-brand-teal',
+      iconBg: 'bg-brand-surface',
       link: '/features/payment-processing',
     },
     {
       icon: FiBarChart2,
       title: 'Rental Accounting',
       description: 'Capture receipts on the go via the mobile app and automatically import bank transactions.',
-      gradient: 'from-blue-50 to-blue-100',
-      iconColor: 'text-green-600',
-      iconBg: 'bg-blue-100',
+      surface: 'bg-brand-ivory',
+      iconColor: 'text-brand-teal',
+      iconBg: 'bg-brand-surface',
       link: '/features/financial-reports',
     },
     {
       icon: FiFileText,
       title: 'Tax Reporting',
       description: 'Stay on top of your finances with industry-specific reports and make filing your Schedule E easy.',
-      gradient: 'from-pink-50 to-pink-100',
-      iconColor: 'text-red-600',
-      iconBg: 'bg-pink-100',
+      surface: 'bg-brand-ivory',
+      iconColor: 'text-brand-teal',
+      iconBg: 'bg-brand-surface',
       link: '/features/financial-reports',
     },
     {
       icon: FiTool,
       title: 'Property Maintenance',
       description: 'Close maintenance requests faster with easy task management and prioritization.',
-      gradient: 'from-green-50 to-green-100',
-      iconColor: 'text-green-600',
-      iconBg: 'bg-green-100',
+      surface: 'bg-brand-ivory',
+      iconColor: 'text-brand-teal',
+      iconBg: 'bg-brand-surface',
       link: '/features/maintenance-tracking',
     },
   ];
@@ -66,12 +66,12 @@ export default function FeaturesSection() {
         >
           <h2
             className="text-4xl md:text-5xl font-bold text-primary-main mb-4"
-            style={{ fontFamily: '"Poppins", sans-serif' }}
+            style={{ fontFamily: '"Host Grotesk", sans-serif' }}
           >
             Built by landlords for landlords.
           </h2>
           <p
-            className="text-xl text-[#737373] max-w-3xl mx-auto"
+            className="text-xl text-brand-slate max-w-3xl mx-auto"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
             Offering you the solution to make the rental admin easy
@@ -91,7 +91,7 @@ export default function FeaturesSection() {
             return (
               <motion.div
                 key={index}
-                className={`bg-gradient-to-br ${feature.gradient} rounded-2xl p-6 border border-[#E5E5E5] hover:shadow-xl transition-all duration-300 hover:-translate-y-1`}
+                className={`${feature.surface} rounded-2xl p-6 border border-[var(--brand-border)] hover:shadow-xl transition-all duration-300 hover:-translate-y-1`}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
@@ -105,14 +105,14 @@ export default function FeaturesSection() {
                 {/* Title */}
                 <h3
                   className="text-xl font-bold text-primary-main mb-3"
-                  style={{ fontFamily: '"Poppins", sans-serif' }}
+                  style={{ fontFamily: '"Host Grotesk", sans-serif' }}
                 >
                   {feature.title}
                 </h3>
 
                 {/* Description */}
                 <p
-                  className="text-sm text-[#737373] mb-4 leading-relaxed"
+                  className="text-sm text-brand-slate mb-4 leading-relaxed"
                   style={{ fontFamily: '"Inter", sans-serif' }}
                 >
                   {feature.description}

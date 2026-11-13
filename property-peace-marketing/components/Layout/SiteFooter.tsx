@@ -20,18 +20,18 @@ export default function SiteFooter() {
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://app.propertypeace.io').replace(/\/$/, '');
 
   return (
-    <footer className="relative overflow-hidden bg-[#061e35] text-white">
+    <footer className="relative overflow-hidden bg-brand-forest text-white">
       <div className="relative z-10 mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
         {pathname !== '/' && (
           <div className="mb-12 flex flex-col gap-6 border-b border-white/15 pb-10 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.24em] text-[#22c55e]">A clearer place to begin</p>
-            <h2 className="mt-3 max-w-2xl text-2xl font-bold tracking-[-0.025em] text-white md:text-3xl" style={{ fontFamily: '"Poppins", sans-serif' }}>
+            <p className="text-xs font-bold uppercase tracking-[0.24em] text-brand-mint">A clearer place to begin</p>
+            <h2 className="mt-3 max-w-2xl text-2xl font-bold tracking-[-0.025em] text-white md:text-3xl" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>
               Find the rental workflow you want to make calmer.
             </h2>
           </div>
           <div className="flex flex-wrap gap-x-6 gap-y-2">
-            <Link href="/how-it-works" className="inline-flex min-h-11 items-center font-bold text-[#22c55e] transition-colors hover:text-green-400">
+            <Link href="/how-it-works" className="inline-flex min-h-11 items-center font-bold text-brand-mint transition-colors hover:text-white">
               See how it works →
             </Link>
             <Link href="/pricing" className="inline-flex min-h-11 items-center font-bold text-white transition-colors hover:text-white/80">
@@ -62,7 +62,7 @@ export default function SiteFooter() {
                   href={href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex h-11 w-11 items-center justify-center border border-white/10 bg-white/5 text-white/80 transition-colors hover:border-white/20 hover:bg-white/10 hover:text-white"
+                  className="flex h-11 w-11 items-center justify-center border border-white/10 bg-brand-forest-raised text-brand-mint transition-colors hover:border-[color-mix(in_srgb,var(--brand-mint)_40%,transparent)] hover:bg-brand-forest-hover hover:text-white"
                   aria-label={label}
                 >
                   <Icon className="h-4 w-4" />
@@ -73,7 +73,7 @@ export default function SiteFooter() {
 
           {footerNavigation.map((group) => (
             <div key={group.title}>
-              <h3 className="mb-4 text-sm font-bold text-[#22c55e]">{group.title}</h3>
+              <h3 className="mb-4 text-sm font-bold text-brand-mint">{group.title}</h3>
               <ul className="space-y-1">
                 {group.links.map((link) => {
                   const className = 'inline-flex min-h-10 items-center text-sm font-semibold leading-5 text-white/80 transition-colors hover:text-white';
@@ -97,9 +97,9 @@ export default function SiteFooter() {
         <div className="mt-12 grid grid-cols-1 items-center gap-4 border-t border-white/15 pt-8 text-sm text-white/55 md:grid-cols-3">
           <p className="order-2 text-center text-white md:order-1 md:text-left">© 2026 Property Peace. All rights reserved.</p>
           <div className="order-1 flex flex-wrap items-center justify-center gap-x-5 gap-y-1 md:order-2">
-            <Link href="/terms" className="inline-flex min-h-10 items-center font-semibold text-[#22c55e] transition-colors hover:text-green-400">Terms of Use</Link>
-            <Link href="/privacy" className="inline-flex min-h-10 items-center font-semibold text-[#22c55e] transition-colors hover:text-green-400">Privacy Policy</Link>
-            <Link href="/sitemap" className="inline-flex min-h-10 items-center font-semibold text-[#22c55e] transition-colors hover:text-green-400">Sitemap</Link>
+            <Link href="/terms" className="inline-flex min-h-10 items-center font-semibold text-brand-mint transition-colors hover:text-white">Terms of Use</Link>
+            <Link href="/privacy" className="inline-flex min-h-10 items-center font-semibold text-brand-mint transition-colors hover:text-white">Privacy Policy</Link>
+            <Link href="/sitemap" className="inline-flex min-h-10 items-center font-semibold text-brand-mint transition-colors hover:text-white">Sitemap</Link>
           </div>
           <p className="order-3 text-center text-white md:text-right">Created by Brownstone Hub LLC</p>
         </div>

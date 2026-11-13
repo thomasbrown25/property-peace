@@ -10,21 +10,21 @@ const testimonials = [
     name: 'David M.',
     descriptor: '12-Unit Owner',
     initials: 'DM',
-    accent: '#3b82f6',
+    accent: 'var(--brand-mint)',
   },
   {
     quote: 'I manage 5 properties and I knew I needed software to make things easier but I didn\'t want to pay for a bunch of features I wouldn\'t use or need. I find Property Peace to be a great balance between simplicity and functionality with valuable features.',
     name: 'Mato P.',
     descriptor: '5-Property Owner',
     initials: 'MP',
-    accent: '#a855f7',
+    accent: 'var(--brand-mint)',
   },
   {
     quote: 'I use to manage my properties with Google Sheets, QuickBooks, and Excel. I made the switch to Property Peace and I couldn\'t be happier. I had a call with the owner and he walked me through setup. It was as simple as advertised. The owner has been great to work with, very professional and curtious. I highly recommend this software to any self-managed landlord looking for a simple, affordable, and effective way to manage their properties.',
     name: 'Alexander C.',
     descriptor: '3-Property Owner',
     initials: 'AC',
-    accent: '#22c55e',
+    accent: 'var(--brand-mint)',
   },
 ];
 
@@ -57,14 +57,14 @@ export default function SocialProof() {
           transition={{ duration: 0.6, ease: 'easeOut' }}
         >
           <span
-            className="inline-block text-xs font-semibold tracking-widest uppercase text-[#061e35] mb-4 px-3 py-1 rounded-full border border-[#061e35]/15 bg-[#061e35]/5"
+            className="inline-block text-xs font-semibold tracking-widest uppercase text-brand-mint mb-4 px-3 py-1 rounded-full border border-[color-mix(in_srgb,var(--brand-mint)_20%,transparent)] bg-brand-forest-raised"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
             Real landlords, real results
           </span>
           <h2
             className="text-3xl md:text-4xl font-bold text-white mb-3"
-            style={{ fontFamily: '"Poppins", sans-serif' }}
+            style={{ fontFamily: '"Host Grotesk", sans-serif' }}
           >
             What Landlords Are Saying
           </h2>
@@ -83,7 +83,7 @@ export default function SocialProof() {
               key={t.initials}
               className="relative flex flex-col rounded-2xl overflow-hidden"
               style={{
-                background: 'linear-gradient(145deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.03) 100%)',
+                background: 'var(--brand-forest-raised)',
                 border: '1px solid rgba(255,255,255,0.1)',
                 backdropFilter: 'blur(12px)',
                 boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
@@ -94,7 +94,7 @@ export default function SocialProof() {
               transition={{ duration: 0.5, ease: 'easeOut', delay: i * 0.1 }}
             >
               {/* Accent line */}
-              <div className="h-0.5 flex-shrink-0" style={{ background: `linear-gradient(90deg, ${t.accent}, transparent)` }} />
+              <div className="h-0.5 flex-shrink-0" style={{ background: t.accent }} />
 
               <div className="flex flex-col flex-1 p-6">
                 <Stars />
@@ -108,13 +108,13 @@ export default function SocialProof() {
 
                 <div className="flex items-center gap-3">
                   <div
-                    className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
-                    style={{ background: `linear-gradient(135deg, ${t.accent}, ${t.accent}99)` }}
+                    className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-brand-forest flex-shrink-0"
+                    style={{ background: t.accent }}
                   >
                     {t.initials}
                   </div>
                   <div>
-                    <p className="font-semibold text-white text-sm" style={{ fontFamily: '"Poppins", sans-serif' }}>
+                    <p className="font-semibold text-white text-sm" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>
                       {t.name}
                     </p>
                     <p className="text-xs text-white/45" style={{ fontFamily: '"Inter", sans-serif' }}>

@@ -67,7 +67,7 @@ function IncomeStep() {
       >
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-wide mb-0.5" style={{ color: '#16a34a' }}>YTD Gross Income</p>
-          <p className="text-xl font-bold text-primary-main" style={{ fontFamily: '"Poppins", sans-serif' }}>$48,600</p>
+          <p className="text-xl font-bold text-primary-main" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>$48,600</p>
         </div>
         <p className="text-[10px] text-[#9ca3af]">Jan – Apr 2024</p>
       </motion.div>
@@ -129,7 +129,7 @@ function ExpensesStep() {
       >
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-wide mb-0.5" style={{ color: ORANGE }}>Total Expenses YTD</p>
-          <p className="text-xl font-bold text-primary-main" style={{ fontFamily: '"Poppins", sans-serif' }}>$14,230</p>
+          <p className="text-xl font-bold text-primary-main" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>$14,230</p>
         </div>
         <p className="text-[10px] text-[#9ca3af]">5 categories</p>
       </motion.div>
@@ -169,7 +169,7 @@ function ReportStep() {
             style={{ background: s.bg, border: `1px solid ${s.border}` }}
           >
             <p className="text-[10px] text-[#9ca3af] mb-1 leading-tight">{s.label}</p>
-            <p className="text-sm font-bold" style={{ color: s.color, fontFamily: '"Poppins", sans-serif' }}>{s.value}</p>
+            <p className="text-sm font-bold" style={{ color: s.color, fontFamily: '"Host Grotesk", sans-serif' }}>{s.value}</p>
           </motion.div>
         ))}
       </div>
@@ -266,7 +266,7 @@ export default function RentalAccounting() {
           >
             <div
               className="rounded-2xl border border-gray-200 overflow-hidden"
-              style={{ background: '#ffffff', boxShadow: '0 20px 60px rgba(10,45,82,0.10)' }}
+              style={{ background: 'var(--brand-surface)', boxShadow: '0 20px 60px color-mix(in srgb, var(--brand-forest) 10%, transparent)' }}
               onMouseEnter={() => { isPausedRef.current = true; }}
               onMouseLeave={() => { isPausedRef.current = false; }}
             >
@@ -274,11 +274,11 @@ export default function RentalAccounting() {
               <div className="px-5 pt-5 pb-4 border-b border-gray-100">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(249,115,22,0.10)' }}>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={ORANGE} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'var(--brand-ivory)' }}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--brand-teal)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <rect x="2" y="3" width="20" height="14" rx="2" />
                         <path d="M8 21h8M12 17v4" />
-                        <path d="M7 8h2v5H7zM11 6h2v7h-2zM15 10h2v3h-2z" fill={ORANGE} stroke="none" />
+                        <path d="M7 8h2v5H7zM11 6h2v7h-2zM15 10h2v3h-2z" fill="var(--brand-teal)" stroke="none" />
                       </svg>
                     </div>
                     <div>
@@ -286,7 +286,7 @@ export default function RentalAccounting() {
                       <p className="text-xs text-[#9ca3af]" style={{ fontFamily: '"Inter", sans-serif' }}>All properties · 2024</p>
                     </div>
                   </div>
-                  <span className="text-xs px-2.5 py-1 rounded-full font-medium" style={{ background: 'rgba(249,115,22,0.08)', color: ORANGE, border: `1px solid rgba(249,115,22,0.2)`, fontFamily: '"Inter", sans-serif' }}>
+                  <span className="text-xs px-2.5 py-1 rounded-full font-medium" style={{ background: 'var(--brand-ivory)', color: 'var(--brand-teal)', border: '1px solid var(--brand-border)', fontFamily: '"Inter", sans-serif' }}>
                     Tax-ready
                   </span>
                 </div>
@@ -300,17 +300,17 @@ export default function RentalAccounting() {
                         key={i}
                         onClick={() => handleStepClick(i)}
                         className="flex-1 relative flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-left overflow-hidden transition-colors duration-200"
-                        style={{ background: isActive ? 'rgba(249,115,22,0.07)' : 'rgba(0,0,0,0.02)', border: isActive ? `1px solid rgba(249,115,22,0.25)` : '1px solid rgba(0,0,0,0.06)' }}
+                        style={{ background: isActive ? 'var(--brand-ivory)' : 'var(--brand-surface)', border: isActive ? '1px solid var(--brand-teal)' : '1px solid var(--brand-border)' }}
                       >
-                        <span className="w-4 h-4 rounded-full text-[10px] font-bold flex items-center justify-center flex-shrink-0" style={{ background: isActive ? ORANGE : 'rgba(0,0,0,0.08)', color: isActive ? '#fff' : '#9ca3af' }}>
+                        <span className="w-4 h-4 rounded-full text-[10px] font-bold flex items-center justify-center flex-shrink-0" style={{ background: isActive ? 'var(--brand-teal)' : 'var(--brand-ivory)', color: isActive ? 'var(--brand-surface)' : 'var(--brand-slate)' }}>
                           {i + 1}
                         </span>
-                        <span className="text-[9px] sm:text-[10px] font-medium leading-tight" style={{ color: isActive ? ORANGE : '#9ca3af' }}>
+                        <span className="text-[9px] sm:text-[10px] font-medium leading-tight" style={{ color: isActive ? 'var(--brand-teal)' : 'var(--brand-slate)' }}>
                           {step.label}
                         </span>
                         {isActive && (
-                          <div className="absolute bottom-0 left-0 right-0 h-0.5" style={{ background: 'rgba(249,115,22,0.12)' }}>
-                            <div className="h-full" style={{ width: `${progress}%`, background: ORANGE, transition: 'none' }} />
+                          <div className="absolute bottom-0 left-0 right-0 h-0.5" style={{ background: 'var(--brand-mint)' }}>
+                            <div className="h-full" style={{ width: `${progress}%`, background: 'var(--brand-teal)', transition: 'none' }} />
                           </div>
                         )}
                       </button>
@@ -348,28 +348,28 @@ export default function RentalAccounting() {
           >
             <span
               className="inline-block text-xs font-semibold tracking-widest uppercase mb-5 px-3 py-1 rounded-full border"
-              style={{ fontFamily: '"Inter", sans-serif', color: '#16a34a', borderColor: 'rgba(34,197,94,0.20)', background: 'rgba(34,197,94,0.08)' }}
+              style={{ fontFamily: '"Inter", sans-serif', color: 'var(--brand-teal)', borderColor: 'var(--brand-border)', background: 'var(--brand-ivory)' }}
             >
               Rental Accounting &amp; Reports
             </span>
 
             <h2
               className="text-3xl md:text-4xl lg:text-5xl font-bold mb-5 text-primary-main"
-              style={{ fontFamily: '"Poppins", sans-serif', lineHeight: '1.2' }}
+              style={{ fontFamily: '"Host Grotesk", sans-serif', lineHeight: '1.2' }}
             >
               Track income and expenses with automated reports.
             </h2>
 
             <p
-              className="text-base md:text-lg text-[#737373] mb-6 leading-relaxed"
+              className="text-base md:text-lg text-brand-slate mb-6 leading-relaxed"
               style={{ fontFamily: '"Inter", sans-serif' }}
             >
               Generate Schedule E reports, rent ledgers, and expense breakdowns automatically. Easier to use and more affordable than QuickBooks — replace messy spreadsheets with organized, tax-ready financials.
             </p>
 
             <p
-              className="text-sm md:text-base text-[#516A80] mb-6 italic pl-4"
-              style={{ fontFamily: '"Inter", sans-serif', borderLeft: '3px solid #0a2d52' }}
+              className="text-sm md:text-base text-brand-slate mb-6 italic pl-4"
+              style={{ fontFamily: '"Inter", sans-serif', borderLeft: '3px solid var(--brand-forest)' }}
             >
               No more juggling QuickBooks, paper receipts, and manual spreadsheets at tax time.
             </p>
@@ -377,7 +377,7 @@ export default function RentalAccounting() {
             <Link
               href="/features/financial-reports"
               className="inline-flex items-center gap-1.5 font-medium text-sm transition-colors"
-              style={{ fontFamily: '"Inter", sans-serif', color: '#0a2d52' }}
+              style={{ fontFamily: '"Inter", sans-serif', color: 'var(--brand-forest)' }}
             >
               Explore how rental accounting works
               <span>→</span>

@@ -480,22 +480,22 @@ export default function AdminSubscriptions() {
                   <TableHead>
                     <TableRow>
                       <TableCell>
-                        <strong>Plan Name</strong>
+                        Plan Name
                       </TableCell>
                       <TableCell>
-                        <strong>Monthly Price</strong>
+                        Monthly Price
                       </TableCell>
                       <TableCell>
-                        <strong>Annual Price</strong>
+                        Annual Price
                       </TableCell>
                       <TableCell>
-                        <strong>Max Units</strong>
+                        Max Units
                       </TableCell>
                       <TableCell>
-                        <strong>Status</strong>
+                        Status
                       </TableCell>
                       <TableCell align="right">
-                        <strong>Actions</strong>
+                        Actions
                       </TableCell>
                     </TableRow>
                   </TableHead>
@@ -546,28 +546,28 @@ export default function AdminSubscriptions() {
                 <TableHead>
                   <TableRow>
                     <TableCell>
-                      <strong>User</strong>
+                      User
                     </TableCell>
                     <TableCell>
-                      <strong>Plan</strong>
+                      Plan
                     </TableCell>
                     <TableCell>
-                      <strong>Status</strong>
+                      Status
                     </TableCell>
                     <TableCell>
-                      <strong>Billing Cycle</strong>
+                      Billing Cycle
                     </TableCell>
                     <TableCell>
-                      <strong>Price</strong>
+                      Price
                     </TableCell>
                     <TableCell>
-                      <strong>Current Period</strong>
+                      Current Period
                     </TableCell>
                     <TableCell>
-                      <strong>Trial End</strong>
+                      Trial End
                     </TableCell>
                     <TableCell align="right">
-                      <strong>Actions</strong>
+                      Actions
                     </TableCell>
                   </TableRow>
                 </TableHead>

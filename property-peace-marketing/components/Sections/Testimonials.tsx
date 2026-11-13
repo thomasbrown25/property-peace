@@ -18,11 +18,11 @@ export default function Testimonials() {
             transition={{ duration: 0.6, ease: "easeOut" }}
           >
             <div 
-              className="aspect-square bg-[#737373] rounded-lg overflow-hidden"
+              className="aspect-square bg-brand-forest-raised rounded-lg overflow-hidden"
               role="img"
               aria-label="Property owner testimonial for Property Peace - Property management software helping landlords manage rental properties, automate rent collection, and track maintenance efficiently"
             >
-              <div className="w-full h-full bg-gradient-to-br from-[#737373] to-[#042238] flex items-center justify-center">
+              <div className="w-full h-full bg-brand-forest-raised flex items-center justify-center">
                 <div className="text-center">
                   <div className="w-32 h-32 bg-[#E5E5E5] rounded-full mx-auto mb-4" />
                   <p className="text-[#E5E5E5]">Property Owner</p>
@@ -39,15 +39,15 @@ export default function Testimonials() {
             viewport={{ once: true, amount: 0.2 }}
             transition={{ duration: 0.6, ease: "easeOut", delay: 0.2 }}
           >
-            <blockquote className="text-3xl md:text-4xl font-bold leading-relaxed" style={{ fontFamily: '"Poppins", sans-serif' }}>
+            <blockquote className="text-3xl md:text-4xl font-bold leading-relaxed" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>
               &quot;Property Peace has transformed how I manage my 15-unit apartment building. I went from spending hours on spreadsheets to having everything automated. Rent collection is now effortless, and I can track everything from my phone.&quot;
             </blockquote>
             
             <div className="space-y-2">
-              <p className="text-xl font-semibold" style={{ fontFamily: '"Poppins", sans-serif' }}>Sarah Martinez</p>
+              <p className="text-xl font-semibold" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>Sarah Martinez</p>
               <p className="text-[#E5E5E5]" style={{ fontFamily: '"Inter", sans-serif' }}>Property Owner & Landlord</p>
               <div className="flex items-center space-x-2 mt-4">
-                <div className="w-12 h-12 bg-[#737373] rounded flex items-center justify-center">
+                <div className="w-12 h-12 bg-brand-teal rounded flex items-center justify-center">
                   <span className="text-white text-xs font-bold">SM</span>
                 </div>
                 <span className="text-[#E5E5E5]">Small Apartment Building Owner</span>

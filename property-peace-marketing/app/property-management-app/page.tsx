@@ -43,16 +43,16 @@ export default function PropertyManagementAppPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#061E35] text-white">
+    <div className="min-h-screen bg-brand-forest text-white">
       {/* Hero Section */}
-      <section className="bg-[#061E35] px-4 pb-16 pt-32 sm:px-6 lg:px-8">
+      <section className="bg-brand-forest px-4 pb-16 pt-32 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto text-center">
           <div className="flex justify-center mb-6">
-            <FiSmartphone className="w-16 h-16 text-green-300" />
+            <FiSmartphone className="w-16 h-16 text-brand-mint" />
           </div>
           <h1
-            className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6"
-            style={{ fontFamily: '"Poppins", sans-serif' }}
+            className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-white mb-6"
+            style={{ fontFamily: '"Host Grotesk", sans-serif' }}
           >
             Best Property Management App for Landlords
           </h1>
@@ -64,7 +64,7 @@ export default function PropertyManagementAppPage() {
           </p>
           <Link
             href="https://app.propertypeace.io/register"
-            className="inline-flex items-center space-x-2 px-8 py-4 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-none font-semibold transition-all duration-300 hover:from-green-600 hover:to-green-700 hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(34,197,94,0.25)]"
+            className="inline-flex items-center space-x-2 px-8 py-4 bg-gradient-to-r from-brand-teal to-brand-teal text-white rounded-none font-semibold transition-all duration-300 hover:from-brand-teal hover:to-brand-teal-hover hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(36,117,104,0.25)]"
             style={{ fontFamily: '"Inter", "Inter Placeholder", sans-serif' }}
           >
             <span>Get Started</span>
@@ -77,15 +77,15 @@ export default function PropertyManagementAppPage() {
       <section className="py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-6xl mx-auto">
           <h2
-            className="text-3xl md:text-4xl font-bold text-white mb-12 text-center"
-            style={{ fontFamily: '"Poppins", sans-serif' }}
+            className="text-3xl md:text-4xl font-extrabold text-white mb-12 text-center"
+            style={{ fontFamily: '"Host Grotesk", sans-serif' }}
           >
             Manage Properties from Your Phone
           </h2>
           <div className="grid md:grid-cols-2 gap-6">
             {appFeatures.map((feature, index) => (
               <div key={index} className="flex items-start space-x-3">
-                <FiCheck className="w-6 h-6 text-green-300 flex-shrink-0 mt-1" />
+                <FiCheck className="w-6 h-6 text-brand-mint flex-shrink-0 mt-1" />
                 <p
                   className="text-lg text-white"
                   style={{ fontFamily: '"Inter", sans-serif' }}
@@ -99,19 +99,19 @@ export default function PropertyManagementAppPage() {
       </section>
 
       {/* Use Cases */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-[#061E35]">
+      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-brand-forest">
         <div className="max-w-6xl mx-auto">
           <h2
-            className="text-3xl md:text-4xl font-bold text-white mb-12 text-center"
-            style={{ fontFamily: '"Poppins", sans-serif' }}
+            className="text-3xl md:text-4xl font-extrabold text-white mb-12 text-center"
+            style={{ fontFamily: '"Host Grotesk", sans-serif' }}
           >
             Perfect for On-the-Go Property Management
           </h2>
           <div className="grid md:grid-cols-3 gap-8">
             <div>
               <h3
-                className="text-xl font-bold text-white mb-3"
-                style={{ fontFamily: '"Poppins", sans-serif' }}
+                className="text-xl font-extrabold text-white mb-3"
+                style={{ fontFamily: '"Host Grotesk", sans-serif' }}
               >
                 Check Rent Status
               </h3>
@@ -124,8 +124,8 @@ export default function PropertyManagementAppPage() {
             </div>
             <div>
               <h3
-                className="text-xl font-bold text-white mb-3"
-                style={{ fontFamily: '"Poppins", sans-serif' }}
+                className="text-xl font-extrabold text-white mb-3"
+                style={{ fontFamily: '"Host Grotesk", sans-serif' }}
               >
                 Respond to Maintenance
               </h3>
@@ -138,8 +138,8 @@ export default function PropertyManagementAppPage() {
             </div>
             <div>
               <h3
-                className="text-xl font-bold text-white mb-3"
-                style={{ fontFamily: '"Poppins", sans-serif' }}
+                className="text-xl font-extrabold text-white mb-3"
+                style={{ fontFamily: '"Host Grotesk", sans-serif' }}
               >
                 Access Property Details
               </h3>
@@ -158,16 +158,16 @@ export default function PropertyManagementAppPage() {
       <section className="py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto">
           <h2
-            className="text-3xl md:text-4xl font-bold text-white mb-6 text-center"
-            style={{ fontFamily: '"Poppins", sans-serif' }}
+            className="text-3xl md:text-4xl font-extrabold text-white mb-6 text-center"
+            style={{ fontFamily: '"Host Grotesk", sans-serif' }}
           >
             Why a Mobile Property Management App Matters
           </h2>
           <div className="space-y-6">
             <div>
               <h3
-                className="text-xl font-bold text-white mb-2"
-                style={{ fontFamily: '"Poppins", sans-serif' }}
+                className="text-xl font-extrabold text-white mb-2"
+                style={{ fontFamily: '"Host Grotesk", sans-serif' }}
               >
                 Faster Response Times
               </h3>
@@ -180,8 +180,8 @@ export default function PropertyManagementAppPage() {
             </div>
             <div>
               <h3
-                className="text-xl font-bold text-white mb-2"
-                style={{ fontFamily: '"Poppins", sans-serif' }}
+                className="text-xl font-extrabold text-white mb-2"
+                style={{ fontFamily: '"Host Grotesk", sans-serif' }}
               >
                 Better Work-Life Balance
               </h3>
@@ -194,8 +194,8 @@ export default function PropertyManagementAppPage() {
             </div>
             <div>
               <h3
-                className="text-xl font-bold text-white mb-2"
-                style={{ fontFamily: '"Poppins", sans-serif' }}
+                className="text-xl font-extrabold text-white mb-2"
+                style={{ fontFamily: '"Host Grotesk", sans-serif' }}
               >
                 Professional Image
               </h3>
@@ -212,22 +212,22 @@ export default function PropertyManagementAppPage() {
 
       {/* CTA Section */}
       <section className="py-16 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-4xl mx-auto text-center bg-[#061e35] rounded-2xl p-12 text-white">
+        <div className="max-w-4xl mx-auto text-center bg-brand-forest rounded-2xl p-12 text-white">
           <h2
-            className="text-3xl md:text-4xl font-bold mb-6"
-            style={{ fontFamily: '"Poppins", sans-serif' }}
+            className="text-3xl md:text-4xl font-extrabold mb-6"
+            style={{ fontFamily: '"Host Grotesk", sans-serif' }}
           >
             Start Managing Properties from Your Phone Today
           </h2>
           <p
-            className="text-xl text-[#E5E5E5] mb-8"
+            className="text-xl text-[var(--brand-border)] mb-8"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
             Get started with Property Peace free. No credit card required. Experience mobile property management at its best.
           </p>
           <Link
             href="https://app.propertypeace.io/register"
-            className="inline-flex items-center space-x-2 px-8 py-4 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-none font-semibold transition-all duration-300 hover:from-green-600 hover:to-green-700 hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(34,197,94,0.25)]"
+            className="inline-flex items-center space-x-2 px-8 py-4 bg-gradient-to-r from-brand-teal to-brand-teal text-white rounded-none font-semibold transition-all duration-300 hover:from-brand-teal hover:to-brand-teal-hover hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(36,117,104,0.25)]"
             style={{ fontFamily: '"Inter", "Inter Placeholder", sans-serif' }}
           >
             <span>Get Started</span>
@@ -237,7 +237,7 @@ export default function PropertyManagementAppPage() {
       </section>
 
       {/* Related Links */}
-      <section className="py-12 px-4 sm:px-6 lg:px-8 border-t border-[#E5E5E5]">
+      <section className="py-12 px-4 sm:px-6 lg:px-8 border-t border-[var(--brand-border)]">
         <div className="max-w-6xl mx-auto">
           <p
             className="text-center text-white/80 mb-4"
@@ -246,10 +246,10 @@ export default function PropertyManagementAppPage() {
             Learn more:
           </p>
           <div className="flex flex-wrap justify-center gap-4">
-            <Link href="/features" className="text-green-300 hover:underline">Features</Link>
-            <Link href="/landlord-software" className="text-green-300 hover:underline">Landlord Software</Link>
-            <Link href="/blog" className="text-green-300 hover:underline">Blog</Link>
-            <Link href="/small-landlord-tools" className="text-green-300 hover:underline">Small Landlord Tools</Link>
+            <Link href="/features" className="text-brand-mint hover:underline">Features</Link>
+            <Link href="/landlord-software" className="text-brand-mint hover:underline">Landlord Software</Link>
+            <Link href="/blog" className="text-brand-mint hover:underline">Blog</Link>
+            <Link href="/small-landlord-tools" className="text-brand-mint hover:underline">Small Landlord Tools</Link>
           </div>
         </div>
       </section>

@@ -341,9 +341,9 @@ export default function UnitImportPage() {
             <Table size="small" sx={{ mb: 2 }}>
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ fontWeight: 600 }}>Column</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Required</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Values / Format</TableCell>
+                  <TableCell>Column</TableCell>
+                  <TableCell>Required</TableCell>
+                  <TableCell>Values / Format</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>

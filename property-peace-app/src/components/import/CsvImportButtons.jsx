@@ -289,9 +289,9 @@ function EditablePreviewTable({ columns, items, onValueChange }) {
       <Table size="small" stickyHeader>
         <TableHead>
           <TableRow>
-            <TableCell sx={{ fontWeight: 700, minWidth: 64 }}>Row</TableCell>
+            <TableCell sx={{ minWidth: 64 }}>Row</TableCell>
             {columns.map((column) => (
-              <TableCell key={column.key} sx={{ fontWeight: 700, minWidth: column.minWidth || 150 }}>
+              <TableCell key={column.key} sx={{ minWidth: column.minWidth || 150 }}>
                 {column.label}{column.required ? ' *' : ''}
               </TableCell>
             ))}

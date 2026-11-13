@@ -19,12 +19,12 @@ export default function MaintenanceCommunication() {
           >
             <h2
               className="text-3xl md:text-4xl font-bold text-primary-main mb-4"
-              style={{ fontFamily: '"Poppins", sans-serif' }}
+              style={{ fontFamily: '"Host Grotesk", sans-serif' }}
             >
               Handle Maintenance
             </h2>
             <p
-              className="text-lg text-[#737373] mb-6 leading-relaxed"
+              className="text-lg text-brand-slate mb-6 leading-relaxed"
               style={{ fontFamily: '"Inter", sans-serif' }}
             >
               Streamline your maintenance workflow with easy task management and prioritization. Close maintenance requests faster by tracking status, assigning vendors, and keeping tenants updated—all from one centralized hub.
@@ -42,7 +42,7 @@ export default function MaintenanceCommunication() {
             <div className="mt-8 grid grid-cols-3 gap-4">
               {/* NEW Column */}
               <div className="space-y-3">
-                <div className="text-xs font-semibold text-[#737373] uppercase mb-2" style={{ fontFamily: '"Inter", sans-serif' }}>
+                <div className="text-xs font-semibold text-brand-slate uppercase mb-2" style={{ fontFamily: '"Inter", sans-serif' }}>
                   NEW 3
                 </div>
                 <div className="bg-[#F5F5F5] rounded-lg p-4 border border-[#E5E5E5]">
@@ -54,7 +54,7 @@ export default function MaintenanceCommunication() {
                   <p className="text-sm font-medium text-primary-main mb-1" style={{ fontFamily: '"Inter", sans-serif' }}>
                     Leaky water pipe
                   </p>
-                  <p className="text-xs text-[#737373]" style={{ fontFamily: '"Inter", sans-serif' }}>
+                  <p className="text-xs text-brand-slate" style={{ fontFamily: '"Inter", sans-serif' }}>
                     UNIT 14
                   </p>
                 </div>
@@ -62,7 +62,7 @@ export default function MaintenanceCommunication() {
 
               {/* IN PROGRESS Column */}
               <div className="space-y-3">
-                <div className="text-xs font-semibold text-[#737373] uppercase mb-2" style={{ fontFamily: '"Inter", sans-serif' }}>
+                <div className="text-xs font-semibold text-brand-slate uppercase mb-2" style={{ fontFamily: '"Inter", sans-serif' }}>
                   IN PROGRESS 2
                 </div>
                 <div className="bg-[#F5F5F5] rounded-lg p-4 border border-[#E5E5E5]">
@@ -74,7 +74,7 @@ export default function MaintenanceCommunication() {
                   <p className="text-sm font-medium text-primary-main mb-1" style={{ fontFamily: '"Inter", sans-serif' }}>
                     Minor wall damage
                   </p>
-                  <p className="text-xs text-[#737373]" style={{ fontFamily: '"Inter", sans-serif' }}>
+                  <p className="text-xs text-brand-slate" style={{ fontFamily: '"Inter", sans-serif' }}>
                     UNIT 14
                   </p>
                 </div>
@@ -82,7 +82,7 @@ export default function MaintenanceCommunication() {
 
               {/* COMPLETED Column */}
               <div className="space-y-3">
-                <div className="text-xs font-semibold text-[#737373] uppercase mb-2" style={{ fontFamily: '"Inter", sans-serif' }}>
+                <div className="text-xs font-semibold text-brand-slate uppercase mb-2" style={{ fontFamily: '"Inter", sans-serif' }}>
                   COMPLETED
                 </div>
                 <div className="bg-green-50 rounded-lg p-4 border border-green-200 min-h-[100px] flex items-center justify-center">
@@ -102,12 +102,12 @@ export default function MaintenanceCommunication() {
           >
             <h2
               className="text-3xl md:text-4xl font-bold text-primary-main mb-4"
-              style={{ fontFamily: '"Poppins", sans-serif' }}
+              style={{ fontFamily: '"Host Grotesk", sans-serif' }}
             >
               Tenant Communication
             </h2>
             <p
-              className="text-lg text-[#737373] mb-6 leading-relaxed"
+              className="text-lg text-brand-slate mb-6 leading-relaxed"
               style={{ fontFamily: '"Inter", sans-serif' }}
             >
               Send announcements to all properties or specific units instantly. Keep tenants informed with in-app and email notifications. SMS requires Premium; one dedicated organization number is included, with activation and configuration required.
@@ -128,24 +128,24 @@ export default function MaintenanceCommunication() {
                   <FiBell className="w-5 h-5 text-primary-main" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-primary-main mb-1" style={{ fontFamily: '"Poppins", sans-serif' }}>
+                  <h3 className="font-semibold text-primary-main mb-1" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>
                     Property Announcements
                   </h3>
-                  <p className="text-sm text-[#737373]" style={{ fontFamily: '"Inter", sans-serif' }}>
+                  <p className="text-sm text-brand-slate" style={{ fontFamily: '"Inter", sans-serif' }}>
                     Broadcast messages to all tenants or target specific properties
                   </p>
                 </div>
               </div>
 
               <div className="flex items-start space-x-4 p-4 bg-[#F5F5F5] rounded-lg">
-                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <FiMessageSquare className="w-5 h-5 text-green-600" />
+                <div className="w-10 h-10 bg-brand-mint rounded-lg flex items-center justify-center flex-shrink-0">
+                  <FiMessageSquare className="w-5 h-5 text-brand-forest" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-primary-main mb-1" style={{ fontFamily: '"Poppins", sans-serif' }}>
+                  <h3 className="font-semibold text-primary-main mb-1" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>
                     Multi-Channel Notifications
                   </h3>
-                  <p className="text-sm text-[#737373]" style={{ fontFamily: '"Inter", sans-serif' }}>
+                  <p className="text-sm text-brand-slate" style={{ fontFamily: '"Inter", sans-serif' }}>
                     Reach tenants in-app and by email; Premium includes one SMS number, with activation and configuration required
                   </p>
                 </div>
@@ -156,10 +156,10 @@ export default function MaintenanceCommunication() {
                   <FiMessageSquare className="w-5 h-5 text-orange-600" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-primary-main mb-1" style={{ fontFamily: '"Poppins", sans-serif' }}>
+                  <h3 className="font-semibold text-primary-main mb-1" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>
                     Real-Time Messaging
                   </h3>
-                  <p className="text-sm text-[#737373]" style={{ fontFamily: '"Inter", sans-serif' }}>
+                  <p className="text-sm text-brand-slate" style={{ fontFamily: '"Inter", sans-serif' }}>
                     Instant two-way communication with tenants
                   </p>
                 </div>

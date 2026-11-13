@@ -49,31 +49,31 @@ export default function ResourcesPage() {
     .slice(0, 3);
 
   return (
-    <main className="min-h-screen bg-[#061E35] text-white">
+    <main className="min-h-screen bg-brand-forest text-white">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionSchema) }} />
 
-      <section data-marketing-hero-theme="dark" className="relative flex min-h-[440px] items-center overflow-hidden bg-[#061E35] px-4 pb-20 pt-36 text-center text-white sm:px-6 md:min-h-[480px] md:pb-24 md:pt-40 lg:px-8">
+      <section data-marketing-hero-theme="dark" className="relative flex min-h-[440px] items-center overflow-hidden bg-brand-forest px-4 pb-20 pt-36 text-center text-white sm:px-6 md:min-h-[480px] md:pb-24 md:pt-40 lg:px-8">
         <div className="absolute inset-0 bg-cover bg-center bg-no-repeat" style={{ backgroundImage: 'url(/images/resources/hero.png)' }} aria-hidden="true" />
-        <div className="absolute inset-0 bg-[linear-gradient(to_top,#061E35_0%,rgba(6,30,53,0.92)_24%,rgba(6,30,53,0.73)_64%,rgba(6,30,53,0.74)_100%)]" aria-hidden="true" />
+        <div className="absolute inset-0 bg-brand-forest opacity-90" aria-hidden="true" />
         <div className="relative mx-auto max-w-3xl">
-          <h1 className="text-4xl font-bold leading-tight text-green-400 sm:text-5xl md:text-6xl" style={{ fontFamily: '"Poppins", sans-serif' }}>Resources</h1>
+          <h1 className="text-4xl font-bold leading-tight text-brand-mint sm:text-5xl md:text-6xl" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>Resources</h1>
           <p className="mx-auto mt-6 max-w-2xl text-lg leading-8 text-white/90 md:text-xl" style={{ fontFamily: '"Inter", sans-serif' }}>
             Practical guides and thoughtful advice for managing your properties, staying organized, and making the everyday work a little easier.
           </p>
         </div>
       </section>
 
-      <section className="bg-[#061E35] px-4 pb-20 pt-8 text-white sm:px-6 md:pb-28 md:pt-12 lg:px-8">
+      <section className="bg-brand-forest px-4 pb-20 pt-8 text-white sm:px-6 md:pb-28 md:pt-12 lg:px-8">
         <div className="mx-auto max-w-6xl">
-          <h2 className="max-w-4xl text-3xl font-bold leading-tight text-white md:text-4xl" style={{ fontFamily: '"Poppins", sans-serif' }}>
+          <h2 className="max-w-4xl text-3xl font-bold leading-tight text-white md:text-4xl" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>
             Resources to help you run your properties
           </h2>
           <p className="mt-4 max-w-2xl text-base leading-7 text-white/80 md:text-lg">Start with a practical article, then explore guides and checklists for the work ahead.</p>
           <div className="mt-10 grid gap-8 md:grid-cols-3 md:gap-5">
             {articles.map((article) => (
               <article key={article.slug} className="group min-w-0">
-                <Link href={`/blog/${article.slug}`} className="block focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-green-400">
-                  <div className="relative aspect-[16/9] overflow-hidden bg-[#263e52]">
+                <Link href={`/blog/${article.slug}`} className="block focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-mint">
+                  <div className="relative aspect-[16/9] overflow-hidden bg-brand-forest-raised">
                     <Image
                       src={articleImages[article.slug]}
                       alt=""
@@ -82,14 +82,14 @@ export default function ResourcesPage() {
                       className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
                     />
                   </div>
-                  <h3 className="mt-4 text-lg font-bold leading-snug text-white transition-colors group-hover:text-green-300" style={{ fontFamily: '"Poppins", sans-serif' }}>
+                  <h3 className="mt-4 text-lg font-bold leading-snug text-white transition-colors group-hover:text-brand-mint" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>
                     {article.title}
                   </h3>
                 </Link>
               </article>
             ))}
           </div>
-          <Link href="/blog" className="mt-8 inline-flex min-h-11 items-center gap-2 font-bold text-green-300 transition hover:text-green-200">
+          <Link href="/blog" className="mt-8 inline-flex min-h-11 items-center gap-2 font-bold text-brand-mint transition hover:text-white">
             Browse all articles <FiArrowRight className="h-4 w-4" aria-hidden="true" />
           </Link>
         </div>
@@ -97,17 +97,17 @@ export default function ResourcesPage() {
 
       <ResourceLibrary />
 
-      <section className="relative flex min-h-[480px] items-center overflow-hidden bg-[#061E35] px-4 py-24 text-center text-white sm:px-6 md:min-h-[520px] lg:px-8">
+      <section className="relative flex min-h-[480px] items-center overflow-hidden bg-brand-forest px-4 py-24 text-center text-white sm:px-6 md:min-h-[520px] lg:px-8">
         <div className="absolute inset-0 bg-cover bg-center bg-no-repeat" style={{ backgroundImage: 'url(/images/cta/cta.png)' }} aria-hidden="true" />
-        <div className="absolute inset-0 bg-[linear-gradient(to_top,#061E35_0%,rgba(6,30,53,0.85)_25%,rgba(6,30,53,0.70)_70%,rgba(6,30,53,0.78)_100%)]" aria-hidden="true" />
+        <div className="absolute inset-0 bg-brand-forest opacity-90" aria-hidden="true" />
         <div className="relative mx-auto max-w-3xl">
-          <h2 className="text-3xl font-bold leading-tight text-white sm:text-4xl md:text-5xl" style={{ fontFamily: '"Poppins", sans-serif' }}>
-            Ready to spend less time <span className="text-green-400">juggling the details</span> and more time on your properties?
+          <h2 className="text-3xl font-bold leading-tight text-white sm:text-4xl md:text-5xl" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>
+            Ready to spend less time <span className="text-brand-mint">juggling the details</span> and more time on your properties?
           </h2>
           <p className="mx-auto mt-6 max-w-xl text-base leading-7 text-white/90 md:text-lg">See how Property Peace brings everyday rental work into one calm place.</p>
           <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
-            <Link href="/demo" className="inline-flex min-h-12 w-full items-center justify-center rounded-full bg-white px-8 py-3 text-sm font-bold uppercase tracking-wide text-[#061E35] transition hover:bg-white/90 sm:w-auto">Book a demo</Link>
-            <Link href="https://app.propertypeace.io/register" className="inline-flex min-h-12 w-full items-center justify-center rounded-full bg-green-600 px-8 py-3 text-sm font-bold uppercase tracking-wide text-white transition hover:bg-green-500 sm:w-auto">Start free</Link>
+            <Link href="/demo" className="inline-flex min-h-12 w-full items-center justify-center rounded-full bg-brand-surface px-8 py-3 text-sm font-bold uppercase tracking-wide text-brand-forest transition hover:bg-brand-ivory sm:w-auto">Book a demo</Link>
+            <Link href="https://app.propertypeace.io/register" className="inline-flex min-h-12 w-full items-center justify-center rounded-full bg-brand-mint px-8 py-3 text-sm font-bold uppercase tracking-wide text-brand-forest transition hover:bg-brand-ivory sm:w-auto">Start free</Link>
           </div>
         </div>
       </section>

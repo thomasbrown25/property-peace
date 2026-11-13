@@ -45,13 +45,13 @@ export default function LandlordSoftwarePage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#061E35] text-white">
+    <div className="min-h-screen bg-brand-forest text-white">
       {/* Hero Section */}
-      <section className="bg-[#061E35] px-4 pb-16 pt-32 sm:px-6 lg:px-8">
+      <section className="bg-brand-forest px-4 pb-16 pt-32 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto text-center">
           <h1
-            className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6"
-            style={{ fontFamily: '"Poppins", sans-serif' }}
+            className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-white mb-6"
+            style={{ fontFamily: '"Host Grotesk", sans-serif' }}
           >
             All-in-One Landlord Software for Small Portfolios
           </h1>
@@ -63,7 +63,7 @@ export default function LandlordSoftwarePage() {
           </p>
           <Link
             href="https://app.propertypeace.io/register"
-            className="inline-flex items-center space-x-2 px-8 py-4 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-none font-semibold transition-all duration-300 hover:from-green-600 hover:to-green-700 hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(34,197,94,0.25)]"
+            className="inline-flex items-center space-x-2 px-8 py-4 bg-gradient-to-r from-brand-teal to-brand-teal text-white rounded-none font-semibold transition-all duration-300 hover:from-brand-teal hover:to-brand-teal-hover hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(36,117,104,0.25)]"
             style={{ fontFamily: '"Inter", "Inter Placeholder", sans-serif' }}
           >
             <span>Get Started</span>
@@ -76,15 +76,15 @@ export default function LandlordSoftwarePage() {
       <section className="py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-6xl mx-auto">
           <h2
-            className="text-3xl md:text-4xl font-bold text-white mb-12 text-center"
-            style={{ fontFamily: '"Poppins", sans-serif' }}
+            className="text-3xl md:text-4xl font-extrabold text-white mb-12 text-center"
+            style={{ fontFamily: '"Host Grotesk", sans-serif' }}
           >
             Everything You Need in Landlord Software
           </h2>
           <div className="grid md:grid-cols-2 gap-6">
             {features.map((feature, index) => (
               <div key={index} className="flex items-start space-x-3">
-                <FiCheck className="w-6 h-6 text-green-300 flex-shrink-0 mt-1" />
+                <FiCheck className="w-6 h-6 text-brand-mint flex-shrink-0 mt-1" />
                 <p
                   className="text-lg text-white"
                   style={{ fontFamily: '"Inter", sans-serif' }}
@@ -98,19 +98,19 @@ export default function LandlordSoftwarePage() {
       </section>
 
       {/* Benefits Section */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-[#061E35]">
+      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-brand-forest">
         <div className="max-w-6xl mx-auto">
           <h2
-            className="text-3xl md:text-4xl font-bold text-white mb-12 text-center"
-            style={{ fontFamily: '"Poppins", sans-serif' }}
+            className="text-3xl md:text-4xl font-extrabold text-white mb-12 text-center"
+            style={{ fontFamily: '"Host Grotesk", sans-serif' }}
           >
             Why Choose Property Peace Landlord Software?
           </h2>
           <div className="grid md:grid-cols-3 gap-8">
             <div>
               <h3
-                className="text-xl font-bold text-white mb-3"
-                style={{ fontFamily: '"Poppins", sans-serif' }}
+                className="text-xl font-extrabold text-white mb-3"
+                style={{ fontFamily: '"Host Grotesk", sans-serif' }}
               >
                 Designed for Small Landlords
               </h3>
@@ -123,8 +123,8 @@ export default function LandlordSoftwarePage() {
             </div>
             <div>
               <h3
-                className="text-xl font-bold text-white mb-3"
-                style={{ fontFamily: '"Poppins", sans-serif' }}
+                className="text-xl font-extrabold text-white mb-3"
+                style={{ fontFamily: '"Host Grotesk", sans-serif' }}
               >
                 Affordable Pricing
               </h3>
@@ -137,8 +137,8 @@ export default function LandlordSoftwarePage() {
             </div>
             <div>
               <h3
-                className="text-xl font-bold text-white mb-3"
-                style={{ fontFamily: '"Poppins", sans-serif' }}
+                className="text-xl font-extrabold text-white mb-3"
+                style={{ fontFamily: '"Host Grotesk", sans-serif' }}
               >
                 Real-Time Updates
               </h3>
@@ -155,22 +155,22 @@ export default function LandlordSoftwarePage() {
 
       {/* CTA Section */}
       <section className="py-16 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-4xl mx-auto text-center bg-[#061e35] rounded-2xl p-12 text-white">
+        <div className="max-w-4xl mx-auto text-center bg-brand-forest rounded-2xl p-12 text-white">
           <h2
-            className="text-3xl md:text-4xl font-bold mb-6"
-            style={{ fontFamily: '"Poppins", sans-serif' }}
+            className="text-3xl md:text-4xl font-extrabold mb-6"
+            style={{ fontFamily: '"Host Grotesk", sans-serif' }}
           >
             Ready to Transform Your Property Management?
           </h2>
           <p
-            className="text-xl text-[#E5E5E5] mb-8"
+            className="text-xl text-[var(--brand-border)] mb-8"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
             Free for up to 5 units. Simple, flat pricing — no per-unit fees. Cancel anytime.
           </p>
           <Link
             href="https://app.propertypeace.io/register"
-            className="inline-flex items-center space-x-2 px-8 py-4 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-none font-semibold transition-all duration-300 hover:from-green-600 hover:to-green-700 hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(34,197,94,0.25)]"
+            className="inline-flex items-center space-x-2 px-8 py-4 bg-gradient-to-r from-brand-teal to-brand-teal text-white rounded-none font-semibold transition-all duration-300 hover:from-brand-teal hover:to-brand-teal-hover hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(36,117,104,0.25)]"
             style={{ fontFamily: '"Inter", "Inter Placeholder", sans-serif' }}
           >
             <span>Get Started</span>
@@ -180,7 +180,7 @@ export default function LandlordSoftwarePage() {
       </section>
 
       {/* Related Links */}
-      <section className="py-12 px-4 sm:px-6 lg:px-8 border-t border-[#E5E5E5]">
+      <section className="py-12 px-4 sm:px-6 lg:px-8 border-t border-[var(--brand-border)]">
         <div className="max-w-6xl mx-auto">
           <p
             className="text-center text-white/80 mb-4"
@@ -189,11 +189,11 @@ export default function LandlordSoftwarePage() {
             Learn more about property management:
           </p>
           <div className="flex flex-wrap justify-center gap-4">
-            <Link href="/features" className="inline-flex min-h-11 items-center text-green-300 hover:underline">Features</Link>
-            <Link href="/pricing" className="inline-flex min-h-11 items-center text-green-300 hover:underline">Pricing</Link>
-            <Link href="/blog" className="inline-flex min-h-11 items-center text-green-300 hover:underline">Blog</Link>
-            <Link href="/property-management-app" className="inline-flex min-h-11 items-center text-green-300 hover:underline">Property Management App</Link>
-            <Link href="/rental-management-software" className="inline-flex min-h-11 items-center text-green-300 hover:underline">Rental Management Software</Link>
+            <Link href="/features" className="inline-flex min-h-11 items-center text-brand-mint hover:underline">Features</Link>
+            <Link href="/pricing" className="inline-flex min-h-11 items-center text-brand-mint hover:underline">Pricing</Link>
+            <Link href="/blog" className="inline-flex min-h-11 items-center text-brand-mint hover:underline">Blog</Link>
+            <Link href="/property-management-app" className="inline-flex min-h-11 items-center text-brand-mint hover:underline">Property Management App</Link>
+            <Link href="/rental-management-software" className="inline-flex min-h-11 items-center text-brand-mint hover:underline">Rental Management Software</Link>
           </div>
         </div>
       </section>

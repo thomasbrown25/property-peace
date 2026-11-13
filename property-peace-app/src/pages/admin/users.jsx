@@ -948,12 +948,12 @@ export default function AdminUsers() {
                           direction={isActive ? sortConfig.direction : 'asc'}
                           onClick={() => handleSort(column.key)}
                         >
-                          <strong>{column.label}</strong>
+                          {column.label}
                         </TableSortLabel>
                       </TableCell>
                     );
                   })}
-                  <TableCell align="right"><strong>Actions</strong></TableCell>
+                  <TableCell align="right">Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>

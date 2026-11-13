@@ -41,34 +41,34 @@ export default function Features() {
       icon: FiDollarSign,
       title: 'Cost Efficiency',
       description: 'SaaS solutions typically operate on a subscription basis, eliminating the need for significant upfront.',
-      color: 'text-green-600',
-      bgColor: 'bg-green-50'
+      color: 'text-brand-teal',
+      bgColor: 'bg-brand-ivory'
     },
     {
       icon: FiFileText,
       title: 'Scalability & Flexibility',
       description: 'Many SaaS solutions are designed to comply with industry standards and regulations.',
-      color: 'text-orange-600',
-      bgColor: 'bg-orange-50'
+      color: 'text-brand-teal',
+      bgColor: 'bg-brand-ivory'
     },
     {
       icon: FiShield,
       title: 'Enhanced Security',
       description: 'Provider regularly deploy updates and fresh features, so that you always get most latest tools.',
-      color: 'text-green-600',
-      bgColor: 'bg-blue-50'
+      color: 'text-brand-teal',
+      bgColor: 'bg-brand-ivory'
     },
     {
       icon: FiSettings,
       title: 'Automatic Updates',
       description: 'Access your financial data from anywhere with internet, so you can work fast.',
-      color: 'text-yellow-600',
-      bgColor: 'bg-yellow-50'
+      color: 'text-brand-teal',
+      bgColor: 'bg-brand-ivory'
     }
   ];
 
   return (
-    <section id="features" className="py-16 px-4 sm:px-6 lg:px-8 bg-[#fcfbfa]">
+    <section id="features" className="py-16 px-4 sm:px-6 lg:px-8 bg-brand-ivory">
       <div className="max-w-6xl mx-auto">
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
           {features.map((feature, index) => {
@@ -92,10 +92,10 @@ export default function Features() {
                 <div className={`w-12 h-12 ${feature.bgColor} ${feature.color} rounded-lg flex items-center justify-center mb-24`}>
                   <IconComponent className="w-6 h-6" />
                 </div>
-                <h3 className="text-xl font-bold text-primary-main mb-3" style={{ fontFamily: '"Poppins", sans-serif' }}>
+                <h3 className="text-xl font-bold text-primary-main mb-3" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>
                   {feature.title}
                 </h3>
-                <p className="text-[#737373] text-sm leading-relaxed" style={{ fontFamily: '"Inter", "Inter Placeholder", sans-serif' }}>
+                <p className="text-brand-slate text-sm leading-relaxed" style={{ fontFamily: '"Inter", "Inter Placeholder", sans-serif' }}>
                   {feature.description}
                 </p>
               </div>

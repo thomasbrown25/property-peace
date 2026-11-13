@@ -31,7 +31,7 @@ export default function DraggableColumnHeader({ header, children }) {
         ref={setDragRef}
         {...listeners}
         {...attributes}
-        sx={{ color: isOverCurrent ? 'primary.main' : 'text.primary', opacity: isDragging ? 0.9 : 1 }}
+        sx={{ color: isOverCurrent ? 'primary.main' : 'inherit', opacity: isDragging ? 0.9 : 1 }}
       >
         {children}
       </Box>

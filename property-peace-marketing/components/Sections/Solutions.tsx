@@ -48,12 +48,12 @@ export default function Solutions() {
   };
 
   return (
-    <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
+    <section className="py-20 px-4 sm:px-6 lg:px-8 bg-brand-ivory">
       <div className="max-w-6xl mx-auto">
         {/* Headline */}
         <motion.h2
           className="text-3xl md:text-4xl lg:text-5xl font-bold text-primary-main text-center mb-12"
-          style={{ fontFamily: '"Poppins", sans-serif' }}
+          style={{ fontFamily: '"Host Grotesk", sans-serif' }}
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.2 }}
@@ -80,20 +80,20 @@ export default function Solutions() {
                 variants={cardVariants}
               >
                 {/* Icon */}
-                <div className="w-12 h-12 bg-primary-main bg-opacity-10 rounded-lg flex items-center justify-center mb-6 mx-auto lg:mx-0">
-                  <IconComponent className="w-6 h-6 text-primary-main" />
+                <div className="w-12 h-12 bg-brand-mint rounded-lg flex items-center justify-center mb-6 mx-auto lg:mx-0">
+                  <IconComponent className="w-6 h-6 text-brand-forest" />
                 </div>
 
                 {/* Title */}
                 <h3
                   className="text-xl md:text-2xl font-bold text-primary-main mb-4"
-                  style={{ fontFamily: '"Poppins", sans-serif' }}
+                  style={{ fontFamily: '"Host Grotesk", sans-serif' }}
                 >
                   {solution.title}
                 </h3>
 
                 {/* Description */}
-                <p className="text-base md:text-lg text-[#737373] leading-relaxed mb-4" style={{ fontFamily: '"Inter", sans-serif' }}>
+                <p className="text-base md:text-lg text-brand-slate leading-relaxed mb-4" style={{ fontFamily: '"Inter", sans-serif' }}>
                   {solution.description}
                 </p>
 

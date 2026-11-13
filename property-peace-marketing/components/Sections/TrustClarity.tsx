@@ -61,16 +61,16 @@ export default function TrustClarity() {
             className="inline-block text-xs font-semibold tracking-widest uppercase mb-4 px-3 py-1 rounded-full border"
             style={{
               fontFamily: '"Inter", sans-serif',
-              color: '#16a34a',
-              borderColor: 'rgba(34,197,94,0.20)',
-              background: 'rgba(34,197,94,0.08)',
+              color: 'var(--brand-teal)',
+              borderColor: 'var(--brand-border)',
+              background: 'var(--brand-ivory)',
             }}
           >
             Trust &amp; Clarity
           </span>
           <h2
             className="text-3xl md:text-4xl lg:text-[2.6rem] font-bold text-primary-main mb-4"
-            style={{ fontFamily: '"Poppins", sans-serif', lineHeight: '1.2' }}
+            style={{ fontFamily: '"Host Grotesk", sans-serif', lineHeight: '1.2' }}
           >
             How rent records and data are handled
           </h2>
@@ -88,7 +88,7 @@ export default function TrustClarity() {
 
           {/* --- Card 1: Payment flow (left, tall) --- */}
           <motion.div
-            className="flex flex-col rounded-2xl border border-[#061e35] bg-[#061e35] p-8 shadow-sm"
+            className="flex flex-col rounded-2xl border border-brand-forest bg-brand-forest p-8 shadow-sm"
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true, amount: 0.2 }}
@@ -98,7 +98,7 @@ export default function TrustClarity() {
             <div className="mb-6">
               <h3
                 className="text-xl font-bold text-white mb-1"
-                style={{ fontFamily: '"Poppins", sans-serif' }}
+                style={{ fontFamily: '"Host Grotesk", sans-serif' }}
               >
                 A simple rent-record workflow
               </h3>
@@ -119,9 +119,9 @@ export default function TrustClarity() {
                     <div className="flex items-start gap-4">
                       <div
                         className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5"
-                        style={{ background: 'rgba(34,197,94,0.14)' }}
+                        style={{ background: 'color-mix(in srgb, var(--brand-mint) 14%, transparent)' }}
                       >
-                        <Icon size={18} color="#22c55e" />
+                        <Icon size={18} color="var(--brand-mint)" />
                       </div>
                       <div>
                         <p
@@ -139,7 +139,7 @@ export default function TrustClarity() {
                       </div>
                     </div>
                     {i < paymentSteps.length - 1 && (
-                      <div className="w-10 my-1 flex justify-center text-[#22c55e]">
+                      <div className="w-10 my-1 flex justify-center text-brand-mint">
                         <FiArrowRight size={14} style={{ transform: 'rotate(90deg)' }} />
                       </div>
                     )}
@@ -163,9 +163,9 @@ export default function TrustClarity() {
                 <li key={i} className="flex items-center gap-2">
                   <span
                     className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0"
-                    style={{ background: 'rgba(34,197,94,0.14)' }}
+                    style={{ background: 'color-mix(in srgb, var(--brand-mint) 14%, transparent)' }}
                   >
-                    <FiCheck size={10} color="#22c55e" strokeWidth={3} />
+                    <FiCheck size={10} color="var(--brand-mint)" strokeWidth={3} />
                   </span>
                   <span
                     className="text-sm text-white/80"
@@ -193,13 +193,13 @@ export default function TrustClarity() {
               <div className="flex items-center gap-3 mb-4">
                 <div
                   className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                  style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)' }}
+                  style={{ background: 'var(--brand-teal)' }}
                 >
                   <FiShield size={18} color="#fff" />
                 </div>
                 <h3
                   className="text-lg font-bold text-primary-main"
-                  style={{ fontFamily: '"Poppins", sans-serif' }}
+                  style={{ fontFamily: '"Host Grotesk", sans-serif' }}
                 >
                   Tenant data stays organized and protected
                 </h3>
@@ -218,9 +218,9 @@ export default function TrustClarity() {
                   <li key={i} className="flex items-center gap-2">
                     <span
                       className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0"
-                      style={{ background: 'rgba(34,197,94,0.12)' }}
+                      style={{ background: 'var(--brand-mint)' }}
                     >
-                      <FiCheck size={10} color="#22c55e" strokeWidth={3} />
+                      <FiCheck size={10} color="var(--brand-forest)" strokeWidth={3} />
                     </span>
                     <span
                       className="text-sm text-[#374151]"
@@ -245,13 +245,13 @@ export default function TrustClarity() {
               <div className="flex items-center gap-3 mb-4">
                 <div
                   className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                  style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)' }}
+                  style={{ background: 'var(--brand-teal)' }}
                 >
                   <FiHome size={18} color="#fff" />
                 </div>
                 <h3
                   className="text-lg font-bold text-primary-main"
-                  style={{ fontFamily: '"Poppins", sans-serif' }}
+                  style={{ fontFamily: '"Host Grotesk", sans-serif' }}
                 >
                   Built for small landlords
                 </h3>
@@ -265,7 +265,7 @@ export default function TrustClarity() {
                 manage rent, maintenance, leases, and tenant communication.
               </p>
               <p
-                className="text-xs text-[#9ca3af] italic"
+                className="text-xs text-brand-slate italic"
                 style={{ fontFamily: '"Inter", sans-serif' }}
               >
                 Not overloaded with enterprise workflow built for giant portfolios.
@@ -277,7 +277,7 @@ export default function TrustClarity() {
 
         {/* Bottom plain-English note */}
         <motion.p
-          className="text-center text-xs text-[#9ca3af] max-w-2xl mx-auto"
+          className="text-center text-xs text-brand-slate max-w-2xl mx-auto"
           style={{ fontFamily: '"Inter", sans-serif' }}
           initial="hidden"
           whileInView="visible"

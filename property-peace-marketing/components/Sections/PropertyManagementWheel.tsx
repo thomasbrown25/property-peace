@@ -129,13 +129,13 @@ function FeatureCallout({
       data-feature-icon={feature.iconId}
       data-wheel-callout={feature.iconId}
       data-active={isActive}
-      className={`-mx-4 rounded-xl border-t border-white/20 px-4 py-5 transition-colors duration-200 ease-out data-[active=true]:bg-brand-teal/20 ${align === 'right' ? 'text-right' : 'text-left'}`}
+      className={`-mx-4 rounded-xl border-t border-white/20 px-4 py-5 transition-colors duration-200 ease-out data-[active=true]:bg-[color-mix(in_srgb,var(--brand-teal)_20%,transparent)] ${align === 'right' ? 'text-right' : 'text-left'}`}
     >
       <div className={`flex items-center gap-2.5 ${align === 'right' ? 'justify-end' : ''}`}>
         {align === 'left' && <Icon className="h-5 w-5 flex-none text-brand-mint" aria-hidden="true" />}
         <h3
           className="text-base font-bold leading-snug text-white"
-          style={{ fontFamily: '"Poppins", sans-serif' }}
+          style={{ fontFamily: '"Host Grotesk", sans-serif' }}
         >
           {feature.title}
         </h3>
@@ -171,7 +171,7 @@ export default function PropertyManagementWheel() {
           <h2
             id="property-management-wheel-heading"
             className="mt-4 text-3xl font-bold tracking-[-0.04em] text-white sm:text-4xl lg:text-[3.35rem]"
-            style={{ fontFamily: '"Poppins", sans-serif', lineHeight: 1.1 }}
+            style={{ fontFamily: '"Host Grotesk", sans-serif', lineHeight: 1.1 }}
           >
             Everyday workflows.{' '}
             <span className="text-brand-mint">One calm system.</span>
@@ -198,7 +198,7 @@ export default function PropertyManagementWheel() {
 
           <div>
             <div
-              className="relative mx-auto aspect-square w-full max-w-[32rem] rounded-full border-[10px] border-white bg-white shadow-[0_22px_54px_rgba(6,30,53,0.14)]"
+              className="relative mx-auto aspect-square w-full max-w-[32rem] rounded-full border-[10px] border-white bg-white shadow-[0_22px_54px_rgba(16,44,41,0.14)]"
             >
               <svg
                 viewBox="0 0 100 100"
@@ -255,7 +255,7 @@ export default function PropertyManagementWheel() {
                 );
               })}
 
-              <div className="absolute left-1/2 top-1/2 z-30 flex h-[38%] w-[38%] -translate-x-1/2 -translate-y-1/2 items-center justify-center overflow-hidden rounded-full border-8 border-white bg-white shadow-[0_12px_36px_rgba(6,30,53,0.2)]">
+              <div className="absolute left-1/2 top-1/2 z-30 flex h-[38%] w-[38%] -translate-x-1/2 -translate-y-1/2 items-center justify-center overflow-hidden rounded-full border-8 border-white bg-white shadow-[0_12px_36px_rgba(16,44,41,0.2)]">
                 <Image
                   src="/images/logos/logo-dark-2.png"
                   alt=""
@@ -270,11 +270,11 @@ export default function PropertyManagementWheel() {
             <div
               data-wheel-callout={features[0].iconId}
               data-active={activeFeatureId === features[0].iconId}
-              className="mx-auto mt-8 max-w-sm rounded-xl border-t border-white/20 px-4 pb-5 pt-5 text-center transition-colors duration-200 ease-out data-[active=true]:bg-brand-teal/20"
+              className="mx-auto mt-8 max-w-sm rounded-xl border-t border-white/20 px-4 pb-5 pt-5 text-center transition-colors duration-200 ease-out data-[active=true]:bg-[color-mix(in_srgb,var(--brand-teal)_20%,transparent)]"
             >
               <div className="flex items-center justify-center gap-2.5">
                 <DashboardIcon className="h-5 w-5 text-brand-mint" aria-hidden="true" />
-                <h3 className="font-bold text-white" style={{ fontFamily: '"Poppins", sans-serif' }}>
+                <h3 className="font-bold text-white" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>
                   {features[0].title}
                 </h3>
               </div>
@@ -301,13 +301,13 @@ export default function PropertyManagementWheel() {
               const Icon = feature.icon;
               return (
                 <li key={feature.title} data-feature-wheel-card="true" data-feature-icon={feature.iconId}>
-                  <article className="rounded-2xl border border-brand-forest/10 bg-brand-surface px-5 py-7 text-center shadow-[0_10px_30px_rgba(16,44,41,0.08)] sm:px-8">
+                  <article className="rounded-2xl border border-[color-mix(in_srgb,var(--brand-forest)_10%,transparent)] bg-brand-surface px-5 py-7 text-center shadow-[0_10px_30px_rgba(16,44,41,0.08)] sm:px-8">
                     <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-brand-mint bg-brand-ivory text-brand-teal">
                       <Icon className="h-6 w-6" aria-hidden="true" />
                     </div>
                     <h3
                       className="mt-4 text-lg font-bold text-brand-forest"
-                      style={{ fontFamily: '"Poppins", sans-serif' }}
+                      style={{ fontFamily: '"Host Grotesk", sans-serif' }}
                     >
                       {feature.title}
                     </h3>
@@ -327,7 +327,7 @@ export default function PropertyManagementWheel() {
         <div className="mt-10 flex flex-col justify-center gap-3 sm:flex-row">
           <Link
             href="/features"
-            className="inline-flex min-h-[54px] items-center justify-center gap-2 bg-brand-teal px-7 py-3.5 font-bold text-white shadow-lg shadow-brand-forest/15 transition hover:-translate-y-0.5 hover:bg-brand-teal-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-mint focus-visible:ring-offset-4 motion-reduce:transform-none"
+            className="inline-flex min-h-[54px] items-center justify-center gap-2 bg-brand-teal px-7 py-3.5 font-bold text-white shadow-lg shadow-[color-mix(in_srgb,var(--brand-forest)_15%,transparent)] transition hover:-translate-y-0.5 hover:bg-brand-teal-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-mint focus-visible:ring-offset-4 motion-reduce:transform-none"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
             Explore all features <FiArrowRight className="h-4 w-4" aria-hidden="true" />

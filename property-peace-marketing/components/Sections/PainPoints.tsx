@@ -44,17 +44,17 @@ export default function PainPoints() {
         <div className="grid lg:grid-cols-[0.82fr_1.18fr] lg:grid-rows-[auto_1fr] lg:gap-x-20">
           <div className="lg:col-start-1 lg:row-start-1">
             <p
-              className="text-xs font-bold uppercase tracking-[0.2em] text-green-700"
+              className="text-xs font-bold uppercase tracking-[0.2em] text-brand-teal"
               style={{ fontFamily: '"Inter", sans-serif' }}
             >
               Built for self-management
             </p>
             <h2
-              className="mt-4 max-w-2xl text-3xl font-bold tracking-[-0.03em] text-[#061e35] sm:text-4xl lg:text-[3.25rem]"
-              style={{ fontFamily: '"Poppins", sans-serif', lineHeight: 1.15 }}
+              className="mt-4 max-w-2xl text-3xl font-bold tracking-[-0.03em] text-brand-forest sm:text-4xl lg:text-[3.25rem]"
+              style={{ fontFamily: '"Host Grotesk", sans-serif', lineHeight: 1.15 }}
             >
               Stay hands-on without holding{' '}
-              <span className="text-green-600">everything in your head.</span>
+              <span className="text-brand-teal">everything in your head.</span>
             </h2>
             <p
               className="mt-6 max-w-2xl text-base leading-8 text-slate-600 sm:text-lg"
@@ -72,14 +72,14 @@ export default function PainPoints() {
             viewport={{ once: true, amount: 0.2 }}
             transition={{ duration: 0.6, ease: 'easeOut', delay: 0.08 }}
           >
-            <div className="relative border border-[#b8c8d5] bg-white p-3 shadow-[0_28px_80px_rgba(6,30,53,0.16)] sm:p-5">
+            <div className="relative border border-[var(--brand-border)] bg-brand-surface p-3 shadow-[0_28px_80px_rgba(16,44,41,0.16)] sm:p-5">
               <div
                 className="mb-4 flex items-center justify-between border-b border-slate-200 pb-3 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500 sm:text-xs"
                 style={{ fontFamily: '"Inter", sans-serif' }}
               >
                 <span>Portfolio overview</span>
-                <span className="inline-flex items-center gap-2 text-green-700">
-                  <span className="h-2 w-2 bg-green-500" aria-hidden="true" />
+                <span className="inline-flex items-center gap-2 text-brand-teal">
+                  <span className="h-2 w-2 bg-brand-teal" aria-hidden="true" />
                   One calm view
                 </span>
               </div>
@@ -113,13 +113,13 @@ export default function PainPoints() {
                   viewport={{ once: true, amount: 0.2 }}
                   transition={{ duration: 0.4, ease: 'easeOut', delay: index * 0.07 }}
                 >
-                  <div className="flex h-11 w-11 flex-none items-center justify-center border border-green-200 bg-green-50 text-green-700 transition-colors duration-200 group-hover:border-green-300 group-hover:bg-green-100">
+                  <div className="flex h-11 w-11 flex-none items-center justify-center border border-[var(--brand-border)] bg-brand-ivory text-brand-teal transition-colors duration-200 group-hover:border-brand-teal group-hover:bg-brand-mint">
                     <Icon className="h-5 w-5" aria-hidden="true" />
                   </div>
                   <div>
                     <h3
-                      className="text-lg font-bold leading-snug text-[#061e35]"
-                      style={{ fontFamily: '"Poppins", sans-serif' }}
+                      className="text-lg font-bold leading-snug text-brand-forest"
+                      style={{ fontFamily: '"Host Grotesk", sans-serif' }}
                     >
                       {principle.title}
                     </h3>

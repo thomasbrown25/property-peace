@@ -44,11 +44,11 @@ function StatusPill({ tone, children }: { tone: string; children: React.ReactNod
 
 function RentStatusMock() {
   return (
-    <div className="h-full bg-white p-5" style={{ fontFamily: '"Inter", sans-serif' }}>
+    <div className="h-full bg-brand-surface p-5" style={{ fontFamily: '"Inter", sans-serif' }}>
       <div className="mb-4 flex items-center justify-between">
         <div>
           <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#8A8A8A]">October rent roll</p>
-          <h3 className="text-base font-bold text-primary-main">Maple Ridge</h3>
+          <h3 className="text-base font-extrabold text-primary-main">Maple Ridge</h3>
         </div>
         <div className="rounded-xl bg-[#f4f8fc] px-3 py-2 text-right">
           <p className="text-[10px] text-[#737373]">Collected</p>
@@ -78,7 +78,7 @@ function RentStatusMock() {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.25, delay: index * 0.08 }}
-            className="flex items-center justify-between rounded-xl border border-[#E5E5E5] bg-white px-3 py-2.5 shadow-sm"
+            className="flex items-center justify-between rounded-xl border border-[#E5E5E5] bg-brand-surface px-3 py-2.5 shadow-sm"
           >
             <div className="flex min-w-0 items-center gap-2.5">
               <div className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full ${tenant.tone === 'red' ? 'bg-red-50 text-red-500' : tenant.tone === 'green' ? 'bg-emerald-50 text-emerald-500' : 'bg-blue-50 text-blue-500'}`}>
@@ -102,7 +102,7 @@ function RentStatusMock() {
 
 function ReminderMock() {
   return (
-    <div className="flex h-full flex-col bg-white" style={{ fontFamily: '"Inter", sans-serif' }}>
+    <div className="flex h-full flex-col bg-brand-surface" style={{ fontFamily: '"Inter", sans-serif' }}>
       <div className="border-b border-[#E5E5E5] px-4 py-3">
         <div className="flex items-center gap-2.5">
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-main text-white">
@@ -117,10 +117,10 @@ function ReminderMock() {
       </div>
 
       <div className="flex-1 space-y-3 p-4">
-        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl rounded-tl-sm bg-[#f4f8fc] p-3 text-xs leading-relaxed text-[#405a70]">
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl rounded-tl-sm bg-[#f4f8fc] p-3 text-xs leading-relaxed text-[var(--brand-slate)]">
           Hi Sarah — this is a friendly reminder that October rent for Unit 4B is currently overdue.
         </motion.div>
-        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }} className="rounded-2xl rounded-tl-sm bg-[#f4f8fc] p-3 text-xs leading-relaxed text-[#405a70]">
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }} className="rounded-2xl rounded-tl-sm bg-[#f4f8fc] p-3 text-xs leading-relaxed text-[var(--brand-slate)]">
           You can pay securely through your tenant portal whenever you’re ready.
         </motion.div>
 
@@ -130,7 +130,7 @@ function ReminderMock() {
             <FiRefreshCw className="h-3.5 w-3.5 animate-spin text-blue-500" />
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <button className="flex items-center justify-center gap-1.5 rounded-none bg-white px-3 py-2 text-xs font-bold text-primary-main shadow-sm">
+            <button className="flex items-center justify-center gap-1.5 rounded-none bg-brand-surface px-3 py-2 text-xs font-bold text-primary-main shadow-sm">
               <FiMail className="h-3.5 w-3.5 text-primary-main" /> Email
             </button>
             <button className="flex items-center justify-center gap-1.5 rounded-none bg-primary-main px-3 py-2 text-xs font-bold text-white shadow-sm">
@@ -145,12 +145,12 @@ function ReminderMock() {
 
 function LedgerMock() {
   return (
-    <div className="h-full bg-white p-5" style={{ fontFamily: '"Inter", sans-serif' }}>
+    <div className="h-full bg-brand-surface p-5" style={{ fontFamily: '"Inter", sans-serif' }}>
       <div className="mb-5 flex flex-col items-center text-center">
         <motion.div initial={{ scale: 0.8 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 260, damping: 16 }} className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
           <FiCheck className="h-6 w-6" />
         </motion.div>
-        <h3 className="text-base font-bold text-primary-main">Payment received</h3>
+        <h3 className="text-base font-extrabold text-primary-main">Payment received</h3>
         <p className="text-xs text-[#737373]">Sarah Mitchell · Unit 4B</p>
       </div>
 
@@ -161,7 +161,7 @@ function LedgerMock() {
         </div>
         <div className="mb-3 flex items-center justify-between">
           <span className="text-xs text-[#737373]">Method</span>
-          <span className="inline-flex items-center gap-1.5 text-xs font-bold text-[#405a70]"><FiCreditCard className="h-3.5 w-3.5 text-primary-main" /> Tenant portal</span>
+          <span className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--brand-slate)]"><FiCreditCard className="h-3.5 w-3.5 text-primary-main" /> Tenant portal</span>
         </div>
         <div className="flex items-center justify-between">
           <span className="text-xs text-[#737373]">Late balance</span>
@@ -174,7 +174,7 @@ function LedgerMock() {
           <p className="text-xs font-bold text-emerald-700">Rent roll updated</p>
           <p className="text-xs font-bold text-emerald-700">100%</p>
         </div>
-        <div className="h-2 overflow-hidden rounded-full bg-white">
+        <div className="h-2 overflow-hidden rounded-full bg-brand-surface">
           <motion.div className="h-full rounded-full bg-emerald-500" initial={{ width: '71%' }} animate={{ width: '100%' }} transition={{ duration: 0.8, ease: 'easeOut', delay: 0.2 }} />
         </div>
       </div>
@@ -219,10 +219,10 @@ export default function RentCollectionHeroMock() {
   return (
     <div className="relative mx-auto w-full max-w-[460px] lg:mx-0" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
       <div className="absolute -left-8 top-8 h-40 w-40 rounded-full bg-primary-main/10 blur-3xl" />
-      <div className="absolute -right-8 bottom-10 h-48 w-48 rounded-full bg-emerald-300/20 blur-3xl" />
+      <div className="absolute -right-8 bottom-10 h-48 w-48 rounded-full bg-[color-mix(in_srgb,var(--brand-mint)_20%,transparent)] blur-3xl" />
 
-      <div className="relative overflow-hidden rounded-[1.35rem] border border-[#dfeaf5] bg-white shadow-[0_24px_70px_rgba(10,45,82,0.16)]">
-        <div className="bg-[#1a2035]">
+      <div className="relative overflow-hidden rounded-[1.35rem] border border-[var(--brand-border)] bg-brand-surface shadow-[0_24px_70px_rgba(16,44,41,0.16)]">
+        <div className="bg-brand-forest">
           <div className="flex items-stretch border-b border-white/[0.08]">
             <div className="flex flex-shrink-0 items-center gap-1.5 border-r border-white/[0.08] px-4 py-3">
               <div className="h-3 w-3 rounded-full bg-[#ff5f57]" />
@@ -245,7 +245,7 @@ export default function RentCollectionHeroMock() {
                     <span className="block truncate">{step.label}</span>
                     {isActive && (
                       <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-white/10">
-                        <div className="h-full bg-blue-400" style={{ width: `${progress}%`, transition: 'none' }} />
+                        <div className="h-full bg-brand-mint" style={{ width: `${progress}%`, transition: 'none' }} />
                       </div>
                     )}
                   </button>
@@ -254,13 +254,13 @@ export default function RentCollectionHeroMock() {
             </div>
           </div>
           <div className="flex items-center gap-3 px-4 py-2.5">
-            <div className="flex-1 rounded-md bg-[#252d42] px-3 py-1.5">
+            <div className="flex-1 rounded-md bg-brand-forest-raised px-3 py-1.5">
               <span className="font-mono text-[11px] text-white/35">app.propertypeace.io/rent</span>
             </div>
           </div>
         </div>
 
-        <div className="relative h-[370px] overflow-hidden bg-[#f8fbff]">
+        <div className="relative h-[370px] overflow-hidden bg-brand-ivory">
           <AnimatePresence mode="wait">
             <motion.div key={activeStep} className="absolute inset-0" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.28, ease: 'easeInOut' }}>
               {activeStep === 0 ? <RentStatusMock /> : activeStep === 1 ? <ReminderMock /> : <LedgerMock />}
@@ -276,9 +276,9 @@ export default function RentCollectionHeroMock() {
         </div>
       </div>
 
-      <div className="mt-4 rounded-2xl border border-[#dfeaf5] bg-white/80 p-4 text-center shadow-sm backdrop-blur-sm">
+      <div className="mt-4 rounded-2xl border border-[var(--brand-border)] bg-white/80 p-4 text-center shadow-sm backdrop-blur-sm">
         <AnimatePresence mode="wait">
-          <motion.p key={`caption-${activeStep}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="text-sm font-medium leading-relaxed text-[#405a70]" style={{ fontFamily: '"Inter", sans-serif' }}>
+          <motion.p key={`caption-${activeStep}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="text-sm font-medium leading-relaxed text-brand-slate" style={{ fontFamily: '"Inter", sans-serif' }}>
             {steps[activeStep].caption}
           </motion.p>
         </AnimatePresence>

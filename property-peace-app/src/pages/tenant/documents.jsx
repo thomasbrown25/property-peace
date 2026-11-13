@@ -701,11 +701,11 @@ export default function TenantDocuments() {
                 <TableContainer>
                   <Table size="small" sx={{ tableLayout: 'fixed' }}>
                     <TableHead>
-                      <TableRow sx={{ bgcolor: alpha(theme.palette.primary.main, 0.04) }}>
-                        <TableCell sx={{ width: '40%', fontWeight: 600, fontSize: '0.75rem' }}>Document</TableCell>
-                        <TableCell sx={{ width: '18%', fontWeight: 600, fontSize: '0.75rem' }}>Type</TableCell>
-                        <TableCell sx={{ width: '20%', fontWeight: 600, fontSize: '0.75rem' }}>Expiration</TableCell>
-                        <TableCell sx={{ width: '14%', fontWeight: 600, fontSize: '0.75rem' }}>Uploaded</TableCell>
+                      <TableRow>
+                        <TableCell sx={{ width: '40%' }}>Document</TableCell>
+                        <TableCell sx={{ width: '18%' }}>Type</TableCell>
+                        <TableCell sx={{ width: '20%' }}>Expiration</TableCell>
+                        <TableCell sx={{ width: '14%' }}>Uploaded</TableCell>
                         <TableCell sx={{ width: '8%' }} />
                       </TableRow>
                     </TableHead>

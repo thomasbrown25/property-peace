@@ -20,13 +20,13 @@ export default function CTA({ featured = false }: CTAProps) {
           transition={{ duration: 0.6, ease: 'easeOut' }}
         >
           <div className="pointer-events-none absolute inset-0 opacity-70" aria-hidden="true">
-            <div className="absolute left-1/2 top-0 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-green-400/10 blur-3xl" />
-            <div className="absolute bottom-0 right-0 h-72 w-72 translate-x-1/3 translate-y-1/3 rounded-full bg-green-500/10 blur-3xl" />
+            <div className="absolute left-1/2 top-0 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[color-mix(in_srgb,var(--brand-mint)_10%,transparent)] blur-3xl" />
+            <div className="absolute bottom-0 right-0 h-72 w-72 translate-x-1/3 translate-y-1/3 rounded-full bg-[color-mix(in_srgb,var(--brand-mint)_10%,transparent)] blur-3xl" />
           </div>
 
           <div className="relative z-10 mx-auto max-w-4xl">
             <div
-              className="mb-6 inline-flex items-center rounded-full border border-green-400/20 bg-green-400/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.24em] text-green-200"
+              className="mb-6 inline-flex items-center rounded-full border border-[color-mix(in_srgb,var(--brand-mint)_20%,transparent)] bg-[color-mix(in_srgb,var(--brand-mint)_10%,transparent)] px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.24em] text-brand-mint"
               style={{ fontFamily: '"Inter", sans-serif' }}
             >
               Ready when you are
@@ -34,7 +34,7 @@ export default function CTA({ featured = false }: CTAProps) {
 
             <h2
               className="text-4xl font-bold leading-tight text-white md:text-5xl lg:text-6xl"
-              style={{ fontFamily: '"Poppins", sans-serif' }}
+              style={{ fontFamily: '"Host Grotesk", sans-serif' }}
             >
               Start with the tools you need today. Grow into the rest tomorrow.
             </h2>
@@ -51,13 +51,13 @@ export default function CTA({ featured = false }: CTAProps) {
               style={{ fontFamily: '"Inter", sans-serif' }}
             >
               <li className="flex items-center gap-2">
-                <span className="text-green-400">✓</span> No credit card required
+                <span className="text-brand-mint">✓</span> No credit card required
               </li>
               <li className="flex items-center gap-2">
-                <span className="text-green-400">✓</span> Free forever plan
+                <span className="text-brand-mint">✓</span> Free forever plan
               </li>
               <li className="flex items-center gap-2">
-                <span className="text-green-400">✓</span> Built for landlords with 1–50 units
+                <span className="text-brand-mint">✓</span> Built for landlords with 1–50 units
               </li>
             </ul>
 
@@ -98,7 +98,7 @@ export default function CTA({ featured = false }: CTAProps) {
       <div className="relative z-10 mx-auto w-full max-w-4xl text-center">
         <motion.h2
           className="mb-4 text-4xl font-bold text-white md:text-5xl"
-          style={{ fontFamily: '"Poppins", sans-serif' }}
+          style={{ fontFamily: '"Host Grotesk", sans-serif' }}
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.2 }}

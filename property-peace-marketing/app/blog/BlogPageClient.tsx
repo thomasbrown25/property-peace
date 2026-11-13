@@ -6,16 +6,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FiArrowRight, FiCalendar, FiRss, FiBookOpen, FiZap, FiCheckCircle } from 'react-icons/fi';
 
 const CATEGORY_COLORS: Record<string, string> = {
-  'How-To':        '#16a34a',
-  'Guides':        '#16a34a',
-  'Updates':       '#16a34a',
-  'Trends':        '#16a34a',
-  'Location-Based':'#16a34a',
-  'Reviews':       '#16a34a',
+  'How-To':        'var(--brand-teal)',
+  'Guides':        'var(--brand-teal)',
+  'Updates':       'var(--brand-teal)',
+  'Trends':        'var(--brand-teal)',
+  'Location-Based':'var(--brand-teal)',
+  'Reviews':       'var(--brand-teal)',
 };
 
 function categoryColor(cat: string) {
-  return CATEGORY_COLORS[cat] ?? '#16a34a';
+  return CATEGORY_COLORS[cat] ?? 'var(--brand-teal)';
 }
 
 interface PublishedBlogSummary {
@@ -48,12 +48,12 @@ export default function BlogPageClient({ posts }: { posts: PublishedBlogSummary[
   return (
     <>
       {/* ── Hero ────────────────────────────────────────────────────────── */}
-      <div className="relative overflow-hidden bg-[#061E35] text-white">
+      <div className="relative overflow-hidden bg-brand-forest text-white">
 
-        <div className="absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-green-900/20 via-[#061E35] to-[#061E35]" />
+        <div className="absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-[color-mix(in_srgb,var(--brand-teal-hover)_20%,transparent)] via-brand-forest to-brand-forest" />
         <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 md:pt-32 pb-14 text-center">
           <div
-            className="inline-flex items-center gap-2 bg-green-50 border border-green-500/20 text-green-600 text-xs font-semibold tracking-widest uppercase px-4 py-1.5 rounded-full mb-6 shadow-sm"
+            className="inline-flex items-center gap-2 bg-brand-mint border border-[color:color-mix(in_srgb,var(--brand-teal)_20%,transparent)] text-brand-teal text-xs font-semibold tracking-widest uppercase px-4 py-1.5 rounded-full mb-6 shadow-sm"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
             <FiBookOpen className="w-3.5 h-3.5" />
@@ -61,10 +61,10 @@ export default function BlogPageClient({ posts }: { posts: PublishedBlogSummary[
           </div>
 
           <h1
-            className="text-4xl md:text-6xl font-bold text-white mb-5 leading-tight"
-            style={{ fontFamily: '"Poppins", sans-serif' }}
+            className="text-4xl md:text-6xl font-extrabold text-white mb-5 leading-tight"
+            style={{ fontFamily: '"Host Grotesk", sans-serif' }}
           >
-            Property Management <span className="text-green-300">Blog</span>
+            Property Management <span className="text-brand-mint">Blog</span>
           </h1>
 
           <p
@@ -82,7 +82,7 @@ export default function BlogPageClient({ posts }: { posts: PublishedBlogSummary[
             <span className="text-[#B5B5B5]">·</span>
             <Link
               href="/rss.xml"
-              className="flex items-center gap-1.5 text-green-300 hover:text-green-200 transition-colors font-medium"
+              className="flex items-center gap-1.5 text-brand-mint hover:text-brand-mint transition-colors font-medium"
             >
               <FiRss className="w-3.5 h-3.5" />
               RSS Feed
@@ -93,7 +93,7 @@ export default function BlogPageClient({ posts }: { posts: PublishedBlogSummary[
         {/* Category filter bar */}
         <div
           style={{
-            background: '#061E35',
+            background: 'var(--brand-forest)',
             borderTop: '1px solid rgba(255,255,255,0.2)',
           }}
         >
@@ -105,8 +105,8 @@ export default function BlogPageClient({ posts }: { posts: PublishedBlogSummary[
                   onClick={() => setActiveCategory(cat)}
                   className={`text-sm font-medium px-4 py-1.5 rounded-full transition-all duration-200 ${
                     activeCategory === cat
-                      ? 'bg-green-600 text-white shadow-sm'
-                      : 'text-white/80 hover:text-green-300 hover:bg-white/10'
+                      ? 'bg-brand-teal text-white shadow-sm'
+                      : 'text-white/80 hover:text-brand-mint hover:bg-white/10'
                   }`}
                   style={{ fontFamily: '"Inter", sans-serif' }}
                 >
@@ -126,7 +126,7 @@ export default function BlogPageClient({ posts }: { posts: PublishedBlogSummary[
       </div>
 
       {/* ── Posts ────────────────────────────────────────────────────────── */}
-      <div className="bg-[#061E35] text-white">
+      <div className="bg-brand-forest text-white">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
           <AnimatePresence mode="wait">
             {filtered.length === 0 ? (
@@ -158,12 +158,12 @@ export default function BlogPageClient({ posts }: { posts: PublishedBlogSummary[
                     className="mb-8"
                   >
                     <Link href={`/blog/${featured.slug}`} className="block group">
-                      <div className="relative overflow-hidden rounded-2xl border border-[#E5E5E5] bg-white text-[#061E35] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_16px_48px_rgba(10,45,82,0.12)]">
+                      <div className="relative overflow-hidden rounded-2xl border border-[var(--brand-border)] bg-brand-surface text-brand-forest transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_16px_48px_rgba(16,44,41,0.12)]">
                         {/* Dot grid */}
                         <div
                           className="absolute inset-0 pointer-events-none opacity-[0.05]"
                           style={{
-                            backgroundImage: 'radial-gradient(circle, #16a34a 1px, transparent 1px)',
+                            backgroundImage: 'radial-gradient(circle, var(--brand-teal) 1px, transparent 1px)',
                             backgroundSize: '24px 24px',
                           }}
                         />
@@ -172,13 +172,13 @@ export default function BlogPageClient({ posts }: { posts: PublishedBlogSummary[
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-3 mb-4">
                               <span
-                                className="inline-block text-xs font-bold tracking-widest uppercase px-3 py-1 rounded-full bg-green-600/10 border border-green-600/15"
-                                style={{ fontFamily: '"Inter", sans-serif', color: '#16a34a' }}
+                                className="inline-block text-xs font-bold tracking-widest uppercase px-3 py-1 rounded-full bg-[color-mix(in_srgb,var(--brand-teal)_10%,transparent)] border border-[color:color-mix(in_srgb,var(--brand-teal)_15%,transparent)]"
+                                style={{ fontFamily: '"Inter", sans-serif', color: 'var(--brand-teal)' }}
                               >
                                 {featured.category}
                               </span>
                               <span
-                                className="text-xs text-[#8A8A8A]"
+                                className="text-xs text-brand-slate"
                                 style={{ fontFamily: '"Inter", sans-serif' }}
                               >
                                 Latest
@@ -186,21 +186,21 @@ export default function BlogPageClient({ posts }: { posts: PublishedBlogSummary[
                             </div>
 
                             <h2
-                              className="text-2xl md:text-3xl font-bold text-primary-main mb-4 leading-snug transition-colors group-hover:text-green-600"
-                              style={{ fontFamily: '"Poppins", sans-serif' }}
+                              className="text-2xl md:text-3xl font-extrabold text-primary-main mb-4 leading-snug transition-colors group-hover:text-brand-teal"
+                              style={{ fontFamily: '"Host Grotesk", sans-serif' }}
                             >
                               {featured.title}
                             </h2>
 
                             <p
-                              className="text-[#737373] leading-relaxed mb-6 max-w-2xl"
+                              className="text-brand-slate leading-relaxed mb-6 max-w-2xl"
                               style={{ fontFamily: '"Inter", sans-serif' }}
                             >
                               {featured.description}
                             </p>
 
                             <div
-                              className="flex items-center gap-4 text-sm text-[#8A8A8A]"
+                              className="flex items-center gap-4 text-sm text-brand-slate"
                               style={{ fontFamily: '"Inter", sans-serif' }}
                             >
                               <span className="flex items-center gap-1.5">
@@ -216,8 +216,8 @@ export default function BlogPageClient({ posts }: { posts: PublishedBlogSummary[
                             </div>
                           </div>
 
-                          <div className="hidden md:flex items-center justify-center w-16 h-16 rounded-2xl bg-white flex-shrink-0 transition-all duration-300 group-hover:bg-green-600/10 group-hover:translate-x-1">
-                            <FiArrowRight className="w-7 h-7 text-green-600" />
+                          <div className="hidden md:flex items-center justify-center w-16 h-16 rounded-2xl bg-brand-surface flex-shrink-0 transition-all duration-300 group-hover:bg-[color-mix(in_srgb,var(--brand-teal)_10%,transparent)] group-hover:translate-x-1">
+                            <FiArrowRight className="w-7 h-7 text-brand-teal" />
                           </div>
                         </div>
                       </div>
@@ -231,28 +231,28 @@ export default function BlogPageClient({ posts }: { posts: PublishedBlogSummary[
                     initial={{ opacity: 0, y: 14 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.35, delay: 0.08 }}
-                    className="mb-10 overflow-hidden rounded-2xl border border-green-100 bg-white text-[#061E35]"
+                    className="mb-10 overflow-hidden rounded-2xl border border-brand-mint bg-brand-surface text-brand-forest"
                   >
                     <div className="grid gap-6 p-6 md:grid-cols-[1.3fr_0.7fr] md:items-center md:p-8">
                       <div>
-                        <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-green-500/20 bg-green-50 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.18em] text-green-600 shadow-sm" style={{ fontFamily: '"Inter", sans-serif' }}>
+                        <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[color:color-mix(in_srgb,var(--brand-teal)_20%,transparent)] bg-brand-mint px-3 py-1.5 text-xs font-bold uppercase tracking-[0.18em] text-brand-teal shadow-sm" style={{ fontFamily: '"Inter", sans-serif' }}>
                           <FiZap className="h-3.5 w-3.5" />
                           Put the guides into action
                         </div>
-                        <h2 className="mb-3 text-2xl font-bold text-primary-main md:text-3xl" style={{ fontFamily: '"Poppins", sans-serif' }}>
+                        <h2 className="mb-3 text-2xl font-extrabold text-primary-main md:text-3xl" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>
                           Managing rentals while reading these guides?
                         </h2>
-                        <p className="max-w-2xl text-[#516A80] leading-relaxed" style={{ fontFamily: '"Inter", sans-serif' }}>
+                        <p className="max-w-2xl text-brand-slate leading-relaxed" style={{ fontFamily: '"Inter", sans-serif' }}>
                           Property Peace helps independent landlords track rent records, manage leases, track maintenance, and stay organized without rebuilding another spreadsheet.
                         </p>
                       </div>
-                      <div className="rounded-2xl bg-white p-5 shadow-[0_14px_34px_rgba(10,45,82,0.08)]">
-                        <ul className="mb-5 space-y-3 text-sm text-[#516A80]" style={{ fontFamily: '"Inter", sans-serif' }}>
-                          <li className="flex gap-2"><FiCheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-green-600" />Free for up to 5 units</li>
-                          <li className="flex gap-2"><FiCheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-green-600" />Built for landlords with 1–50 units</li>
-                          <li className="flex gap-2"><FiCheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-green-600" />Rent, leases, tenants, and maintenance together</li>
+                      <div className="rounded-2xl bg-brand-surface p-5 shadow-[0_14px_34px_rgba(16,44,41,0.08)]">
+                        <ul className="mb-5 space-y-3 text-sm text-brand-slate" style={{ fontFamily: '"Inter", sans-serif' }}>
+                          <li className="flex gap-2"><FiCheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-brand-teal" />Free for up to 5 units</li>
+                          <li className="flex gap-2"><FiCheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-brand-teal" />Built for landlords with 1–50 units</li>
+                          <li className="flex gap-2"><FiCheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-brand-teal" />Rent, leases, tenants, and maintenance together</li>
                         </ul>
-                        <Link href="https://app.propertypeace.io/register" className="inline-flex w-full items-center justify-center gap-2 rounded-none bg-gradient-to-r from-green-500 to-green-600 px-5 py-3 text-sm font-bold text-white transition-all hover:-translate-y-0.5 hover:from-green-600 hover:to-green-700" style={{ fontFamily: '"Inter", sans-serif' }}>
+                        <Link href="https://app.propertypeace.io/register" className="inline-flex w-full items-center justify-center gap-2 rounded-none bg-gradient-to-r from-brand-teal to-brand-teal px-5 py-3 text-sm font-bold text-white transition-all hover:-translate-y-0.5 hover:from-brand-teal hover:to-brand-teal-hover" style={{ fontFamily: '"Inter", sans-serif' }}>
                           Start Free
                           <FiArrowRight className="h-4 w-4" />
                         </Link>
@@ -270,7 +270,7 @@ export default function BlogPageClient({ posts }: { posts: PublishedBlogSummary[
                     >
                       {activeCategory === 'All' ? 'More articles' : `All ${activeCategory} articles`}
                     </p>
-                    <div className="flex-1 h-px bg-green-50/50" />
+                    <div className="flex-1 h-px bg-[color-mix(in_srgb,var(--brand-mint)_50%,transparent)]" />
                   </div>
                 )}
 
@@ -285,7 +285,7 @@ export default function BlogPageClient({ posts }: { posts: PublishedBlogSummary[
                         transition={{ duration: 0.35, delay: index * 0.04 }}
                       >
                         <Link href={`/blog/${post.slug}`} className="block h-full group">
-                          <div className="h-full flex flex-col rounded-2xl border border-slate-200 bg-white p-6 text-[#061E35] transition-all duration-200 hover:shadow-[0_8px_28px_rgba(10,45,82,0.09)] hover:-translate-y-0.5">
+                          <div className="h-full flex flex-col rounded-2xl border border-[var(--brand-border)] bg-brand-surface p-6 text-brand-forest transition-all duration-200 hover:shadow-[0_8px_28px_rgba(16,44,41,0.09)] hover:-translate-y-0.5">
                             {/* Accent bar */}
                             <div
                               className="w-8 h-0.5 rounded-full mb-4"
@@ -305,15 +305,15 @@ export default function BlogPageClient({ posts }: { posts: PublishedBlogSummary[
 
                             {/* Title */}
                             <h2
-                              className="text-[17px] font-bold text-primary-main mb-3 line-clamp-3 leading-snug group-hover:text-[#15803d] transition-colors"
-                              style={{ fontFamily: '"Poppins", sans-serif' }}
+                              className="text-[17px] font-extrabold text-primary-main mb-3 line-clamp-3 leading-snug group-hover:text-brand-teal transition-colors"
+                              style={{ fontFamily: '"Host Grotesk", sans-serif' }}
                             >
                               {post.title}
                             </h2>
 
                             {/* Description */}
                             <p
-                              className="text-sm text-[#516A80] mb-5 flex-grow line-clamp-4 leading-relaxed"
+                              className="text-sm text-brand-slate mb-5 flex-grow line-clamp-4 leading-relaxed"
                               style={{ fontFamily: '"Inter", sans-serif' }}
                             >
                               {post.description}
@@ -321,7 +321,7 @@ export default function BlogPageClient({ posts }: { posts: PublishedBlogSummary[
 
                             {/* Footer */}
                             <div
-                              className="flex items-center justify-between pt-4 border-t border-[#f0f5fb] text-xs text-[#8fa8c0]"
+                              className="flex items-center justify-between pt-4 border-t border-brand-ivory text-xs text-[var(--brand-border)]"
                               style={{ fontFamily: '"Inter", sans-serif' }}
                             >
                               <span className="flex items-center gap-1.5">
@@ -344,14 +344,14 @@ export default function BlogPageClient({ posts }: { posts: PublishedBlogSummary[
                   </div>
                 )}
                 {rest.length > 0 && activeCategory === 'All' && (
-                  <div className="relative mt-12 bg-[#061e35] overflow-hidden rounded-2xl p-8 text-center text-white md:p-10">
-                    <h2 className="mb-3 text-2xl font-bold md:text-3xl" style={{ fontFamily: '"Poppins", sans-serif' }}>
+                  <div className="relative mt-12 bg-brand-forest overflow-hidden rounded-2xl p-8 text-center text-white md:p-10">
+                    <h2 className="mb-3 text-2xl font-extrabold md:text-3xl" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>
                       Ready to stop managing rentals from scattered notes?
                     </h2>
                     <p className="mx-auto mb-6 max-w-2xl text-white/70" style={{ fontFamily: '"Inter", sans-serif' }}>
                       Start with the guide that fits your problem, then use Property Peace to organize the actual workflow.
                     </p>
-                    <Link href="https://app.propertypeace.io/register" className="inline-flex items-center gap-2 rounded-none bg-gradient-to-r from-green-500 to-green-600 px-7 py-3.5 text-sm font-bold text-white transition-all hover:-translate-y-0.5 hover:from-green-600 hover:to-green-700 hover:shadow-[0_10px_24px_rgba(34,197,94,0.25)]" style={{ fontFamily: '"Inter", sans-serif' }}>
+                    <Link href="https://app.propertypeace.io/register" className="inline-flex items-center gap-2 rounded-none bg-gradient-to-r from-brand-teal to-brand-teal px-7 py-3.5 text-sm font-bold text-white transition-all hover:-translate-y-0.5 hover:from-brand-teal hover:to-brand-teal-hover hover:shadow-[0_10px_24px_rgba(36,117,104,0.25)]" style={{ fontFamily: '"Inter", sans-serif' }}>
                       Get Started Free
                       <FiArrowRight className="h-4 w-4" />
                     </Link>

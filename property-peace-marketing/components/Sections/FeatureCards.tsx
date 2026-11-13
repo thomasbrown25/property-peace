@@ -22,7 +22,7 @@ export default function FeatureCards() {
               className="uppercase mb-4"
               style={{
                 fontFamily: "'Open Sans', sans-serif",
-                color: '#516A80',
+                color: 'var(--brand-teal)',
                 fontSize: '18px',
                 fontWeight: 700,
                 textTransform: 'uppercase',
@@ -38,14 +38,14 @@ export default function FeatureCards() {
             {/* Main Headline */}
             <h2
               className="text-3xl md:text-4xl lg:text-5xl font-bold mb-6 text-primary-main"
-              style={{ fontFamily: '"Poppins", sans-serif', lineHeight: '1.2' }}
+              style={{ fontFamily: '"Host Grotesk", sans-serif', lineHeight: '1.2' }}
             >
               Everything about your properties, in one view.
             </h2>
 
             {/* Descriptive Paragraph */}
             <p
-              className="text-base md:text-lg text-[#737373] mb-6 leading-relaxed"
+              className="text-base md:text-lg text-brand-slate mb-6 leading-relaxed"
               style={{ fontFamily: '"Inter", sans-serif' }}
             >
               Access all your property data, tenant information, financial reports, and maintenance requests from a single, intuitive dashboard. No more switching between spreadsheets, apps, and paper files — everything you need is right at your fingertips.
@@ -56,7 +56,7 @@ export default function FeatureCards() {
               {['Excel chaos', 'Paper files', 'Multiple apps', 'Scattered spreadsheets'].map((item) => (
                 <span
                   key={item}
-                  className="inline-flex items-center gap-1 text-sm text-[#737373] bg-[#F5F5F5] px-3 py-1 rounded-full"
+                  className="inline-flex items-center gap-1 text-sm text-brand-slate bg-[#F5F5F5] px-3 py-1 rounded-full"
                   style={{ fontFamily: '"Inter", sans-serif' }}
                 >
                   <span className="text-red-400 font-bold">✕</span> {item}
@@ -85,7 +85,7 @@ export default function FeatureCards() {
             <div 
               className="relative rounded-2xl overflow-hidden bg-white"
               style={{
-                boxShadow: '0 20px 60px rgba(47, 93, 255, 0.3)'
+                boxShadow: '0 20px 60px color-mix(in srgb, var(--brand-forest) 16%, transparent)'
               }}
             >
               {/* Device Frame */}

@@ -20,10 +20,8 @@ export default function SortableTableHeader({
   return (
     <TableCell
       sx={{
-        fontWeight: 600,
         cursor: 'pointer',
         userSelect: 'none',
-        fontFamily: "'Poppins', sans-serif",
         ...sx
       }}
       onClick={onSort}

@@ -56,16 +56,16 @@ function Step1Mock() {
       </div>
 
       {/* Percy activating */}
-      <div className="bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 flex items-center gap-2 mb-3">
-        <div className="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
+      <div className="bg-brand-ivory border border-[var(--brand-border)] rounded-lg px-3 py-2 flex items-center gap-2 mb-3">
+        <div className="w-5 h-5 rounded-full bg-brand-teal flex items-center justify-center flex-shrink-0">
           <span className="text-[8px] font-bold text-white">P</span>
         </div>
-        <span className="text-xs text-blue-700 font-medium">Percy activated</span>
+        <span className="text-xs text-brand-teal font-medium">Percy activated</span>
         <div className="ml-auto flex gap-0.5 items-center">
           {[0, 150, 300].map((d) => (
             <div
               key={d}
-              className="w-1 h-1 rounded-full bg-blue-400 animate-bounce"
+              className="w-1 h-1 rounded-full bg-brand-teal animate-bounce"
               style={{ animationDelay: `${d}ms` }}
             />
           ))}
@@ -80,7 +80,7 @@ function Step1Mock() {
           <span className="text-xs font-semibold text-gray-700">3 / 4 units</span>
         </div>
         <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-          <div className="h-full bg-green-400 rounded-full" style={{ width: '75%' }} />
+          <div className="h-full bg-brand-teal rounded-full" style={{ width: '75%' }} />
         </div>
       </div>
     </div>
@@ -135,7 +135,7 @@ function Step2Mock() {
     <div className="flex flex-col h-full bg-white overflow-hidden" style={{ fontFamily: '"Inter", sans-serif' }}>
       {/* Chat header */}
       <div className="px-4 py-2.5 border-b border-gray-100 flex items-center gap-2.5 flex-shrink-0">
-        <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
+        <div className="w-7 h-7 rounded-full bg-brand-teal flex items-center justify-center flex-shrink-0">
           <span className="text-[9px] font-bold text-white">P</span>
         </div>
         <div>
@@ -160,22 +160,22 @@ function Step2Mock() {
             className={`flex items-end gap-1.5 ${msg.from === 'tenant' ? 'justify-end' : 'justify-start'}`}
           >
             {msg.from === 'agent' && (
-              <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 mb-0.5">
-                <span className="text-[8px] font-bold text-blue-600">P</span>
+              <div className="w-5 h-5 rounded-full bg-brand-mint flex items-center justify-center flex-shrink-0 mb-0.5">
+                <span className="text-[8px] font-bold text-brand-forest">P</span>
               </div>
             )}
             <div
               className={`max-w-[78%] px-3 py-2 text-[11px] leading-relaxed ${
                 msg.from === 'agent'
                   ? 'bg-gray-100 text-gray-700 rounded-2xl rounded-bl-sm'
-                  : 'bg-blue-600 text-white rounded-2xl rounded-br-sm'
+                  : 'bg-brand-teal text-white rounded-2xl rounded-br-sm'
               }`}
             >
               {msg.text}
             </div>
             {msg.from === 'tenant' && (
-              <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 mb-0.5">
-                <span className="text-[8px] font-bold text-blue-600">S</span>
+              <div className="w-5 h-5 rounded-full bg-brand-mint flex items-center justify-center flex-shrink-0 mb-0.5">
+                <span className="text-[8px] font-bold text-brand-forest">S</span>
               </div>
             )}
           </motion.div>
@@ -191,17 +191,17 @@ function Step2Mock() {
               transition={{ duration: 0.2 }}
               className="flex items-end justify-end gap-1.5"
             >
-              <div className="bg-blue-50 border border-blue-100 px-3 py-2 rounded-2xl rounded-br-sm flex items-center gap-1">
+              <div className="bg-brand-ivory border border-[var(--brand-border)] px-3 py-2 rounded-2xl rounded-br-sm flex items-center gap-1">
                 {[0, 150, 300].map((d) => (
                   <div
                     key={d}
-                    className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-bounce"
+                    className="w-1.5 h-1.5 rounded-full bg-brand-teal animate-bounce"
                     style={{ animationDelay: `${d}ms` }}
                   />
                 ))}
               </div>
-              <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 mb-0.5">
-                <span className="text-[8px] font-bold text-blue-600">S</span>
+              <div className="w-5 h-5 rounded-full bg-brand-mint flex items-center justify-center flex-shrink-0 mb-0.5">
+                <span className="text-[8px] font-bold text-brand-forest">S</span>
               </div>
             </motion.div>
           )}
@@ -332,7 +332,7 @@ export default function HeroProductStepper() {
       {/* Browser frame */}
       <div className="w-full max-w-[440px] rounded-xl overflow-hidden shadow-[0_20px_60px_rgba(15,23,42,0.14)]">
         {/* Browser chrome with interactive tabs */}
-        <div className="bg-[#061e35]">
+        <div className="bg-brand-forest">
           <div className="flex items-stretch border-b border-white/[0.08]">
             <div className="flex items-center gap-1.5 px-4 py-3 border-r border-white/[0.08] flex-shrink-0">
               <div className="w-3 h-3 rounded-full bg-[#ff5f57]" />
@@ -358,7 +358,7 @@ export default function HeroProductStepper() {
                     {isActive && (
                       <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-white/10">
                         <div
-                          className="h-full bg-[#061e35]"
+                          className="h-full bg-brand-mint"
                           style={{ width: `${progress}%`, transition: 'none' }}
                         />
                       </div>
@@ -394,13 +394,13 @@ export default function HeroProductStepper() {
           <AnimatePresence mode="wait">
             <motion.div
               key={`callout-${activeStep}`}
-              className="absolute top-3 right-3 flex items-center gap-1.5 bg-green-600 text-white text-[11px] font-semibold px-3 py-1.5 rounded-full shadow-lg shadow-green-600/20 pointer-events-none"
+              className="absolute top-3 right-3 flex items-center gap-1.5 bg-brand-teal text-white text-[11px] font-semibold px-3 py-1.5 rounded-full shadow-lg pointer-events-none"
               initial={{ opacity: 0, scale: 0.85, y: -4 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.85 }}
               transition={{ duration: 0.25, delay: 0.2 }}
             >
-              <div className="w-1.5 h-1.5 rounded-full bg-green-200 flex-shrink-0" />
+              <div className="w-1.5 h-1.5 rounded-full bg-brand-mint flex-shrink-0" />
               {steps[activeStep].callout}
             </motion.div>
           </AnimatePresence>

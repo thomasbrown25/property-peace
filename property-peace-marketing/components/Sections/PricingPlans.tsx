@@ -62,9 +62,9 @@ export default function PricingPlans() {
   const [annual, setAnnual] = useState(false);
 
   return (
-    <section data-marketing-hero-theme="dark" className="relative isolate overflow-hidden bg-[#061E35] px-4 pb-10 pt-32 text-white sm:px-6 sm:pb-14 md:pt-48 lg:px-8">
+    <section data-marketing-hero-theme="dark" className="relative isolate overflow-hidden bg-brand-forest px-4 pb-10 pt-32 text-white sm:px-6 sm:pb-14 md:pt-48 lg:px-8">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[680px] bg-cover bg-center bg-no-repeat" style={{ backgroundImage: 'url(/images/pricing/hero.png)' }} aria-hidden="true" />
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-[680px] bg-[linear-gradient(to_top,#061E35_0%,rgba(6,30,53,0.94)_22%,rgba(6,30,53,0.76)_61%,rgba(6,30,53,0.72)_100%)]" aria-hidden="true" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-[680px] bg-brand-forest opacity-90" aria-hidden="true" />
       <div className="relative z-10 mx-auto max-w-6xl">
         {/* Header */}
         <motion.div
@@ -74,8 +74,8 @@ export default function PricingPlans() {
           transition={{ duration: 0.6 }}
         >
           <h1
-            className="mb-4 text-4xl font-bold text-green-400 md:text-5xl lg:text-6xl"
-            style={{ fontFamily: '"Poppins", sans-serif' }}
+            className="mb-4 text-4xl font-bold text-brand-mint md:text-5xl lg:text-6xl"
+            style={{ fontFamily: '"Host Grotesk", sans-serif' }}
           >
             Pricing
           </h1>
@@ -87,7 +87,7 @@ export default function PricingPlans() {
           </p>
 
           {/* Annual toggle */}
-          <div className="inline-flex max-w-full items-center gap-2 rounded-full border border-white/15 bg-[#263e52] px-3 py-2 shadow-sm sm:gap-3 sm:px-4">
+          <div className="inline-flex max-w-full items-center gap-2 rounded-full border border-white/15 bg-brand-forest-raised px-3 py-2 shadow-sm sm:gap-3 sm:px-4">
             <span
               className={`text-sm font-medium cursor-pointer transition-colors ${!annual ? 'text-white' : 'text-white/70'}`}
               style={{ fontFamily: '"Inter", sans-serif' }}
@@ -97,8 +97,9 @@ export default function PricingPlans() {
             </span>
             <button
               onClick={() => setAnnual(!annual)}
-              className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${annual ? 'bg-green-600' : 'bg-[#D1D5DB]'}`}
+              className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-mint ${annual ? 'bg-brand-teal' : 'bg-brand-slate'}`}
               aria-label="Toggle annual billing"
+              aria-pressed={annual}
             >
               <span
                 className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${annual ? 'translate-x-5' : 'translate-x-0'}`}
@@ -109,7 +110,7 @@ export default function PricingPlans() {
               style={{ fontFamily: '"Inter", sans-serif' }}
               onClick={() => setAnnual(true)}
             >
-              Annual <span className="font-semibold text-green-400">save 15%</span>
+              Annual <span className="font-semibold text-brand-mint">save 15%</span>
             </span>
           </div>
         </motion.div>
@@ -121,8 +122,8 @@ export default function PricingPlans() {
               key={plan.name}
               className={`relative rounded-2xl p-6 md:p-8 flex flex-col ${
                 plan.highlighted
-                  ? 'bg-[#263e52] shadow-2xl shadow-slate-950/20'
-                  : 'bg-white border border-[#E5E5E5] shadow-sm'
+                  ? 'bg-brand-forest-raised shadow-2xl'
+                  : 'bg-brand-surface border border-brand-mint shadow-sm'
               }`}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -130,7 +131,7 @@ export default function PricingPlans() {
             >
               {plan.badge && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <span className="bg-green-500 text-white text-xs font-semibold px-3 py-1 rounded-full" style={{ fontFamily: '"Inter", sans-serif' }}>
+                  <span className="bg-brand-mint text-brand-forest text-xs font-semibold px-3 py-1 rounded-full" style={{ fontFamily: '"Inter", sans-serif' }}>
                     {plan.badge}
                   </span>
                 </div>
@@ -139,29 +140,29 @@ export default function PricingPlans() {
               <div className="mb-6">
                 <h2
                   className={`text-xl font-bold mb-1 ${plan.highlighted ? 'text-white' : 'text-primary-main'}`}
-                  style={{ fontFamily: '"Poppins", sans-serif' }}
+                  style={{ fontFamily: '"Host Grotesk", sans-serif' }}
                 >
                   {plan.name}
                 </h2>
                 <p
-                  className={`text-sm mb-4 ${plan.highlighted ? 'text-white/80' : 'text-[#737373]'}`}
+                  className={`text-sm mb-4 ${plan.highlighted ? 'text-white/80' : 'text-brand-slate'}`}
                   style={{ fontFamily: '"Inter", sans-serif' }}
                 >
                   {plan.description}
                 </p>
 
                 {plan.monthlyPrice === 0 ? (
-                  <div className={`text-4xl font-bold ${plan.highlighted ? 'text-white' : 'text-primary-main'}`} style={{ fontFamily: '"Poppins", sans-serif' }}>
+                  <div className={`text-4xl font-bold ${plan.highlighted ? 'text-white' : 'text-primary-main'}`} style={{ fontFamily: '"Host Grotesk", sans-serif' }}>
                     Free
                   </div>
                 ) : (
                   <div>
-                    <div className={`text-4xl font-bold ${plan.highlighted ? 'text-white' : 'text-primary-main'}`} style={{ fontFamily: '"Poppins", sans-serif' }}>
+                    <div className={`text-4xl font-bold ${plan.highlighted ? 'text-white' : 'text-primary-main'}`} style={{ fontFamily: '"Host Grotesk", sans-serif' }}>
                       ${annual ? plan.annualMonthly.toFixed(2) : plan.monthlyPrice.toFixed(2)}
-                      <span className={`text-base font-normal ml-1 ${plan.highlighted ? 'text-white/70' : 'text-[#737373]'}`}>/mo</span>
+                      <span className={`text-base font-normal ml-1 ${plan.highlighted ? 'text-white/70' : 'text-brand-slate'}`}>/mo</span>
                     </div>
                     {annual && (
-                      <p className={`text-sm mt-1 ${plan.highlighted ? 'text-white/70' : 'text-[#737373]'}`} style={{ fontFamily: '"Inter", sans-serif' }}>
+                      <p className={`text-sm mt-1 ${plan.highlighted ? 'text-white/70' : 'text-brand-slate'}`} style={{ fontFamily: '"Inter", sans-serif' }}>
                         Billed ${plan.annualTotal.toFixed(2)}/year
                       </p>
                     )}
@@ -172,7 +173,7 @@ export default function PricingPlans() {
               <ul className={`mb-8 flex-1 ${plan.features.length > 6 ? 'grid gap-y-3 sm:grid-cols-2 sm:gap-x-4' : 'space-y-3'}`}>
                 {plan.features.map((feature) => (
                   <li key={feature} className="flex items-start gap-2">
-                    <FiCheck className="w-4 h-4 flex-shrink-0 mt-0.5 text-green-500" />
+                    <FiCheck className={`w-4 h-4 flex-shrink-0 mt-0.5 ${plan.highlighted ? 'text-brand-mint' : 'text-brand-teal'}`} />
                     <span
                       className={`text-sm ${plan.highlighted ? 'text-white/90' : 'text-primary-main'}`}
                       style={{ fontFamily: '"Inter", sans-serif' }}
@@ -187,8 +188,8 @@ export default function PricingPlans() {
                 href={plan.ctaHref}
                 className={`block w-full rounded-2xl px-6 py-3.5 text-center font-semibold transition-all duration-300 sm:rounded-full ${
                   plan.highlighted
-                    ? 'bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700 hover:translate-y-[-2px] hover:shadow-[0_10px_24px_rgba(34,197,94,0.25)]'
-                    : 'bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700 hover:translate-y-[-2px] hover:shadow-[0_10px_24px_rgba(34,197,94,0.25)]'
+                    ? 'bg-brand-mint text-brand-forest hover:bg-brand-ivory focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-mint'
+                    : 'bg-brand-teal text-white hover:bg-brand-teal-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-teal'
                 }`}
                 style={{ fontFamily: '"Inter", "Inter Placeholder", sans-serif' }}
               >

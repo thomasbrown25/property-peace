@@ -6,6 +6,7 @@ import FeatureReadinessNotice from 'components/feature-readiness/FeatureReadines
 import useFeatureReadiness from 'hooks/useFeatureReadiness';
 import { FEATURE_KEYS } from 'utils/featureReadiness';
 import { getPlanPricePresentation } from 'utils/subscriptionPresentation';
+import { getTableStyles } from 'themes/tableStyles';
 
 const COMPARISON_FEATURES = [
   { label: 'Units', type: 'value', getValue: (plan) => plan.maxTotalUnits == null ? 'Unlimited' : String(plan.maxTotalUnits) },
@@ -59,6 +60,7 @@ function hasFeature(plan, check) {
 
 export default function PlanComparisonTable({ plans = [], currentPlanId, currentBillingCycle, onSelectPlan, loading = false }) {
   const theme = useTheme();
+  const tableStyles = getTableStyles(theme);
   const [billingCycle, setBillingCycle] = useState(currentBillingCycle || 'Monthly');
   const { presentation: rentReadiness } = useFeatureReadiness(FEATURE_KEYS.onlineRentCollection);
   const { presentation: syndicationReadiness } = useFeatureReadiness(FEATURE_KEYS.listingSyndication);
@@ -201,10 +203,10 @@ export default function PlanComparisonTable({ plans = [], currentPlanId, current
         })}
       </Stack>
 
-      <Box sx={{ display: { xs: 'none', md: 'block' }, position: 'relative', border: `1px solid ${theme.palette.divider}`, borderRadius: 3, overflow: 'hidden' }}>
+      <Box style={tableStyles.container} sx={{ display: { xs: 'none', md: 'block' }, position: 'relative', overflow: 'hidden' }}>
 
         {/* ── Plan header row ── */}
-        <Box sx={{ display: 'flex', borderBottom: `1px solid ${theme.palette.divider}` }}>
+        <Box style={{ ...tableStyles.header, borderBottom: tableStyles.headerCell.borderBottom }} sx={{ display: 'flex' }}>
           <Box sx={{ width: LABEL_WIDTH, flexShrink: 0, borderRight: `1px solid ${theme.palette.divider}` }} />
           {displayPlans.map((plan, idx) => {
             const isCurrentPlan = plan.id === currentPlanId;
@@ -267,18 +269,16 @@ export default function PlanComparisonTable({ plans = [], currentPlanId, current
         </Box>
 
         {/* ── Feature rows ── */}
-        {visibleFeatures.map((feature, rowIdx) => (
+        {visibleFeatures.map((feature) => (
           <Box
             key={feature.label}
-            sx={{
-              display: 'flex',
-              borderBottom: `1px solid ${theme.palette.divider}`,
-              bgcolor: rowIdx % 2 !== 0 ? alpha(theme.palette.grey[500], 0.04) : 'transparent',
-            }}
+            style={tableStyles.row}
+            sx={{ display: 'flex' }}
           >
             <Box
+              style={tableStyles.cell}
               sx={{
-                width: LABEL_WIDTH, flexShrink: 0, px: 2, py: 1.25,
+                width: LABEL_WIDTH, flexShrink: 0,
                 borderRight: `1px solid ${theme.palette.divider}`,
                 display: 'flex', alignItems: 'center',
               }}
@@ -291,8 +291,9 @@ export default function PlanComparisonTable({ plans = [], currentPlanId, current
               return (
                 <Box
                   key={plan.id}
+                  style={tableStyles.cell}
                   sx={{
-                    flex: 1, px: 2, py: 1.25,
+                    flex: 1,
                     borderRight: idx < displayPlans.length - 1 ? `1px solid ${theme.palette.divider}` : 'none',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     bgcolor: isCurrentPlan
@@ -367,8 +368,8 @@ export default function PlanComparisonTable({ plans = [], currentPlanId, current
                 zIndex: 5,
                 pointerEvents: 'none',
                 border: `2px solid ${color}`,
-                borderTopRightRadius: isLastColumn ? 3 : 0,
-                borderBottomRightRadius: isLastColumn ? 3 : 0,
+                borderTopRightRadius: isLastColumn ? '8px' : 0,
+                borderBottomRightRadius: isLastColumn ? '8px' : 0,
                 boxSizing: 'border-box',
               }}
             />

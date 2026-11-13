@@ -217,7 +217,7 @@ body {
 
 /* Headline font family */
 h1, h2, h3, h4, h5, h6 {
-  font-family: "Poppins", sans-serif;
+  font-family: "Host Grotesk", "Inter", sans-serif;
 }
 
 /* Spark-inspired display treatment, scoped to the Property Peace homepage.
@@ -235,6 +235,11 @@ h1, h2, h3, h4, h5, h6 {
 
 [data-marketing-home] h3 {
   letter-spacing: -0.02em;
+}
+
+h1, h2, h3 {
+  font-weight: 800;
+  letter-spacing: -0.035em;
 }
 
 /* Paragraph font family */
@@ -314,12 +319,12 @@ div[class*="preferences" i][role="button"],
   bottom: max(24px, env(safe-area-inset-bottom));
   z-index: 70;
   width: min(440px, calc(100vw - 48px));
-  border: 1px solid #dce6ed;
+  border: 1px solid var(--brand-border);
   border-radius: 10px;
   padding: 26px 24px 20px;
-  background: #ffffff;
-  color: #061e35;
-  box-shadow: 0 16px 42px rgba(6, 30, 53, 0.16), 0 2px 8px rgba(6, 30, 53, 0.08);
+  background: var(--brand-surface);
+  color: var(--brand-forest);
+  box-shadow: 0 16px 42px rgba(16, 44, 41, 0.16), 0 2px 8px rgba(16, 44, 41, 0.08);
   transform: none;
 }
 
@@ -329,7 +334,7 @@ div[class*="preferences" i][role="button"],
 
 .cookieConsent__title {
   margin: 0 32px 10px 0;
-  color: #061e35;
+  color: var(--brand-forest);
   font-family: "Host Grotesk", "Inter", sans-serif;
   font-size: 19px;
   font-weight: 800;
@@ -339,19 +344,19 @@ div[class*="preferences" i][role="button"],
 
 .cookieConsent__content p {
   margin: 0;
-  color: #405a70;
+  color: var(--brand-slate);
   font-size: 14px;
   line-height: 1.55;
 }
 
 .cookieConsent__content a {
-  color: #15803d;
+  color: var(--brand-teal);
   text-decoration: none;
   font-weight: 800;
 }
 
 .cookieConsent__content a:hover {
-  color: #166534;
+  color: var(--brand-teal-hover);
   text-decoration: underline;
 }
 
@@ -366,20 +371,20 @@ div[class*="preferences" i][role="button"],
   height: 28px;
   border: 0;
   border-radius: 999px;
-  color: #637083;
+  color: var(--brand-slate);
   background: transparent;
   cursor: pointer;
 }
 
 .ppNoticeClose:hover {
-  color: #061e35;
-  background: #f1f5f9;
+  color: var(--brand-forest);
+  background: var(--brand-ivory);
 }
 
 .ppNoticeClose:focus-visible,
 .ppNoticeSecondary:focus-visible,
 .ppNoticePrimary:focus-visible {
-  outline: 3px solid rgba(21, 128, 61, 0.28);
+  outline: 3px solid rgba(36, 117, 104, 0.28);
   outline-offset: 2px;
 }
 
@@ -416,33 +421,33 @@ div[class*="preferences" i][role="button"],
 }
 
 .ppNoticeSecondary {
-  border: 1px solid #15803d;
-  color: #15803d;
-  background: #ffffff;
+  border: 1px solid var(--brand-teal);
+  color: var(--brand-teal);
+  background: var(--brand-surface);
 }
 
 .ppNoticeSecondary:hover {
-  border-color: #166534;
-  color: #166534;
-  background: #f0fdf4;
+  border-color: var(--brand-teal-hover);
+  color: var(--brand-teal-hover);
+  background: var(--brand-ivory);
 }
 
 .ppNoticePrimary {
-  border: 1px solid rgba(34, 197, 94, 0.9);
-  color: #ffffff;
-  background: linear-gradient(135deg, #22c55e, #16a34a);
-  box-shadow: 0 12px 26px rgba(34, 197, 94, 0.25);
+  border: 1px solid var(--brand-teal);
+  color: var(--brand-surface);
+  background: var(--brand-teal);
+  box-shadow: 0 12px 26px rgba(36, 117, 104, 0.25);
 }
 
 .ppNoticePrimary:hover {
-  background: linear-gradient(135deg, #34d399, #16a34a);
-  box-shadow: 0 14px 30px rgba(34, 197, 94, 0.32);
+  background: var(--brand-teal-hover);
+  box-shadow: 0 14px 30px rgba(36, 117, 104, 0.32);
 }
 
 .cookieConsent__fineprint {
   display: block;
   margin: 12px 0 0 !important;
-  color: #637083 !important;
+  color: var(--brand-slate) !important;
   font-size: 11px !important;
   line-height: 1.4 !important;
 }

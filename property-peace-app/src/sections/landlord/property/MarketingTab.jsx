@@ -138,15 +138,15 @@ function MarketingTab({ propertyId, onNavigateToAddListing, creatingListing = fa
               </Button>
             </MainCard>
           ) : (
-            <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
+            <TableContainer component={Paper} variant="outlined">
               <Table size="small">
                 <TableHead>
-                  <TableRow sx={{ bgcolor: (t) => alpha(t.palette.grey[100], 0.8) }}>
-                    <TableCell sx={{ fontWeight: 600 }}>Listing #</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Unit</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Rent</TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 600 }}>Actions</TableCell>
+                  <TableRow>
+                    <TableCell>Listing #</TableCell>
+                    <TableCell>Unit</TableCell>
+                    <TableCell>Status</TableCell>
+                    <TableCell>Rent</TableCell>
+                    <TableCell align="right">Actions</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>

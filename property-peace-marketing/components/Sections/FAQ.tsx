@@ -40,7 +40,8 @@ const faqs = [
   },
 ];
 
-export default function FAQ({ dark = false }: { dark?: boolean }) {
+export default function FAQ({ dark = false, asPage = false }: { dark?: boolean; asPage?: boolean }) {
+  const Heading = asPage ? 'h1' : 'h2';
   const [openQuestions, setOpenQuestions] = useState<Set<string>>(new Set());
 
   const toggleQuestion = (question: string) => {
@@ -76,19 +77,19 @@ export default function FAQ({ dark = false }: { dark?: boolean }) {
           {!dark && (
             <span
               className="mb-5 inline-block rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-widest"
-              style={{ fontFamily: '"Inter", sans-serif', color: '#16a34a', borderColor: 'rgba(34,197,94,0.20)', background: 'rgba(34,197,94,0.08)' }}
+              style={{ fontFamily: '"Inter", sans-serif', color: 'var(--brand-teal)', borderColor: 'rgba(34,197,94,0.20)', background: 'rgba(34,197,94,0.08)' }}
             >
               FAQ
             </span>
           )}
-          <h2
+          <Heading
             className={`text-3xl font-bold md:text-4xl lg:text-5xl ${dark ? 'text-white' : 'mb-4 text-primary-deep'}`}
-            style={{ fontFamily: '"Poppins", sans-serif', lineHeight: '1.15' }}
+            style={{ fontFamily: '"Host Grotesk", sans-serif', lineHeight: '1.15' }}
           >
             {dark ? 'FAQ' : 'Questions landlords ask before getting started.'}
-          </h2>
+          </Heading>
           {!dark && <p
-            className={`text-base leading-relaxed md:text-lg ${dark ? 'text-white/80' : 'text-[#737373]'}`}
+            className={`text-base leading-relaxed md:text-lg ${dark ? 'text-white/80' : 'text-[var(--brand-slate)]'}`}
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
             Get the basics on setup, pricing, accounting, and how Property Peace fits into your rental workflow.
@@ -107,7 +108,7 @@ export default function FAQ({ dark = false }: { dark?: boolean }) {
                 key={faq.question}
                 className={`border p-5 transition-colors duration-300 ${dark
                   ? 'rounded-sm border-white/10 bg-brand-forest-raised hover:bg-brand-forest-hover'
-                  : `rounded-2xl shadow-[0_16px_45px_rgba(6,30,53,0.06)] ${isOpen ? 'border-green-200 bg-green-50/30' : 'border-slate-200 bg-white'}`
+                  : `rounded-2xl shadow-[0_16px_45px_rgba(16,44,41,0.06)] ${isOpen ? 'border-brand-mint bg-brand-ivory' : 'border-slate-200 bg-white'}`
                 }`}
                 initial={{ opacity: 0, y: 18 }}
                 whileInView={{ opacity: 1, y: 0 }}
@@ -129,7 +130,7 @@ export default function FAQ({ dark = false }: { dark?: boolean }) {
                   </span>
                   <span
                     className={`mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center transition-transform duration-300 ${
-                      dark ? 'text-white' : 'rounded-full bg-green-50 text-green-600'
+                      dark ? 'text-white' : 'rounded-full bg-brand-ivory text-brand-teal'
                     } ${
                       isOpen ? (dark ? '-rotate-90' : 'rotate-180') : ''
                     }`}
@@ -148,7 +149,7 @@ export default function FAQ({ dark = false }: { dark?: boolean }) {
                       className="overflow-hidden"
                     >
                       <p
-                        className={`mt-4 border-l-2 pl-4 text-sm leading-6 ${dark ? 'border-white/30 text-white/85' : 'border-green-400 text-primary-deep'}`}
+                        className={`mt-4 border-l-2 pl-4 text-sm leading-6 ${dark ? 'border-white/30 text-white/85' : 'border-brand-teal text-primary-deep'}`}
                         style={{ fontFamily: '"Inter", sans-serif' }}
                       >
                         {faq.answer}

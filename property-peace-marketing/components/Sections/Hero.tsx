@@ -38,14 +38,14 @@ export default function Hero() {
                 <Link
                   href="/demo"
                   className="flex min-h-14 items-center justify-center rounded-full border-2 border-white bg-white px-3 py-3 text-center text-sm font-bold text-brand-forest transition-colors hover:border-white/85 hover:bg-white/85 sm:text-base"
-                  style={{ fontFamily: '"Poppins", sans-serif' }}
+                  style={{ fontFamily: '"Host Grotesk", sans-serif' }}
                 >
                   Book Demo
                 </Link>
                 <Link
                   href="https://app.propertypeace.io/register"
                   className="flex min-h-14 items-center justify-center rounded-full bg-brand-teal px-3 py-3 text-center text-sm font-bold text-white shadow-[0_14px_34px_rgba(16,44,41,0.24)] transition-all hover:-translate-y-0.5 hover:bg-brand-teal-hover sm:text-base"
-                  style={{ fontFamily: '"Poppins", sans-serif' }}
+                  style={{ fontFamily: '"Host Grotesk", sans-serif' }}
                 >
                   Get Started Free
                 </Link>
@@ -58,7 +58,7 @@ export default function Hero() {
               </p>
             </motion.div>
           </div>
-          <div className="relative mb-8 mt-3 min-w-0 sm:mb-12 lg:mb-0 lg:mt-16 lg:-translate-y-10 lg:self-center">
+          <div className="hidden relative mb-8 mt-3 min-w-0 sm:mb-12 lg:mb-0 lg:mt-16 lg:-translate-y-10 lg:self-center">
             <Image
               src="/images/landing/hero-right.png"
               alt="Property Peace overview of rent collection, listings, applications, and finances"

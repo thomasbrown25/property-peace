@@ -9,16 +9,16 @@ import { FiShield, FiArrowRight, FiCheck, FiBookOpen, FiGlobe, FiMessageSquare }
 
 function Mock1() {
   return (
-    <div style={{ fontFamily: '"Inter", sans-serif', display: 'flex', flexDirection: 'column', height: '100%', background: '#fff' }}>
+    <div style={{ fontFamily: '"Inter", sans-serif', display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--brand-surface)' }}>
       <div style={{ padding: '10px 14px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 8 }}>
-        <div style={{ width: 24, height: 24, borderRadius: 6, background: '#1e3a5f', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        <div style={{ width: 24, height: 24, borderRadius: 6, background: 'var(--brand-forest)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
         </div>
         <span style={{ fontSize: 12, fontWeight: 700, color: '#1e293b' }}>LeaseShield</span>
         <span style={{ marginLeft: 'auto', fontSize: 11, padding: '2px 8px', background: '#f0fdf4', color: '#16a34a', borderRadius: 12, border: '1px solid #bbf7d0', fontWeight: 600 }}>California</span>
       </div>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '16px 20px', gap: 8 }}>
-        <div style={{ width: 36, height: 36, borderRadius: 10, background: '#1e3a5f', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
+        <div style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--brand-forest)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
         </div>
         <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>Ask a landlord-tenant question</div>
@@ -27,7 +27,7 @@ function Mock1() {
       <div style={{ padding: '10px 12px', borderTop: '1px solid #f1f5f9' }}>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: '8px 12px' }}>
           <span style={{ flex: 1, fontSize: 11, color: '#475569' }}>What is the eviction process in California?</span>
-          <div style={{ width: 24, height: 24, borderRadius: 6, background: '#1e3a5f', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <div style={{ width: 24, height: 24, borderRadius: 6, background: 'var(--brand-forest)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>
           </div>
         </div>
@@ -38,16 +38,16 @@ function Mock1() {
 
 function Mock2() {
   return (
-    <div style={{ fontFamily: '"Inter", sans-serif', display: 'flex', flexDirection: 'column', height: '100%', background: '#fff', overflow: 'hidden' }}>
+    <div style={{ fontFamily: '"Inter", sans-serif', display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--brand-surface)', overflow: 'hidden' }}>
       <div style={{ padding: '10px 14px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 8 }}>
-        <div style={{ width: 24, height: 24, borderRadius: 6, background: '#1e3a5f', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        <div style={{ width: 24, height: 24, borderRadius: 6, background: 'var(--brand-forest)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
         </div>
         <span style={{ fontSize: 12, fontWeight: 700, color: '#1e293b' }}>LeaseShield</span>
         <span style={{ marginLeft: 'auto', fontSize: 11, padding: '2px 8px', background: '#f0fdf4', color: '#16a34a', borderRadius: 12, border: '1px solid #bbf7d0', fontWeight: 600 }}>California</span>
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <div style={{ alignSelf: 'flex-end', background: '#f0fdf4', border: '1px solid #dcfce7', borderRadius: 10, padding: '8px 12px', maxWidth: '80%', fontSize: 11, color: '#1e3a5f', fontWeight: 500 }}>
+        <div style={{ alignSelf: 'flex-end', background: '#f0fdf4', border: '1px solid #dcfce7', borderRadius: 10, padding: '8px 12px', maxWidth: '80%', fontSize: 11, color: 'var(--brand-forest)', fontWeight: 500 }}>
           What is the eviction process in California?
         </div>
         <div style={{ alignSelf: 'flex-start', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: '10px 12px', maxWidth: '88%' }}>
@@ -76,15 +76,15 @@ function Mock3() {
     { label: 'Entry notice required', value: '24 hours' },
   ];
   return (
-    <div style={{ fontFamily: '"Inter", sans-serif', display: 'flex', flexDirection: 'column', height: '100%', background: '#fff' }}>
+    <div style={{ fontFamily: '"Inter", sans-serif', display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--brand-surface)' }}>
       <div style={{ padding: '10px 14px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 8 }}>
-        <div style={{ width: 24, height: 24, borderRadius: 6, background: '#1e3a5f', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        <div style={{ width: 24, height: 24, borderRadius: 6, background: 'var(--brand-forest)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
         </div>
         <span style={{ fontSize: 12, fontWeight: 700, color: '#1e293b' }}>LeaseShield</span>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
           {['CA', 'TX', 'NY', 'FL'].map((s, i) => (
-            <span key={s} style={{ fontSize: 10, padding: '2px 6px', background: i === 0 ? '#1e3a5f' : '#f1f5f9', color: i === 0 ? 'white' : '#64748b', borderRadius: 8, fontWeight: 600 }}>{s}</span>
+            <span key={s} style={{ fontSize: 10, padding: '2px 6px', background: i === 0 ? 'var(--brand-forest)' : '#f1f5f9', color: i === 0 ? 'white' : '#64748b', borderRadius: 8, fontWeight: 600 }}>{s}</span>
           ))}
         </div>
       </div>
@@ -94,7 +94,7 @@ function Mock3() {
           {items.map((item) => (
             <div key={item.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 10px', background: '#f8fafc', borderRadius: 8, border: '1px solid #f1f5f9' }}>
               <span style={{ fontSize: 11, color: '#475569' }}>{item.label}</span>
-              <span style={{ fontSize: 11, fontWeight: 700, color: '#1e3a5f', background: '#f0fdf4', padding: '2px 8px', borderRadius: 6 }}>{item.value}</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--brand-forest)', background: '#f0fdf4', padding: '2px 8px', borderRadius: 6 }}>{item.value}</span>
             </div>
           ))}
         </div>
@@ -180,23 +180,23 @@ export default function LeaseShieldPage() {
   const ActiveMock = STEPS[activeStep].Mock;
 
   return (
-    <div className="min-h-screen bg-[#061E35]">
+    <div className="min-h-screen bg-brand-forest">
 
       {/* ── Hero ──────────────────────────────────────────────────────────── */}
-      <section data-marketing-hero-theme="dark" className="relative overflow-hidden bg-[#061E35] px-4 pb-20 pt-32 sm:px-6 sm:pt-36 lg:px-8">
-        <div className="absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-green-500/10 via-[#061E35] to-[#061E35]" />
+      <section data-marketing-hero-theme="dark" className="relative overflow-hidden bg-brand-forest px-4 pb-20 pt-32 sm:px-6 sm:pt-36 lg:px-8">
+        <div className="absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-[color-mix(in_srgb,var(--brand-teal)_10%,transparent)] via-brand-forest to-brand-forest" />
         <div className="relative mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-[minmax(0,0.95fr)_minmax(420px,1.05fr)] lg:gap-12">
           <div className="text-center lg:text-left">
-            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#DCE6ED] bg-green-50 px-4 py-1.5 shadow-sm">
-              <FiShield className="h-3.5 w-3.5 text-[#16A34A]" />
-              <span className="text-sm font-semibold text-[#16A34A]" style={{ fontFamily: '"Inter", sans-serif' }}>Premium Feature</span>
+            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[var(--brand-border)] bg-brand-mint px-4 py-1.5 shadow-sm">
+              <FiShield className="h-3.5 w-3.5 text-brand-teal" />
+              <span className="text-sm font-semibold text-brand-teal" style={{ fontFamily: '"Inter", sans-serif' }}>Premium Feature</span>
             </div>
             <h1
-              className="mb-6 text-4xl font-bold leading-tight text-white md:text-5xl lg:text-6xl"
-              style={{ fontFamily: '"Poppins", sans-serif' }}
+              className="mb-6 text-4xl font-extrabold leading-tight text-white md:text-5xl lg:text-6xl"
+              style={{ fontFamily: '"Host Grotesk", sans-serif' }}
             >
               Know your rights.<br />
-              <span className="text-green-400">Know the law.</span>
+              <span className="text-brand-mint">Know the law.</span>
             </h1>
             <p
               className="mx-auto mb-8 max-w-2xl text-lg leading-relaxed text-white/75 md:text-xl lg:mx-0"
@@ -207,7 +207,7 @@ export default function LeaseShieldPage() {
             <div className="mx-auto grid max-w-[22rem] grid-cols-2 justify-center gap-2.5 sm:flex sm:max-w-none sm:flex-row sm:justify-center sm:gap-3 lg:mx-0 lg:justify-start">
               <Link
                 href="https://app.propertypeace.io/register"
-                className="inline-flex min-h-[50px] items-center justify-center gap-2 rounded-none bg-gradient-to-r from-green-500 to-green-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:from-green-600 hover:to-green-700 hover:shadow-[0_10px_24px_rgba(34,197,94,0.25)] sm:min-h-[56px] rounded-none sm:px-8 sm:text-base"
+                className="inline-flex min-h-[50px] items-center justify-center gap-2 rounded-none bg-gradient-to-r from-brand-teal to-brand-teal px-4 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:from-brand-teal hover:to-brand-teal-hover hover:shadow-[0_10px_24px_rgba(36,117,104,0.25)] sm:min-h-[56px] rounded-none sm:px-8 sm:text-base"
                 style={{ fontFamily: '"Inter", sans-serif' }}
               >
                 Get started free
@@ -215,16 +215,16 @@ export default function LeaseShieldPage() {
               </Link>
               <Link
                 href="/pricing"
-                className="inline-flex min-h-[50px] items-center justify-center gap-2 rounded-none border border-[#DCE6ED] bg-white px-4 py-3 text-sm font-semibold text-[#061E35] shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-[#16A34A] hover:text-[#16A34A] sm:min-h-[56px] rounded-none sm:px-8 sm:text-base"
+                className="inline-flex min-h-[50px] items-center justify-center gap-2 rounded-none border border-[var(--brand-border)] bg-brand-surface px-4 py-3 text-sm font-semibold text-brand-forest shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-brand-teal hover:text-brand-teal sm:min-h-[56px] rounded-none sm:px-8 sm:text-base"
                 style={{ fontFamily: '"Inter", sans-serif' }}
               >
                 View pricing
               </Link>
             </div>
-            <div className="mt-5 grid grid-cols-2 gap-2 text-[13px] font-semibold text-[#405A70] sm:flex sm:flex-wrap lg:justify-start" style={{ fontFamily: '"Inter", sans-serif' }}>
+            <div className="mt-5 grid grid-cols-2 gap-2 text-[13px] font-semibold text-brand-slate sm:flex sm:flex-wrap lg:justify-start" style={{ fontFamily: '"Inter", sans-serif' }}>
               {BENEFITS.slice(0, 4).map((item) => (
-                <span key={item} className="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-2xl border border-[#DCE6ED] bg-white px-3 py-2 leading-snug shadow-sm sm:min-h-0 sm:rounded-full sm:py-1">
-                  <FiCheck className="h-4 w-4 flex-shrink-0 text-[#16A34A]" />{item}
+                <span key={item} className="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-2xl border border-[var(--brand-border)] bg-brand-surface px-3 py-2 leading-snug shadow-sm sm:min-h-0 sm:rounded-full sm:py-1">
+                  <FiCheck className="h-4 w-4 flex-shrink-0 text-brand-teal" />{item}
                 </span>
               ))}
             </div>
@@ -235,11 +235,11 @@ export default function LeaseShieldPage() {
       </section>
 
       {/* ── 3-Step Showcase ───────────────────────────────────────────────── */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-[#061E35]">
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-brand-forest">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-14">
-            <p className="text-sm font-bold text-green-400 uppercase tracking-widest mb-2" style={{ fontFamily: '"Inter", sans-serif' }}>How it works</p>
-            <h2 className="text-3xl md:text-4xl font-bold text-white" style={{ fontFamily: '"Poppins", sans-serif' }}>
+            <p className="text-sm font-bold text-brand-mint uppercase tracking-widest mb-2" style={{ fontFamily: '"Inter", sans-serif' }}>How it works</p>
+            <h2 className="text-3xl md:text-4xl font-extrabold text-white" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>
               Legal clarity in three steps
             </h2>
           </div>
@@ -256,25 +256,25 @@ export default function LeaseShieldPage() {
                     onClick={() => { setActiveStep(i); setProgress(0); }}
                     className={`text-left p-5 rounded-2xl border transition-all duration-200 relative overflow-hidden ${
                       isActive
-                        ? 'border-green-500 bg-white shadow-md'
-                        : 'border-gray-200 bg-white hover:border-green-200 hover:shadow-sm'
+                        ? 'border-brand-teal bg-brand-surface shadow-md'
+                        : 'border-[var(--brand-border)] bg-brand-surface hover:border-brand-mint hover:shadow-sm'
                     }`}
                   >
                     <div className="flex items-start gap-4">
-                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${isActive ? 'bg-[#061e35]' : 'bg-green-50'}`}>
-                        <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-green-600'}`} />
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${isActive ? 'bg-brand-forest' : 'bg-brand-mint'}`}>
+                        <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-brand-teal'}`} />
                       </div>
                       <div>
-                        <div className={`text-sm font-bold mb-1 ${isActive ? 'text-primary-main' : 'text-gray-700'}`} style={{ fontFamily: '"Inter", sans-serif' }}>
+                        <div className={`text-sm font-bold mb-1 ${isActive ? 'text-primary-main' : 'text-brand-slate'}`} style={{ fontFamily: '"Inter", sans-serif' }}>
                           Step {i + 1} · {step.label}
                         </div>
-                        <div className="text-sm text-gray-500 leading-relaxed" style={{ fontFamily: '"Inter", sans-serif' }}>{step.desc}</div>
+                        <div className="text-sm text-brand-slate leading-relaxed" style={{ fontFamily: '"Inter", sans-serif' }}>{step.desc}</div>
                       </div>
                     </div>
                     {/* Progress bar */}
                     {isActive && (
-                      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-green-100">
-                        <div className="h-full bg-green-500 transition-none" style={{ width: `${progress}%` }} />
+                      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand-mint">
+                        <div className="h-full bg-brand-teal transition-none" style={{ width: `${progress}%` }} />
                       </div>
                     )}
                   </button>
@@ -284,9 +284,9 @@ export default function LeaseShieldPage() {
 
             {/* Browser mock */}
             <div className="flex justify-center lg:justify-end">
-              <div className="w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl border border-gray-200">
+              <div className="w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl border border-[var(--brand-border)]">
                 {/* Browser chrome */}
-                <div className="bg-[#061e35] px-4 py-3 flex items-center gap-3">
+                <div className="bg-brand-forest px-4 py-3 flex items-center gap-3">
                   <div className="flex gap-1.5">
                     <div className="w-2.5 h-2.5 rounded-full bg-[#ff5f57]" />
                     <div className="w-2.5 h-2.5 rounded-full bg-[#febc2e]" />
@@ -298,7 +298,7 @@ export default function LeaseShieldPage() {
                 </div>
                 <div
                   key={activeStep}
-                  className="h-72 bg-white"
+                  className="h-72 bg-brand-surface"
                   style={{ animation: 'lsFadeIn 0.3s ease-out' }}
                 >
                   <ActiveMock />
@@ -310,11 +310,11 @@ export default function LeaseShieldPage() {
       </section>
 
       {/* ── Benefits grid ─────────────────────────────────────────────────── */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-[#061E35]">
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-brand-forest">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-14">
-            <p className="text-sm font-bold text-green-400 uppercase tracking-widest mb-2" style={{ fontFamily: '"Inter", sans-serif' }}>Everything you need</p>
-            <h2 className="text-3xl md:text-4xl font-bold text-white" style={{ fontFamily: '"Poppins", sans-serif' }}>
+            <p className="text-sm font-bold text-brand-mint uppercase tracking-widest mb-2" style={{ fontFamily: '"Inter", sans-serif' }}>Everything you need</p>
+            <h2 className="text-3xl md:text-4xl font-extrabold text-white" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>
               Built for landlords, not lawyers
             </h2>
             <p className="mt-4 text-white/75 max-w-xl mx-auto" style={{ fontFamily: '"Inter", sans-serif' }}>
@@ -323,11 +323,11 @@ export default function LeaseShieldPage() {
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {BENEFITS.map((b) => (
-              <div key={b} className="flex items-start gap-3 p-5 rounded-2xl bg-white border border-gray-100">
-                <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <FiCheck className="w-3 h-3 text-green-600" />
+              <div key={b} className="flex items-start gap-3 p-5 rounded-2xl bg-brand-surface border border-[var(--brand-border)]">
+                <div className="w-5 h-5 rounded-full bg-brand-mint flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <FiCheck className="w-3 h-3 text-brand-teal" />
                 </div>
-                <span className="text-sm font-medium text-gray-700" style={{ fontFamily: '"Inter", sans-serif' }}>{b}</span>
+                <span className="text-sm font-medium text-brand-slate" style={{ fontFamily: '"Inter", sans-serif' }}>{b}</span>
               </div>
             ))}
           </div>
@@ -335,11 +335,11 @@ export default function LeaseShieldPage() {
       </section>
 
       {/* ── Use cases ─────────────────────────────────────────────────────── */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-[#061E35]">
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-brand-forest">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-14">
-            <p className="text-sm font-bold text-green-400 uppercase tracking-widest mb-2" style={{ fontFamily: '"Inter", sans-serif' }}>Common questions</p>
-            <h2 className="text-3xl md:text-4xl font-bold text-white" style={{ fontFamily: '"Poppins", sans-serif' }}>
+            <p className="text-sm font-bold text-brand-mint uppercase tracking-widest mb-2" style={{ fontFamily: '"Inter", sans-serif' }}>Common questions</p>
+            <h2 className="text-3xl md:text-4xl font-extrabold text-white" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>
               What landlords ask
             </h2>
           </div>
@@ -352,14 +352,14 @@ export default function LeaseShieldPage() {
               { q: 'How many days do I have to return a security deposit after move-out?', tag: 'Move-out' },
               { q: 'What disclosures am I legally required to make in a lease agreement?', tag: 'Lease disclosures' },
             ].map(({ q, tag }) => (
-              <div key={q} className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-                <div className="inline-block px-2.5 py-0.5 rounded-full bg-green-50 text-green-700 text-xs font-bold mb-3" style={{ fontFamily: '"Inter", sans-serif' }}>{tag}</div>
-                <p className="text-sm text-gray-700 leading-relaxed font-medium" style={{ fontFamily: '"Inter", sans-serif' }}>&ldquo;{q}&rdquo;</p>
+              <div key={q} className="bg-brand-surface rounded-2xl p-5 border border-[var(--brand-border)] shadow-sm">
+                <div className="inline-block px-2.5 py-0.5 rounded-full bg-brand-mint text-brand-teal text-xs font-bold mb-3" style={{ fontFamily: '"Inter", sans-serif' }}>{tag}</div>
+                <p className="text-sm text-brand-slate leading-relaxed font-medium" style={{ fontFamily: '"Inter", sans-serif' }}>&ldquo;{q}&rdquo;</p>
               </div>
             ))}
           </div>
           <div className="text-center mt-8">
-            <Link href="/lease-shield/blog" className="text-green-400 font-semibold text-sm hover:underline" style={{ fontFamily: '"Inter", sans-serif' }}>
+            <Link href="/lease-shield/blog" className="text-brand-mint font-semibold text-sm hover:underline" style={{ fontFamily: '"Inter", sans-serif' }}>
               See real examples from landlords →
             </Link>
           </div>
@@ -367,24 +367,24 @@ export default function LeaseShieldPage() {
       </section>
 
       {/* ── FAQ ───────────────────────────────────────────────────────────── */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-[#061E35]">
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-brand-forest">
         <div className="max-w-3xl mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-white" style={{ fontFamily: '"Poppins", sans-serif' }}>Frequently asked</h2>
+            <h2 className="text-3xl font-extrabold text-white" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>Frequently asked</h2>
           </div>
-          <div className="divide-y divide-gray-100 border border-gray-100 rounded-2xl overflow-hidden bg-white">
+          <div className="divide-y divide-[var(--brand-border)] border border-[var(--brand-border)] rounded-2xl overflow-hidden bg-brand-surface">
             {FAQS.map((faq, i) => (
               <div key={i}>
                 <button
                   onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                  className="w-full text-left px-6 py-5 flex items-center justify-between gap-4 hover:bg-gray-50 transition-colors"
+                  className="w-full text-left px-6 py-5 flex items-center justify-between gap-4 hover:bg-brand-ivory transition-colors"
                 >
                   <span className="font-semibold text-primary-main text-sm" style={{ fontFamily: '"Inter", sans-serif' }}>{faq.q}</span>
-                  <span className={`text-gray-400 flex-shrink-0 transition-transform duration-200 ${openFaq === i ? 'rotate-45' : ''}`}>+</span>
+                  <span className={`text-brand-slate flex-shrink-0 transition-transform duration-200 ${openFaq === i ? 'rotate-45' : ''}`}>+</span>
                 </button>
                 {openFaq === i && (
                   <div className="px-6 pb-5">
-                    <p className="text-sm text-gray-500 leading-relaxed" style={{ fontFamily: '"Inter", sans-serif' }}>{faq.a}</p>
+                    <p className="text-sm text-brand-slate leading-relaxed" style={{ fontFamily: '"Inter", sans-serif' }}>{faq.a}</p>
                   </div>
                 )}
               </div>
@@ -394,12 +394,12 @@ export default function LeaseShieldPage() {
       </section>
 
       {/* ── CTA ───────────────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden bg-[#061e35] px-4 py-20 sm:px-6 lg:px-8">
+      <section className="relative overflow-hidden bg-brand-forest px-4 py-20 sm:px-6 lg:px-8">
         <div className="max-w-3xl mx-auto text-center">
           <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center mx-auto mb-6">
             <FiShield className="w-7 h-7 text-white" />
           </div>
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4" style={{ fontFamily: '"Poppins", sans-serif' }}>
+          <h2 className="text-3xl md:text-4xl font-extrabold text-white mb-4" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>
             Stop guessing. Start knowing.
           </h2>
           <p className="text-white/70 mb-8 text-lg max-w-xl mx-auto" style={{ fontFamily: '"Inter", sans-serif' }}>
@@ -408,7 +408,7 @@ export default function LeaseShieldPage() {
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link
               href="https://app.propertypeace.io/register"
-              className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-none font-bold hover:from-green-600 hover:to-green-700 hover:shadow-[0_10px_24px_rgba(34,197,94,0.25)] transition-colors text-base shadow-sm"
+              className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-brand-teal to-brand-teal text-white rounded-none font-bold hover:from-brand-teal hover:to-brand-teal-hover hover:shadow-[0_10px_24px_rgba(36,117,104,0.25)] transition-colors text-base shadow-sm"
               style={{ fontFamily: '"Inter", sans-serif' }}
             >
               Start Free
@@ -416,7 +416,7 @@ export default function LeaseShieldPage() {
             </Link>
             <Link
               href="/pricing"
-              className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-white text-primary-main rounded-none font-semibold hover:border-green-300 hover:text-green-600 transition-colors border border-[#E5E5E5] text-base"
+              className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-brand-surface text-primary-main rounded-none font-semibold hover:border-brand-mint hover:text-brand-teal transition-colors border border-[var(--brand-border)] text-base"
               style={{ fontFamily: '"Inter", sans-serif' }}
             >
               See Premium plans

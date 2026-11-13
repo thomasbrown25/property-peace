@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useInView } from 'framer-motion';
 
-const GREEN = '#16a34a';
+const GREEN = 'var(--brand-teal)';
 const TICK_MS = 50;
 const STEP_DURATIONS = [3000, 4500, 3500];
 
@@ -38,7 +38,7 @@ function CurrentPriceStep() {
       >
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-wide text-[#9ca3af] mb-0.5">Your current rent</p>
-          <p className="text-2xl font-bold text-primary-main" style={{ fontFamily: '"Poppins", sans-serif' }}>
+          <p className="text-2xl font-bold text-primary-main" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>
             $1,700<span className="text-sm font-normal text-[#9ca3af] ml-1">/mo</span>
           </p>
         </div>
@@ -95,7 +95,7 @@ function MarketDataStep() {
     <div style={{ fontFamily: '"Inter", sans-serif' }}>
       <div className="flex items-center justify-between mb-3">
         <p className="text-[10px] font-semibold uppercase tracking-wide text-[#9ca3af]">Nearby comparables · 123 Maple St</p>
-        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: 'rgba(34,197,94,0.08)', color: GREEN, border: `1px solid rgba(34,197,94,0.2)` }}>Updated today</span>
+        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: 'var(--brand-ivory)', color: GREEN, border: '1px solid var(--brand-border)' }}>Updated today</span>
       </div>
 
       <div className="space-y-2 mb-4">
@@ -114,7 +114,7 @@ function MarketDataStep() {
             </div>
             <div className="flex items-center gap-1.5 flex-shrink-0">
               <span className="text-sm font-bold text-primary-main">{c.price}</span>
-              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: 'rgba(34,197,94,0.08)', color: GREEN }}>
+              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: 'var(--brand-ivory)', color: GREEN }}>
                 {c.diff}
               </span>
             </div>
@@ -128,11 +128,11 @@ function MarketDataStep() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.55 }}
         className="rounded-xl px-4 py-3 flex items-center justify-between"
-        style={{ background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.15)' }}
+        style={{ background: 'var(--brand-ivory)', border: '1px solid var(--brand-border)' }}
       >
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-wide mb-0.5" style={{ color: GREEN }}>Market median</p>
-          <p className="text-xl font-bold text-primary-main" style={{ fontFamily: '"Poppins", sans-serif' }}>$1,975<span className="text-sm font-normal text-[#9ca3af] ml-1">/mo</span></p>
+          <p className="text-xl font-bold text-primary-main" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>$1,975<span className="text-sm font-normal text-[#9ca3af] ml-1">/mo</span></p>
         </div>
         <div className="text-right">
           <p className="text-[10px] text-[#9ca3af]">Your price</p>
@@ -153,10 +153,10 @@ function OpportunityStep() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
         className="rounded-xl px-4 py-4 mb-3 text-center"
-        style={{ background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.18)' }}
+        style={{ background: 'var(--brand-ivory)', border: '1px solid var(--brand-border)' }}
       >
         <p className="text-[10px] font-semibold uppercase tracking-wide mb-1" style={{ color: GREEN }}>Suggested market range</p>
-        <p className="text-2xl font-bold text-primary-main" style={{ fontFamily: '"Poppins", sans-serif' }}>
+        <p className="text-2xl font-bold text-primary-main" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>
           $1,850 – $2,050<span className="text-sm font-normal text-[#9ca3af] ml-1">/mo</span>
         </p>
       </motion.div>
@@ -174,7 +174,7 @@ function OpportunityStep() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.2 + i * 0.1, duration: 0.25 }}
             className="flex items-center justify-between px-3 py-2 rounded-lg"
-            style={{ background: i === 2 ? 'rgba(34,197,94,0.06)' : 'rgba(0,0,0,0.02)', border: i === 2 ? '1px solid rgba(34,197,94,0.18)' : '1px solid rgba(0,0,0,0.05)' }}
+            style={{ background: i === 2 ? 'var(--brand-ivory)' : 'var(--brand-surface)', border: i === 2 ? '1px solid var(--brand-teal)' : '1px solid var(--brand-border)' }}
           >
             <span className="text-xs text-[#9ca3af]">{row.label}</span>
             <span className="text-sm font-bold" style={{ color: row.color }}>{row.value}</span>
@@ -188,13 +188,13 @@ function OpportunityStep() {
         animate={{ opacity: 1, scale: 1 }}
         transition={{ delay: 0.6, duration: 0.3 }}
         className="flex items-center justify-between px-4 py-3 rounded-xl mb-3"
-        style={{ background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)' }}
+        style={{ background: 'var(--brand-ivory)', border: '1px solid var(--brand-border)' }}
       >
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-wide mb-0.5" style={{ color: GREEN }}>Annual opportunity</p>
-          <p className="text-xl font-bold" style={{ color: GREEN, fontFamily: '"Poppins", sans-serif' }}>+$3,000 / yr</p>
+          <p className="text-xl font-bold" style={{ color: GREEN, fontFamily: '"Host Grotesk", sans-serif' }}>+$3,000 / yr</p>
         </div>
-        <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: 'rgba(34,197,94,0.12)' }}>
+        <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: 'var(--brand-mint)' }}>
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke={GREEN} strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
           </svg>
@@ -263,20 +263,20 @@ export default function RentEstimates() {
           >
             <span
               className="inline-block text-xs font-semibold tracking-widest uppercase mb-5 px-3 py-1 rounded-full border"
-              style={{ fontFamily: '"Inter", sans-serif', color: '#16a34a', borderColor: 'rgba(34,197,94,0.20)', background: 'rgba(34,197,94,0.08)' }}
+              style={{ fontFamily: '"Inter", sans-serif', color: 'var(--brand-teal)', borderColor: 'var(--brand-border)', background: 'var(--brand-ivory)' }}
             >
               Rent Estimates
             </span>
 
             <h2
               className="text-3xl md:text-4xl lg:text-5xl font-bold mb-5 text-primary-main"
-              style={{ fontFamily: '"Poppins", sans-serif', lineHeight: '1.2' }}
+              style={{ fontFamily: '"Host Grotesk", sans-serif', lineHeight: '1.2' }}
             >
               Stop leaving money on the table.
             </h2>
 
             <p
-              className="text-base md:text-lg text-[#737373] mb-6 leading-relaxed"
+              className="text-base md:text-lg text-brand-slate mb-6 leading-relaxed"
               style={{ fontFamily: '"Inter", sans-serif' }}
             >
               Get instant, data-driven rent estimates based on real comparable listings in your area. Price confidently, attract quality tenants faster, and maximize your monthly income.
@@ -285,17 +285,17 @@ export default function RentEstimates() {
             <div className="grid grid-cols-2 gap-3 mb-6 max-w-sm mx-auto lg:mx-0" style={{ fontFamily: '"Inter", sans-serif' }}>
               <div className="rounded-xl px-4 py-3 text-sm" style={{ background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.15)' }}>
                 <span className="block font-semibold text-red-400 mb-1 text-xs uppercase tracking-wide">Before</span>
-                <span className="text-[#737373]">Guessing based on old listings</span>
+                <span className="text-brand-slate">Guessing based on old listings</span>
               </div>
               <div className="rounded-xl px-4 py-3 text-sm" style={{ background: 'rgba(34,197,94,0.07)', border: '1px solid rgba(34,197,94,0.15)' }}>
                 <span className="block font-semibold text-green-600 mb-1 text-xs uppercase tracking-wide">After</span>
-                <span className="text-[#737373]">Real-time market data, instantly</span>
+                <span className="text-brand-slate">Real-time market data, instantly</span>
               </div>
             </div>
 
             <p
-              className="text-sm md:text-base text-[#516A80] italic pl-4"
-              style={{ fontFamily: '"Inter", sans-serif', borderLeft: '3px solid #0a2d52' }}
+              className="text-sm md:text-base text-brand-slate italic pl-4"
+              style={{ fontFamily: '"Inter", sans-serif', borderLeft: '3px solid var(--brand-teal)' }}
             >
               Underpricing costs you hundreds every month. Overpricing leaves your unit sitting empty.
             </p>
@@ -312,7 +312,7 @@ export default function RentEstimates() {
           >
             <div
               className="rounded-2xl border border-gray-200 overflow-hidden"
-              style={{ background: '#ffffff', boxShadow: '0 20px 60px rgba(10,45,82,0.10)' }}
+              style={{ background: 'var(--brand-surface)', boxShadow: '0 20px 60px color-mix(in srgb, var(--brand-forest) 10%, transparent)' }}
               onMouseEnter={() => { isPausedRef.current = true; }}
               onMouseLeave={() => { isPausedRef.current = false; }}
             >
@@ -320,7 +320,7 @@ export default function RentEstimates() {
               <div className="px-5 pt-5 pb-4 border-b border-gray-100">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(34,197,94,0.10)' }}>
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'var(--brand-ivory)' }}>
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={GREEN} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M3 3v18h18" /><path d="M18 9l-5 5-4-4-3 3" />
                       </svg>
@@ -330,7 +330,7 @@ export default function RentEstimates() {
                       <p className="text-xs text-[#9ca3af]" style={{ fontFamily: '"Inter", sans-serif' }}>123 Maple St · Unit 2B</p>
                     </div>
                   </div>
-                  <span className="text-xs px-2.5 py-1 rounded-full font-medium" style={{ background: 'rgba(34,197,94,0.08)', color: GREEN, border: '1px solid rgba(34,197,94,0.2)', fontFamily: '"Inter", sans-serif' }}>
+                  <span className="text-xs px-2.5 py-1 rounded-full font-medium" style={{ background: 'var(--brand-ivory)', color: GREEN, border: '1px solid var(--brand-border)', fontFamily: '"Inter", sans-serif' }}>
                     Updated today
                   </span>
                 </div>
@@ -344,7 +344,7 @@ export default function RentEstimates() {
                         key={i}
                         onClick={() => handleStepClick(i)}
                         className="flex-1 relative flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-left overflow-hidden transition-colors duration-200"
-                        style={{ background: isActive ? 'rgba(34,197,94,0.08)' : 'rgba(0,0,0,0.02)', border: isActive ? '1px solid rgba(34,197,94,0.25)' : '1px solid rgba(0,0,0,0.06)' }}
+                        style={{ background: isActive ? 'var(--brand-ivory)' : 'var(--brand-surface)', border: isActive ? '1px solid var(--brand-teal)' : '1px solid var(--brand-border)' }}
                       >
                         <span className="w-4 h-4 rounded-full text-[10px] font-bold flex items-center justify-center flex-shrink-0" style={{ background: isActive ? GREEN : 'rgba(0,0,0,0.08)', color: isActive ? '#fff' : '#9ca3af' }}>
                           {i + 1}
@@ -353,7 +353,7 @@ export default function RentEstimates() {
                           {step.label}
                         </span>
                         {isActive && (
-                          <div className="absolute bottom-0 left-0 right-0 h-0.5" style={{ background: 'rgba(34,197,94,0.15)' }}>
+                          <div className="absolute bottom-0 left-0 right-0 h-0.5" style={{ background: 'var(--brand-mint)' }}>
                             <div className="h-full" style={{ width: `${progress}%`, background: GREEN, transition: 'none' }} />
                           </div>
                         )}

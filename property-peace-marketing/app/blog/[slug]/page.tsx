@@ -8,16 +8,16 @@ import PrintArticleButton from '@/components/Blog/PrintArticleButton';
 import { getArticleEditorial } from '@/lib/article-editorial';
 
 const CATEGORY_COLORS: Record<string, string> = {
-  'How-To':         '#16a34a',
-  'Guides':         '#16a34a',
-  'Updates':        '#16a34a',
-  'Trends':         '#16a34a',
-  'Location-Based': '#16a34a',
-  'Reviews':        '#16a34a',
+  'How-To':         'var(--brand-teal)',
+  'Guides':         'var(--brand-teal)',
+  'Updates':        'var(--brand-teal)',
+  'Trends':         'var(--brand-teal)',
+  'Location-Based': 'var(--brand-teal)',
+  'Reviews':        'var(--brand-teal)',
 };
 
 function categoryColor(cat: string) {
-  return CATEGORY_COLORS[cat] ?? '#16a34a';
+  return CATEGORY_COLORS[cat] ?? 'var(--brand-teal)';
 }
 
 type BlogCta = {
@@ -164,7 +164,7 @@ function renderContent(content: string) {
       .replace(/\*(.+?)\*/g, '<em>$1</em>')
       .replace(
         /\[(.+?)\]\((.+?)\)/g,
-        '<a href="$2" class="text-[#16a34a] hover:text-[#0a2d52] underline underline-offset-4 decoration-[#16a34a]/30 hover:decoration-[#0a2d52] transition-colors">$1</a>'
+        '<a href="$2" class="text-brand-teal hover:text-brand-forest underline underline-offset-4 decoration-[color-mix(in_srgb,var(--brand-teal)_30%,transparent)] hover:decoration-brand-forest transition-colors">$1</a>'
       );
     return out;
   };
@@ -176,12 +176,12 @@ function renderContent(content: string) {
           {listItems.map((item, idx) => (
             <li
               key={idx}
-              className="flex items-start gap-3 text-[#405a70] leading-[1.85] text-[17px]"
+              className="flex items-start gap-3 text-brand-slate leading-[1.85] text-[17px]"
               style={{ fontFamily: '"Inter", sans-serif' }}
             >
               <span
                 className="mt-2 w-1.5 h-1.5 rounded-full flex-shrink-0"
-                style={{ background: '#16a34a' }}
+                style={{ background: 'var(--brand-teal)' }}
               />
               <span dangerouslySetInnerHTML={{ __html: inlineFormat(item) }} />
             </li>
@@ -216,12 +216,12 @@ function renderContent(content: string) {
       }
 
       const headingClass: Record<number, string> = {
-        1: 'text-2xl md:text-3xl font-bold text-primary-main mt-12 mb-5 pb-3 border-b border-slate-200',
+        1: 'text-2xl md:text-3xl font-bold text-primary-main mt-12 mb-5 pb-3 border-b border-[var(--brand-border)]',
         2: 'text-xl md:text-2xl font-bold text-primary-main mt-10 mb-4',
         3: 'text-lg font-semibold text-primary-main mt-8 mb-3',
         4: 'text-base font-semibold text-primary-main mt-6 mb-2',
         5: 'text-sm font-semibold text-primary-main mt-4 mb-2 uppercase tracking-wide',
-        6: 'text-sm font-semibold text-[#516A80] mt-4 mb-2',
+        6: 'text-sm font-semibold text-brand-slate mt-4 mb-2',
       };
 
       const Tag = `h${level}` as 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
@@ -230,7 +230,7 @@ function renderContent(content: string) {
           key={index}
           id={headingId}
           className={`${headingClass[level] ?? headingClass[2]} scroll-mt-28`}
-          style={{ fontFamily: '"Poppins", sans-serif' }}
+          style={{ fontFamily: '"Host Grotesk", sans-serif' }}
           dangerouslySetInnerHTML={{ __html: inlineFormat(text) }}
         />
       );
@@ -249,7 +249,7 @@ function renderContent(content: string) {
     elements.push(
       <p
         key={index}
-        className="mb-6 text-[#405a70] leading-[1.9] text-[17px]"
+        className="mb-6 text-brand-slate leading-[1.9] text-[17px]"
         style={{ fontFamily: '"Inter", sans-serif' }}
         dangerouslySetInnerHTML={{ __html: inlineFormat(trimmed) }}
       />
@@ -311,14 +311,14 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
   return (
     <>
       {/* ── Hero ──────────────────────────────────────────────────────────── */}
-      <div className="article-hero relative overflow-hidden bg-[#061E35] text-white print:bg-white print:text-[#061E35]">
+      <div className="article-hero relative overflow-hidden bg-brand-forest text-white print:bg-brand-surface print:text-brand-forest">
 
-        <div className="absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-green-900/20 via-[#061E35] to-[#061E35]" />
+        <div className="absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-[color-mix(in_srgb,var(--brand-teal-hover)_20%,transparent)] via-brand-forest to-brand-forest" />
         <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-16">
           {/* Back link */}
           <Link
             href="/blog"
-            className="article-screen-only inline-flex items-center gap-2 text-white/80 hover:text-green-300 transition-colors mb-10 text-sm font-medium"
+            className="article-screen-only inline-flex items-center gap-2 text-white/80 hover:text-brand-mint transition-colors mb-10 text-sm font-medium"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
             <FiArrowLeft className="w-4 h-4" />
@@ -342,15 +342,15 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
 
           {/* Title */}
           <h1
-            className="text-3xl md:text-5xl font-bold text-white mb-5 leading-tight max-w-3xl print:text-[#061E35]"
-            style={{ fontFamily: '"Poppins", sans-serif' }}
+            className="text-3xl md:text-5xl font-extrabold text-white mb-5 leading-tight max-w-3xl print:text-brand-forest"
+            style={{ fontFamily: '"Host Grotesk", sans-serif' }}
           >
             {post.title}
           </h1>
 
           {/* Description */}
           <p
-            className="text-white/80 text-lg leading-relaxed max-w-2xl mb-8 print:text-[#405a70]"
+            className="text-white/80 text-lg leading-relaxed max-w-2xl mb-8 print:text-brand-slate"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
             {post.description}
@@ -358,7 +358,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
 
           {/* Meta row */}
           <div
-            className="flex flex-wrap items-center gap-5 text-sm text-white/80 print:text-[#405a70]"
+            className="flex flex-wrap items-center gap-5 text-sm text-white/80 print:text-brand-slate"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
             <span className="flex items-center gap-1.5">
@@ -402,7 +402,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
           <div className="article-screen-only mt-8 flex flex-wrap gap-3">
             <Link
               href={cta.href}
-              className="inline-flex items-center gap-2 rounded-none bg-gradient-to-r from-green-500 to-green-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-green-950/20 transition-all hover:-translate-y-0.5 hover:from-green-600 hover:to-green-700"
+              className="inline-flex items-center gap-2 rounded-none bg-gradient-to-r from-brand-teal to-brand-teal px-5 py-3 text-sm font-bold text-white shadow-lg shadow-[color:color-mix(in_srgb,var(--brand-forest)_20%,transparent)] transition-all hover:-translate-y-0.5 hover:from-brand-teal hover:to-brand-teal-hover"
               style={{ fontFamily: '"Inter", sans-serif' }}
             >
               <FiZap className="h-4 w-4" />
@@ -410,7 +410,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
             </Link>
             <a
               href="#article"
-              className="inline-flex items-center gap-2 rounded-none border border-[#E5E5E5] bg-white px-5 py-3 text-sm font-semibold text-primary-main transition-all hover:border-green-300 hover:text-green-600"
+              className="inline-flex items-center gap-2 rounded-none border border-[var(--brand-border)] bg-brand-surface px-5 py-3 text-sm font-semibold text-primary-main transition-all hover:border-brand-mint hover:text-brand-teal"
               style={{ fontFamily: '"Inter", sans-serif' }}
             >
               Read the guide
@@ -421,19 +421,19 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
       </div>
 
       {/* ── Article body ──────────────────────────────────────────────────── */}
-      <div className="bg-[#061E35] text-white">
+      <div className="bg-brand-forest text-white">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-14 lg:py-16">
           <div className="lg:grid lg:grid-cols-[minmax(0,760px)_320px] lg:gap-10">
-            <main id="article" className="article-main min-w-0 rounded-2xl bg-white p-5 text-[#061E35] sm:p-8">
+            <main id="article" className="article-main min-w-0 rounded-2xl bg-brand-surface p-5 text-brand-forest sm:p-8">
               {headings.length > 0 && (
-                <details className="article-screen-only mb-8 rounded-2xl border border-slate-200 bg-white p-5 lg:hidden">
-                  <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-bold text-primary-main" style={{ fontFamily: '"Poppins", sans-serif' }}>
-                    <FiList className="h-4 w-4 text-[#16a34a]" />
+                <details className="article-screen-only mb-8 rounded-2xl border border-[var(--brand-border)] bg-brand-surface p-5 lg:hidden">
+                  <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-bold text-primary-main" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>
+                    <FiList className="h-4 w-4 text-brand-teal" />
                     In this guide
                   </summary>
                   <nav className="mt-4 space-y-2" aria-label="Table of contents">
                     {headings.map((heading) => (
-                      <a key={heading.id} href={`#${heading.id}`} className="block border-l-2 border-green-100 px-3 py-2 text-sm leading-snug text-[#516A80] hover:border-green-500 hover:text-[#15803d]">
+                      <a key={heading.id} href={`#${heading.id}`} className="block border-l-2 border-brand-mint px-3 py-2 text-sm leading-snug text-brand-slate hover:border-brand-teal hover:text-brand-teal">
                         {heading.text}
                       </a>
                     ))}
@@ -441,16 +441,16 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
                 </details>
               )}
 
-              <div className="mb-10 rounded-2xl border border-green-100 bg-green-50/40 p-6">
+              <div className="mb-10 rounded-2xl border border-brand-mint bg-[color-mix(in_srgb,var(--brand-mint)_40%,transparent)] p-6">
                 <div className="flex items-start gap-4">
-                  <div className="mt-1 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-white text-[#16a34a] shadow-sm">
+                  <div className="mt-1 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-brand-surface text-brand-teal shadow-sm">
                     <FiFileText className="h-5 w-5" />
                   </div>
                   <div>
-                    <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-[#16a34a]" style={{ fontFamily: '"Inter", sans-serif' }}>
+                    <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-brand-teal" style={{ fontFamily: '"Inter", sans-serif' }}>
                       Quick takeaway
                     </p>
-                    <p className="text-[17px] leading-relaxed text-[#405a70]" style={{ fontFamily: '"Inter", sans-serif' }}>
+                    <p className="text-[17px] leading-relaxed text-brand-slate" style={{ fontFamily: '"Inter", sans-serif' }}>
                       Use this guide to make a better decision, then turn the advice into a repeatable rental workflow inside Property Peace.
                     </p>
                   </div>
@@ -460,22 +460,22 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
               <article className="article-content">{renderContent(post.content)}</article>
 
               {editorial && (
-                <section className="article-references mt-12 border-t border-slate-200 pt-8" aria-labelledby="article-sources-heading">
-                  <p className="mb-2 text-sm font-semibold text-[#15803d]" style={{ fontFamily: '"Inter", sans-serif' }}>
+                <section className="article-references mt-12 border-t border-[var(--brand-border)] pt-8" aria-labelledby="article-sources-heading">
+                  <p className="mb-2 text-sm font-semibold text-brand-teal" style={{ fontFamily: '"Inter", sans-serif' }}>
                     {editorial.reviewNote}
                   </p>
                   {editorial.disclaimer && (
-                    <p className="mb-6 text-sm leading-relaxed text-[#516A80]" style={{ fontFamily: '"Inter", sans-serif' }}>
+                    <p className="mb-6 text-sm leading-relaxed text-brand-slate" style={{ fontFamily: '"Inter", sans-serif' }}>
                       {editorial.disclaimer}
                     </p>
                   )}
-                  <h2 id="article-sources-heading" className="mb-4 text-xl font-bold text-primary-main" style={{ fontFamily: '"Poppins", sans-serif' }}>
+                  <h2 id="article-sources-heading" className="mb-4 text-xl font-extrabold text-primary-main" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>
                     Primary sources and references
                   </h2>
-                  <ol className="space-y-3 pl-5 text-sm leading-relaxed text-[#405a70]" style={{ fontFamily: '"Inter", sans-serif' }}>
+                  <ol className="space-y-3 pl-5 text-sm leading-relaxed text-brand-slate" style={{ fontFamily: '"Inter", sans-serif' }}>
                     {editorial.sources.map((source) => (
                       <li key={source.href} className="list-decimal pl-1">
-                        <a href={source.href} target="_blank" rel="noopener noreferrer" className="font-semibold text-[#15803d] underline decoration-green-200 underline-offset-4 hover:text-primary-main">
+                        <a href={source.href} target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-teal underline decoration-brand-mint underline-offset-4 hover:text-primary-main">
                           {source.title}
                         </a>{' '}
                         <span>— {source.publisher}</span>
@@ -485,17 +485,17 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
                 </section>
               )}
 
-              <div className="article-screen-only my-14 rounded-3xl border border-green-100 bg-gradient-to-br from-[#f7fbff] to-white p-7 shadow-[0_18px_50px_rgba(10,45,82,0.07)] md:p-8">
-                <p className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-[#16a34a]" style={{ fontFamily: '"Inter", sans-serif' }}>
+              <div className="article-screen-only my-14 rounded-3xl border border-brand-mint bg-gradient-to-br from-brand-ivory to-white p-7 shadow-[0_18px_50px_rgba(16,44,41,0.07)] md:p-8">
+                <p className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-brand-teal" style={{ fontFamily: '"Inter", sans-serif' }}>
                   {cta.eyebrow}
                 </p>
-                <h2 className="mb-3 text-2xl font-bold text-primary-main md:text-3xl" style={{ fontFamily: '"Poppins", sans-serif' }}>
+                <h2 className="mb-3 text-2xl font-extrabold text-primary-main md:text-3xl" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>
                   {cta.title}
                 </h2>
-                <p className="mb-6 max-w-2xl text-[17px] leading-relaxed text-[#405a70]" style={{ fontFamily: '"Inter", sans-serif' }}>
+                <p className="mb-6 max-w-2xl text-[17px] leading-relaxed text-brand-slate" style={{ fontFamily: '"Inter", sans-serif' }}>
                   {cta.body}
                 </p>
-                <Link href={cta.href} className="inline-flex items-center gap-2 rounded-none bg-gradient-to-r from-green-500 to-green-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-green-100 transition-all hover:-translate-y-0.5 hover:from-green-600 hover:to-green-700" style={{ fontFamily: '"Inter", sans-serif' }}>
+                <Link href={cta.href} className="inline-flex items-center gap-2 rounded-none bg-gradient-to-r from-brand-teal to-brand-teal px-6 py-3 text-sm font-bold text-white shadow-lg shadow-brand-mint transition-all hover:-translate-y-0.5 hover:from-brand-teal hover:to-brand-teal-hover" style={{ fontFamily: '"Inter", sans-serif' }}>
                   {cta.label}
                   <FiArrowRight className="h-4 w-4" />
                 </Link>
@@ -505,22 +505,22 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
               {post.faqs && post.faqs.length > 0 && (
                 <div className="mt-14">
                   <h2
-                    className="text-2xl font-bold text-primary-main mb-8"
-                    style={{ fontFamily: '"Poppins", sans-serif' }}
+                    className="text-2xl font-extrabold text-primary-main mb-8"
+                    style={{ fontFamily: '"Host Grotesk", sans-serif' }}
                   >
                     Frequently Asked Questions
                   </h2>
                   <div className="space-y-4">
                     {post.faqs.map((faq, i) => (
-                      <div key={i} className="rounded-2xl p-6" style={{ background: '#f4f8fc', border: '1px solid #e2ecf6' }}>
+                      <div key={i} className="rounded-2xl p-6" style={{ background: 'var(--brand-ivory)', border: '1px solid var(--brand-border)' }}>
                         <h3
                           className="text-base font-semibold text-primary-main mb-2"
-                          style={{ fontFamily: '"Poppins", sans-serif' }}
+                          style={{ fontFamily: '"Host Grotesk", sans-serif' }}
                         >
                           {faq.question}
                         </h3>
                         <p
-                          className="text-[15px] text-[#405a70] leading-relaxed"
+                          className="text-[15px] text-brand-slate leading-relaxed"
                           style={{ fontFamily: '"Inter", sans-serif' }}
                         >
                           {faq.answer}
@@ -532,7 +532,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
               )}
 
               {/* CTA */}
-              <div className="article-screen-only relative bg-[#061e35] mt-14 overflow-hidden rounded-2xl p-10 text-center">
+              <div className="article-screen-only relative bg-brand-forest mt-14 overflow-hidden rounded-2xl p-10 text-center">
                 <div
                   className="inline-flex items-center justify-center w-12 h-12 rounded-xl mb-5"
                   style={{ background: 'rgba(255,255,255,0.1)' }}
@@ -540,8 +540,8 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
                   <FiZap className="w-6 h-6 text-white" />
                 </div>
                 <h2
-                  className="text-2xl md:text-3xl font-bold text-white mb-3"
-                  style={{ fontFamily: '"Poppins", sans-serif' }}
+                  className="text-2xl md:text-3xl font-extrabold text-white mb-3"
+                  style={{ fontFamily: '"Host Grotesk", sans-serif' }}
                 >
                   Ready to streamline your properties?
                 </h2>
@@ -553,7 +553,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
                 </p>
                 <Link
                   href="https://app.propertypeace.io/register"
-                  className="inline-flex items-center gap-2 px-8 py-3.5 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-none font-semibold transition-all duration-300 hover:from-green-600 hover:to-green-700 hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(34,197,94,0.25)] shadow-lg"
+                  className="inline-flex items-center gap-2 px-8 py-3.5 bg-gradient-to-r from-brand-teal to-brand-teal text-white rounded-none font-semibold transition-all duration-300 hover:from-brand-teal hover:to-brand-teal-hover hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(36,117,104,0.25)] shadow-lg"
                   style={{ fontFamily: '"Inter", sans-serif' }}
                 >
                   <FiZap className="w-4 h-4" />
@@ -566,35 +566,35 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
                 <div className="article-screen-only mt-14">
                   <div className="flex items-center gap-3 mb-6">
                     <p
-                      className="text-sm font-medium text-[#8fa8c0] whitespace-nowrap"
+                      className="text-sm font-medium text-[var(--brand-border)] whitespace-nowrap"
                       style={{ fontFamily: '"Inter", sans-serif' }}
                     >
                       More {post.category} articles
                     </p>
-                    <div className="flex-1 h-px bg-green-50/50" />
+                    <div className="flex-1 h-px bg-[color-mix(in_srgb,var(--brand-mint)_50%,transparent)]" />
                   </div>
                   <div className="grid sm:grid-cols-2 gap-5">
                     {related.map((rp) => (
                       <Link key={rp.slug} href={`/blog/${rp.slug}`} className="block group">
-                        <div className="h-full flex flex-col rounded-2xl border border-slate-200 bg-white p-6 transition-all duration-200 hover:shadow-[0_8px_28px_rgba(10,45,82,0.09)] hover:-translate-y-0.5">
+                        <div className="h-full flex flex-col rounded-2xl border border-[var(--brand-border)] bg-brand-surface p-6 transition-all duration-200 hover:shadow-[0_8px_28px_rgba(16,44,41,0.09)] hover:-translate-y-0.5">
                           <div
                             className="w-7 h-0.5 rounded-full mb-3"
                             style={{ background: color }}
                           />
                           <h3
-                            className="text-base font-bold text-primary-main mb-2 leading-snug group-hover:text-[#15803d] transition-colors line-clamp-3"
-                            style={{ fontFamily: '"Poppins", sans-serif' }}
+                            className="text-base font-extrabold text-primary-main mb-2 leading-snug group-hover:text-brand-teal transition-colors line-clamp-3"
+                            style={{ fontFamily: '"Host Grotesk", sans-serif' }}
                           >
                             {rp.title}
                           </h3>
                           <p
-                            className="text-sm text-[#516A80] leading-relaxed flex-grow line-clamp-3 mb-4"
+                            className="text-sm text-brand-slate leading-relaxed flex-grow line-clamp-3 mb-4"
                             style={{ fontFamily: '"Inter", sans-serif' }}
                           >
                             {rp.description}
                           </p>
                           <div
-                            className="flex items-center justify-between text-xs text-[#8fa8c0]"
+                            className="flex items-center justify-between text-xs text-[var(--brand-border)]"
                             style={{ fontFamily: '"Inter", sans-serif' }}
                           >
                             <span className="flex items-center gap-1.5">
@@ -621,14 +621,14 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
             <aside className="article-screen-only mt-12 lg:mt-0">
               <div className="sticky top-24 space-y-5">
                 {headings.length > 0 && (
-                  <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_12px_34px_rgba(10,45,82,0.06)]">
-                    <div className="mb-4 flex items-center gap-2 text-sm font-bold text-primary-main" style={{ fontFamily: '"Poppins", sans-serif' }}>
-                      <FiList className="h-4 w-4 text-[#16a34a]" />
+                  <div className="rounded-2xl border border-[var(--brand-border)] bg-brand-surface p-5 shadow-[0_12px_34px_rgba(16,44,41,0.06)]">
+                    <div className="mb-4 flex items-center gap-2 text-sm font-bold text-primary-main" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>
+                      <FiList className="h-4 w-4 text-brand-teal" />
                       In this guide
                     </div>
                     <nav className="space-y-2" aria-label="Table of contents">
                       {headings.map((heading) => (
-                        <a key={heading.id} href={`#${heading.id}`} className="block rounded-none px-3 py-2 text-sm leading-snug text-[#516A80] transition-colors hover:bg-green-50/40 hover:text-[#15803d]" style={{ fontFamily: '"Inter", sans-serif' }}>
+                        <a key={heading.id} href={`#${heading.id}`} className="block rounded-none px-3 py-2 text-sm leading-snug text-brand-slate transition-colors hover:bg-[color-mix(in_srgb,var(--brand-mint)_40%,transparent)] hover:text-brand-teal" style={{ fontFamily: '"Inter", sans-serif' }}>
                           {heading.text}
                         </a>
                       ))}
@@ -636,28 +636,28 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
                   </div>
                 )}
 
-                <div className="relative bg-[#061e35] overflow-hidden rounded-2xl p-6 text-white shadow-[0_18px_50px_rgba(6,30,53,0.2)]">
-                  <p className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-green-300" style={{ fontFamily: '"Inter", sans-serif' }}>
+                <div className="relative bg-brand-forest overflow-hidden rounded-2xl p-6 text-white shadow-[0_18px_50px_rgba(16,44,41,0.2)]">
+                  <p className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-brand-mint" style={{ fontFamily: '"Inter", sans-serif' }}>
                     {cta.eyebrow}
                   </p>
-                  <h3 className="mb-3 text-xl font-bold leading-tight" style={{ fontFamily: '"Poppins", sans-serif' }}>
+                  <h3 className="mb-3 text-xl font-extrabold leading-tight" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>
                     {cta.title}
                   </h3>
                   <p className="mb-5 text-sm leading-relaxed text-white/70" style={{ fontFamily: '"Inter", sans-serif' }}>
                     {cta.body}
                   </p>
-                  <Link href={cta.href} className="inline-flex w-full items-center justify-center gap-2 rounded-none bg-gradient-to-r from-green-500 to-green-600 px-4 py-3 text-sm font-bold text-white transition-all hover:from-green-600 hover:to-green-700" style={{ fontFamily: '"Inter", sans-serif' }}>
+                  <Link href={cta.href} className="inline-flex w-full items-center justify-center gap-2 rounded-none bg-gradient-to-r from-brand-teal to-brand-teal px-4 py-3 text-sm font-bold text-white transition-all hover:from-brand-teal hover:to-brand-teal-hover" style={{ fontFamily: '"Inter", sans-serif' }}>
                     {cta.label}
                     <FiArrowRight className="h-4 w-4" />
                   </Link>
                 </div>
 
-                <div className="rounded-2xl border border-slate-200 bg-green-50/40 p-5">
-                  <div className="mb-3 flex items-center gap-2 text-sm font-bold text-primary-main" style={{ fontFamily: '"Poppins", sans-serif' }}>
-                    <FiCheckCircle className="h-4 w-4 text-[#16a34a]" />
+                <div className="rounded-2xl border border-[var(--brand-border)] bg-[color-mix(in_srgb,var(--brand-mint)_40%,transparent)] p-5">
+                  <div className="mb-3 flex items-center gap-2 text-sm font-bold text-primary-main" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>
+                    <FiCheckCircle className="h-4 w-4 text-brand-teal" />
                     Why landlords use Property Peace
                   </div>
-                  <ul className="space-y-3 text-sm leading-relaxed text-[#516A80]" style={{ fontFamily: '"Inter", sans-serif' }}>
+                  <ul className="space-y-3 text-sm leading-relaxed text-brand-slate" style={{ fontFamily: '"Inter", sans-serif' }}>
                     <li>Free for up to 5 rental units</li>
                     <li>Built for independent landlords</li>
                     <li>Rent, leases, maintenance, and tenants together</li>

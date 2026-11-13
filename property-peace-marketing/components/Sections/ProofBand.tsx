@@ -44,7 +44,7 @@ function ChaosMock() {
       <div className="mb-4 flex items-center justify-between">
         <div>
           <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-red-500">Chaos</p>
-          <h3 className="text-sm font-bold text-[#061e35]">Scattered landlord tasks</h3>
+          <h3 className="text-sm font-bold text-brand-forest">Scattered landlord tasks</h3>
         </div>
         <span className="rounded-full bg-red-50 px-2.5 py-1 text-[10px] font-bold text-red-600 ring-1 ring-red-100">Needs sorting</span>
       </div>
@@ -57,7 +57,7 @@ function ChaosMock() {
               ? 'border-red-100 bg-red-50/80 text-red-600'
               : card.tone === 'amber'
                 ? 'border-amber-100 bg-amber-50/80 text-amber-600'
-                : 'border-blue-100 bg-blue-50/80 text-blue-600';
+                : 'border-[var(--brand-border)] bg-brand-ivory text-brand-teal';
 
           return (
             <motion.div
@@ -71,7 +71,7 @@ function ChaosMock() {
                 <Icon className="h-4 w-4" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-xs font-bold text-[#061e35]">{card.title}</p>
+                <p className="text-xs font-bold text-brand-forest">{card.title}</p>
                 <p className="truncate text-[11px] text-slate-500">{card.note}</p>
               </div>
               <FiAlertTriangle className="h-4 w-4 flex-shrink-0 text-red-400" />
@@ -92,14 +92,14 @@ function OrganizeMock() {
 
   return (
     <div className="h-full overflow-hidden bg-white p-4" style={{ fontFamily: '"Inter", sans-serif' }}>
-      <div className="mb-4 rounded-2xl border border-green-100 bg-green-50 p-3">
+      <div className="mb-4 rounded-2xl border border-[var(--brand-border)] bg-brand-ivory p-3">
         <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-green-500 text-white">
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-teal text-white">
             <FiArrowRight className="h-4 w-4" />
           </div>
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-green-600">Organized</p>
-            <p className="text-sm font-bold text-[#061e35]">Weekly priority queue</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-brand-teal">Organized</p>
+            <p className="text-sm font-bold text-brand-forest">Weekly priority queue</p>
           </div>
         </div>
       </div>
@@ -115,7 +115,7 @@ function OrganizeMock() {
           >
             <div className="mb-2 flex items-center justify-between gap-3">
               <div>
-                <p className="text-xs font-bold text-[#061e35]">{item.label}</p>
+                <p className="text-xs font-bold text-brand-forest">{item.label}</p>
                 <p className="text-[11px] text-slate-500">{item.meta}</p>
               </div>
               <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-500">Next</span>
@@ -138,12 +138,12 @@ function OrganizeMock() {
 function CalmMock() {
   return (
     <div className="h-full overflow-hidden bg-white p-4" style={{ fontFamily: '"Inter", sans-serif' }}>
-      <div className="mb-4 flex items-center justify-between rounded-2xl border border-green-100 bg-green-50 p-3">
+      <div className="mb-4 flex items-center justify-between rounded-2xl border border-[var(--brand-border)] bg-brand-ivory p-3">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-green-600">Calm</p>
-          <h3 className="text-sm font-bold text-[#061e35]">This week is under control</h3>
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-brand-teal">Calm</p>
+          <h3 className="text-sm font-bold text-brand-forest">This week is under control</h3>
         </div>
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-500 text-white shadow-lg shadow-green-500/25">
+        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-teal text-white shadow-lg">
           <FiCheckCircle className="h-5 w-5" />
         </div>
       </div>
@@ -162,9 +162,9 @@ function CalmMock() {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.3, delay: index * 0.07 }}
           >
-            <div className="mb-2 h-1.5 w-10 rounded-full bg-green-400" />
+            <div className="mb-2 h-1.5 w-10 rounded-full bg-brand-teal" />
             <p className="text-[11px] font-semibold text-slate-500">{label}</p>
-            <p className="mt-1 text-xs font-bold leading-tight text-[#061e35]">{value}</p>
+            <p className="mt-1 text-xs font-bold leading-tight text-brand-forest">{value}</p>
           </motion.div>
         ))}
       </div>
@@ -172,7 +172,7 @@ function CalmMock() {
       <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
         <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Next weekly rhythm</p>
         <div className="mt-2 flex items-center justify-between">
-          <span className="text-xs font-bold text-[#061e35]">Review Monday checklist</span>
+          <span className="text-xs font-bold text-brand-forest">Review Monday checklist</span>
           <span className="rounded-full bg-green-100 px-2 py-1 text-[10px] font-bold text-green-700">Ready</span>
         </div>
       </div>
@@ -231,8 +231,8 @@ function WorkflowStepper() {
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
     >
-      <div className="overflow-hidden rounded-[1.65rem] border border-slate-200 bg-white shadow-xl shadow-blue-900/10">
-        <div className="bg-[#061e35]">
+      <div className="overflow-hidden rounded-[1.65rem] border border-slate-200 bg-white shadow-xl shadow-[color-mix(in_srgb,var(--brand-forest)_10%,transparent)]">
+        <div className="bg-brand-forest">
           <div className="flex items-stretch border-b border-white/[0.08]">
             <div className="flex flex-shrink-0 items-center gap-1.5 border-r border-white/[0.08] px-3 py-3">
               <div className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" />
@@ -255,7 +255,7 @@ function WorkflowStepper() {
                     <span className="block truncate">{tab.label}</span>
                     {isActive && (
                       <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-white/10">
-                        <div className="h-full bg-green-400" style={{ width: `${progress}%`, transition: 'none' }} />
+                        <div className="h-full bg-brand-mint" style={{ width: `${progress}%`, transition: 'none' }} />
                       </div>
                     )}
                   </button>
@@ -288,13 +288,13 @@ function WorkflowStepper() {
           <AnimatePresence mode="wait">
             <motion.div
               key={`workflow-callout-${activeTab}`}
-              className="pointer-events-none absolute right-3 top-3 flex items-center gap-1.5 rounded-full bg-green-600 px-3 py-1.5 text-[11px] font-semibold text-white shadow-lg shadow-green-600/25"
+              className="pointer-events-none absolute right-3 top-3 flex items-center gap-1.5 rounded-full bg-brand-teal px-3 py-1.5 text-[11px] font-semibold text-white shadow-lg"
               initial={{ opacity: 0, scale: 0.85, y: -4 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.85 }}
               transition={{ duration: 0.25, delay: 0.2 }}
             >
-              <div className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-green-300" />
+              <div className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-brand-mint" />
               {workflowTabs[activeTab].callout}
             </motion.div>
           </AnimatePresence>
@@ -310,10 +310,10 @@ function WorkflowStepper() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
           >
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-green-600" style={{ fontFamily: '"Inter", sans-serif' }}>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-brand-teal" style={{ fontFamily: '"Inter", sans-serif' }}>
               {workflowTabs[activeTab].eyebrow}
             </p>
-            <p className="mt-1 text-sm font-bold text-[#061e35]" style={{ fontFamily: '"Poppins", sans-serif' }}>
+            <p className="mt-1 text-sm font-bold text-brand-forest" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>
               {workflowTabs[activeTab].headline}
             </p>
             <p className="mt-1 text-xs leading-relaxed text-slate-500" style={{ fontFamily: '"Inter", sans-serif' }}>
@@ -341,15 +341,15 @@ export default function ProofBand() {
         >
           <div className="text-center lg:text-left">
             <span
-              className="mb-4 inline-flex max-w-full items-center justify-center gap-2 rounded-full border border-green-500/20 bg-green-50 px-4 py-1.5 text-center text-xs font-semibold uppercase leading-snug tracking-widest text-green-600 shadow-sm"
+              className="mb-4 inline-flex max-w-full items-center justify-center gap-2 rounded-full border border-[var(--brand-border)] bg-brand-ivory px-4 py-1.5 text-center text-xs font-semibold uppercase leading-snug tracking-widest text-brand-teal shadow-sm"
               style={{ fontFamily: '"Inter", sans-serif' }}
             >
               <FiCheckCircle className="h-4 w-4" />
               Built for real landlord workflows
             </span>
             <h2
-              className="mb-5 text-3xl font-bold text-[#061e35] md:text-4xl lg:text-5xl"
-              style={{ fontFamily: '"Poppins", sans-serif', lineHeight: 1.08 }}
+              className="mb-5 text-3xl font-bold text-brand-forest md:text-4xl lg:text-5xl"
+              style={{ fontFamily: '"Host Grotesk", sans-serif', lineHeight: 1.08 }}
             >
               From landlord chaos to a calm weekly rhythm.
             </h2>
@@ -362,8 +362,8 @@ export default function ProofBand() {
             </p>
             <Link
               href="https://app.propertypeace.io/register"
-              className="inline-flex items-center justify-center rounded-none bg-gradient-to-r from-green-500 to-green-600 px-7 py-4 text-base font-bold text-white shadow-xl shadow-green-600/25 transition-all duration-200 hover:-translate-y-0.5 hover:from-green-600 hover:to-green-700 hover:shadow-green-700/30"
-              style={{ fontFamily: '"Poppins", sans-serif' }}
+              className="inline-flex items-center justify-center rounded-none bg-brand-teal px-7 py-4 text-base font-bold text-white shadow-xl transition-all duration-200 hover:-translate-y-0.5 hover:bg-brand-teal-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-teal"
+              style={{ fontFamily: '"Host Grotesk", sans-serif' }}
             >
               Start free — organize your rentals
             </Link>

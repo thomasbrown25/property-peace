@@ -480,9 +480,9 @@ export default function AdminUserDetail() {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell><strong>Organization</strong></TableCell>
-                  <TableCell><strong>Role</strong></TableCell>
-                  <TableCell><strong>Current</strong></TableCell>
+                  <TableCell>Organization</TableCell>
+                  <TableCell>Role</TableCell>
+                  <TableCell>Current</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>

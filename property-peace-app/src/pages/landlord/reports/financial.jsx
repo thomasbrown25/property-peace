@@ -612,11 +612,11 @@ export default function FinancialReports() {
                   <Table>
                     <TableHead>
                       <TableRow>
-                        <TableCell><Typography variant="subtitle2">Property</Typography></TableCell>
-                        <TableCell align="right"><Typography variant="subtitle2">Total Rent</Typography></TableCell>
-                        <TableCell align="right"><Typography variant="subtitle2">Total Expenses</Typography></TableCell>
-                        <TableCell align="right"><Typography variant="subtitle2">Net Income</Typography></TableCell>
-                        <TableCell align="right"><Typography variant="subtitle2">Profit Margin</Typography></TableCell>
+                        <TableCell>Property</TableCell>
+                        <TableCell align="right">Total Rent</TableCell>
+                        <TableCell align="right">Total Expenses</TableCell>
+                        <TableCell align="right">Net Income</TableCell>
+                        <TableCell align="right">Profit Margin</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>

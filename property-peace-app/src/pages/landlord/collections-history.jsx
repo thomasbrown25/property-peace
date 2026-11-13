@@ -182,12 +182,12 @@ export default function CollectionsHistory() {
                   <Table size="small">
                     <TableHead>
                       <TableRow>
-                        <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem' }}>Date</TableCell>
-                        <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem' }}>Tenant</TableCell>
-                        <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem' }}>Property</TableCell>
-                        <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem' }}>Action</TableCell>
-                        <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem' }}>Message</TableCell>
-                        <TableCell sx={{ fontWeight: 700, fontSize: '0.75rem' }} align="right">Lease</TableCell>
+                        <TableCell>Date</TableCell>
+                        <TableCell>Tenant</TableCell>
+                        <TableCell>Property</TableCell>
+                        <TableCell>Action</TableCell>
+                        <TableCell>Message</TableCell>
+                        <TableCell align="right">Lease</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>

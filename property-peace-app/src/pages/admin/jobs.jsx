@@ -395,11 +395,11 @@ export default function AdminJobs() {
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell><strong>Job</strong></TableCell>
-                  <TableCell><strong>Started</strong></TableCell>
-                  <TableCell><strong>Completed</strong></TableCell>
-                  <TableCell><strong>Status</strong></TableCell>
-                  <TableCell><strong>Message</strong></TableCell>
+                  <TableCell>Job</TableCell>
+                  <TableCell>Started</TableCell>
+                  <TableCell>Completed</TableCell>
+                  <TableCell>Status</TableCell>
+                  <TableCell>Message</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -469,10 +469,10 @@ export default function AdminJobs() {
               <Table size="small">
                 <TableHead>
                   <TableRow>
-                    <TableCell sx={{ width: 72 }}><strong>State</strong></TableCell>
-                    <TableCell><strong>Late fee URL</strong></TableCell>
-                    <TableCell><strong>Security deposit URL</strong></TableCell>
-                    <TableCell sx={{ width: 100 }} align="right"><strong>Actions</strong></TableCell>
+                    <TableCell sx={{ width: 72 }}>State</TableCell>
+                    <TableCell>Late fee URL</TableCell>
+                    <TableCell>Security deposit URL</TableCell>
+                    <TableCell sx={{ width: 100 }} align="right">Actions</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -546,9 +546,9 @@ export default function AdminJobs() {
                   <Table size="small">
                     <TableHead>
                       <TableRow>
-                        <TableCell sx={{ width: 72 }}><strong>State</strong></TableCell>
-                        <TableCell><strong>Description</strong></TableCell>
-                        <TableCell sx={{ width: 140 }}><strong>Last updated</strong></TableCell>
+                        <TableCell sx={{ width: 72 }}>State</TableCell>
+                        <TableCell>Description</TableCell>
+                        <TableCell sx={{ width: 140 }}>Last updated</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -582,10 +582,10 @@ export default function AdminJobs() {
                   <Table size="small">
                     <TableHead>
                       <TableRow>
-                        <TableCell sx={{ width: 72 }}><strong>State</strong></TableCell>
-                        <TableCell><strong>Grace period</strong></TableCell>
-                        <TableCell><strong>Fee amount</strong></TableCell>
-                        <TableCell sx={{ width: 140 }}><strong>Last updated</strong></TableCell>
+                        <TableCell sx={{ width: 72 }}>State</TableCell>
+                        <TableCell>Grace period</TableCell>
+                        <TableCell>Fee amount</TableCell>
+                        <TableCell sx={{ width: 140 }}>Last updated</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
