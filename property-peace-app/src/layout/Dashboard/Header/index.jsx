@@ -10,11 +10,11 @@ export default function Header({ adminPortal = false, onAdminMenuOpen }) {
       color="inherit"
       elevation={0}
       sx={(theme) => ({
-        bgcolor: theme.palette.mode === 'dark' ? '#061e35' : 'common.white',
-        color: theme.palette.mode === 'dark' ? 'common.white' : '#061e35',
+        bgcolor: theme.palette.mode === 'dark' ? theme.palette.brand.forest : theme.palette.background.paper,
+        color: theme.palette.mode === 'dark' ? theme.palette.brand.ivory : theme.palette.brand.forest,
         borderBottom: '1px solid',
-        borderBottomColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.12)' : 'divider',
-        boxShadow: theme.palette.mode === 'dark' ? '0 4px 16px rgba(0, 0, 0, 0.22)' : '0 4px 14px rgba(6, 30, 53, 0.08)',
+        borderBottomColor: 'divider',
+        boxShadow: theme.palette.mode === 'dark' ? '0 4px 16px rgba(0, 0, 0, 0.22)' : '0 4px 14px rgba(16, 44, 41, 0.06)',
         zIndex: theme.zIndex.appBar,
         width: adminPortal ? { xs: '100%', lg: `calc(100% - ${DRAWER_WIDTH}px)` } : '100%',
         ...(adminPortal && { ml: { lg: `${DRAWER_WIDTH}px` } })

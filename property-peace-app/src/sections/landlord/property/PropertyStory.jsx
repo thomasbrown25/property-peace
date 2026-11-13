@@ -36,7 +36,7 @@ const getMaintenanceStatusMeta = (status) => {
 };
 
 const TYPE_META = {
-  money:       { label: 'RENT RECEIVED', color: '#41a541', icon: <DollarOutlined /> },
+  money:       { label: 'RENT RECEIVED', icon: <DollarOutlined /> },
   maintenance: { label: 'MAINTENANCE',   color: '#d97706', icon: <ToolOutlined /> },
   lease:       { label: 'LEASE STARTED', color: '#1464CC', icon: <FileTextOutlined /> },
   agent:       { label: 'AGENT',         color: '#7c3aed', icon: <RobotOutlined /> },
@@ -44,8 +44,14 @@ const TYPE_META = {
   inspection:  { label: 'INSPECTION',    color: '#0891b2', icon: <CheckCircleOutlined /> },
 };
 
+const typeColor = (theme, type) => type === 'money'
+  ? (theme.palette.mode === 'dark' ? theme.palette.brand.mint : theme.palette.brand.teal)
+  : (TYPE_META[type] || TYPE_META.maintenance).color;
+
 function TypeBadge({ type }) {
+  const theme = useTheme();
   const meta = TYPE_META[type] || TYPE_META.maintenance;
+  const color = typeColor(theme, type);
   return (
     <Chip
       label={meta.label}
@@ -55,8 +61,8 @@ function TypeBadge({ type }) {
         fontSize: '0.6rem',
         fontWeight: 700,
         letterSpacing: 0.5,
-        bgcolor: alpha(meta.color, 0.1),
-        color: meta.color,
+        bgcolor: type === 'money' ? alpha(theme.palette.brand.mint, theme.palette.mode === 'dark' ? 0.18 : 0.55) : alpha(color, 0.1),
+        color,
         border: 'none',
         '& .MuiChip-label': { px: 0.75 }
       }}
@@ -65,7 +71,8 @@ function TypeBadge({ type }) {
 }
 
 function TimelineDot({ type, isLast }) {
-  const meta = TYPE_META[type] || TYPE_META.maintenance;
+  const theme = useTheme();
+  const color = typeColor(theme, type);
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0, width: 36, alignSelf: 'stretch' }}>
       <Box
@@ -73,12 +80,12 @@ function TimelineDot({ type, isLast }) {
           width: 36,
           height: 36,
           borderRadius: '50%',
-          border: `2px solid ${meta.color}`,
-          bgcolor: alpha(meta.color, 0.06),
+          border: `2px solid ${color}`,
+          bgcolor: type === 'money' ? alpha(theme.palette.brand.mint, theme.palette.mode === 'dark' ? 0.18 : 0.45) : alpha(color, 0.06),
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          color: meta.color,
+          color,
           fontSize: 15,
           flexShrink: 0
         }}
@@ -109,31 +116,31 @@ function StoryItem({ item, isLast }) {
     <Stack direction="row" spacing={0.5} alignItems="stretch" sx={{ position: 'relative' }}>
       <TimelineDot type={item.type} isLast={isLast} />
 
-      <Box sx={{ flex: 1, minWidth: 0, pb: isLast ? 0 : 2.5 }}>
+      <Box sx={{ flex: 1, minWidth: 0, pb: isLast ? 0 : 1.25 }}>
         {/* Content card — badge + date live inside */}
         <Box
           sx={{
-            bgcolor: 'background.paper',
-            border: (t) => `1px solid ${t.palette.mode === 'dark' ? alpha('#cbd5e1', 0.16) : alpha(t.palette.divider, 0.18)}`,
-            boxShadow: (t) => t.palette.mode === 'dark' ? `0 10px 24px ${alpha(theme.palette.common.black, 0.2)}, 0 0 18px ${alpha((TYPE_META[item.type] || TYPE_META.maintenance).color, 0.08)}` : 'none',
+            bgcolor: item.type === 'money' ? alpha(theme.palette.brand.mint, theme.palette.mode === 'dark' ? 0.1 : 0.25) : 'background.paper',
+            border: (t) => `1px solid ${item.type === 'money' ? alpha(t.palette.brand.mint, t.palette.mode === 'dark' ? 0.28 : 0.65) : t.palette.mode === 'dark' ? alpha('#cbd5e1', 0.16) : alpha(t.palette.divider, 0.18)}`,
+            boxShadow: (t) => t.palette.mode === 'dark' ? `0 4px 12px ${alpha(theme.palette.common.black, 0.16)}, 0 0 12px ${alpha(typeColor(theme, item.type), 0.06)}` : 'none',
             borderRadius: 2,
-            p: 1.75
+            p: 1.25
           }}
         >
           {/* Meta row inside card */}
-          <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.75 }} flexWrap="wrap">
+          <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }} flexWrap="wrap">
             <TypeBadge type={item.type} />
             <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.72rem' }}>
               {formatEventDate(item.date)}
             </Typography>
             {item.amount > 0 && (
-              <Typography variant="subtitle2" fontWeight={700} sx={{ color: '#41a541', ml: 'auto !important', fontSize: '1rem' }}>
+              <Typography variant="subtitle2" fontWeight={700} sx={{ color: (t) => t.palette.mode === 'dark' ? t.palette.brand.mint : t.palette.brand.teal, ml: 'auto !important', fontSize: '1rem' }}>
                 +{formatCurrency(item.amount)}
               </Typography>
             )}
           </Stack>
 
-          <Typography variant="subtitle2" fontWeight={700} sx={{ fontSize: '0.9375rem', mb: item.description ? 0.35 : 0 }}>
+          <Typography variant="subtitle2" fontWeight={700} sx={{ fontSize: '0.9375rem', mb: item.description ? 0.25 : 0 }}>
             {item.title}
           </Typography>
           {item.description && (
@@ -169,6 +176,7 @@ function StoryItem({ item, isLast }) {
                       <Chip
                         label={getMaintenanceStatusMeta(child.maintenanceStatus).label}
                         size="small"
+                        color={getMaintenanceStatusMeta(child.maintenanceStatus).color}
                         sx={{ height: 18, fontSize: '0.6rem', '& .MuiChip-label': { px: 0.5 } }}
                       />
                     )}
@@ -216,7 +224,7 @@ const RANGES = [
   { label: 'All', months: null }
 ];
 
-export default function PropertyStory({ property, propertyId }) {
+export default function PropertyStory({ property, propertyId, compact = false }) {
   const theme = useTheme();
   const navigate = useNavigate();
   const [filter, setFilter] = useState('all');
@@ -368,6 +376,8 @@ export default function PropertyStory({ property, propertyId }) {
   }, [items, rangeIdx]);
 
   const filtered = filter === 'all' ? rangeFiltered : rangeFiltered.filter((i) => i.type === filter);
+  // Keep derivation and filters identical on both pages; only the overview trims the result.
+  const visibleItems = compact ? filtered.slice(0, 5) : filtered;
 
   // Range toggle (CashFlow style)
   const rangeToggle = (
@@ -451,7 +461,7 @@ export default function PropertyStory({ property, propertyId }) {
           </Typography>
         </Stack>
       }
-      contentSX={{ pt: 1.5 }}
+      contentSX={{ pt: 1 }}
       border={false}
       sx={{
         border: 'none',
@@ -460,7 +470,7 @@ export default function PropertyStory({ property, propertyId }) {
       }}
     >
       {/* Type filter pills */}
-      <Box sx={{ mb: 2 }}>{filterButtons}</Box>
+      <Box sx={{ mb: 1.5 }}>{filterButtons}</Box>
 
       {filtered.length === 0 ? (
         <Box sx={{ py: 4, textAlign: 'center' }}>
@@ -470,8 +480,8 @@ export default function PropertyStory({ property, propertyId }) {
         </Box>
       ) : (
         <Stack>
-          {filtered.map((item, idx) => (
-            <StoryItem key={item.id} item={item} isLast={idx === filtered.length - 1} />
+          {visibleItems.map((item, idx) => (
+            <StoryItem key={item.id} item={item} isLast={idx === visibleItems.length - 1} />
           ))}
         </Stack>
       )}

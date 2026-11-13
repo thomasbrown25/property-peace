@@ -39,7 +39,7 @@ export default function EmailVerifierForm({ email, onVerified, onBack }) {
         Step 2 of 3 · Verify email
       </Typography>
       <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 2, mt: 1 }}>
-        <Typography variant="h3" sx={{ color: '#061e35', fontWeight: 700 }}>
+        <Typography variant="h3" sx={{ color: 'text.primary', fontWeight: 700 }}>
           Check your inbox
         </Typography>
         <Link component="button" type="button" onClick={onBack} sx={{ flexShrink: 0 }}>

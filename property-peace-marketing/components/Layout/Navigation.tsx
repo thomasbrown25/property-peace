@@ -368,7 +368,7 @@ export default function Navigation() {
           <div className="nav:hidden flex h-11 w-[76px] flex-shrink-0 items-center justify-start">
             <button
               className={`inline-flex h-11 w-11 items-center justify-start rounded-xl transition-colors duration-300 ${
-                whiteSurface ? 'text-[#061E35] hover:text-[#15803D]' : 'text-white hover:text-white'
+                whiteSurface ? 'text-brand-forest hover:text-brand-teal' : 'text-white hover:text-brand-mint'
               }`}
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
@@ -413,7 +413,7 @@ export default function Navigation() {
           <div className="nav:hidden flex h-11 w-full flex-shrink-0 items-center justify-end">
             <Link
               href={loginUrl}
-              className="inline-flex h-[38px] items-center justify-center rounded-sm border border-[#B8C8D5] bg-white px-3 text-xs font-semibold uppercase text-[#061E35] transition-colors duration-[220ms] hover:bg-[#F7FAFC] motion-reduce:transition-none"
+              className="inline-flex h-[38px] items-center justify-center rounded-sm border border-brand-forest/20 bg-white px-3 text-xs font-semibold uppercase text-brand-forest transition-colors duration-[220ms] hover:bg-brand-ivory motion-reduce:transition-none"
               style={{ fontFamily: '"Inter", "Inter Placeholder", sans-serif' }}
             >
               LOGIN
@@ -439,7 +439,7 @@ export default function Navigation() {
                 onKeyDown={handleFeaturesTriggerKeyDown}
                 className={`flex items-center space-x-1 border-b-2 border-transparent py-2 font-medium transition-[color,border-color] duration-[220ms] motion-reduce:transition-none ${
                   whiteSurface
-                    ? 'text-[#061E35] hover:text-[#15803D]'
+                    ? 'text-brand-forest hover:text-brand-teal'
                     : 'text-white hover:text-white'
                 }`}
               >
@@ -449,22 +449,22 @@ export default function Navigation() {
             </div>
 
             <Link href="/listings" className={`font-medium transition-all duration-300 py-2 border-b-2 border-transparent ${
-              whiteSurface ? 'text-[#061E35] hover:text-[#15803D]' : 'text-white hover:text-white'
+              whiteSurface ? 'text-brand-forest hover:text-brand-teal' : 'text-white hover:text-brand-mint'
             }`}>
               Listings
             </Link>
             <Link href="/pricing" className={`font-medium transition-all duration-300 py-2 border-b-2 border-transparent ${
-              whiteSurface ? 'text-[#061E35] hover:text-[#15803D]' : 'text-white hover:text-white'
+              whiteSurface ? 'text-brand-forest hover:text-brand-teal' : 'text-white hover:text-brand-mint'
             }`}>
               Pricing
             </Link>
             <Link href="/resources" className={`font-medium transition-all duration-300 py-2 border-b-2 border-transparent ${
-              whiteSurface ? 'text-[#061E35] hover:text-[#15803D]' : 'text-white hover:text-white'
+              whiteSurface ? 'text-brand-forest hover:text-brand-teal' : 'text-white hover:text-brand-mint'
             }`}>
               Resources
             </Link>
             <Link href="/about" className={`font-medium transition-all duration-300 py-2 border-b-2 border-transparent ${
-              whiteSurface ? 'text-[#061E35] hover:text-[#15803D]' : 'text-white hover:text-white'
+              whiteSurface ? 'text-brand-forest hover:text-brand-teal' : 'text-white hover:text-brand-mint'
             }`}>
               About
             </Link>
@@ -473,12 +473,12 @@ export default function Navigation() {
           {/* CTA: Login + Book a Demo (desktop) */}
           <div className={`hidden nav:flex items-center gap-3 ${pathname === '/' ? '' : 'lg:nav:mr-12'}`}>
             <Link href={loginUrl}
-              className="inline-flex h-[38px] items-center justify-center rounded-sm border border-[#B8C8D5] bg-white px-[18px] text-center text-xs font-semibold uppercase text-[#061E35] transition-colors duration-200 hover:bg-[#F7FAFC]"
+              className="inline-flex h-[38px] items-center justify-center rounded-sm border border-brand-forest/20 bg-white px-[18px] text-center text-xs font-semibold uppercase text-brand-forest transition-colors duration-200 hover:bg-brand-ivory"
               style={{ fontFamily: '"Inter", "Inter Placeholder", sans-serif' }}>
               LOGIN
             </Link>
             <Link href="/demo"
-              className="inline-flex h-[38px] items-center justify-center rounded-sm bg-green-600 px-[18px] text-center text-xs font-bold uppercase text-white transition-colors duration-200 hover:bg-green-500"
+              className="inline-flex h-[38px] items-center justify-center rounded-sm bg-brand-teal px-[18px] text-center text-xs font-bold uppercase text-white transition-colors duration-200 hover:bg-brand-teal-hover"
               style={{ fontFamily: '"Inter", "Inter Placeholder", sans-serif' }}>
               BOOK A DEMO
             </Link>
@@ -573,7 +573,7 @@ export default function Navigation() {
           className={`fixed left-0 top-0 flex max-h-dvh w-[min(22rem,88vw)] max-w-full flex-col overflow-hidden rounded-r-[1.75rem] border-r border-white/10 shadow-[24px_0_70px_rgba(0,0,0,0.42)] transition-transform duration-300 ease-out ${
             mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
-          style={{ background: 'linear-gradient(180deg, #061e35 0%, #082b4d 55%, #061e35 100%)' }}
+          style={{ background: 'linear-gradient(180deg, var(--brand-forest) 0%, var(--brand-forest-raised) 55%, var(--brand-forest) 100%)' }}
         >
           <div className="pointer-events-none absolute -right-24 top-16 h-48 w-48 rounded-full bg-emerald-400/10 blur-3xl" aria-hidden="true" />
           <div className="pointer-events-none absolute -bottom-20 left-4 h-56 w-56 rounded-full bg-blue-400/10 blur-3xl" aria-hidden="true" />

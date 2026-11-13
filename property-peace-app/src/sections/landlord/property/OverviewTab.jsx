@@ -328,7 +328,7 @@ export default function OverviewTab({ property, propertyId, selectedProperty, le
                                   variant={leaseStatus.label === 'ACTIVE' ? 'filled' : 'outlined'}
                                   sx={{ 
                                     fontWeight: 500,
-                                    bgcolor: leaseStatus.color === 'info' ? alpha(theme.palette.info.main, 0.1) : leaseStatus.label === 'ACTIVE' ? 'success.main' : 'transparent',
+                                    bgcolor: leaseStatus.color === 'info' ? alpha(theme.palette.info.main, 0.1) : leaseStatus.label === 'ACTIVE' ? 'statusChip.active.background' : 'transparent',
                                     color: leaseStatus.color === 'info' ? theme.palette.info.main : undefined
                                   }}
                                 />
@@ -447,8 +447,8 @@ export default function OverviewTab({ property, propertyId, selectedProperty, le
                                 label={isOccupied ? 'Occupied' : 'Vacant'}
                                 size="small"
                                 sx={{
-                                  bgcolor: isOccupied ? alpha(theme.palette.success.main, 0.1) : alpha(theme.palette.warning.main, 0.1),
-                                  color: isOccupied ? theme.palette.success.main : theme.palette.warning.main,
+                                  bgcolor: isOccupied ? theme.palette.statusChip.active.softBackground : theme.palette.warning.lighter,
+                                  color: isOccupied ? theme.palette.statusChip.active.softForeground : theme.palette.warning.dark,
                                   fontWeight: 500,
                                   fontSize: '0.7rem'
                                 }}

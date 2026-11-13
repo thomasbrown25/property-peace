@@ -94,22 +94,20 @@ function formatDate(value) {
   return date ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null;
 }
 
-const portalChipSx = { bgcolor: NAVY, color: '#fff', fontWeight: 650 };
-
 function PortalStatus({ tenant, tenantInvites }) {
   const tenantId = getId(tenant);
   const email = read(tenant, 'email', 'Email');
 
   if (hasAccount(tenant)) {
-    return <Chip label="Active" color="success" size="small" sx={{ bgcolor: 'success.main', '&.MuiChip-colorSuccess': { color: '#fff' }, fontWeight: 650 }} />;
+    return <Chip label="Active" color="success" size="small" sx={{ fontWeight: 650 }} />;
   }
   if (email && tenantInvites[tenantId]) {
     return <Chip label="Invite pending" color="warning" size="small" sx={{ color: '#fff', fontWeight: 650 }} />;
   }
   if (email) {
-    return <Chip label="Ready to invite" size="small" sx={portalChipSx} />;
+    return <Chip label="Ready to invite" size="small" sx={{ fontWeight: 650 }} />;
   }
-  return <Chip label="Email needed" size="small" sx={portalChipSx} />;
+  return <Chip label="Email needed" size="small" sx={{ fontWeight: 650 }} />;
 }
 
 function TenantRow({ tenant, tenantInvites, onOpen, onActions, onAddToLease }) {

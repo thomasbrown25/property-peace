@@ -7,10 +7,11 @@ const require = createRequire(import.meta.url);
 const { parse } = require('@babel/parser');
 const source = await readFile(new URL('./PropertyRecordsTabs.jsx', import.meta.url), 'utf8');
 
-test('property tabs parse and place Settings immediately after Documents', () => {
+test('property tabs parse and place Settings immediately after Documents in More', () => {
   assert.doesNotThrow(() => parse(source, { sourceType: 'module', plugins: ['jsx'] }));
   assert.match(source, /'documents', 'settings'\]/);
-  assert.match(source, /<Tab value="documents" label="Documents"\s*\/>\s*<Tab value="settings" label="Settings"\s*\/>/);
+  assert.match(source, /\{ id: 'documents', label: 'Documents' \},\s*\{ id: 'settings', label: 'Settings' \}/);
+  assert.match(source, /onTabChange\(section\.id\)/);
 });
 
 test('Settings renders property details and opens the selected property editor', () => {

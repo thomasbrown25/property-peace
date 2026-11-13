@@ -39,6 +39,7 @@ import { markDisplayedNotificationsRead } from '../../features/notifications/mar
 import GlobalSearchModal from '../../components/GlobalSearchModal';
 import PropertyCollectionRail from './PropertyCollectionRail';
 import CalendarScreen from './CalendarScreen';
+import HomeDirectoryTab from './HomeDirectoryTab';
 
 const lightLogo = require('../../../assets/property-peace-navbar-logo.png');
 const darkLogo = require('../../../assets/property-peace-logo.png');
@@ -143,6 +144,7 @@ export default function DashboardScreen() {
   const [overdueByProperty, setOverdueByProperty] = useState<Map<string, number> | null>(null);
   const [collectionByProperty, setCollectionByProperty] = useState<Map<string, PropertyCollection> | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [directoryRefreshToken, setDirectoryRefreshToken] = useState(0);
   const [propertiesStatus, setPropertiesStatus] = useState<LoadStatus>('loading');
   const [maintenanceStatus, setMaintenanceStatus] = useState<LoadStatus>('loading');
   const [notificationsStatus, setNotificationsStatus] = useState<LoadStatus>('loading');
@@ -443,10 +445,6 @@ export default function DashboardScreen() {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.homeTabStrip} accessibilityRole="tablist">
           {homeTabs.map(tab => (
             <TouchableOpacity key={tab} onPress={() => {
-              if (tab === 'Tenants' || tab === 'Leases') {
-                navigation.getParent()?.navigate(tab);
-                return;
-              }
               setActiveHomeTab(tab);
               scrollRef.current?.scrollTo({ y: 0, animated: false });
             }} accessibilityRole="tab" accessibilityState={{ selected: activeHomeTab === tab }} style={[styles.homeTab, activeHomeTab === tab && { borderBottomColor: mode === 'dark' ? '#75d995' : '#138a32' }]}>
@@ -542,7 +540,7 @@ export default function DashboardScreen() {
         ref={scrollRef}
         contentContainerStyle={[styles.content, { paddingBottom: 120 }]}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadDashboard(); }} tintColor={colors.accent} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); if (activeHomeTab === 'Tenants' || activeHomeTab === 'Leases') setDirectoryRefreshToken(value => value + 1); loadDashboard(); }} tintColor={colors.accent} />}
       >
 
         {activeHomeTab === 'Rent' && (
@@ -626,6 +624,11 @@ export default function DashboardScreen() {
               <Ionicons name="arrow-forward" size={19} color={mode === 'dark' ? colors.text : '#0b3558'} />
             </TouchableOpacity>
           ))}
+        </DashboardSection>}
+
+        {(activeHomeTab === 'Tenants' || activeHomeTab === 'Leases') && <DashboardSection borderless>
+          <HomeDirectoryTab key={`${organizationId}:${activeHomeTab}`} kind={activeHomeTab} organizationId={organizationId} refreshToken={directoryRefreshToken}
+            navigate={(tab, screen, params) => navigation.getParent()?.navigate(tab, { screen, params })} />
         </DashboardSection>}
 
         {activeHomeTab === 'Maintenances' && <DashboardSection borderless>

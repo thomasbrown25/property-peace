@@ -31,7 +31,7 @@ export default function LandlordPersonalInfoStep({
   ].filter(([name]) => !googleProfile || !String(name === 'firstName' ? initialFirstName : initialLastName).trim());
   return (
     <Box sx={{ width: '100%', maxWidth: 460, mx: 'auto' }}>
-      <Typography variant="h3" sx={{ mb: 3, color: '#061e35', fontWeight: 700 }}>
+      <Typography variant="h3" sx={{ mb: 3, color: 'text.primary', fontWeight: 700 }}>
         Tell us about your business
       </Typography>
       <Formik

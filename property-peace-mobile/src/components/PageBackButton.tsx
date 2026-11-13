@@ -19,7 +19,7 @@ export default function PageBackButton({ onPress, inHeader = false }: { onPress?
         else navigation.navigate('Dashboard');
       })}
     >
-      <Ionicons name="arrow-back" size={24} color={mode === 'dark' ? colors.text : '#0b3558'} />
+      <Ionicons name="arrow-back" size={24} color={mode === 'dark' ? colors.text : colors.accent} />
     </TouchableOpacity>
   );
 }

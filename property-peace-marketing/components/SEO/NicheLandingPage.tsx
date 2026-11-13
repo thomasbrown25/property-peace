@@ -79,12 +79,12 @@ export default function NicheLandingPage({ config }: { config: NicheLandingPageC
   };
 
   return (
-    <div className="min-h-screen bg-[#061E35] text-white">
+    <div className="min-h-screen bg-brand-forest text-white">
       {pageStructuredData && <StructuredData data={pageStructuredData} />}
       <main>
         <section
           data-marketing-hero-theme="light"
-          className="relative overflow-hidden bg-[#061E35] px-4 pb-20 pt-32 text-white sm:px-6 sm:pb-24 sm:pt-36 lg:px-8"
+          className="relative overflow-hidden bg-brand-forest px-4 pb-20 pt-32 text-white sm:px-6 sm:pb-24 sm:pt-36 lg:px-8"
         >
           <div
             data-marketing-hero-layout="split"
@@ -148,7 +148,7 @@ export default function NicheLandingPage({ config }: { config: NicheLandingPageC
           </div>
         </section>
 
-        <section className="bg-[#061E35] px-4 py-16 sm:px-6 lg:px-8">
+        <section className="bg-brand-forest px-4 py-16 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-6xl">
             <div className="mx-auto max-w-3xl text-center">
               <h2 className="text-3xl font-bold text-white md:text-4xl" style={{ fontFamily: '"Poppins", sans-serif' }}>
@@ -192,7 +192,7 @@ export default function NicheLandingPage({ config }: { config: NicheLandingPageC
           </div>
         </section>
 
-        <section className="bg-[#061E35] px-4 py-16 sm:px-6 lg:px-8">
+        <section className="bg-brand-forest px-4 py-16 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-4xl">
             <h2 className="text-center text-3xl font-bold text-white md:text-4xl" style={{ fontFamily: '"Poppins", sans-serif' }}>
               Questions landlords ask before switching

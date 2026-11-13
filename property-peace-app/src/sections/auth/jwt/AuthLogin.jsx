@@ -19,6 +19,7 @@ import { InputAdornment } from '@mui/material';
 import { Checkbox } from '@mui/material';
 import { FormControlLabel } from '@mui/material';
 import { CircularProgress } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 
 // third-party
 import * as Yup from 'yup';
@@ -340,7 +341,7 @@ export default function AuthLogin({ isDemo = false }) {
                           bgcolor: 'background.paper',
                           borderRadius: 1,
                           '& .MuiOutlinedInput-notchedOutline': {
-                            borderColor: 'rgba(0, 0, 0, 0.3)'
+                            borderColor: 'divider'
                           },
                           '&:hover .MuiOutlinedInput-notchedOutline': {
                             borderColor: 'primary.main'
@@ -397,7 +398,7 @@ export default function AuthLogin({ isDemo = false }) {
                           bgcolor: 'background.paper',
                           borderRadius: 1,
                           '& .MuiOutlinedInput-notchedOutline': {
-                            borderColor: 'rgba(0, 0, 0, 0.3)'
+                            borderColor: 'divider'
                           },
                           '&:hover .MuiOutlinedInput-notchedOutline': {
                             borderColor: 'primary.main'
@@ -471,17 +472,17 @@ export default function AuthLogin({ isDemo = false }) {
                           variant="contained"
                           startIcon={isSubmitting ? <CircularProgress size={20} color="inherit" /> : null}
                           sx={{
-                            bgcolor: '#061e35',
-                            color: 'common.white',
+                            bgcolor: 'primary.main',
+                            color: 'primary.contrastText',
                             textTransform: 'uppercase',
                             fontWeight: 600,
                             py: 1.5,
                             px: 6,
                             minWidth: 250,
-                            boxShadow: '0 12px 24px rgba(6, 30, 53, 0.24)',
+                            boxShadow: (theme) => `0 12px 24px ${alpha(theme.palette.primary.main, 0.24)}`,
                             '&:hover': {
-                              bgcolor: '#0b2a46',
-                              boxShadow: '0 14px 28px rgba(6, 30, 53, 0.28)'
+                              bgcolor: 'primary.dark',
+                              boxShadow: (theme) => `0 14px 28px ${alpha(theme.palette.primary.main, 0.28)}`
                             }
                           }}
                         >

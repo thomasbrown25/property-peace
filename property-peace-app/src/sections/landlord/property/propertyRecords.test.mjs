@@ -36,8 +36,11 @@ test('property tabs replace current cards and expose searchable paginated detail
   const tabs = await read('./PropertyRecordsTabs.jsx');
   assert.match(page, /<PropertyRecordsTabs/);
   assert.doesNotMatch(overview, /<PropertyCurrentTenant|<PropertyActiveLease/);
-  for (const label of ['Overview', 'Leases', 'Tenants', 'Maintenances', 'Payments', 'Expenses', 'Documents']) {
+  for (const label of ['Overview', 'Leases', 'Tenants', 'Maintenance', 'Payments']) {
     assert.match(tabs, new RegExp(`label="${label}"`));
+  }
+  for (const label of ['Expenses', 'Documents']) {
+    assert.match(tabs, new RegExp(`\\{ id: '[a-z]+', label: '${label}' \\}`));
   }
   assert.match(tabs, /TablePagination/);
   const documents = await read('./DocumentsTab.jsx');

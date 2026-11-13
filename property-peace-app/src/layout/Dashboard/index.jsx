@@ -203,7 +203,7 @@ export default function DashboardLayout() {
               {/* Keep page gutters separate from the header and footer. */}
               <Box data-testid="main-app-page-content" sx={{
                 width: '100%',
-                maxWidth: isAddPropertyPage ? 'none' : isLandlordDashboard ? 1280 : 1120,
+                maxWidth: isAddPropertyPage ? 'none' : isLandlordDashboard ? 1280 : isPropertyPage ? 1200 : 1120,
                 mx: 'auto',
                 px: isAddPropertyPage || isLandlordDashboard ? 0 : { xs: 0, sm: 1, md: 2, lg: 3 },
                 boxSizing: 'border-box',

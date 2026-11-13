@@ -106,18 +106,18 @@ export default function OnboardingWizard({ open, onClose, onStartSetupTasks, ste
           <CloseOutlined />
         </IconButton>
         <Chip
-          icon={<RocketOutlined style={{ color: '#41a541' }} />}
+          icon={<RocketOutlined />}
           label="LET’S GET YOU SET UP"
           size="small"
-          sx={{
+          sx={(theme) => ({
             mb: 2,
-            color: '#86efac',
-            bgcolor: alpha('#41a541', 0.12),
-            border: `1px solid ${alpha('#41a541', 0.3)}`,
+            color: theme.palette.brand.mint,
+            bgcolor: alpha(theme.palette.brand.mint, 0.12),
+            border: `1px solid ${alpha(theme.palette.brand.mint, 0.3)}`,
             fontWeight: 800,
             letterSpacing: 0.5,
-            '& .MuiChip-icon': { color: '#41a541' }
-          }}
+            '& .MuiChip-icon': { color: theme.palette.brand.mint }
+          })}
         />
         <Typography variant="h3" fontWeight={850} sx={{ color: '#fff', pr: 4, lineHeight: 1.15 }}>
           {firstName ? `Welcome, ${firstName}.` : 'Welcome to Property Peace.'}

@@ -122,7 +122,7 @@ export default function FeatureLandingPage({
     : 'Feature FAQs';
 
   return (
-    <div className="min-h-screen bg-[#061E35] text-white">
+    <div className="min-h-screen bg-brand-forest text-white">
       <StructuredData data={pageSchema} />
       <StructuredData data={breadcrumbSchema} />
       <StructuredData data={softwareSchema} />
@@ -130,7 +130,7 @@ export default function FeatureLandingPage({
 
       <section
         data-marketing-hero-theme="light"
-        className="relative overflow-hidden bg-[#061E35] px-4 pb-16 pt-32 sm:px-6 sm:pb-20 sm:pt-36 lg:px-8"
+        className="relative overflow-hidden bg-brand-forest px-4 pb-16 pt-32 sm:px-6 sm:pb-20 sm:pt-36 lg:px-8"
       >
         <div className="absolute left-1/2 top-0 h-[360px] w-[680px] -translate-x-1/2 rounded-full bg-green-200/50 blur-3xl" />
         <div className="relative mx-auto max-w-6xl">
@@ -146,7 +146,7 @@ export default function FeatureLandingPage({
               <h1 className="mb-5 max-w-3xl text-[2.35rem] font-bold leading-[1.08] text-white sm:text-5xl md:text-6xl" style={{ fontFamily: '"Poppins", sans-serif' }}>{title}</h1>
               <p className="mb-7 max-w-2xl text-[17px] leading-relaxed text-slate-200 md:text-xl" style={{ fontFamily: '"Inter", sans-serif' }}>{subtitle}</p>
               <div className="grid max-w-[22rem] grid-cols-2 gap-2.5 sm:flex sm:max-w-none sm:gap-3">
-                <Link href="https://app.propertypeace.io/register" className="inline-flex min-h-[50px] items-center justify-center gap-2 rounded-none bg-gradient-to-r from-green-500 to-green-600 px-4 py-3 text-sm font-bold text-white shadow-lg transition-all duration-300 hover:-translate-y-0.5 hover:from-green-600 hover:to-green-700 sm:min-h-[56px] rounded-none sm:px-8 sm:text-base" style={{ fontFamily: '"Inter", sans-serif' }}>
+                <Link href="https://app.propertypeace.io/register" className="inline-flex min-h-[50px] items-center justify-center gap-2 rounded-none bg-brand-teal px-4 py-3 text-sm font-bold text-white shadow-lg transition-all duration-300 hover:-translate-y-0.5 hover:bg-brand-teal-hover sm:min-h-[56px] rounded-none sm:px-8 sm:text-base" style={{ fontFamily: '"Inter", sans-serif' }}>
                   {primaryCta} <FiArrowRight className="h-4 w-4" />
                 </Link>
                 <Link href="/pricing" className="inline-flex min-h-[50px] items-center justify-center gap-2 rounded-none border border-[#DCE6ED] bg-white px-4 py-3 text-sm font-semibold text-[#061E35] shadow-sm shadow-slate-950/20 backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-[#16A34A] sm:min-h-[56px] rounded-none sm:px-8 sm:text-base" style={{ fontFamily: '"Inter", sans-serif' }}>
@@ -198,7 +198,7 @@ export default function FeatureLandingPage({
         </div>
       </section>
 
-      <main className="bg-[#061E35] px-4 py-16 sm:px-6 lg:px-8">
+      <main className="bg-brand-forest px-4 py-16 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-6xl space-y-16">
           <section className="grid gap-6 md:grid-cols-2">
             <div className="rounded-3xl border border-red-100 bg-white p-8">
@@ -240,7 +240,7 @@ export default function FeatureLandingPage({
             </div>
           </section>
 
-          <section className="rounded-3xl bg-[#061E35] p-8 md:p-12">
+          <section className="rounded-3xl bg-brand-forest p-8 md:p-12">
             <div className="grid items-start gap-8 lg:grid-cols-[0.8fr_1.2fr]">
               <div>
                 <p className="mb-2 text-sm font-bold uppercase tracking-widest text-green-300" style={{ fontFamily: '"Inter", sans-serif' }}>Why it matters</p>

@@ -21,7 +21,7 @@ export const metadata: Metadata = applyOttoSeo('/', {
 
 export default function Home() {
   return (
-    <div data-marketing-home className="min-h-screen bg-white w-full min-w-0 overflow-x-hidden">
+    <div data-marketing-home className="min-h-screen bg-brand-ivory w-full min-w-0 overflow-x-hidden">
       <main className="w-full min-w-0">
 
         {/* Homepage sections share the hero's navy background; cards provide light contrast. */}

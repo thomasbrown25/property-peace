@@ -648,12 +648,9 @@ export default function FinancialReports() {
                             <Chip
                               label={`${prop.profitMargin.toFixed(1)}%`}
                               size="small"
-                              sx={{
-                                bgcolor: (t) => alpha(prop.profitMargin >= 0 ? t.palette.success.main : t.palette.error.main, 0.12),
-                                color: prop.profitMargin >= 0 ? 'success.dark' : 'error.dark',
-                                fontWeight: 600,
-                                fontSize: '0.75rem'
-                              }}
+                              color={prop.profitMargin >= 0 ? 'success' : 'error'}
+                              variant="light"
+                              sx={{ fontWeight: 600, fontSize: '0.75rem' }}
                             />
                           </TableCell>
                         </TableRow>

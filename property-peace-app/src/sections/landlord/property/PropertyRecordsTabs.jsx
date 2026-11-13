@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { Alert, Box, CircularProgress, FormControl, InputAdornment, MenuItem, Paper, Select, Stack, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TablePagination, TableRow, Tabs, TextField, Typography } from '@mui/material';
+import { Alert, Box, CircularProgress, FormControl, InputAdornment, Menu, MenuItem, Paper, Select, Stack, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TablePagination, TableRow, Tabs, TextField, Typography } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import { Button } from '@mui/material';
@@ -203,6 +203,14 @@ export default function PropertyRecordsTabs({ property, propertyId, rentRecords,
   const tabs = ['overview', 'leases', 'tenants', 'payments', 'maintenances', 'listings', 'applications', 'expenses', 'documents', 'settings'];
   const requestedTab = tab === 'finances' ? 'payments' : tab;
   const active = tabs.includes(requestedTab) ? requestedTab : 'overview';
+  // Keep Tenants and Leases separate: each has its own search, actions and URL tab id.
+  const moreSections = [
+    { id: 'listings', label: 'Listings' }, { id: 'applications', label: 'Applications' },
+    { id: 'expenses', label: 'Expenses' }, { id: 'documents', label: 'Documents' },
+    { id: 'settings', label: 'Settings' }
+  ];
+  const activeMore = moreSections.find(section => section.id === active);
+  const [moreAnchor, setMoreAnchor] = useState(null);
   const previousTab = useRef({ propertyId, active });
   const reduceMotion = useReducedMotion();
   const direction = previousTab.current.propertyId === propertyId
@@ -230,11 +238,19 @@ export default function PropertyRecordsTabs({ property, propertyId, rentRecords,
             backgroundColor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.12 : 0.04) } },
         '& .MuiTabs-indicator': { zIndex: 1, height: 2, borderRadius: 2, backgroundColor: 'primary.main' }
       })}>
-        <Tabs value={active} onChange={(_, value) => onTabChange(value)} variant="scrollable" scrollButtons="auto" aria-label="Property sections">
-          <Tab value="overview" label="Overview" /><Tab value="leases" label="Leases" /><Tab value="tenants" label="Tenants" /><Tab value="payments" label="Payments" />
-          <Tab value="maintenances" label="Maintenances" /><Tab value="listings" label="Listings" /><Tab value="applications" label="Applications" />
-          <Tab value="expenses" label="Expenses" /><Tab value="documents" label="Documents" /><Tab value="settings" label="Settings" />
+        <Tabs value={activeMore ? 'more' : active} onChange={(_, value) => { if (value !== 'more') onTabChange(value); }} variant="scrollable" scrollButtons="auto" aria-label="Property sections">
+          <Tab value="overview" label="Overview" /><Tab value="tenants" label="Tenants" /><Tab value="leases" label="Leases" /><Tab value="payments" label="Payments" />
+          <Tab value="maintenances" label="Maintenance" />
+          <Tab id="property-more-tab" value="more" label={activeMore ? `More: ${activeMore.label}` : 'More'}
+            aria-haspopup="menu" aria-controls={moreAnchor ? 'property-more-menu' : undefined} aria-expanded={Boolean(moreAnchor)}
+            onClick={event => setMoreAnchor(event.currentTarget)}
+            onKeyDown={event => { if (event.key === 'ArrowDown') { event.preventDefault(); setMoreAnchor(event.currentTarget); } }} />
         </Tabs>
+        <Menu id="property-more-menu" anchorEl={moreAnchor} open={Boolean(moreAnchor)} onClose={() => setMoreAnchor(null)}
+          MenuListProps={{ 'aria-labelledby': 'property-more-tab' }}>
+          {moreSections.map(section => <MenuItem key={section.id} selected={active === section.id}
+            onClick={() => { setMoreAnchor(null); onTabChange(section.id); }}>{section.label}</MenuItem>)}
+        </Menu>
       </Box>
       <Box sx={{ position: 'relative', overflow: 'hidden' }}>
         <AnimatePresence initial={false} custom={direction}>
@@ -245,7 +261,7 @@ export default function PropertyRecordsTabs({ property, propertyId, rentRecords,
       {active === 'overview' && <PropertyOverview property={property} propertyId={propertyId} rentRecords={rentRecords} />}
       {active === 'leases' && <RecordsTable label="Leases" showUnitColumn={showUnitColumn} onAdd={() => addRecord('leases')} addLabel="Create lease" rows={leases} columns={propertyLeaseColumns} searchFields={row => [read(row, 'leaseNickname'), read(row, 'unitName'), read(row, 'id')]} getStatus={leaseStatus} emptyMessage="No leases for this property." loading={leaseLoading} error={leaseError} />}
       {active === 'tenants' && <RecordsTable label="Tenants" showUnitColumn={showUnitColumn} onAdd={() => addRecord('tenants')} addLabel="Add tenant" rows={scopedTenants} columns={tenantColumns} searchFields={row => [tenantName(row), read(row, 'email'), read(row, 'unitName')]} getStatus={row => read(row, 'isActive') === false ? 'Inactive' : 'Active'} emptyMessage="No tenants for this property." loading={tenantsLoading} />}
-      {active === 'maintenances' && <RecordsTable label="Maintenances" onAdd={() => addRecord('maintenances')} addLabel="Add maintenance" rows={scopedMaintenance} columns={maintenanceTableColumns(property)} searchFields={row => [read(row, 'title'), maintenanceUnitName(row, property), read(row, 'priority')]} getStatus={row => read(row, 'status')} emptyMessage="No maintenance requests for this property." error={maintenanceError} />}
+      {active === 'maintenances' && <RecordsTable label="Maintenance" onAdd={() => addRecord('maintenances')} addLabel="Add maintenance" rows={scopedMaintenance} columns={maintenanceTableColumns(property)} searchFields={row => [read(row, 'title'), maintenanceUnitName(row, property), read(row, 'priority')]} getStatus={row => read(row, 'status')} emptyMessage="No maintenance requests for this property." error={maintenanceError} />}
       {active === 'listings' && <PropertyLeasingRecords key="listings" kind="listings" propertyId={propertyId} showUnitColumn={showUnitColumn} onAdd={() => addRecord('listings')} />}
       {active === 'applications' && <PropertyLeasingRecords key="applications" kind="applications" propertyId={propertyId} showUnitColumn={showUnitColumn} onAdd={() => addRecord('applications')} />}
       {active === 'occupancy' && <PropertyOccupancyTab propertyId={propertyId} property={property} />}

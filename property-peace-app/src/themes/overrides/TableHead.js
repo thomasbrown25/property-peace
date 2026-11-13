@@ -5,7 +5,7 @@ export default function TableHead(theme) {
     MuiTableHead: {
       styleOverrides: {
         root: {
-          backgroundColor: theme.palette.grey[50],
+          backgroundColor: theme.palette.surface.nested,
           borderTop: '1px solid',
           borderTopColor: theme.palette.divider,
           borderBottom: '2px solid',

@@ -10,7 +10,7 @@ import { Link } from '@mui/material';
 import { Box } from '@mui/material';
 import { Stack } from '@mui/material';
 import { Container } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import { alpha, useTheme } from '@mui/material/styles';
 
 // project imports
 import AuthFooter from 'components/cards/AuthFooter';
@@ -105,12 +105,12 @@ export default function AuthWrapper({ children, splitScreen = false, focused = f
           flexDirection: { xs: 'column', md: 'row' }
         }}
       >
-        {/* Left Side - White Background with Form */}
+        {/* Form surface follows the light/dark brand palette. */}
         <Box
           sx={{
             width: { xs: '100%', md: '50%' },
             minHeight: { xs: '100svh', sm: '50vh', md: '100vh' },
-            bgcolor: 'background.paper', // White background
+            bgcolor: 'background.default',
             display: 'flex',
             flexDirection: 'column',
             position: 'relative',
@@ -188,7 +188,7 @@ export default function AuthWrapper({ children, splitScreen = false, focused = f
                       py: 0.75,
                       '&:hover': {
                         bgcolor: 'primary.main',
-                        color: (t) => (t.palette.mode === 'dark' ? '#000000' : '#ffffff')
+                        color: 'primary.contrastText'
                       }
                     }}
                   >
@@ -226,13 +226,13 @@ export default function AuthWrapper({ children, splitScreen = false, focused = f
             overflow: 'hidden',
             px: { md: 6, lg: 9 },
             py: 8,
-            color: '#ffffff',
-            background: '#061e35',
+            color: theme.palette.brand.ivory,
+            background: theme.palette.brand.forest,
             '&::before': {
               content: '""',
               position: 'absolute',
               inset: 0,
-              background: 'radial-gradient(circle at 82% 76%, rgba(65, 165, 65, 0.12), transparent 34%)',
+              background: `radial-gradient(circle at 82% 76%, ${alpha(theme.palette.brand.teal, 0.22)}, transparent 38%)`,
               zIndex: 0
             }
           }}
@@ -242,7 +242,7 @@ export default function AuthWrapper({ children, splitScreen = false, focused = f
               component="h2"
               sx={{
                 mb: 2,
-                color: '#ffffff',
+                color: 'inherit',
                 fontWeight: 700,
                 lineHeight: 1.12,
                 letterSpacing: '-0.025em',
@@ -256,7 +256,7 @@ export default function AuthWrapper({ children, splitScreen = false, focused = f
               sx={{
                 maxWidth: 470,
                 mb: 3.5,
-                color: 'rgba(255,255,255,0.74)',
+                color: alpha(theme.palette.brand.ivory, 0.82),
                 fontSize: { md: 17, lg: 18 },
                 lineHeight: 1.7
               }}
@@ -277,8 +277,8 @@ export default function AuthWrapper({ children, splitScreen = false, focused = f
                       width: 24,
                       height: 24,
                       borderRadius: '50%',
-                      bgcolor: 'rgba(65, 165, 65,.16)',
-                      color: '#78c578',
+                      bgcolor: alpha(theme.palette.brand.mint, 0.16),
+                      color: theme.palette.brand.mint,
                       display: 'grid',
                       placeItems: 'center',
                       fontWeight: 800
@@ -286,7 +286,7 @@ export default function AuthWrapper({ children, splitScreen = false, focused = f
                   >
                     ✓
                   </Box>
-                  <Typography sx={{ color: 'rgba(255,255,255,.88)', fontSize: 16 }}>{item}</Typography>
+                  <Typography sx={{ color: alpha(theme.palette.brand.ivory, 0.92), fontSize: 16 }}>{item}</Typography>
                 </Box>
               ))}
             </Stack>

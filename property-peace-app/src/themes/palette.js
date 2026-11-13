@@ -6,6 +6,7 @@ import { presetDarkPalettes, presetPalettes } from '@ant-design/colors';
 
 // project imports
 import ThemeOption from './theme';
+import { brand, portalSurfaces } from './brand';
 import { ThemeMode } from 'config';
 
 // ==============================|| DEFAULT THEME - PALETTE ||============================== //
@@ -31,58 +32,70 @@ export default function Palette(mode, presetColor) {
     '#bfbfbf', // 5
     '#737373', // 6 - marketing gray
     '#595959', // 7
-    '#282e3b', // 8 - marketing text secondary
-    '#061e35', // 9 - brand navy (marketing nav)
-    '#061e35'  // 10 - navy replaces black for light-theme text
+    brand.slate, // 8 - portal secondary ink
+    brand.forest, // 9 - brand forest
+    brand.forest // 10 - darkest portal ink
   ];
   let greyAscent = ['#fafafa', '#bfbfbf', '#434343', '#1f1f1f'];
   let greyConstant = ['#fafafb', '#e6ebf1'];
 
   if (mode === ThemeMode.DARK) {
-    // Midnight dashboard: warm navy-black base, lifted blue-slate surfaces,
-    // and readable slate text. Keep it dark, but avoid the flat "black sheet"
-    // feeling by giving each surface a slightly different elevation value.
-    greyPrimary = ['#0b1320', '#121c2d', '#182338', '#263650', '#41536f', '#64748b', '#94a3b8', '#cbd5e1', '#e2e8f0', '#f8fafc', '#ffffff'];
-    greyAscent = ['#f8fafc', '#cbd5e1', '#334155', '#121c2d'];
-    greyConstant = ['#0a1220', '#dae4ef'];
+    greyPrimary = ['#101f1e', '#1a302d', '#24403b', '#34514a', '#47655e', '#78948a', '#a6bdb2', '#c5d7cb', '#e0eae0', brand.ivory, '#ffffff'];
+    greyAscent = [brand.ivory, '#c5d7cb', '#34514a', brand.forest];
+    greyConstant = [brand.forest, '#e0eae0'];
   }
   colors.grey = [...greyPrimary, ...greyAscent, ...greyConstant];
 
   const paletteColor = ThemeOption(colors, presetColor, mode);
   const darkAccent = mode === ThemeMode.DARK ? paletteColor.primary.main : null;
+  const dark = mode === ThemeMode.DARK;
+  const surfaces = dark ? portalSurfaces.dark : portalSurfaces.light;
 
   return createTheme({
     palette: {
       mode,
       common: {
-        black: '#061e35',
+        black: brand.forest,
         white: '#fff'
       },
       ...paletteColor,
+      brand,
+      // Status pills are a separate semantic surface from success/payment colors.
+      // Filled active pills share the primary Add/Create action color.
+      statusChip: {
+        neutral: {
+          background: dark ? alpha(brand.mint, 0.14) : '#E9F1EB',
+          foreground: dark ? brand.ivory : brand.forest,
+          border: dark ? alpha(brand.mint, 0.28) : '#D2E2D8'
+        },
+        active: {
+          background: paletteColor.primary.main,
+          foreground: paletteColor.primary.contrastText,
+          softBackground: dark ? alpha(paletteColor.primary.main, 0.18) : paletteColor.primary.lighter,
+          softForeground: dark ? paletteColor.primary.light : paletteColor.primary.dark
+        }
+      },
       success: secondaryGreen,
       button: paletteColor.button ?? paletteColor.primary,
       text: {
-        primary: mode === ThemeMode.DARK ? '#f8fafc' : '#061e35', // Brand navy / marketing nav
-        secondary: mode === ThemeMode.DARK ? alpha('#dbe7f3', 0.78) : '#282e3b', // Marketing text secondary
-        disabled: mode === ThemeMode.DARK ? alpha('#dbe7f3', 0.38) : paletteColor.grey[400]
+        primary: dark ? brand.ivory : brand.slate,
+        secondary: dark ? '#BED3C7' : '#50615E',
+        disabled: dark ? alpha(brand.ivory, 0.42) : paletteColor.grey[400]
       },
       action: {
-        disabled: mode === ThemeMode.DARK ? alpha('#dbe7f3', 0.32) : paletteColor.grey[300],
+        disabled: dark ? alpha(brand.ivory, 0.32) : paletteColor.grey[300],
         hover: mode === ThemeMode.DARK ? alpha(darkAccent, 0.1) : alpha(paletteColor.primary.main, 0.04),
         selected: mode === ThemeMode.DARK ? alpha(darkAccent, 0.16) : alpha(paletteColor.primary.main, 0.08)
       },
-      divider: mode === ThemeMode.DARK ? alpha('#dbe7f3', 0.2) : paletteColor.grey[200],
+      divider: dark ? alpha(brand.mint, 0.2) : '#DBE3DA',
       surface: {
-        app: mode === ThemeMode.DARK ? '#0b1320' : '#ffffff',
-        paper: mode === ThemeMode.DARK ? '#121c2d' : '#ffffff',
-        raised: mode === ThemeMode.DARK ? '#182338' : '#ffffff',
-        nested: mode === ThemeMode.DARK ? '#0f1a2b' : '#f8fafc',
-        border: mode === ThemeMode.DARK ? alpha('#dbe7f3', 0.2) : paletteColor.grey[200],
-        accentBorder: mode === ThemeMode.DARK ? alpha(darkAccent, 0.48) : alpha(paletteColor.primary.main, 0.18)
+        ...surfaces,
+        border: dark ? alpha(brand.mint, 0.2) : '#DBE3DA',
+        accentBorder: dark ? alpha(darkAccent, 0.48) : alpha(paletteColor.primary.main, 0.25)
       },
       background: {
-        paper: mode === ThemeMode.DARK ? '#121c2d' : '#ffffff', // Marketing white
-        default: mode === ThemeMode.DARK ? '#0b1320' : '#ffffff' // White page background in light mode
+        paper: surfaces.paper,
+        default: surfaces.app
       }
     }
   });

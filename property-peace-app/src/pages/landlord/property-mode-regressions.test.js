@@ -22,7 +22,7 @@ test('single-home lease actions are shown only for long-term units and mixed tab
   assert.match(page, /const longTermUnits = .*\.filter\(unit => rentalMode\(unit\) !== 'shortTerm'\)/);
   assert.match(page, /new URLSearchParams\(\{ propertyId: String\(property.id\), unitId: String\(unit.id\) \}\)/);
   const overview = await read('../../sections/landlord/property/PropertyOverview.jsx');
-  const actions = await read('../../sections/landlord/property/PropertyHeader.jsx');
+  const actions = await read('../../sections/landlord/property/PropertyActions.jsx');
   assert.doesNotMatch(page, /<PropertyActiveLease/);
   assert.doesNotMatch(overview, /<PropertyActiveLease|<PropertyCurrentTenant/);
   assert.match(overview, /<PropertyStory/);

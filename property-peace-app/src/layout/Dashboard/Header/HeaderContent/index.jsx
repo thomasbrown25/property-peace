@@ -44,7 +44,7 @@ export default function HeaderContent({ adminPortal = false, onAdminMenuOpen }) 
           {!hasTenantRole && <MobileSearch />}
           <Message />
           <Notification />
-          <Divider orientation="vertical" flexItem sx={{ height: 28, alignSelf: 'center', mx: 1, borderColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.18)' : 'divider' }} />
+          <Divider orientation="vertical" flexItem sx={{ height: 28, alignSelf: 'center', mx: 1, borderColor: 'divider' }} />
           <Profile />
         </>
       )}

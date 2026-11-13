@@ -43,7 +43,7 @@ test('property finances are separate tabs, with legacy links opening payments', 
   const expenses = await read('./ExpensesTab.jsx');
   const table = await read('./PropertyFinanceTable.jsx');
   assert.match(tabs, /value="payments" label="Payments"/);
-  assert.match(tabs, /value="expenses" label="Expenses"/);
+  assert.match(tabs, /\{ id: 'expenses', label: 'Expenses' \}/);
   assert.doesNotMatch(tabs, /value="finances"/);
   assert.match(tabs, /tab === 'finances' \? 'payments'/);
   assert.match(tabs, /active === 'payments' && <PaymentsTab/);

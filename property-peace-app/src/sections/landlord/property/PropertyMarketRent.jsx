@@ -69,9 +69,9 @@ export default function PropertyMarketRent({ property }) {
           fontSize: '0.6rem',
           fontWeight: 700,
           letterSpacing: 0.5,
-          bgcolor: alpha(theme.palette.success.main, 0.2),
-          color: theme.palette.success.light,
-          border: `1px solid ${alpha(theme.palette.success.main, 0.3)}`,
+          bgcolor: alpha(theme.palette.brand.mint, 0.2),
+          color: theme.palette.brand.mint,
+          border: `1px solid ${alpha(theme.palette.brand.mint, 0.3)}`,
           mb: 1.25,
           '& .MuiChip-label': { px: 0.75 }
         }}

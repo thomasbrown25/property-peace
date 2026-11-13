@@ -66,8 +66,8 @@ export default function PropertyCurrentTenant({ property, rentRecords = [] }) {
             height: 22,
             fontSize: '0.7rem',
             fontWeight: 700,
-            bgcolor: (t) => alpha(statusColor === 'error' ? t.palette.error.main : t.palette.success.main, 0.12),
-            color: (t) => statusColor === 'error' ? t.palette.error.main : t.palette.success.main,
+            bgcolor: (t) => statusColor === 'error' ? alpha(t.palette.error.main, 0.12) : t.palette.statusChip.active.softBackground,
+            color: (t) => statusColor === 'error' ? t.palette.error.main : t.palette.statusChip.active.softForeground,
             border: 'none'
           }}
         />

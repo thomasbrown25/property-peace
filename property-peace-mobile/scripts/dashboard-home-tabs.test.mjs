@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 
 const dashboard = readFileSync(new URL('../src/screens/landlord/DashboardScreen.tsx', import.meta.url), 'utf8');
 const calendar = readFileSync(new URL('../src/screens/landlord/CalendarScreen.tsx', import.meta.url), 'utf8');
+const directory = readFileSync(new URL('../src/screens/landlord/HomeDirectoryTab.tsx', import.meta.url), 'utf8');
 
 test('home tabs sit between the top navigation and collection rail', () => {
   const topNav = dashboard.indexOf('<View style={[styles.topBar');
@@ -27,6 +28,18 @@ test('dashboard sections render only on their respective home tabs', () => {
   assert.doesNotMatch(dashboard, /Recent activity is unavailable|<Text style=\{styles\.cardEyebrow\}>RECENT/);
   assert.match(dashboard, /activeHomeTab === 'Calendar' \? <CalendarScreen embedded todayAtAGlance=\{todayAtAGlance\}/);
   assert.equal((dashboard.match(/Today at a glance/g) || []).length, 1);
+});
+
+test('tenant and lease tabs remain on Home with full searchable directories and add actions', () => {
+  assert.doesNotMatch(dashboard, /if \(tab === 'Tenants' \|\| tab === 'Leases'\)/);
+  assert.match(dashboard, /\(activeHomeTab === 'Tenants' \|\| activeHomeTab === 'Leases'\) && <DashboardSection borderless>/);
+  assert.match(dashboard, /<HomeDirectoryTab key=\{`\$\{organizationId\}:\$\{activeHomeTab\}`\}/);
+  assert.match(directory, /kind === 'Tenants' \? TenantAPI\.getTenants\(\) : LeaseAPI\.getLeases\(\)/);
+  assert.match(directory, /kind === 'Tenants' \? 'AddTenant' : 'AddLease'/);
+  assert.match(directory, /navigate\('Tenants', 'TenantDetail'/);
+  assert.match(directory, /navigate\('Leases', 'LeaseDetail'/);
+  assert.match(directory, /items\.length === 0/);
+  assert.doesNotMatch(directory, /\.slice\(0,/);
 });
 
 test('calendar tab preserves the calendar grid, agenda, and add-task action', () => {

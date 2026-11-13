@@ -114,8 +114,8 @@ export default function PropertyListCard({ property }) {
           {statusLabel && (
             <Chip label={`· ${statusLabel}`} size="small" color={statusColor} variant="outlined"
               sx={{ height: 18, fontSize: '0.6rem', fontWeight: 700, flexShrink: 0, border: 'none',
-                bgcolor: alpha(statusColor === 'error' ? theme.palette.error.main : statusColor === 'warning' ? theme.palette.warning.main : theme.palette.success.main, 0.1),
-                color: statusColor === 'error' ? theme.palette.error.main : statusColor === 'warning' ? theme.palette.warning.main : theme.palette.success.main
+                bgcolor: statusColor === 'error' ? alpha(theme.palette.error.main, 0.1) : statusColor === 'warning' ? alpha(theme.palette.warning.main, 0.1) : theme.palette.statusChip.active.softBackground,
+                color: statusColor === 'error' ? theme.palette.error.main : statusColor === 'warning' ? theme.palette.warning.main : theme.palette.statusChip.active.softForeground
               }} />
           )}
         </Stack>

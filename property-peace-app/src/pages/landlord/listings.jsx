@@ -37,7 +37,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import useSWR from 'swr';
 
 import ManagementPageHeader from 'components/headers/ManagementPageHeader';
-import { managementPageHeaderActionSx } from 'components/headers/managementPageHeaderStyles';
+import { creationActionSx } from 'components/headers/managementPageHeaderStyles';
 import ListingAddWorkflowDrawer from 'components/drawers/ListingAddWorkflowDrawer';
 import ApplicationsPage from 'pages/landlord/applications';
 import { useDrawer } from 'contexts/DrawerContext';
@@ -507,7 +507,7 @@ function ListingsTab() {
               variant="contained"
               startIcon={<PlusOutlined />}
               onClick={() => navigate('/landlord/listings/add')}
-              sx={{ textTransform: 'none', fontWeight: 700, bgcolor: '#061e35', color: '#fff', '&:hover': { bgcolor: '#0b2f4f' } }}
+              sx={creationActionSx}
             >
               Add listing
             </Button>
@@ -589,7 +589,7 @@ export default function ListingsPage() {
             onClick={() =>
               activeTab === 'applications' ? drawer.openApplicationAddDrawer() : navigate('/landlord/listings/add')
             }
-            sx={activeTab === 'applications' ? managementPageHeaderActionSx : { ...managementPageHeaderActionSx, bgcolor: '#061e35', color: '#fff', '&:hover': { bgcolor: '#0b2f4f' } }}
+            sx={creationActionSx}
           >
             {activeTab === 'applications' ? 'New application' : 'Add listing'}
           </Button>

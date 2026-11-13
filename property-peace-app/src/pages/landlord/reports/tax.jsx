@@ -314,17 +314,14 @@ export default function TaxReports() {
         <Stack direction={{ xs: 'column', lg: 'row' }} justifyContent="space-between" alignItems={{ xs: 'stretch', lg: 'center' }} spacing={2}>
           <Box sx={{ maxWidth: 640 }}>
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 1 }}>
-              <Chip size="small" icon={<CalculatorOutlined />} label={`${taxYear} tax workspace`} sx={{ bgcolor: alpha(GREEN, 0.1), color: 'success.dark', '& .MuiChip-icon': { color: GREEN } }} />
+              <Chip size="small" icon={<CalculatorOutlined />} label={`${taxYear} tax workspace`} color="success" variant="light" />
               {taxReadiness && (
                 <Chip
                   size="small"
                   icon={readinessStatus === 'Ready' ? <CheckCircleOutlined /> : <WarningOutlined />}
                   label={readinessReviewCount ? `${readinessReviewCount} items to review` : readinessStatus}
-                  sx={{
-                    bgcolor: alpha(readinessStatus === 'Ready' ? GREEN : theme.palette.warning.main, 0.1),
-                    color: readinessStatus === 'Ready' ? 'success.dark' : 'warning.dark',
-                    '& .MuiChip-icon': { color: readinessStatus === 'Ready' ? GREEN : 'warning.main' }
-                  }}
+                  color={readinessStatus === 'Ready' ? 'success' : 'warning'}
+                  variant="light"
                 />
               )}
             </Stack>

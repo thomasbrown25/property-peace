@@ -76,7 +76,7 @@ export default function OrganizationForm({ onSuccess, showBackButton = true, onB
                 </Button>
               </Box>
             )}
-            <Typography variant="h3" sx={{ fontWeight: 600, mb: 1, textAlign: 'center', fontSize: { xs: '1.875rem', md: '2rem' }, color: '#061e35' }}>
+            <Typography variant="h3" sx={{ fontWeight: 600, mb: 1, textAlign: 'center', fontSize: { xs: '1.875rem', md: '2rem' }, color: 'text.primary' }}>
               What is the name of your business?
             </Typography>
             <Typography variant="body2" sx={{ color: 'text.secondary', mb: 2, textAlign: 'center' }}>

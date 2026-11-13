@@ -58,7 +58,7 @@ export default function FAQ({ dark = false }: { dark?: boolean }) {
   };
 
   return (
-    <section className={`relative overflow-hidden px-4 py-16 sm:px-6 lg:px-8 ${dark ? 'bg-[#061E35]' : 'bg-white'}`}>
+    <section className={`relative overflow-hidden px-4 py-16 sm:px-6 lg:px-8 ${dark ? 'bg-brand-forest' : 'bg-brand-ivory'}`}>
       {!dark && (
         <div
           className="pointer-events-none absolute inset-x-0 top-0 h-px"
@@ -106,7 +106,7 @@ export default function FAQ({ dark = false }: { dark?: boolean }) {
               <motion.div
                 key={faq.question}
                 className={`border p-5 transition-colors duration-300 ${dark
-                  ? 'rounded-sm border-white/5 bg-[#263e52] hover:bg-[#304b60]'
+                  ? 'rounded-sm border-white/10 bg-brand-forest-raised hover:bg-brand-forest-hover'
                   : `rounded-2xl shadow-[0_16px_45px_rgba(6,30,53,0.06)] ${isOpen ? 'border-green-200 bg-green-50/30' : 'border-slate-200 bg-white'}`
                 }`}
                 initial={{ opacity: 0, y: 18 }}

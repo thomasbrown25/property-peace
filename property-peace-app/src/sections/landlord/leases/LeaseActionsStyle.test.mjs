@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
-const propertyHeader = readFileSync(new URL('../property/PropertyHeader.jsx', import.meta.url), 'utf8');
+const propertyActions = readFileSync(new URL('../property/PropertyActions.jsx', import.meta.url), 'utf8');
 const leaseDetail = readFileSync(new URL('./LeaseDetailView.jsx', import.meta.url), 'utf8');
 
 function actionsButton(source) {
@@ -13,17 +13,15 @@ function actionsButton(source) {
   return button;
 }
 
-test('lease Actions trigger shares the property Actions button recipe', () => {
-  const propertyButton = actionsButton(propertyHeader);
+test('property and lease Actions remain outlined menu triggers', () => {
+  const propertyButton = actionsButton(propertyActions);
   const leaseButton = actionsButton(leaseDetail);
-  assert.match(propertyButton, /startIcon={<ThunderboltOutlined style={{ fontSize: 13 }} \/>}/);
-  assert.match(leaseButton, /startIcon={<ThunderboltOutlined style={{ fontSize: 13 }} \/>}/);
-  assert.match(leaseButton, /variant="outlined"/);
-  assert.doesNotMatch(leaseButton, /size="small"/);
-  for (const style of ['textTransform', 'fontWeight', 'borderRadius', 'px', 'fontSize', 'whiteSpace', 'borderColor']) {
-    assert.match(propertyButton, new RegExp(`\\b${style}:`));
-    assert.match(leaseButton, new RegExp(`\\b${style}:`));
+  for (const button of [propertyButton, leaseButton]) {
+    assert.match(button, /startIcon=\{<ThunderboltOutlined/);
+    assert.match(button, /variant="outlined"/);
+    assert.match(button, /aria-haspopup="menu"/);
   }
-  assert.match(leaseButton, /borderColor: theme\.palette\.mode === 'dark' \? alpha\('#cbd5e1', 0\.16\) : alpha\(theme\.palette\.divider, 0\.24\)/);
+  assert.match(propertyActions, /borderColor: 'divider'/);
+  assert.match(propertyActions, /color: 'text.primary'/);
   assert.match(leaseDetail, /<Menu\s+id="lease-actions-menu"/);
 });

@@ -11,7 +11,7 @@ export default function Footer() {
   const registerUrl = `${appUrl}/register`;
 
   return (
-    <footer className="relative overflow-hidden bg-[#061e35] text-white">
+    <footer className="relative overflow-hidden bg-brand-forest text-white">
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-8 lg:gap-8">
           {/* Logo & Social - Left Column */}
@@ -81,7 +81,7 @@ export default function Footer() {
 
           {/* Maintenance Requests */}
           <div className="text-center lg:text-left">
-            <h3 className="text-[#22c55e] font-bold text-sm mb-4">Maintenance Requests</h3>
+            <h3 className="text-brand-mint font-bold text-sm mb-4">Maintenance Requests</h3>
             <ul className="space-y-3">
               <li>
                 <Link href="/maintenance/ai-maintenance" className="inline-flex min-h-11 items-center justify-center font-semibold text-white hover:text-white/90 transition-colors text-sm">
@@ -103,7 +103,7 @@ export default function Footer() {
 
           {/* Lease Agreements */}
           <div className="text-center lg:text-left">
-            <h3 className="text-[#22c55e] font-bold text-sm mb-4">Lease Agreements</h3>
+            <h3 className="text-brand-mint font-bold text-sm mb-4">Lease Agreements</h3>
             <ul className="space-y-3">
               <li>
                 <Link href="/lease/ai-lease-creation" className="inline-flex min-h-11 items-center justify-center font-semibold text-white hover:text-white/90 transition-colors text-sm">
@@ -125,7 +125,7 @@ export default function Footer() {
 
           {/* Rent Collection */}
           <div className="text-center lg:text-left">
-            <h3 className="text-[#22c55e] font-bold text-sm mb-4">Rent Collection</h3>
+            <h3 className="text-brand-mint font-bold text-sm mb-4">Rent Collection</h3>
             <ul className="space-y-3">
               <li>
                 <Link href="/rent/accounting" className="inline-flex min-h-11 items-center justify-center font-semibold text-white hover:text-white/90 transition-colors text-sm">
@@ -162,7 +162,7 @@ export default function Footer() {
 
           {/* Get Started */}
           <div className="text-center lg:text-left">
-            <h3 className="text-[#22c55e] font-bold text-sm mb-4">Get Started</h3>
+            <h3 className="text-brand-mint font-bold text-sm mb-4">Get Started</h3>
             <ul className="space-y-3">
               <li>
                 <Link href="/listings" className="inline-flex min-h-11 items-center justify-center font-semibold text-white hover:text-white/90 transition-colors text-sm">
@@ -214,7 +214,7 @@ export default function Footer() {
 
           {/* Education */}
           <div className="text-center lg:text-left">
-            <h3 className="text-[#22c55e] font-bold text-sm mb-4">Resources</h3>
+            <h3 className="text-brand-mint font-bold text-sm mb-4">Resources</h3>
             <ul className="space-y-3">
               <li>
                 <Link href="/resources" className="inline-flex min-h-11 items-center justify-center font-semibold text-white hover:text-white/90 transition-colors text-sm">
@@ -244,15 +244,15 @@ export default function Footer() {
         <div className="border-t border-white/20 pt-8 mt-12 grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-0 items-center">
           <p className="text-white/80 text-sm order-2 md:order-1 text-center lg:text-left">© 2026 Property Peace. All rights reserved.</p>
           <div className="flex flex-wrap items-center justify-center gap-2 md:gap-4 order-1 md:order-2">
-            <Link href="/terms" className="inline-flex min-h-11 items-center justify-center font-semibold text-[#22c55e] hover:text-emerald-300 text-sm transition-colors">
+            <Link href="/terms" className="inline-flex min-h-11 items-center justify-center font-semibold text-brand-mint hover:text-emerald-300 text-sm transition-colors">
               Terms of Use
             </Link>
             <span className="text-white/40">|</span>
-            <Link href="/privacy" className="inline-flex min-h-11 items-center justify-center font-semibold text-[#22c55e] hover:text-emerald-300 text-sm transition-colors">
+            <Link href="/privacy" className="inline-flex min-h-11 items-center justify-center font-semibold text-brand-mint hover:text-emerald-300 text-sm transition-colors">
               Privacy Policy
             </Link>
             <span className="text-white/40">|</span>
-            <Link href="/sitemap" className="inline-flex min-h-11 items-center justify-center font-semibold text-[#22c55e] hover:text-emerald-300 text-sm transition-colors">
+            <Link href="/sitemap" className="inline-flex min-h-11 items-center justify-center font-semibold text-brand-mint hover:text-emerald-300 text-sm transition-colors">
               Sitemap
             </Link>
           </div>

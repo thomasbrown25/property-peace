@@ -270,12 +270,8 @@ export default function UnitPage() {
                 label={isOccupied ? 'Occupied' : 'Vacant'}
                 size="small"
                 sx={{
-                  bgcolor: isOccupied 
-                    ? alpha(theme.palette.success.main, 0.1) 
-                    : alpha(theme.palette.warning.main, 0.1),
-                  color: isOccupied 
-                    ? theme.palette.success.main 
-                    : theme.palette.warning.main,
+                  bgcolor: isOccupied ? theme.palette.statusChip.active.softBackground : theme.palette.warning.lighter,
+                  color: isOccupied ? theme.palette.statusChip.active.softForeground : theme.palette.warning.dark,
                   fontWeight: 500
                 }}
               />
@@ -408,12 +404,8 @@ export default function UnitPage() {
                     label={isOccupied ? 'Occupied' : 'Vacant'}
                     size="small"
                     sx={{
-                      bgcolor: isOccupied 
-                        ? alpha(theme.palette.success.main, 0.1) 
-                        : alpha(theme.palette.warning.main, 0.1),
-                      color: isOccupied 
-                        ? theme.palette.success.main 
-                        : theme.palette.warning.main,
+                      bgcolor: isOccupied ? theme.palette.statusChip.active.softBackground : theme.palette.warning.lighter,
+                      color: isOccupied ? theme.palette.statusChip.active.softForeground : theme.palette.warning.dark,
                       fontWeight: 500
                     }}
                   />

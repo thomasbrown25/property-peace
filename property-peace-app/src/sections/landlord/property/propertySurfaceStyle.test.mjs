@@ -7,8 +7,7 @@ const read = (name) => readFile(new URL(name, import.meta.url), 'utf8');
 test('property hero does not cast a shadow onto the tabs below', async () => {
   const header = await read('./PropertyHeader.jsx');
   const heroStyles = header.slice(header.indexOf('  return (', header.indexOf('export default function')), header.indexOf('{hasImage &&'));
-  assert.match(heroStyles, /boxShadow: 'none'/);
-  assert.doesNotMatch(heroStyles, /0 30px 70px/);
+  assert.doesNotMatch(heroStyles, /boxShadow:|0 30px 70px/);
 });
 
 test('activity card uses the neutral card style without an orange accent border or glow', async () => {

@@ -243,7 +243,7 @@ export default function CreatingAccountStep({ password = '', onComplete, onBack 
         <LinearProgress />
       </Box>
       <Stack spacing={1} alignItems="center">
-        <Typography variant="h4" sx={{ fontWeight: 600, textAlign: 'center', color: '#061e35' }}>
+        <Typography variant="h4" sx={{ fontWeight: 600, textAlign: 'center', color: 'text.primary' }}>
           Creating your account
         </Typography>
         <Typography variant="body2" sx={{ color: 'text.secondary', textAlign: 'center' }}>

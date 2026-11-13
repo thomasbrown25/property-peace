@@ -10,7 +10,7 @@ const content = layout.slice(contentStart, contentEnd);
 test('shared route content has centered, responsive dashboard-sized gutters', () => {
   assert.ok(contentStart >= 0);
   assert.match(content, /width: '100%'/);
-  assert.match(content, /maxWidth: isAddPropertyPage \? 'none' : isLandlordDashboard \? 1280 : 1120/);
+  assert.match(content, /maxWidth: isAddPropertyPage \? 'none' : isLandlordDashboard \? 1280 : isPropertyPage \? 1200 : 1120/);
   assert.match(content, /mx: 'auto'/);
   assert.match(content, /px: isAddPropertyPage \|\| isLandlordDashboard \? 0 : \{ xs: 0, sm: 1, md: 2, lg: 3 \}/);
   assert.match(content, /boxSizing: 'border-box'/);
