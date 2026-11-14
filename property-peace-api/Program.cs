@@ -949,6 +949,7 @@ services.AddScoped<brownstone_hub_api.Services.TimeTrackingSettingsService.ITime
 services.AddTransient<ILoggingService, LoggingService>();
 
 // Images
+services.AddScoped<brownstone_hub_api.Services.AttachmentAccess.AttachmentAccessService>();
 services.AddScoped<
     IImageService<MaintenanceImage, LoadImageDto, AddImageDto>>(sp =>
 {
@@ -960,7 +961,8 @@ services.AddScoped<
     var httpContextAccessor = sp.GetRequiredService<IHttpContextAccessor>();
 
     return new ImageService<MaintenanceImage, LoadImageDto, AddImageDto>(
-        blob, azureBlob, repo, logger, storage, httpContextAccessor, "maintenance-images"
+        blob, azureBlob, repo, logger, storage, httpContextAccessor, "maintenance-images",
+        sp.GetRequiredService<brownstone_hub_api.Services.AttachmentAccess.AttachmentAccessService>()
     );
 });
 services.AddScoped<
@@ -974,7 +976,8 @@ services.AddScoped<
     var httpContextAccessor = sp.GetRequiredService<IHttpContextAccessor>();
 
     return new ImageService<PropertyImage, LoadImageDto, AddImageDto>(
-        blob, azureBlob, repo, logger, storage, httpContextAccessor, "property-images"
+        blob, azureBlob, repo, logger, storage, httpContextAccessor, "property-images",
+        sp.GetRequiredService<brownstone_hub_api.Services.AttachmentAccess.AttachmentAccessService>()
     );
 });
 services.AddScoped<
@@ -988,7 +991,8 @@ services.AddScoped<
     var httpContextAccessor = sp.GetRequiredService<IHttpContextAccessor>();
 
     return new ImageService<ExpenseReceipt, LoadImageDto, AddImageDto>(
-        blob, azureBlob, repo, logger, storage, httpContextAccessor, "expense-receipts"
+        blob, azureBlob, repo, logger, storage, httpContextAccessor, "expense-receipts",
+        sp.GetRequiredService<brownstone_hub_api.Services.AttachmentAccess.AttachmentAccessService>()
     );
 });
 services.AddScoped<
@@ -1002,7 +1006,8 @@ services.AddScoped<
     var httpContextAccessor = sp.GetRequiredService<IHttpContextAccessor>();
 
     return new ImageService<ListingImage, LoadImageDto, AddImageDto>(
-        blob, azureBlob, repo, logger, storage, httpContextAccessor, "listing-images"
+        blob, azureBlob, repo, logger, storage, httpContextAccessor, "listing-images",
+        sp.GetRequiredService<brownstone_hub_api.Services.AttachmentAccess.AttachmentAccessService>()
     );
 });
 

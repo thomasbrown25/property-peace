@@ -4,6 +4,7 @@ using brownstone_hub_api.Dtos.Image;
 using brownstone_hub_api.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using brownstone_hub_api.Middleware;
 
 namespace brownstone_hub_api.Controllers
 {
@@ -19,6 +20,7 @@ namespace brownstone_hub_api.Controllers
 
         [Authorize]
         [HttpPost("{maintenanceRequestId}")]
+        [TenantSelfOrganization]
         public async Task<IActionResult> AddMaintenanceImages(long maintenanceRequestId, List<IFormFile> files)
         {
             // Use ImageService for uploads (same pattern as expense receipts and property images)
@@ -52,6 +54,7 @@ namespace brownstone_hub_api.Controllers
 
         [Authorize]
         [HttpGet("{maintenanceRequestId}")]
+        [TenantSelfOrganization]
         public async Task<IActionResult> GetMaintenanceImages(long maintenanceRequestId)
         {
             // Use ImageService for retrieval (same pattern as expense receipts and property images) - generates fresh SAS URLs
@@ -85,6 +88,7 @@ namespace brownstone_hub_api.Controllers
 
         [Authorize]
         [HttpDelete("{id}")]
+        [TenantSelfOrganization]
         public async Task<IActionResult> DeleteMaintenanceImage(long id)
         {
             // Use MaintenanceImageService for deletion (handles ID lookup and blob deletion)

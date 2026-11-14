@@ -8,13 +8,6 @@ namespace brownstone_hub_api.Controllers
     public class DebugController : ControllerBase
     {
 
-        [Authorize]
-        [HttpGet("crash")]
-        public ActionResult<string> Crash()
-        {
-            Environment.FailFast("Intentional app crash");
-            return "App has crashed";
-        }
 
         [Authorize]
         [HttpGet("throw-500")]
