@@ -10,6 +10,8 @@ using brownstone_hub_api.Services.StorageService;
 using brownstone_hub_api.Dtos.Storage;
 using System.Security.Claims;
 using brownstone_hub_api.Shared;
+using brownstone_hub_api.Models;
+using brownstone_hub_api.Services.AttachmentAccess;
 
 namespace brownstone_hub_api.Services.ImageService
 {
@@ -25,6 +27,7 @@ namespace brownstone_hub_api.Services.ImageService
         private readonly IStorageService _storageService;
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly string _containerName;
+        private readonly AttachmentAccessService _attachmentAccess;
 
         public ImageService(
             BlobServiceClient blobServiceClient,
@@ -33,7 +36,8 @@ namespace brownstone_hub_api.Services.ImageService
             ILogger<ImageService<TEntity, TLoadDto, TAddDto>> logger,
             IStorageService storageService,
             IHttpContextAccessor httpContextAccessor,
-            string containerName)
+            string containerName,
+            AttachmentAccessService attachmentAccess)
         {
             _blobServiceClient = blobServiceClient;
             _azureBlobService = azureBlobService;
@@ -42,10 +46,31 @@ namespace brownstone_hub_api.Services.ImageService
             _storageService = storageService;
             _httpContextAccessor = httpContextAccessor;
             _containerName = containerName.ToLowerInvariant();
+            _attachmentAccess = attachmentAccess;
         }
+
+        private Task<bool> CanAccessRefAsync(long refId) => typeof(TEntity) == typeof(MaintenanceImage)
+            ? _attachmentAccess.CanAccessMaintenanceAsync(refId)
+            : typeof(TEntity) == typeof(ExpenseReceipt)
+                ? _attachmentAccess.CanAccessExpenseAsync(refId)
+                : Task.FromResult(true);
+
+        private Task<bool> CanAccessIdAsync(long id) => typeof(TEntity) == typeof(MaintenanceImage)
+            ? _attachmentAccess.CanAccessMaintenanceImageAsync(id)
+            : typeof(TEntity) == typeof(ExpenseReceipt)
+                ? _attachmentAccess.CanAccessExpenseReceiptAsync(id)
+                : Task.FromResult(true);
+
+        private Task<bool> CanAccessBlobAsync(string blobName) => typeof(TEntity) == typeof(MaintenanceImage)
+            ? _attachmentAccess.CanAccessMaintenanceBlobAsync(blobName)
+            : typeof(TEntity) == typeof(ExpenseReceipt)
+                ? _attachmentAccess.CanAccessExpenseBlobAsync(blobName)
+                : Task.FromResult(true);
 
         public async Task<ServiceResponse<List<TLoadDto>>> AddImages(long refId, List<IFormFile> files)
         {
+            if (!await CanAccessRefAsync(refId))
+                return ServiceResponse<List<TLoadDto>>.CreateError("Attachment not found", statusCode: 404);
             var response = new ServiceResponse<List<TLoadDto>> { Data = new List<TLoadDto>() };
 
             try
@@ -166,6 +191,8 @@ namespace brownstone_hub_api.Services.ImageService
 
         public async Task<ServiceResponse<List<TLoadDto>>> GetImagesByRefId(long refId)
         {
+            if (!await CanAccessRefAsync(refId))
+                return ServiceResponse<List<TLoadDto>>.CreateError("Attachment not found", statusCode: 404);
             try
             {
                 var images = await _imageRepository.GetImagesByRefId(refId);
@@ -202,6 +229,8 @@ namespace brownstone_hub_api.Services.ImageService
 
         public async Task<ServiceResponse<bool>> SetCoverPhoto(long refId, long imageId)
         {
+            if (!await CanAccessRefAsync(refId) || !await CanAccessIdAsync(imageId))
+                return ServiceResponse<bool>.CreateError("Attachment not found", statusCode: 404);
             try
             {
                 await _imageRepository.SetCoverPhoto(refId, imageId);
@@ -216,6 +245,8 @@ namespace brownstone_hub_api.Services.ImageService
 
         public async Task<ServiceResponse<bool>> DeleteImage(string blobName)
         {
+            if (!await CanAccessBlobAsync(blobName))
+                return ServiceResponse<bool>.CreateError("Attachment not found", statusCode: 404);
             try
             {
                 var containerClient = _blobServiceClient.GetBlobContainerClient(_containerName);
@@ -237,6 +268,8 @@ namespace brownstone_hub_api.Services.ImageService
 
         public async Task<ServiceResponse<bool>> DeleteImageById(long id)
         {
+            if (!await CanAccessIdAsync(id))
+                return ServiceResponse<bool>.CreateError("Attachment not found", statusCode: 404);
             try
             {
                 // Get the image from repository to get the blob name
@@ -274,6 +307,8 @@ namespace brownstone_hub_api.Services.ImageService
 
         public async Task<ServiceResponse<bool>> DeleteImagesByRefId(long refId)
         {
+            if (!await CanAccessRefAsync(refId))
+                return ServiceResponse<bool>.CreateError("Attachment not found", statusCode: 404);
             try
             {
                 var images = await _imageRepository.GetImagesByRefId(refId);

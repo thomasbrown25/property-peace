@@ -3,6 +3,7 @@ using Azure.Storage.Blobs.Models;
 using brownstone_hub_api.Dtos.ExpenseReceipt;
 using brownstone_hub_api.Repositories.ExpenseReceipts;
 using brownstone_hub_api.Services.AzureBlobService;
+using brownstone_hub_api.Services.AttachmentAccess;
 
 namespace brownstone_hub_api.Services.ExpenseReceiptService
 {
@@ -11,7 +12,8 @@ namespace brownstone_hub_api.Services.ExpenseReceiptService
         IAzureBlobService azureBlobService,
         IExpenseReceiptRepository expenseReceiptRepository,
         IConfiguration configuration,
-        ILogger<ExpenseReceiptService> logger) : IExpenseReceiptService
+        ILogger<ExpenseReceiptService> logger,
+        AttachmentAccessService access) : IExpenseReceiptService
     {
         private readonly BlobServiceClient _blobServiceClient = blobServiceClient;
         private readonly IAzureBlobService _azureBlobService = azureBlobService;
@@ -21,6 +23,8 @@ namespace brownstone_hub_api.Services.ExpenseReceiptService
 
         public async Task<ServiceResponse<List<LoadExpenseReceiptDto>>> AddExpenseReceipts(long expenseId, List<IFormFile> files)
         {
+            if (!await access.CanAccessExpenseAsync(expenseId))
+                return ServiceResponse<List<LoadExpenseReceiptDto>>.CreateError("Attachment not found", statusCode: 404);
             try
             {
                 var response = new ServiceResponse<List<LoadExpenseReceiptDto>>
@@ -73,6 +77,8 @@ namespace brownstone_hub_api.Services.ExpenseReceiptService
 
         public async Task<ServiceResponse<List<LoadExpenseReceiptDto>>> GetExpenseReceipts(long expenseId)
         {
+            if (!await access.CanAccessExpenseAsync(expenseId))
+                return ServiceResponse<List<LoadExpenseReceiptDto>>.CreateError("Attachment not found", statusCode: 404);
             try
             {
                 var response = new ServiceResponse<List<LoadExpenseReceiptDto>>
@@ -109,6 +115,8 @@ namespace brownstone_hub_api.Services.ExpenseReceiptService
 
         public async Task<ServiceResponse<LoadExpenseReceiptDto>> DeleteExpenseReceipt(long id)
         {
+            if (!await access.CanAccessExpenseReceiptAsync(id))
+                return ServiceResponse<LoadExpenseReceiptDto>.CreateError("Attachment not found", statusCode: 404);
             try
             {
                 var response = new ServiceResponse<LoadExpenseReceiptDto>();

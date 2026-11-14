@@ -5,6 +5,7 @@ using Azure.Storage.Sas;
 using brownstone_hub_api.Dtos.MaintenanceImage;
 using brownstone_hub_api.Repositories.MaintenanceImages;
 using brownstone_hub_api.Services.AzureBlobService;
+using brownstone_hub_api.Services.AttachmentAccess;
 
 namespace brownstone_hub_api.Services.MaintenanceImageService
 {
@@ -13,7 +14,8 @@ namespace brownstone_hub_api.Services.MaintenanceImageService
     IAzureBlobService azureBlobService,
     IMaintenanceImageRepository maintenanceImageRepository,
      IConfiguration configuration,
-    ILogger<MaintenanceImageService> logger) : IMaintenanceImageService
+    ILogger<MaintenanceImageService> logger,
+    AttachmentAccessService access) : IMaintenanceImageService
   {
     private readonly BlobServiceClient _blobServiceClient = blobServiceClient;
     private readonly IAzureBlobService _azureBlobService = azureBlobService;
@@ -23,6 +25,8 @@ namespace brownstone_hub_api.Services.MaintenanceImageService
 
     public async Task<ServiceResponse<List<LoadMaintenanceImageDto>>> AddMaintenanceImages(long maintenanceRequestId, List<IFormFile> files)
     {
+      if (!await access.CanAccessMaintenanceAsync(maintenanceRequestId))
+        return ServiceResponse<List<LoadMaintenanceImageDto>>.CreateError("Attachment not found", statusCode: 404);
 
       try
       {
@@ -77,6 +81,8 @@ namespace brownstone_hub_api.Services.MaintenanceImageService
 
     public async Task<ServiceResponse<List<LoadMaintenanceImageDto>>> GetMaintenanceImages(long maintenanceRequestId)
     {
+      if (!await access.CanAccessMaintenanceAsync(maintenanceRequestId))
+        return ServiceResponse<List<LoadMaintenanceImageDto>>.CreateError("Attachment not found", statusCode: 404);
       try
       {
         var response = new ServiceResponse<List<LoadMaintenanceImageDto>>
@@ -114,6 +120,8 @@ namespace brownstone_hub_api.Services.MaintenanceImageService
 
     public async Task<ServiceResponse<LoadMaintenanceImageDto>> DeleteMaintenanceImage(long id)
     {
+      if (!await access.CanAccessMaintenanceImageAsync(id))
+        return ServiceResponse<LoadMaintenanceImageDto>.CreateError("Attachment not found", statusCode: 404);
       try
       {
         var response = new ServiceResponse<LoadMaintenanceImageDto>();
