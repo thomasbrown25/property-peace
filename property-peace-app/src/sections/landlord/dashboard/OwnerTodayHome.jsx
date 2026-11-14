@@ -1,4 +1,7 @@
+import { useEffect, useState } from 'react';
 import { alpha, Box, Button, CircularProgress, LinearProgress, Stack, Typography, useTheme } from '@mui/material';
+import useAuth from 'hooks/useAuth';
+import { getRecentPropertyStorageKey, PROPERTY_VISITED_EVENT, readPropertyVisitDates, sortPropertiesByLastVisit } from 'utils/recentlyViewedProperties';
 import { Link as RouterLink } from 'react-router-dom';
 import { format } from 'date-fns';
 import { ArrowRightOutlined } from '@ant-design/icons';
@@ -14,21 +17,38 @@ const columns = 'minmax(190px, 1.3fr) minmax(140px, 1fr) minmax(110px, .8fr) min
 
 export default function OwnerTodayHome({ reminders = [], properties = [], propertiesLoading = false, propertiesError = false, rentRecords = [], rentLoading = false, rentError = false, rentReady = false }) {
   const theme = useTheme();
+  const { user } = useAuth();
+  const firstName = [user?.firstName, user?.firstname, user?.FirstName, user?.Firstname]
+    .find((name) => typeof name === 'string' && name.trim())?.trim();
+  const visitScope = getRecentPropertyStorageKey(user);
+  const [visitState, setVisitState] = useState(() => ({ scope: visitScope, dates: readPropertyVisitDates(user) }));
+  const visitDates = visitState.scope === visitScope ? visitState.dates : readPropertyVisitDates(user);
+
+  useEffect(() => {
+    const refreshVisits = () => setVisitState({ scope: visitScope, dates: readPropertyVisitDates(user) });
+    refreshVisits();
+    window.addEventListener(PROPERTY_VISITED_EVENT, refreshVisits);
+    window.addEventListener('storage', refreshVisits);
+    return () => {
+      window.removeEventListener(PROPERTY_VISITED_EVENT, refreshVisits);
+      window.removeEventListener('storage', refreshVisits);
+    };
+  }, [user, visitScope]);
+
   const tableStyles = getTableStyles(theme);
   const next = getOwnerNextStep({ reminders, properties, propertiesLoading, propertiesError });
-  const places = getOwnerProperties(properties);
+  const places = sortPropertiesByLastVisit(getOwnerProperties(properties), visitDates);
 
   return (
     <Box sx={{ maxWidth: 1120, mx: 'auto', pb: 2 }}>
-      <Box sx={{ py: { xs: 2, md: 3 }, borderBottom: '1px solid', borderColor: 'divider' }}>
+      <Box sx={{ pt: { xs: 1, md: 1.5 } }}>
         <Typography variant="overline" sx={{ color: 'text.secondary', letterSpacing: '0.12em', fontWeight: 700 }}>
           {format(new Date(), 'EEEE, MMMM d')}
         </Typography>
-        <Typography component="h1" sx={{ mt: 0.5, fontFamily: 'Poppins, Public Sans, sans-serif', fontSize: { xs: '2rem', md: '2.7rem' }, fontWeight: 700, lineHeight: 1.15, color: 'text.primary' }}>
-          Today
+        <Typography component="h1" sx={{ mt: 0.5, fontFamily: 'Poppins, Public Sans, sans-serif', fontSize: { xs: '1.5rem', md: '1.8rem' }, fontWeight: 700, lineHeight: 1.2, color: 'text.primary', overflowWrap: 'anywhere' }}>
+          {firstName ? `Welcome back, ${firstName}!` : 'Welcome back!'}
         </Typography>
       </Box>
-
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: '280px minmax(0, 1fr)' }, gap: { xs: 0, lg: 6 }, alignItems: 'start' }}>
         <Box sx={{ pt: { xs: 3, md: 4 }, pb: { xs: 1, lg: 0 }, minWidth: 0 }}>
           <OwnerHomeSidebar />

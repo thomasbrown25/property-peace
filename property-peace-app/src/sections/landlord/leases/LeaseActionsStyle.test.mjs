@@ -13,15 +13,16 @@ function actionsButton(source) {
   return button;
 }
 
-test('property and lease Actions remain outlined menu triggers', () => {
+test('property Actions use the primary fill while lease Actions retain their outlined menu trigger', () => {
   const propertyButton = actionsButton(propertyActions);
   const leaseButton = actionsButton(leaseDetail);
   for (const button of [propertyButton, leaseButton]) {
     assert.match(button, /startIcon=\{<ThunderboltOutlined/);
-    assert.match(button, /variant="outlined"/);
     assert.match(button, /aria-haspopup="menu"/);
   }
-  assert.match(propertyActions, /borderColor: 'divider'/);
-  assert.match(propertyActions, /color: 'text.primary'/);
+  assert.match(propertyButton, /variant="contained"/);
+  assert.match(leaseButton, /variant="outlined"/);
+  assert.match(propertyActions, /aria-controls=\{actionsAnchor \? 'property-actions-menu' : undefined\}/);
+  assert.match(propertyActions, /<Menu\s+id="property-actions-menu"/);
   assert.match(leaseDetail, /<Menu\s+id="lease-actions-menu"/);
 });

@@ -17,7 +17,9 @@ test('landlord dock shows exactly five destinations plus the User avatar', async
 test('home tabs are in requested order with working native destinations', async () => {
   const dashboard = await source('screens/landlord/DashboardScreen.tsx');
   assert.match(dashboard, /const homeTabs: HomeTab\[\] = \['Dashboard', 'Calendar', 'Properties', 'Rent', 'Tenants', 'Maintenances', 'Leases'\]/);
-  assert.match(dashboard, /tab === 'Tenants' \|\| tab === 'Leases'[\s\S]*navigation\.getParent\(\)\?\.navigate\(tab\)/);
+  assert.doesNotMatch(dashboard, /if \(tab === 'Tenants' \|\| tab === 'Leases'\)/);
+  assert.match(dashboard, /\(activeHomeTab === 'Tenants' \|\| activeHomeTab === 'Leases'\) && <DashboardSection borderless>/);
+  assert.match(dashboard, /<HomeDirectoryTab key=\{`\$\{organizationId\}:\$\{activeHomeTab\}`\}/);
   assert.match(dashboard, /activeHomeTab === 'Maintenances'/);
   assert.match(dashboard, /onPress=\{\(\) => setOpenMenu\(openMenu === 'notifications' \? null : 'notifications'\)\}/);
   assert.match(dashboard, /notifications-outline/);

@@ -221,8 +221,8 @@ export default function PropertyHeader({ property, rentRecords = [], rentLoading
                       sx={{
                         height: 8,
                         borderRadius: 999,
-                        bgcolor: 'brand.ivory',
-                        '& .MuiLinearProgress-bar': { borderRadius: 999, bgcolor: 'brand.mint' }
+                        bgcolor: 'brand.mint',
+                        '& .MuiLinearProgress-bar': { borderRadius: 999, bgcolor: 'brand.teal' }
                       }}
                     />
                     <Typography variant="caption" sx={{ display: 'block', mt: 1, color: 'text.secondary' }}>

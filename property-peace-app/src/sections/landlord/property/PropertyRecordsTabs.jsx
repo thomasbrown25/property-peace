@@ -73,7 +73,7 @@ function RecordsTable({ label, rows, columns: allColumns, showUnitColumn = true,
           <TableContainer sx={{ overflowX: 'auto', minHeight: { xs: 260, sm: 360 } }}>
             <Table size="small" aria-label={label}>
               <TableHead><TableRow>{columns.map(column => <TableCell key={column.label}>{column.label}</TableCell>)}</TableRow></TableHead>
-              <TableBody>
+              <TableBody sx={{ '&& .MuiTableRow-root > .MuiTableCell-body': { borderBottom: '1px solid', borderColor: 'divider' } }}>
                 {filtered.slice(safePage * rowsPerPage, safePage * rowsPerPage + rowsPerPage).map((row, index) => (
                   <TableRow hover key={read(row, 'id') ?? index} onClick={event => { if (!event.currentTarget.contains(event.target) || event.target.closest('a, button, input, [role="menuitem"]')) return; if (detailColumn && read(row, 'id')) navigate(detailColumn.link(row)); }}
                     onKeyDown={event => { if (event.target !== event.currentTarget) return; if ((event.key === 'Enter' || event.key === ' ') && detailColumn && read(row, 'id')) { event.preventDefault(); navigate(detailColumn.link(row)); } }}

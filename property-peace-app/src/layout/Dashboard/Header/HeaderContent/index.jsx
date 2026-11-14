@@ -6,9 +6,11 @@ import Profile from './Profile';
 import Notification from './Notification';
 import MobileSection from './MobileSection';
 import MobileSearch from './MobileSearch';
+import Search from './Search';
 import Logo from 'components/logo';
 import useAuth from 'hooks/useAuth';
 import useIsAdmin from 'hooks/useIsAdmin';
+
 
 export default function HeaderContent({ adminPortal = false, landlordPortal = false, onAdminMenuOpen, onLandlordMenuOpen }) {
   const theme = useTheme();
@@ -21,7 +23,18 @@ export default function HeaderContent({ adminPortal = false, landlordPortal = fa
   const basePath = isAdmin ? '/admin' : hasTenantRole ? '/tenant' : '/landlord';
 
   return (
-    <>
+    <Box sx={{
+      display: downMD ? 'flex' : 'grid',
+      gridTemplateColumns: landlordPortal
+        ? { md: 'minmax(0, 1fr) minmax(0, 420px) auto', lg: 'minmax(0, 1fr) auto' }
+        : 'minmax(200px, 1fr) minmax(0, 420px) minmax(200px, 1fr)',
+      alignItems: 'center',
+      gap: { xs: 1, sm: 2 },
+      // Search and utilities stay within the space to the right of both sidebars.
+      width: '100%',
+      minWidth: 0
+    }}>
+      <Box sx={{ display: landlordPortal ? { xs: 'flex', lg: 'none' } : 'flex', alignItems: 'center', gap: { xs: 1, sm: 2 }, minWidth: 0 }}>
       {adminPortal && (
         <IconButton aria-label="Open admin navigation" onClick={onAdminMenuOpen} sx={{ display: { xs: 'inline-flex', lg: 'none' }, color: 'inherit' }}>
           <MenuOutlined />
@@ -37,23 +50,27 @@ export default function HeaderContent({ adminPortal = false, landlordPortal = fa
         darkSurface={theme.palette.mode === 'dark'}
         disableTopPadding
         lightHeaderLogo={theme.palette.mode !== 'dark'}
-        width={downSM ? 94 : downMD ? 116 : 142}
+        width={downSM ? 82 : downMD ? 100 : 120}
         to={`${basePath}/dashboard`}
         sx={{ flexShrink: 0, lineHeight: 0, display: landlordPortal ? { xs: 'flex', lg: 'none' } : 'flex', alignItems: 'center' }}
       />
-      <Box sx={{ flex: 1, minWidth: 0 }} />
-      {!downMD && (
-        <>
-          {!hasTenantRole && <MobileSearch />}
-          <Message />
-          <Notification />
-          <Divider orientation="vertical" flexItem sx={{ height: 28, alignSelf: 'center', mx: 1, borderColor: 'divider' }} />
-          <Profile />
-        </>
+      </Box>
+      {downMD ? <Box sx={{ flex: 1, minWidth: 0 }} /> : (
+        <Box sx={{ minWidth: 0 }}>{!hasTenantRole && <Search />}</Box>
       )}
-      {downMD && !hasTenantRole && <MobileSearch />}
-      {downMD && <MobileSection />}
-    </>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: { xs: 1, sm: 2 }, flexShrink: 0 }}>
+        {!downMD && (
+          <>
+            <Message />
+            <Notification />
+            <Divider orientation="vertical" flexItem sx={{ height: 28, alignSelf: 'center', mx: 1, borderColor: 'divider' }} />
+            <Profile />
+          </>
+        )}
+        {downMD && !hasTenantRole && <MobileSearch />}
+        {downMD && <MobileSection />}
+      </Box>
+    </Box>
   );
 }
 

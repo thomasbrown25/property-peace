@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Button, Divider, Menu, MenuItem } from '@mui/material';
-import { alpha } from '@mui/material/styles';
+
 import {
   ThunderboltOutlined, EditOutlined, FileAddOutlined, FileTextOutlined,
   DollarOutlined, ToolOutlined, UploadOutlined, DeleteOutlined
@@ -11,12 +11,8 @@ import { isDetachedSingleUnitType } from 'utils/propertyType';
 import { rentalMode } from 'utils/rentalMode';
 
 const actionButtonSx = {
-  borderColor: 'divider',
-  color: 'text.primary',
   textTransform: 'none',
-  fontWeight: 800,
-  whiteSpace: 'nowrap',
-  '&:hover, &:focus-visible': { borderColor: 'primary.main', bgcolor: (theme) => alpha(theme.palette.primary.main, 0.08) }
+  whiteSpace: 'nowrap'
 };
 
 export default function PropertyActions({ property, onEdit, onDelete }) {
@@ -35,7 +31,7 @@ export default function PropertyActions({ property, onEdit, onDelete }) {
   return (
     <>
       <Button
-        variant="outlined"
+        variant="contained"
         startIcon={<ThunderboltOutlined />}
         onClick={(event) => setActionsAnchor(event.currentTarget)}
         aria-haspopup="menu"

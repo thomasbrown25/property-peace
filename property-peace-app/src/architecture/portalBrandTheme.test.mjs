@@ -21,13 +21,14 @@ test('portal brand tokens flow into the default MUI palette without replacing se
   assert.match(buttons, /containedSuccess: \{/);
 });
 
-test('the top bar uses brand surfaces without restoring a landlord sidebar', () => {
+test('the top bar uses contrasting brand surfaces and exposes responsive landlord navigation', () => {
   const header = source('../layout/Dashboard/Header/index.jsx');
-  const navigation = source('../layout/Dashboard/Header/HeaderContent/LandlordPrimaryNavigation.jsx');
   const content = source('../layout/Dashboard/Header/HeaderContent/index.jsx');
-  assert.match(header, /theme\.palette\.brand\.forest/);
-  assert.match(header, /theme\.palette\.background\.paper/);
-  assert.match(navigation, /theme\.palette\.brand\.mint : theme\.palette\.primary\.main/);
-  assert.match(content, /<LandlordPrimaryNavigation \/>/);
-  assert.doesNotMatch(content, /<MainDrawer/);
+  assert.match(header, /bgcolor: theme\.palette\.mode === 'dark' \? theme\.palette\.brand\.forest : '#F8F7F1'/);
+  assert.match(header, /color: theme\.palette\.mode === 'dark' \? theme\.palette\.brand\.ivory : theme\.palette\.brand\.forest/);
+  assert.match(header, /LANDLORD_SIDEBAR_WIDTH/);
+  assert.match(content, /aria-label="Open landlord navigation" onClick=\{onLandlordMenuOpen\}/);
+  assert.match(content, /darkSurface=\{theme\.palette\.mode === 'dark'\}/);
+  assert.match(content, /lightHeaderLogo=\{theme\.palette\.mode !== 'dark'\}/);
+  assert.doesNotMatch(content, /<LandlordPrimaryNavigation|<MainDrawer/);
 });

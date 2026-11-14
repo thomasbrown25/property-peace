@@ -38,15 +38,16 @@ test('property Actions preserves the seven menu destinations and deletion confir
   assert.match(header, /onDelete\?\.\(\)/);
 });
 
-test('property Actions button uses semantic light/dark tokens', async () => {
-  const header = await read('./PropertyActions.jsx');
-  const buttonStyle = header.match(/const actionButtonSx = \{([\s\S]*?)\n\};/)?.[1];
+test('property Actions matches the payment button using theme-contained styling', async () => {
+  const actions = await read('./PropertyActions.jsx');
+  const header = await read('./PropertyHeader.jsx');
+  const buttonStyle = actions.match(/const actionButtonSx = \{([\s\S]*?)\n\};/)?.[1];
   assert.ok(buttonStyle, 'property Actions button style exists');
-  assert.match(buttonStyle, /borderColor: 'divider'/);
-  assert.match(buttonStyle, /color: 'text.primary'/);
-  assert.match(buttonStyle, /'&:hover, &:focus-visible': \{[^}]*borderColor: 'primary.main'/);
-  assert.doesNotMatch(buttonStyle, /#061e35/);
-  assert.match(header, /aria-expanded=\{Boolean\(actionsAnchor\)\}[\s\S]*?sx=\{actionButtonSx\}[\s\S]*?>\s*Actions/);
+  assert.match(actions, /<Button\s+variant="contained"\s+startIcon=\{<ThunderboltOutlined/);
+  assert.match(header, /<Button\s+variant="contained"\s+startIcon=\{<DollarOutlined/);
+  assert.match(buttonStyle, /textTransform: 'none'/);
+  assert.doesNotMatch(buttonStyle, /borderColor|bgcolor|background|color:|fontWeight|&:hover|&:focus-visible/);
+  assert.match(actions, /aria-expanded=\{Boolean\(actionsAnchor\)\}[\s\S]*?sx=\{actionButtonSx\}[\s\S]*?>\s*Actions/);
 });
 
 test('overview removes the current tenant and current lease cards but keeps property context', async () => {

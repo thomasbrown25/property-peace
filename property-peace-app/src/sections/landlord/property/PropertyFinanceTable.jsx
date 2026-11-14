@@ -83,7 +83,7 @@ export default function PropertyFinanceTable({ propertyId, property, payments = 
               <TableCell align="right">Amount</TableCell>
               {!isPayments && <TableCell align="center">Actions</TableCell>}
             </TableRow></TableHead>
-            <TableBody>
+            <TableBody sx={{ '&& .MuiTableRow-root > .MuiTableCell-body': { borderBottom: '1px solid', borderColor: 'divider' } }}>
               {filtered.slice(safePage * rowsPerPage, (safePage + 1) * rowsPerPage).map(({ record, date }, index) => (
                 <TableRow key={record.id ?? index} hover>
                   <TableCell sx={{ whiteSpace: 'nowrap' }}>{date ? formatDate(date) : '—'}</TableCell>

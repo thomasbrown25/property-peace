@@ -11,7 +11,7 @@ export default function Header({ adminPortal = false, landlordPortal = false, on
       color="inherit"
       elevation={0}
       sx={(theme) => ({
-        bgcolor: theme.palette.mode === 'dark' ? theme.palette.brand.forest : theme.palette.background.paper,
+        bgcolor: theme.palette.mode === 'dark' ? theme.palette.brand.forest : '#F8F7F1',
         color: theme.palette.mode === 'dark' ? theme.palette.brand.ivory : theme.palette.brand.forest,
         borderBottom: '1px solid',
         borderBottomColor: 'divider',
@@ -21,7 +21,7 @@ export default function Header({ adminPortal = false, landlordPortal = false, on
         ...((adminPortal || landlordPortal) && { ml: { lg: `${adminPortal ? DRAWER_WIDTH : LANDLORD_SIDEBAR_WIDTH}px` } })
       })}
     >
-      <Toolbar sx={{ minHeight: { xs: 68, sm: 84 }, height: { xs: 68, sm: 84 }, py: 0, px: { xs: 2, sm: 2.5 }, gap: { xs: 1, sm: 2 } }}>
+      <Toolbar sx={{ minHeight: { xs: 52, sm: 60 }, height: { xs: 52, sm: 60 }, py: 0, px: { xs: 2, sm: 2.5 }, gap: { xs: 1, sm: 2 } }}>
         <HeaderContent adminPortal={adminPortal} landlordPortal={landlordPortal} onAdminMenuOpen={onAdminMenuOpen} onLandlordMenuOpen={onLandlordMenuOpen} />
       </Toolbar>
     </AppBar>
