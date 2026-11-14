@@ -14,7 +14,7 @@ import { ThemeMode } from 'config';
  */
 import logoDark from 'assets/images/logos/property-peace-dark.png';
 import logoLightHeader from 'assets/images/logos/property-peace-dark-2.png';
-import logo from 'assets/images/logos/property-peace.png';
+import logo from 'assets/images/logos/property-peace-2.png';
 // ==============================|| LOGO SVG ||============================== //
 
 function LogoMain({ reverse, width = 150, disableTopPadding = false, lightHeaderLogo = false, lightLogoInDarkMode = false, darkSurface = false }) {

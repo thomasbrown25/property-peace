@@ -6,12 +6,11 @@ import Profile from './Profile';
 import Notification from './Notification';
 import MobileSection from './MobileSection';
 import MobileSearch from './MobileSearch';
-import LandlordPrimaryNavigation from './LandlordPrimaryNavigation';
 import Logo from 'components/logo';
 import useAuth from 'hooks/useAuth';
 import useIsAdmin from 'hooks/useIsAdmin';
 
-export default function HeaderContent({ adminPortal = false, onAdminMenuOpen }) {
+export default function HeaderContent({ adminPortal = false, landlordPortal = false, onAdminMenuOpen, onLandlordMenuOpen }) {
   const theme = useTheme();
   const { user } = useAuth();
   const isAdmin = useIsAdmin();
@@ -28,6 +27,11 @@ export default function HeaderContent({ adminPortal = false, onAdminMenuOpen }) 
           <MenuOutlined />
         </IconButton>
       )}
+      {landlordPortal && (
+        <IconButton aria-label="Open landlord navigation" onClick={onLandlordMenuOpen} sx={{ display: { xs: 'inline-flex', lg: 'none' }, color: 'inherit' }}>
+          <MenuOutlined />
+        </IconButton>
+      )}
       <Logo
         reverse
         darkSurface={theme.palette.mode === 'dark'}
@@ -35,9 +39,8 @@ export default function HeaderContent({ adminPortal = false, onAdminMenuOpen }) 
         lightHeaderLogo={theme.palette.mode !== 'dark'}
         width={downSM ? 94 : downMD ? 116 : 142}
         to={`${basePath}/dashboard`}
-        sx={{ flexShrink: 0, lineHeight: 0, display: 'flex', alignItems: 'center' }}
+        sx={{ flexShrink: 0, lineHeight: 0, display: landlordPortal ? { xs: 'flex', lg: 'none' } : 'flex', alignItems: 'center' }}
       />
-      {!isAdmin && !hasTenantRole && <LandlordPrimaryNavigation />}
       <Box sx={{ flex: 1, minWidth: 0 }} />
       {!downMD && (
         <>
@@ -54,4 +57,4 @@ export default function HeaderContent({ adminPortal = false, onAdminMenuOpen }) 
   );
 }
 
-HeaderContent.propTypes = { adminPortal: PropTypes.bool, onAdminMenuOpen: PropTypes.func };
+HeaderContent.propTypes = { adminPortal: PropTypes.bool, landlordPortal: PropTypes.bool, onAdminMenuOpen: PropTypes.func, onLandlordMenuOpen: PropTypes.func };

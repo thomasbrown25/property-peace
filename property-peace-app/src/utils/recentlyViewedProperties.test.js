@@ -5,6 +5,8 @@ import {
   getRecentPropertyStorageKey,
   readRecentlyViewedPropertyIds,
   recordRecentlyViewedProperty,
+  readPropertyVisitDates,
+  sortPropertiesByLastVisit,
   resolveRecentlyViewedProperties
 } from './recentlyViewedProperties.js';
 
@@ -42,6 +44,26 @@ test('recording views keeps newest unique ids in a bounded list', () => {
   ['1', '2', '3', '4', '5', '6', '3'].forEach((id) => recordRecentlyViewedProperty(id, user, storage));
 
   assert.deepEqual(readRecentlyViewedPropertyIds(user, storage), ['3', '6', '5', '4', '2']);
+});
+
+test('opening a property stamps the current visit time and sorts all visited properties before unvisited ones', () => {
+  const storage = createStorage();
+  const properties = [{ id: 1, name: 'Alpha' }, { id: 2, name: 'Bravo' }, { id: 3, name: 'Charlie' }, { id: 4, name: 'Delta' }];
+  recordRecentlyViewedProperty(3, user, storage, 1000);
+  recordRecentlyViewedProperty(2, user, storage, 2000);
+  recordRecentlyViewedProperty(3, user, storage, 3000);
+  assert.deepEqual(readPropertyVisitDates(user, storage), { '2': 2000, '3': 3000 });
+  assert.deepEqual(sortPropertiesByLastVisit(properties, readPropertyVisitDates(user, storage)).map((p) => p.id), [3, 2, 1, 4]);
+  assert.deepEqual(readPropertyVisitDates({ id: 42, currentOrganizationId: 8 }, storage), {});
+});
+
+test('visits beyond the dashboard recent-five limit remain sortable, and malformed storage is ignored', () => {
+  const storage = createStorage();
+  for (let id = 1; id <= 7; id++) recordRecentlyViewedProperty(id, user, storage, id * 1000);
+  assert.equal(readRecentlyViewedPropertyIds(user, storage).length, 5);
+  assert.equal(readPropertyVisitDates(user, storage)['1'], 1000);
+  const key = `${getRecentPropertyStorageKey(user)}:visited-at`;
+  assert.deepEqual(readPropertyVisitDates(user, createStorage({ [key]: '{broken' })), {});
 });
 
 test('invalid storage is treated as empty history', () => {

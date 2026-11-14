@@ -10,7 +10,7 @@ import FAQ from '@/components/Sections/FAQ';
 import ResourceHighlights from '@/components/Sections/ResourceHighlights';
 
 export const metadata: Metadata = applyOttoSeo('/', {
-  title: 'Free Rental Management Software | Property Peace',
+  title: 'Property Peace | Property Management Software',
   description: 'Free rental management software for independent landlords with up to 5 units. Manage rent, tenants, leases, maintenance, and expenses in one calm dashboard. No credit card required.',
   // Next.js replaces (rather than deep-merges) root Open Graph metadata on this route.
   openGraph: {

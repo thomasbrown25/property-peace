@@ -32,7 +32,7 @@ import { useNavigate } from 'react-router-dom';
 import LeaseAddDrawer from 'components/drawers/LeaseAddDrawer';
 import DeletePropertyModal from 'components/dialogs/DeletePropertyModal';
 import { PropertyCsvImportButton } from 'components/import/CsvImportButtons';
-import { managementPageHeaderActionSx } from 'components/headers/managementPageHeaderStyles';
+import { creationActionSx, managementPageHeaderActionSx } from 'components/headers/managementPageHeaderStyles';
 import PropertiesEmptyState from 'sections/landlord/properties/PropertiesEmptyState';
 import PropertyOperations from 'sections/landlord/properties/PropertyOperations';
 import useFetchProperties from 'hooks/useFetchProperties';
@@ -315,9 +315,10 @@ export default function Properties() {
             />
             <Button
               variant="contained"
+              color="primary"
               startIcon={<PlusOutlined />}
               onClick={() => navigate('/landlord/properties/add')}
-              sx={{ textTransform: 'none', fontWeight: 700, boxShadow: 'none', bgcolor: '#061e35', color: '#fff', '&:hover': { bgcolor: '#0b2f4f' } }}
+              sx={creationActionSx}
             >
               Add property
             </Button>

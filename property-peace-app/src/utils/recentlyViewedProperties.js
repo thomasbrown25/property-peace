@@ -2,6 +2,7 @@ import { getActiveOrganizationId } from './impersonationSession.js';
 
 const STORAGE_PREFIX = 'propertyPeace:recent-properties';
 const MAX_RECENT_PROPERTIES = 5;
+export const PROPERTY_VISITED_EVENT = 'propertyPeace:property-visited';
 
 const readField = (value, camel, pascal) => value?.[camel] ?? value?.[pascal];
 
@@ -35,7 +36,26 @@ export function readRecentlyViewedPropertyIds(user, storage = globalThis.localSt
   }
 }
 
-export function recordRecentlyViewedProperty(propertyId, user, storage = globalThis.localStorage) {
+export function readPropertyVisitDates(user, storage = globalThis.localStorage) {
+  const key = getRecentPropertyStorageKey(user);
+  if (!key || !storage) return {};
+  try {
+    const value = JSON.parse(storage.getItem(`${key}:visited-at`) || '{}');
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+    return Object.fromEntries(Object.entries(value).filter(([, date]) => Number.isFinite(date) && date > 0));
+  } catch {
+    return {};
+  }
+}
+
+export function sortPropertiesByLastVisit(properties, visitDates) {
+  return [...properties].sort((a, b) =>
+    (visitDates[String(readField(b, 'id', 'Id'))] || 0) - (visitDates[String(readField(a, 'id', 'Id'))] || 0) ||
+    (readField(a, 'name', 'Name') || '').localeCompare(readField(b, 'name', 'Name') || '', 'en', { sensitivity: 'base' })
+  );
+}
+
+export function recordRecentlyViewedProperty(propertyId, user, storage = globalThis.localStorage, visitedAt = Date.now()) {
   const key = getRecentPropertyStorageKey(user);
   const normalizedId = propertyId === undefined || propertyId === null ? '' : String(propertyId).trim();
   if (!key || !normalizedId || !storage) return [];
@@ -47,6 +67,10 @@ export function recordRecentlyViewedProperty(propertyId, user, storage = globalT
 
   try {
     storage.setItem(key, JSON.stringify(nextIds));
+    storage.setItem(`${key}:visited-at`, JSON.stringify({ ...readPropertyVisitDates(user, storage), [normalizedId]: visitedAt }));
+    if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+      window.dispatchEvent(new Event(PROPERTY_VISITED_EVENT));
+    }
     return nextIds;
   } catch {
     return [];

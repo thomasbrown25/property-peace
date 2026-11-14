@@ -18,7 +18,7 @@ export default function Hero() {
       />
       <div className="relative mx-auto max-w-[1660px] px-5 sm:px-8 lg:px-10 xl:px-12">
         <div className="flex flex-col lg:grid lg:min-h-[max(850px,100svh)] lg:grid-cols-[minmax(0,46fr)_minmax(0,54fr)] lg:items-center lg:gap-12 xl:gap-16">
-          <div className="flex min-w-0 items-center pb-8 pt-[8rem] sm:pt-32 lg:py-28">
+          <div className="flex min-w-0 items-center pb-8 pt-[8rem] sm:pt-32 lg:py-28 lg:pl-10">
             <motion.div
               className="w-full text-center lg:text-left"
               initial={false}

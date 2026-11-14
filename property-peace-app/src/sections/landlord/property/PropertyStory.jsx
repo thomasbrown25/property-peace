@@ -72,6 +72,7 @@ function TypeBadge({ type }) {
 
 function TimelineDot({ type, isLast }) {
   const theme = useTheme();
+  const meta = TYPE_META[type] || TYPE_META.maintenance;
   const color = typeColor(theme, type);
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0, width: 36, alignSelf: 'stretch' }}>

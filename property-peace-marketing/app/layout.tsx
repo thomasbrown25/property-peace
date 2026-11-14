@@ -35,7 +35,7 @@ const searchAtlasOttoScriptProps = {
 };
 
 export const metadata: Metadata = {
-  title: "Property Management Software for Landlords | Property Peace",
+  title: "Property Peace | Property Management Software",
   description: "Manage rent, tenants, leases, maintenance, expenses, and documents in one calm dashboard built for small landlords with 1–50 units. Start free.",
   keywords: "property management software, landlord software, rental property management, property management app, landlord management software, rental management software, small landlord tools, property peace",
   authors: [{ name: "Property Peace" }],
@@ -57,7 +57,7 @@ export const metadata: Metadata = {
     locale: 'en_US',
     url: 'https://propertypeace.io',
     siteName: 'Property Peace',
-    title: 'Property Management Software for Landlords | Property Peace',
+    title: 'Property Peace | Property Management Software',
     description: 'Manage rent, tenants, leases, maintenance, expenses, and documents in one calm dashboard built for small landlords with 1–50 units. Start free.',
     images: [
       {
@@ -70,7 +70,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Property Management Software for Landlords | Property Peace',
+    title: 'Property Peace | Property Management Software',
     description: 'Manage rent, tenants, leases, maintenance, expenses, and documents in one calm dashboard built for small landlords with 1–50 units. Start free.',
     images: ['/property-peace-social.png'],
   },

@@ -28,6 +28,13 @@ test('compact overview trims newest filtered events to five while activity page 
   assert.match(story, /navigate\(`\/landlord\/property-activity\/\$\{propertyId\}`\)/);
 });
 
+test('timeline dot resolves its icon metadata for every activity type', () => {
+  const dot = story.match(/function TimelineDot\(\{ type, isLast \}\) \{([\s\S]*?)\n\}/)?.[1];
+  assert.ok(dot, 'timeline dot component exists');
+  assert.match(dot, /const meta = TYPE_META\[type\] \|\| TYPE_META\.maintenance;/);
+  assert.match(dot, /\{meta\.icon\}/);
+});
+
 test('rent activity uses mint surfaces with readable branded ink and retains semantic maintenance badges', () => {
   assert.doesNotMatch(story, /#41a541/);
   assert.match(story, /bgcolor: item\.type === 'money' \? alpha\(theme\.palette\.brand\.mint/);
