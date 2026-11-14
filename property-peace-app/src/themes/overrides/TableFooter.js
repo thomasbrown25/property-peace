@@ -1,17 +1,8 @@
-// ==============================|| OVERRIDES - TABLE CELL ||============================== //
+import { getTableStyles } from '../tableStyles';
 
 export default function TableFooter(theme) {
-  return {
-    MuiTableFooter: {
-      styleOverrides: {
-        root: {
-          backgroundColor: theme.palette.grey[50],
-          borderTop: '2px solid',
-          borderTopColor: theme.palette.divider,
-          borderBottom: '1px solid',
-          borderBottomColor: theme.palette.divider
-        }
-      }
-    }
-  };
+  return { MuiTableFooter: { styleOverrides: { root: {
+    ...getTableStyles(theme).header,
+    borderTop: `1px solid ${theme.palette.divider}`
+  } } } };
 }

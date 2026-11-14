@@ -494,11 +494,11 @@ export default function Files() {
                       }}
                     />
                   </TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontFamily: "'Poppins', sans-serif" }}>TITLE</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontFamily: "'Poppins', sans-serif" }}>SHARING</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontFamily: "'Poppins', sans-serif" }}>CATEGORY</TableCell>
+                  <TableCell>TITLE</TableCell>
+                  <TableCell>SHARING</TableCell>
+                  <TableCell>CATEGORY</TableCell>
                   <TableCell
-                    sx={{ fontWeight: 600, cursor: 'pointer', userSelect: 'none' }}
+                    sx={{ cursor: 'pointer', userSelect: 'none' }}
                     onClick={() => handleSort('lastModified')}
                   >
                     <Stack direction="row" spacing={0.5} alignItems="center">
@@ -676,8 +676,8 @@ export default function Files() {
               <Table>
                 <TableHead>
                   <TableRow>
-                    <TableCell sx={{ fontWeight: 600, textTransform: 'uppercase', fontFamily: "'Poppins', sans-serif" }}>CATEGORY NAME</TableCell>
-                    <TableCell sx={{ fontWeight: 600, textTransform: 'uppercase', fontFamily: "'Poppins', sans-serif" }}>DETAILS</TableCell>
+                    <TableCell>CATEGORY NAME</TableCell>
+                    <TableCell>DETAILS</TableCell>
                     <TableCell></TableCell>
                   </TableRow>
                 </TableHead>

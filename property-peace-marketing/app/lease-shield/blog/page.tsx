@@ -68,12 +68,12 @@ const scenarios = [
 
 export default function LeaseShieldBlogPage() {
   return (
-    <div className="min-h-screen bg-[#061E35] text-white">
-      <section data-marketing-hero-theme="dark" className="relative overflow-hidden bg-[#061E35] px-4 pb-20 pt-32 text-white sm:px-6 md:pb-24 md:pt-36 lg:px-8">
+    <div className="min-h-screen bg-brand-forest text-white">
+      <section data-marketing-hero-theme="dark" className="relative overflow-hidden bg-brand-forest px-4 pb-20 pt-32 text-white sm:px-6 md:pb-24 md:pt-36 lg:px-8">
         <div className="relative mx-auto max-w-6xl">
           <Link
             href="/features/lease-shield"
-            className="mb-8 inline-flex items-center text-white/80 transition-colors hover:text-green-300"
+            className="mb-8 inline-flex items-center text-white/80 transition-colors hover:text-brand-mint"
             style={{ fontFamily: '"Inter", "Inter Placeholder", sans-serif' }}
           >
             <FiArrowLeft className="w-4 h-4 mr-2" />
@@ -82,13 +82,13 @@ export default function LeaseShieldBlogPage() {
 
           <div className="grid gap-10 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
             <div>
-              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#DCE6ED] bg-white px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-[#15803D]" style={{ fontFamily: '"Inter", sans-serif' }}>
+              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[var(--brand-border)] bg-brand-surface px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-brand-teal" style={{ fontFamily: '"Inter", sans-serif' }}>
                 <FiShield className="w-3.5 h-3.5" />
                 LeaseShield Blog
               </div>
               <h1
-                className="mb-6 text-4xl font-bold leading-tight text-white md:text-6xl"
-                style={{ fontFamily: '"Poppins", sans-serif' }}
+                className="mb-6 text-4xl font-extrabold leading-tight text-white md:text-6xl"
+                style={{ fontFamily: '"Host Grotesk", sans-serif' }}
               >
                 How LeaseShield Helps Landlords: Real Scenarios and Examples
               </h1>
@@ -100,23 +100,23 @@ export default function LeaseShieldBlogPage() {
               </p>
               <div className="mb-8 flex flex-wrap items-center gap-5 text-sm text-white/70" style={{ fontFamily: '"Inter", sans-serif' }}>
                 <span className="flex items-center gap-1.5"><FiCalendar className="w-3.5 h-3.5" /> Updated Jan 2026</span>
-                <span className="text-[#DCE6ED]">·</span>
+                <span className="text-[var(--brand-border)]">·</span>
                 <span className="flex items-center gap-1.5"><FiClock className="w-3.5 h-3.5" /> 6 min read</span>
-                <span className="text-[#DCE6ED]">·</span>
+                <span className="text-[var(--brand-border)]">·</span>
                 <span>Property Peace Team</span>
               </div>
               <div className="flex flex-col gap-3 sm:flex-row">
                 <Link
                   href="https://app.propertypeace.io/register"
                   className="inline-flex items-center justify-center gap-2 rounded-none px-6 py-3.5 text-sm font-bold text-white shadow-lg transition-all hover:-translate-y-0.5 hover:brightness-95"
-                  style={{ fontFamily: '"Inter", sans-serif', background: 'linear-gradient(135deg, #22c55e, #16a34a)' }}
+                  style={{ fontFamily: '"Inter", sans-serif', background: 'linear-gradient(135deg, var(--brand-teal), var(--brand-teal))' }}
                 >
                   Ask LeaseShield a Question
                   <FiZap className="h-4 w-4" />
                 </Link>
                 <Link
                   href="/features/lease-shield"
-                  className="inline-flex items-center justify-center gap-2 rounded-none border border-[#DCE6ED] bg-white px-6 py-3.5 text-sm font-semibold text-[#061E35] transition-all hover:bg-[#F7FAFC]"
+                  className="inline-flex items-center justify-center gap-2 rounded-none border border-[var(--brand-border)] bg-brand-surface px-6 py-3.5 text-sm font-semibold text-brand-forest transition-all hover:bg-brand-ivory"
                   style={{ fontFamily: '"Inter", sans-serif' }}
                 >
                   See how it works
@@ -124,22 +124,22 @@ export default function LeaseShieldBlogPage() {
               </div>
             </div>
 
-            <div className="rounded-3xl border border-[#DCE6ED] bg-white p-6 shadow-[0_24px_60px_rgba(6,30,53,0.10)]">
-              <div className="rounded-2xl border border-[#DCE6ED] bg-[#F7FAFC] p-5">
-                <div className="mb-4 flex items-center justify-between border-b border-[#DCE6ED] pb-3">
-                  <div className="flex items-center gap-2 text-sm font-bold text-[#061E35]" style={{ fontFamily: '"Poppins", sans-serif' }}>
-                    <FiShield className="h-4 w-4 text-[#2f5dff]" /> Sample source-backed answer
+            <div className="rounded-3xl border border-[var(--brand-border)] bg-brand-surface p-6 shadow-[0_24px_60px_rgba(16,44,41,0.10)]">
+              <div className="rounded-2xl border border-[var(--brand-border)] bg-brand-ivory p-5">
+                <div className="mb-4 flex items-center justify-between border-b border-[var(--brand-border)] pb-3">
+                  <div className="flex items-center gap-2 text-sm font-bold text-brand-forest" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>
+                    <FiShield className="h-4 w-4 text-brand-teal" /> Sample source-backed answer
                   </div>
-                  <span className="rounded-full bg-[#eef4ff] px-2.5 py-1 text-xs font-bold text-[#2f5dff]">.gov only</span>
+                  <span className="rounded-full bg-[var(--brand-ivory)] px-2.5 py-1 text-xs font-bold text-brand-teal">.gov only</span>
                 </div>
-                <p className="mb-3 text-sm font-semibold text-[#061E35]" style={{ fontFamily: '"Inter", sans-serif' }}>
+                <p className="mb-3 text-sm font-semibold text-brand-forest" style={{ fontFamily: '"Inter", sans-serif' }}>
                   “How long do I have to return a security deposit?”
                 </p>
-                <p className="mb-4 text-sm leading-relaxed text-[#405A70]" style={{ fontFamily: '"Inter", sans-serif' }}>
+                <p className="mb-4 text-sm leading-relaxed text-brand-slate" style={{ fontFamily: '"Inter", sans-serif' }}>
                   LeaseShield summarizes the applicable state rule, then links back to official statutes, housing agency pages, or attorney general guidance so you can verify the answer.
                 </p>
-                <div className="rounded-xl bg-[#f7fbff] p-4 text-sm text-[#405a70]" style={{ fontFamily: '"Inter", sans-serif' }}>
-                  <div className="mb-2 flex items-center gap-2 font-semibold text-[#061E35]"><FiExternalLink className="h-4 w-4 text-[#2f5dff]" /> Example citations</div>
+                <div className="rounded-xl bg-brand-ivory p-4 text-sm text-brand-slate" style={{ fontFamily: '"Inter", sans-serif' }}>
+                  <div className="mb-2 flex items-center gap-2 font-semibold text-brand-forest"><FiExternalLink className="h-4 w-4 text-brand-teal" /> Example citations</div>
                   <ul className="space-y-2">
                     <li>State property code section</li>
                     <li>Attorney general landlord guide</li>
@@ -152,16 +152,16 @@ export default function LeaseShieldBlogPage() {
         </div>
       </section>
 
-      <article className="max-w-6xl mx-auto bg-[#061E35] px-4 sm:px-6 lg:px-8 py-14 md:py-16">
+      <article className="max-w-6xl mx-auto bg-brand-forest px-4 sm:px-6 lg:px-8 py-14 md:py-16">
         {/* Intro */}
         <section className="mb-12 grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
           <div>
-            <p className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-green-300" style={{ fontFamily: '"Inter", sans-serif' }}>
+            <p className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-brand-mint" style={{ fontFamily: '"Inter", sans-serif' }}>
               Why it matters
             </p>
             <h2
-              className="text-3xl font-bold text-white mb-4"
-              style={{ fontFamily: '"Poppins", sans-serif' }}
+              className="text-3xl font-extrabold text-white mb-4"
+              style={{ fontFamily: '"Host Grotesk", sans-serif' }}
             >
               Government-only sources reduce risk
             </h2>
@@ -187,17 +187,17 @@ export default function LeaseShieldBlogPage() {
           {scenarios.map((scenario, index) => (
             <div
               key={index}
-              className="border border-[#dfeaf5] rounded-[24px] p-6 md:p-7 bg-white text-[#061E35] shadow-[0_14px_38px_rgba(10,45,82,0.06)]"
+              className="border border-[var(--brand-border)] rounded-[24px] p-6 md:p-7 bg-brand-surface text-brand-forest shadow-[0_14px_38px_rgba(16,44,41,0.06)]"
               itemScope
               itemType="https://schema.org/Article"
             >
               <div className="mb-5 flex items-start gap-4">
-                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[#eef4ff] text-sm font-bold text-[#2f5dff]">
+                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--brand-ivory)] text-sm font-bold text-brand-teal">
                   {index + 1}
                 </div>
                 <h2
-                  className="text-xl md:text-2xl font-bold text-primary-main leading-tight"
-                  style={{ fontFamily: '"Poppins", sans-serif' }}
+                  className="text-xl md:text-2xl font-extrabold text-primary-main leading-tight"
+                  style={{ fontFamily: '"Host Grotesk", sans-serif' }}
                   itemProp="headline"
                 >
                   {scenario.title}
@@ -205,23 +205,23 @@ export default function LeaseShieldBlogPage() {
               </div>
               <div className="space-y-5">
                 <div>
-                  <h3 className="text-xs font-bold text-[#405a70] uppercase tracking-[0.18em] mb-2" style={{ fontFamily: '"Inter", sans-serif' }}>
+                  <h3 className="text-xs font-extrabold text-brand-slate uppercase tracking-[0.18em] mb-2" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>
                     Situation
                   </h3>
-                  <p className="text-[15px] text-[#405a70] leading-relaxed" style={{ fontFamily: '"Inter", sans-serif' }} itemProp="description">
+                  <p className="text-[15px] text-brand-slate leading-relaxed" style={{ fontFamily: '"Inter", sans-serif' }} itemProp="description">
                     {scenario.situation}
                   </p>
                 </div>
                 <div>
-                  <h3 className="text-xs font-bold text-primary-main uppercase tracking-[0.18em] mb-2 flex items-center gap-2" style={{ fontFamily: '"Inter", sans-serif' }}>
-                    <FiCheck className="w-4 h-4 text-[#2f5dff]" />
+                  <h3 className="text-xs font-extrabold text-primary-main uppercase tracking-[0.18em] mb-2 flex items-center gap-2" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>
+                    <FiCheck className="w-4 h-4 text-brand-teal" />
                     How LeaseShield helped
                   </h3>
-                  <p className="text-[15px] text-[#405a70] leading-relaxed" style={{ fontFamily: '"Inter", sans-serif' }}>
+                  <p className="text-[15px] text-brand-slate leading-relaxed" style={{ fontFamily: '"Inter", sans-serif' }}>
                     {scenario.howLeaseShieldHelped}
                   </p>
                 </div>
-                <div className="rounded-2xl border border-[#dfeaf5] bg-[#f8fbff] p-4">
+                <div className="rounded-2xl border border-[var(--brand-border)] bg-brand-ivory p-4">
                   <p className="text-[15px] text-primary-main font-medium leading-relaxed" style={{ fontFamily: '"Inter", sans-serif' }}>
                     <span className="font-bold">Outcome:</span> {scenario.outcome}
                   </p>
@@ -232,13 +232,13 @@ export default function LeaseShieldBlogPage() {
         </section>
 
         {/* CTA */}
-        <section className="mt-14 overflow-hidden rounded-[28px] bg-[#061e35] p-8 text-center text-white md:p-12">
+        <section className="mt-14 overflow-hidden rounded-[28px] bg-brand-forest p-8 text-center text-white md:p-12">
           <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-xl bg-white/10">
             <FiShield className="h-6 w-6" />
           </div>
           <h2
-            className="text-2xl md:text-4xl font-bold mb-4"
-            style={{ fontFamily: '"Poppins", sans-serif' }}
+            className="text-2xl md:text-4xl font-extrabold mb-4"
+            style={{ fontFamily: '"Host Grotesk", sans-serif' }}
           >
             Ask LeaseShield before you guess
           </h2>
@@ -251,7 +251,7 @@ export default function LeaseShieldBlogPage() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               href="https://app.propertypeace.io/register"
-              className="inline-flex items-center justify-center gap-2 px-7 py-3.5 bg-[#ff7a1a] text-white rounded-none font-bold hover:bg-[#ff8f3d] transition-all hover:-translate-y-0.5"
+              className="inline-flex items-center justify-center gap-2 px-7 py-3.5 bg-[var(--brand-teal)] text-white rounded-none font-bold hover:bg-[var(--brand-teal-hover)] transition-all hover:-translate-y-0.5"
               style={{ fontFamily: '"Inter", sans-serif' }}
             >
               Ask LeaseShield a Question

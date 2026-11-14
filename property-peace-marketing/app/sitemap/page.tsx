@@ -84,13 +84,13 @@ const sitemapSections = [
 
 export default function SitemapPage() {
   return (
-    <div className="min-h-screen bg-[#061E35] text-white">
+    <div className="min-h-screen bg-brand-forest text-white">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24">
         {/* Header Section */}
         <div className="mb-16">
           <h1
-            className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6"
-            style={{ fontFamily: '"Poppins", sans-serif' }}
+            className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-white mb-6"
+            style={{ fontFamily: '"Host Grotesk", sans-serif' }}
           >
             Explore Property Peace: A Sitemap of Our Management Tools
           </h1>
@@ -107,8 +107,8 @@ export default function SitemapPage() {
           {sitemapSections.map((section) => (
             <section key={section.title}>
               <h2
-                className="text-xl font-bold text-white mb-4 pb-2 border-b border-white/20"
-                style={{ fontFamily: '"Poppins", sans-serif' }}
+                className="text-xl font-extrabold text-white mb-4 pb-2 border-b border-white/20"
+                style={{ fontFamily: '"Host Grotesk", sans-serif' }}
               >
                 {section.title}
               </h2>
@@ -117,7 +117,7 @@ export default function SitemapPage() {
                   <li key={link.href}>
                     <Link
                       href={link.href}
-                      className="text-white/80 hover:text-green-300 transition-colors"
+                      className="text-white/80 hover:text-brand-mint transition-colors"
                       style={{ fontFamily: '"Inter", sans-serif' }}
                     >
                       {link.label}
@@ -130,15 +130,15 @@ export default function SitemapPage() {
         </div>
 
         {/* CTA */}
-        <div className="mt-16 text-center bg-[#F5F5F5] rounded-2xl p-8 md:p-12 border border-[#E5E5E5]">
+        <div className="mt-16 text-center bg-brand-ivory rounded-2xl p-8 md:p-12 border border-[var(--brand-border)]">
           <h2
-            className="text-2xl md:text-3xl font-bold text-primary-main mb-4"
-            style={{ fontFamily: '"Poppins", sans-serif' }}
+            className="text-2xl md:text-3xl font-extrabold text-primary-main mb-4"
+            style={{ fontFamily: '"Host Grotesk", sans-serif' }}
           >
             Ready to Get Started?
           </h2>
           <p
-            className="text-lg text-[#737373] max-w-xl mx-auto mb-6"
+            className="text-lg text-brand-slate max-w-xl mx-auto mb-6"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
             Sign up free and start managing your properties with Property Peace today.

@@ -75,9 +75,9 @@ function OccupancyChips({ property }) {
             height: 24,
             fontWeight: 700,
             fontSize: '0.7rem',
-            color: theme.palette.success.dark,
-            bgcolor: alpha(theme.palette.success.main, 0.12),
-            border: `1px solid ${alpha(theme.palette.success.main, 0.18)}`
+            color: theme.palette.statusChip.active.softForeground,
+            bgcolor: theme.palette.statusChip.active.softBackground,
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.18)}`
           })}
         />
       )}

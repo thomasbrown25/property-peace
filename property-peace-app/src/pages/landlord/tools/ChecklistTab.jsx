@@ -749,14 +749,14 @@ export default function ChecklistTab() {
             )}
           </Box>
         ) : (
-          <TableContainer component={Paper} sx={{ boxShadow: 'none', border: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
+          <TableContainer component={Paper}>
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ fontWeight: 600 }}>Property / Unit</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Title</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Progress</TableCell>
+                  <TableCell>Property / Unit</TableCell>
+                  <TableCell>Title</TableCell>
+                  <TableCell>Status</TableCell>
+                  <TableCell>Progress</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>

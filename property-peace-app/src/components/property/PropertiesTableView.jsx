@@ -232,7 +232,7 @@ export default function PropertiesTableView({
               >
                 Date Listed
               </SortableTableHeader>
-              <TableCell sx={{ fontWeight: 600 }} align="right">Actions</TableCell>
+              <TableCell align="right">Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>

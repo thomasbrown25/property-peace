@@ -1,5 +1,6 @@
 import PropTypes from 'prop-types';
 import { Box, Button, Typography } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 
 import propertyPeaceMark from 'assets/images/logos/logo.png';
 
@@ -14,7 +15,8 @@ export default function FriendlyLoadError({ onRetry, fullPage = false }) {
         py: { xs: 5, sm: 7 },
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'center'
+        justifyContent: 'center',
+        ...(fullPage && { bgcolor: 'background.default' })
       }}
     >
       <Box
@@ -28,7 +30,7 @@ export default function FriendlyLoadError({ onRetry, fullPage = false }) {
           border: '1px solid',
           borderColor: 'divider',
           borderRadius: 3,
-          boxShadow: '0 18px 50px rgba(6, 30, 53, 0.08)',
+          boxShadow: (theme) => `0 18px 50px ${alpha(theme.palette.brand.forest, theme.palette.mode === 'dark' ? 0.3 : 0.1)}`,
           position: 'relative',
           overflow: 'hidden',
           '&::before': {
@@ -36,7 +38,7 @@ export default function FriendlyLoadError({ onRetry, fullPage = false }) {
             position: 'absolute',
             inset: '0 0 auto',
             height: 4,
-            background: 'linear-gradient(90deg, #061e35 0%, #16b364 100%)'
+            background: (theme) => `linear-gradient(90deg, ${theme.palette.brand.forest} 0%, ${theme.palette.brand.teal} 62%, ${theme.palette.brand.mint} 100%)`
           }
         }}
       >
@@ -49,11 +51,14 @@ export default function FriendlyLoadError({ onRetry, fullPage = false }) {
             width: { xs: 150, sm: 180 },
             height: 'auto',
             mx: 'auto',
-            mb: 2.5
+            mb: 2.5,
+            bgcolor: (theme) => theme.palette.mode === 'dark' ? theme.palette.brand.ivory : 'transparent',
+            borderRadius: 2,
+            p: (theme) => theme.palette.mode === 'dark' ? 1.5 : 0
           }}
         />
 
-        <Typography variant="h3" component="h1" sx={{ color: '#061e35', fontSize: { xs: '1.5rem', sm: '1.8rem' }, mb: 1.25 }}>
+        <Typography variant="h3" component="h1" sx={{ color: 'text.primary', fontSize: { xs: '1.5rem', sm: '1.8rem' }, mb: 1.25 }}>
           Sorry, we ran into an issue
         </Typography>
         <Typography color="text.secondary" sx={{ maxWidth: 420, mx: 'auto', mb: 3, lineHeight: 1.7 }}>
@@ -62,15 +67,12 @@ export default function FriendlyLoadError({ onRetry, fullPage = false }) {
         <Button
           variant="contained"
           onClick={onRetry}
+          color="primary"
           sx={{
             minWidth: 132,
-            bgcolor: '#061e35',
-            color: '#fff',
             px: 3,
             py: 1.15,
-            borderRadius: 1.5,
-            boxShadow: 'none',
-            '&:hover': { bgcolor: '#0b3458', boxShadow: '0 8px 20px rgba(6, 30, 53, 0.18)' }
+            borderRadius: 1.5
           }}
         >
           Try again

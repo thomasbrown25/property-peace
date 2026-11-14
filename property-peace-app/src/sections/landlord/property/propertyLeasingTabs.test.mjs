@@ -18,7 +18,7 @@ function walk(node, visit) {
   }
 }
 
-test('property tab validation and rendered buttons use the requested order', () => {
+test('property tab validation retains URL ids while primary navigation is compact', () => {
   const rendered = [];
   let accepted;
   walk(ast, node => {
@@ -28,7 +28,27 @@ test('property tab validation and rendered buttons use the requested order', () 
     }
   });
   assert.deepEqual(accepted, expected);
-  assert.deepEqual(rendered, expected);
+  assert.deepEqual(rendered, ['overview', 'tenants', 'leases', 'payments', 'maintenances', 'more']);
+});
+
+test('More exposes every secondary URL tab, marks deep links selected and uses accessible keyboard navigation', () => {
+  const secondary = ['listings', 'applications', 'expenses', 'documents', 'settings'];
+  for (const id of secondary) {
+    assert.match(source, new RegExp(`\\{ id: '${id}', label: '[A-Z]`));
+    assert.ok(source.includes(`active === '${id}' &&`), `${id} panel remains reachable`);
+  }
+  assert.match(source, /const activeMore = moreSections\.find\(section => section\.id === active\)/);
+  assert.match(source, /value=\{activeMore \? 'more' : active\}/);
+  assert.match(source, /label=\{activeMore \? `More: \$\{activeMore\.label\}` : 'More'\}/);
+  assert.match(source, /selected=\{active === section\.id\}/);
+  assert.match(source, /onTabChange\(section\.id\)/);
+  assert.match(source, /if \(value !== 'more'\) onTabChange\(value\)/);
+  assert.match(source, /aria-haspopup="menu" aria-controls=/);
+  assert.match(source, /aria-expanded=\{Boolean\(moreAnchor\)\}/);
+  assert.match(source, /event\.key === 'ArrowDown'/);
+  assert.match(source, /onClose=\{\(\) => setMoreAnchor\(null\)\}/);
+  assert.match(source, /value="maintenances" label="Maintenance"/);
+  assert.match(source, /active === 'maintenances' && <RecordsTable label="Maintenance"/);
 });
 
 test('leasing tabs load property-scoped records only and guard stale requests', () => {

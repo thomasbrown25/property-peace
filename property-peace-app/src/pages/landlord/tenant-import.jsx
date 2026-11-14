@@ -311,9 +311,9 @@ export default function TenantImportPage() {
             <Table size="small" sx={{ mb: 2 }}>
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ fontWeight: 600 }}>Column</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Required</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Description</TableCell>
+                  <TableCell>Column</TableCell>
+                  <TableCell>Required</TableCell>
+                  <TableCell>Description</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>

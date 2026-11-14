@@ -22,7 +22,7 @@ export default function TrackOccupancy() {
               className="uppercase mb-4"
               style={{
                 fontFamily: "'Open Sans', sans-serif",
-                color: '#516A80',
+                color: 'var(--brand-teal)',
                 fontSize: '18px',
                 fontWeight: 700,
                 textTransform: 'uppercase',
@@ -38,14 +38,14 @@ export default function TrackOccupancy() {
             {/* Main Headline */}
             <h2
               className="text-3xl md:text-4xl lg:text-5xl font-bold mb-6 text-primary-main"
-              style={{ fontFamily: '"Poppins", sans-serif', lineHeight: '1.2' }}
+              style={{ fontFamily: '"Host Grotesk", sans-serif', lineHeight: '1.2' }}
             >
               Visualize unit availability at a glance.
             </h2>
 
             {/* Descriptive Paragraph */}
             <p
-              className="text-base md:text-lg text-[#737373] mb-6 leading-relaxed"
+              className="text-base md:text-lg text-brand-slate mb-6 leading-relaxed"
               style={{ fontFamily: '"Inter", sans-serif' }}
             >
               See exactly when each unit will be available and when it's occupied with an intuitive occupancy chart. Plan ahead for maintenance, schedule showings, and maximize your rental income by identifying upcoming vacancies before they happen.
@@ -53,11 +53,11 @@ export default function TrackOccupancy() {
 
             {/* Before/after */}
             <div className="mb-6 grid grid-cols-2 gap-2 text-sm max-w-sm mx-auto lg:mx-0" style={{ fontFamily: '"Inter", sans-serif' }}>
-              <div className="bg-red-50 rounded-lg px-3 py-2 text-[#737373]">
+              <div className="bg-red-50 rounded-lg px-3 py-2 text-brand-slate">
                 <span className="block font-semibold text-red-400 mb-1">Before</span>
                 Mental notes &amp; calendar guesswork
               </div>
-              <div className="bg-green-50 rounded-lg px-3 py-2 text-[#737373]">
+              <div className="bg-green-50 rounded-lg px-3 py-2 text-brand-slate">
                 <span className="block font-semibold text-green-600 mb-1">After</span>
                 Visual occupancy timeline, always current
               </div>
@@ -84,7 +84,7 @@ export default function TrackOccupancy() {
             <div 
               className="relative rounded-2xl overflow-hidden bg-white"
               style={{
-                boxShadow: '0 20px 60px rgba(47, 93, 255, 0.3)'
+                boxShadow: '0 20px 60px color-mix(in srgb, var(--brand-forest) 16%, transparent)'
               }}
             >
               {/* Device Frame */}

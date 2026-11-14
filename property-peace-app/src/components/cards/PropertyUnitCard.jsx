@@ -173,12 +173,9 @@ export default function PropertyUnitCard({ property }) {
                 <Chip
                   label={isOccupied ? 'Occupied' : 'Vacant'}
                   size="small"
-                  sx={{
-                    bgcolor: isOccupied ? alpha(theme.palette.success.main, 0.1) : alpha(theme.palette.warning.main, 0.1),
-                    color: isOccupied ? theme.palette.success.main : theme.palette.warning.main,
-                    fontWeight: 500,
-                    height: 24
-                  }}
+                  color={isOccupied ? 'success' : 'warning'}
+                  variant="light"
+                  sx={{ fontWeight: 500, height: 24 }}
                 />
               )}
             </Stack>
@@ -331,16 +328,9 @@ export default function PropertyUnitCard({ property }) {
                               <Chip
                                 label={unitIsOccupied ? 'Occupied' : 'Vacant'}
                                 size="small"
-                                sx={{
-                                  bgcolor: unitIsOccupied 
-                                    ? alpha(theme.palette.success.main, 0.1) 
-                                    : alpha(theme.palette.warning.main, 0.1),
-                                  color: unitIsOccupied 
-                                    ? theme.palette.success.main 
-                                    : theme.palette.warning.main,
-                                  fontWeight: 500,
-                                  height: 24
-                                }}
+                                color={unitIsOccupied ? 'success' : 'warning'}
+                                variant="light"
+                                sx={{ fontWeight: 500, height: 24 }}
                               />
                             </Stack>
                             <Typography variant="body2" color="text.secondary" fontWeight={600}>

@@ -56,7 +56,7 @@ export default function LandlordPrimaryNavigation() {
                 right: 0,
                 bottom: -6,
                 height: 2,
-                backgroundColor: theme.palette.mode === 'dark' ? 'common.white' : '#061e35',
+                backgroundColor: theme.palette.mode === 'dark' ? theme.palette.brand.mint : theme.palette.primary.main,
                 opacity: active === label ? 1 : 0
               }
             })}

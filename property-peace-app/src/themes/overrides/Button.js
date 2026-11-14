@@ -5,8 +5,7 @@ import { alpha } from '@mui/system';
 import getColors from 'utils/getColors';
 import getShadow from 'utils/getShadow';
 
-const FILLED_PRIMARY_NAVY = '#061e35';
-const FILLED_PRIMARY_NAVY_HOVER = '#042238';
+// Filled primary actions follow the selected MUI palette rather than a fixed navy.
 
 function getColorStyle({ variant, color, theme }) {
   const colors = getColors(theme, color);
@@ -216,22 +215,22 @@ export default function Button(theme) {
         containedPrimary: {
           ...getColorStyle({ variant: 'contained', color: 'primary', theme }),
           backgroundImage: 'none',
-          backgroundColor: FILLED_PRIMARY_NAVY,
-          color: '#fff',
+          backgroundColor: theme.palette.primary.main,
+          color: theme.palette.primary.contrastText,
           border: 'none',
           outline: 'none',
-          boxShadow: `0 2px 8px ${alpha(FILLED_PRIMARY_NAVY, 0.3)}`,
+          boxShadow: `0 2px 8px ${alpha(theme.palette.primary.main, 0.18)}`,
           '&:hover': {
             backgroundImage: 'none',
-            backgroundColor: FILLED_PRIMARY_NAVY_HOVER,
-            color: '#fff',
-            boxShadow: `0 4px 14px ${alpha(FILLED_PRIMARY_NAVY, 0.45)}`,
+            backgroundColor: theme.palette.primary.dark,
+            color: theme.palette.primary.contrastText,
+            boxShadow: `0 4px 14px ${alpha(theme.palette.primary.main, 0.25)}`,
             transform: 'translateY(-1px)'
           },
           '&::after': { boxShadow: 'none' },
           '&:active::after': { boxShadow: 'none' },
           '&:focus': { outline: 'none' },
-          '&:focus-visible': { outline: 'none' },
+          '&:focus-visible': { outline: `2px solid ${theme.palette.primary.light}`, outlineOffset: 2 },
         },
         containedSecondary: getColorStyle({ variant: 'contained', color: 'secondary', theme }),
         containedError: getColorStyle({ variant: 'contained', color: 'error', theme }),

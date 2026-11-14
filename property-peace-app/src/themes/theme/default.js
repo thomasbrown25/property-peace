@@ -1,6 +1,9 @@
+import { brand } from '../brand';
+import { ThemeMode } from 'config';
+
 // ==============================|| PRESET THEME - DEFAULT ||============================== //
 
-export default function Default(colors) {
+export default function Default(colors, mode) {
   const { red, gold, cyan, green, grey } = colors;
   const greyColors = {
     0: grey[0],
@@ -22,7 +25,10 @@ export default function Default(colors) {
     A800: grey[16]
   };
   const contrastText = '#fff';
-  const primaryColors = ['#E8EEF3', '#D8E3EA', '#B7C9D7', '#86A4BA', '#527893', '#061E35', '#0A2B4A', '#08233D', '#041A2E', '#03111F'];
+  const primaryColors = mode === ThemeMode.DARK
+    ? ['#173A32', '#21483D', '#2D5B4D', brand.mint, '#92D3B5', '#75C9AA', '#53AB8D', '#398B7A', brand.teal, brand.forest]
+    : ['#EDF7F0', '#DDF0E3', brand.mint, '#65AB97', '#398B7A', brand.teal, '#1C6055', '#174D45', brand.forest, '#0A211F'];
+  const primaryContrastText = mode === ThemeMode.DARK ? brand.forest : contrastText;
 
   return {
     primary: {
@@ -36,7 +42,7 @@ export default function Default(colors) {
       700: primaryColors[7],
       darker: primaryColors[8],
       900: primaryColors[9],
-      contrastText
+      contrastText: primaryContrastText
     },
     secondary: {
       lighter: greyColors[100],
@@ -87,17 +93,17 @@ export default function Default(colors) {
       contrastText
     },
     button: {
-      lighter: '#E8EEF3',
-      100: '#D8E3EA',
-      200: '#B7C9D7',
-      light: '#86A4BA',
-      400: '#527893',
-      main: '#061E35',
-      dark: '#0A2B4A',
-      700: '#08233D',
-      darker: '#041A2E',
-      900: '#03111F',
-      contrastText
+      lighter: primaryColors[0],
+      100: primaryColors[1],
+      200: primaryColors[2],
+      light: primaryColors[3],
+      400: primaryColors[4],
+      main: primaryColors[5],
+      dark: primaryColors[6],
+      700: primaryColors[7],
+      darker: primaryColors[8],
+      900: primaryColors[9],
+      contrastText: primaryContrastText
     },
     grey: greyColors
   };

@@ -20,10 +20,10 @@ export default function Pricing() {
           transition={{ duration: 0.5 }}
         >
           <span
-            className="inline-flex items-center gap-2 text-xs font-semibold tracking-widest uppercase text-green-600 px-4 py-1.5 rounded-full border border-green-500/20 bg-green-50"
+            className="inline-flex items-center gap-2 text-xs font-semibold tracking-widest uppercase text-brand-teal px-4 py-1.5 rounded-full border border-[var(--brand-border)] bg-brand-ivory"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
-            <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block flex-shrink-0" />
+            <span className="w-1.5 h-1.5 rounded-full bg-brand-teal inline-block flex-shrink-0" />
             Start free · built for landlords with 1–50 units
           </span>
         </motion.div>
@@ -31,14 +31,14 @@ export default function Pricing() {
         {/* Heading */}
         <motion.h2
           className="text-5xl md:text-6xl lg:text-7xl font-bold text-primary-main mb-6"
-          style={{ fontFamily: '"Poppins", sans-serif', lineHeight: 1.1 }}
+          style={{ fontFamily: '"Host Grotesk", sans-serif', lineHeight: 1.1 }}
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6, delay: 0.1 }}
         >
           Simplify Your Landlord{' '}
-          <span className="text-green-600">Workflow</span>
+          <span className="text-brand-teal">Workflow</span>
         </motion.h2>
 
         {/* Subtext */}
@@ -63,11 +63,10 @@ export default function Pricing() {
         >
           <Link
             href="https://app.propertypeace.io/register"
-            className="group flex w-full items-center justify-center gap-3 rounded-none px-8 py-5 text-lg font-bold text-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-emerald-500/40"
+            className="group flex w-full items-center justify-center gap-3 rounded-none bg-brand-teal px-8 py-5 text-lg font-bold text-white transition-all duration-200 hover:-translate-y-0.5 hover:bg-brand-teal-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-teal"
             style={{
-              background: 'linear-gradient(135deg, #22c55e, #16a34a)',
-              fontFamily: '"Poppins", sans-serif',
-              boxShadow: '0 14px 40px rgba(34,197,94,0.35)'
+              fontFamily: '"Host Grotesk", sans-serif',
+              boxShadow: '0 14px 40px color-mix(in srgb, var(--brand-forest) 20%, transparent)'
             }}
           >
             Start free

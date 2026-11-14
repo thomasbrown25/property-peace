@@ -62,7 +62,7 @@ export default function Compare() {
         >
           {/* Eyebrow */}
           <span
-            className="inline-block text-xs font-semibold tracking-widest uppercase text-green-600 mb-4 px-3 py-1 rounded-full border border-green-500/20 bg-green-50"
+            className="inline-block text-xs font-semibold tracking-widest uppercase text-brand-mint mb-4 px-3 py-1 rounded-full border border-[color-mix(in_srgb,var(--brand-mint)_20%,transparent)] bg-brand-forest-raised"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
             How we stack up
@@ -70,10 +70,10 @@ export default function Compare() {
 
           <h2
             className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4 leading-tight"
-            style={{ fontFamily: '"Poppins", sans-serif' }}
+            style={{ fontFamily: '"Host Grotesk", sans-serif' }}
           >
             Why landlords switch to{' '}
-            <span className="text-green-400">Property Peace</span>
+            <span className="text-brand-mint">Property Peace</span>
           </h2>
           <p
             className="text-base md:text-lg text-white/60 max-w-2xl mx-auto"
@@ -96,27 +96,27 @@ export default function Compare() {
               whileHover={{ y: -5, transition: { duration: 0.2 } }}
               className="relative flex flex-col rounded-2xl overflow-hidden"
               style={{
-                background: 'linear-gradient(145deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.03) 100%)',
+                background: 'var(--brand-forest-raised)',
                 border: '1px solid rgba(255,255,255,0.1)',
                 backdropFilter: 'blur(12px)',
                 boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
               }}
             >
               {/* Top accent line */}
-              <div className="h-0.5 w-full" style={{ background: 'linear-gradient(90deg, #3b82f6, #6366f1)' }} />
+              <div className="h-0.5 w-full bg-brand-mint" />
 
               <div className="flex flex-col flex-1 p-7">
                 {/* VS Badge */}
                 <div className="flex items-center gap-3 mb-5">
                   <span
-                    className="text-[10px] font-bold tracking-widest uppercase text-green-400/70 px-2 py-0.5 rounded border border-green-400/20 bg-green-400/10"
+                    className="text-[10px] font-bold tracking-widest uppercase text-brand-mint px-2 py-0.5 rounded border border-[color-mix(in_srgb,var(--brand-mint)_20%,transparent)] bg-brand-forest"
                     style={{ fontFamily: '"Inter", sans-serif' }}
                   >
                     VS
                   </span>
                   <span
                     className="text-xl font-bold text-white"
-                    style={{ fontFamily: '"Poppins", sans-serif' }}
+                    style={{ fontFamily: '"Host Grotesk", sans-serif' }}
                   >
                     {c.competitor}
                   </span>
@@ -134,8 +134,8 @@ export default function Compare() {
                 <ul className="flex flex-col gap-3 mb-8 flex-1">
                   {c.wins.map((win) => (
                     <li key={win} className="flex items-start gap-2.5">
-                      <span className="mt-0.5 flex-shrink-0 w-4 h-4 rounded-full flex items-center justify-center" style={{ background: 'rgba(59,130,246,0.2)' }}>
-                        <FiCheck className="w-2.5 h-2.5 text-blue-400" strokeWidth={3} />
+                      <span className="mt-0.5 flex-shrink-0 w-4 h-4 rounded-full flex items-center justify-center bg-brand-forest">
+                        <FiCheck className="w-2.5 h-2.5 text-brand-mint" strokeWidth={3} />
                       </span>
                       <span
                         className="text-sm text-white/80 leading-snug"
@@ -150,17 +150,9 @@ export default function Compare() {
                 {/* CTA */}
                 <Link
                   href={c.link}
-                  className="group mt-auto flex items-center justify-center gap-2 py-2.5 px-5 rounded-none font-semibold text-sm transition-all duration-200 text-white"
+                  className="group mt-auto flex items-center justify-center gap-2 py-2.5 px-5 rounded-none font-semibold text-sm transition-all duration-200 text-brand-forest bg-brand-mint hover:bg-brand-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-mint"
                   style={{
-                    background: 'linear-gradient(135deg, rgba(59,130,246,0.25), rgba(99,102,241,0.25))',
-                    border: '1px solid rgba(99,102,241,0.4)',
                     fontFamily: '"Inter", sans-serif',
-                  }}
-                  onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLElement).style.background = 'linear-gradient(135deg, rgba(59,130,246,0.4), rgba(99,102,241,0.4))';
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLElement).style.background = 'linear-gradient(135deg, rgba(59,130,246,0.25), rgba(99,102,241,0.25))';
                   }}
                 >
                   See full comparison

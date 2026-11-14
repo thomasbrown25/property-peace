@@ -23,7 +23,7 @@ export default function MaintenanceTrackingFeatureSection({ heading, description
   return (
     <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-14">
       <div className="flex flex-col items-center lg:items-start">
-        <h2 className="mb-7 max-w-xl text-center text-3xl font-bold leading-tight text-primary-main md:text-4xl lg:text-left" style={{ fontFamily: '"Poppins", sans-serif' }}>
+        <h2 className="mb-7 max-w-xl text-center text-3xl font-extrabold leading-tight text-primary-main md:text-4xl lg:text-left" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>
           {heading}
         </h2>
         <FeatureHeroMock
@@ -45,12 +45,12 @@ export default function MaintenanceTrackingFeatureSection({ heading, description
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.22, ease: 'easeOut' }}
             className="mb-4 text-2xl font-bold leading-snug text-primary-main md:text-3xl"
-            style={{ fontFamily: '"Poppins", sans-serif' }}
+            style={{ fontFamily: '"Host Grotesk", sans-serif' }}
           >
             {activeHeading}
           </motion.h3>
         </AnimatePresence>
-        <p className="text-lg leading-relaxed text-[#516A80] md:text-xl" style={{ fontFamily: '"Inter", sans-serif' }}>
+        <p className="text-lg leading-relaxed text-brand-slate md:text-xl" style={{ fontFamily: '"Inter", sans-serif' }}>
           {description}
         </p>
       </div>

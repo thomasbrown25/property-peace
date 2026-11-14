@@ -19,7 +19,7 @@ export default function StickyCTA() {
 
   return (
     <div
-      className="fixed bottom-0 left-0 right-0 z-50 bg-[#061e35] border-t border-white/10 shadow-2xl"
+      className="fixed bottom-0 left-0 right-0 z-50 bg-brand-forest border-t border-white/10 shadow-2xl"
       role="complementary"
       aria-label="Get started prompt"
     >
@@ -33,12 +33,8 @@ export default function StickyCTA() {
         <div className="flex items-center gap-3 ml-auto">
           <Link
             href="https://app.propertypeace.io/register"
-            className="inline-flex items-center justify-center px-6 py-2.5 text-white rounded-none font-bold text-sm transition-all duration-200 shadow-lg shadow-green-600/25 hover:shadow-green-600/35 hover:brightness-105 whitespace-nowrap"
-            style={{
-              fontFamily: '"Inter", sans-serif',
-              backgroundColor: '#16a34a',
-              backgroundImage: 'linear-gradient(135deg, #22c55e, #16a34a)'
-            }}
+            className="inline-flex items-center justify-center bg-brand-teal px-6 py-2.5 text-white rounded-none font-bold text-sm transition-all duration-200 shadow-lg shadow-[color-mix(in_srgb,var(--brand-forest)_25%,transparent)] hover:bg-brand-teal-hover whitespace-nowrap"
+            style={{ fontFamily: '"Inter", sans-serif' }}
           >
             Start free
           </Link>

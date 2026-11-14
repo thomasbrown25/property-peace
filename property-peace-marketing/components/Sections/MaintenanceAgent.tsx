@@ -3,9 +3,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const TEAL = '#0ea5e9';
-const GREEN = '#22c55e';
-const NAVY = '#061e35';
+const TEAL = 'var(--brand-teal)';
+const GREEN = 'var(--brand-teal)';
+const NAVY = 'var(--brand-forest)';
+const tint = (color: string, percent: number) => `color-mix(in srgb, ${color} ${percent}%, transparent)`;
 const TICK_MS = 50;
 const STEP_DURATIONS = [4500, 4500, 3500];
 
@@ -49,15 +50,15 @@ function ChatStep() {
   return (
     <div className="flex flex-col h-full" style={{ fontFamily: '"Inter", sans-serif' }}>
       {/* Chat header */}
-      <div className="flex items-center gap-2 mb-3 pb-3" style={{ borderBottom: `1px solid ${TEAL}18` }}>
-        <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: `${TEAL}18` }}>
+      <div className="flex items-center gap-2 mb-3 pb-3" style={{ borderBottom: `1px solid ${tint(TEAL, 10)}` }}>
+        <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: tint(TEAL, 10) }}>
           <span className="text-[8px] font-bold" style={{ color: TEAL }}>P</span>
         </div>
         <div>
           <p className="text-xs font-semibold text-primary-main leading-tight">Percy Maintenance Agent</p>
           <p className="text-[10px] font-medium" style={{ color: '#16a34a' }}>● Conversation active</p>
         </div>
-        <span className="ml-auto text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: `${TEAL}12`, color: TEAL, border: `1px solid ${TEAL}28` }}>
+        <span className="ml-auto text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: tint(TEAL, 8), color: TEAL, border: `1px solid ${tint(TEAL, 20)}` }}>
           42 Oak St · Unit 3B
         </span>
       </div>
@@ -73,7 +74,7 @@ function ChatStep() {
             className={`flex items-end gap-1.5 ${msg.from === 'tenant' ? 'justify-end' : 'justify-start'}`}
           >
             {msg.from === 'agent' && (
-              <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 mb-0.5" style={{ background: `${TEAL}18` }}>
+              <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 mb-0.5" style={{ background: tint(TEAL, 10) }}>
                 <span className="text-[7px] font-bold" style={{ color: TEAL }}>P</span>
               </div>
             )}
@@ -81,7 +82,7 @@ function ChatStep() {
               className="max-w-[78%] px-3 py-2 text-[11px] leading-relaxed"
               style={
                 msg.from === 'agent'
-                  ? { background: `${TEAL}0e`, color: '#374151', border: `1px solid ${TEAL}22`, borderRadius: '4px 14px 14px 14px' }
+                  ? { background: tint(TEAL, 6), color: 'var(--brand-slate)', border: `1px solid ${tint(TEAL, 14)}`, borderRadius: '4px 14px 14px 14px' }
                   : { background: TEAL, color: '#ffffff', borderRadius: '14px 14px 4px 14px' }
               }
             >
@@ -108,8 +109,8 @@ function ChatStep() {
               <div
                 className="px-3 py-2 rounded-2xl flex items-center gap-1"
                 style={typingFrom === 'tenant'
-                  ? { background: `${TEAL}18`, borderRadius: '14px 14px 4px 14px' }
-                  : { background: `${TEAL}0e`, border: `1px solid ${TEAL}22`, borderRadius: '4px 14px 14px 14px' }
+                  ? { background: tint(TEAL, 10), borderRadius: '14px 14px 4px 14px' }
+                  : { background: tint(TEAL, 6), border: `1px solid ${tint(TEAL, 14)}`, borderRadius: '4px 14px 14px 14px' }
                 }
               >
                 {[0, 150, 300].map((d) => (
@@ -183,7 +184,7 @@ function TicketStep() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.65, duration: 0.3 }}
         className="rounded-xl p-2.5 mb-3"
-        style={{ background: `${TEAL}0a`, border: `1px solid ${TEAL}22` }}
+        style={{ background: tint(TEAL, 4), border: `1px solid ${tint(TEAL, 14)}` }}
       >
         <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: TEAL }}>Percy Summary</p>
         <p className="text-[11px] leading-relaxed text-[#374151]">
@@ -201,7 +202,7 @@ function TicketStep() {
         <button className="flex-1 py-1.5 text-xs font-semibold rounded-none text-white" style={{ background: NAVY }}>
           Assign Vendor
         </button>
-        <button className="flex-1 py-1.5 text-xs font-semibold rounded-none" style={{ color: NAVY, border: `1px solid ${NAVY}22`, background: `${NAVY}06` }}>
+        <button className="flex-1 py-1.5 text-xs font-semibold rounded-none" style={{ color: NAVY, border: `1px solid ${tint(NAVY, 14)}`, background: tint(NAVY, 3) }}>
           View Details
         </button>
       </motion.div>
@@ -223,7 +224,7 @@ function TrackingStep() {
     <div style={{ fontFamily: '"Inter", sans-serif' }}>
       <div className="flex items-center justify-between mb-3">
         <p className="text-xs font-semibold text-primary-main">Kitchen faucet dripping</p>
-        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: `${TEAL}12`, color: TEAL, border: `1px solid ${TEAL}28` }}>
+        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: tint(TEAL, 8), color: TEAL, border: `1px solid ${tint(TEAL, 20)}` }}>
           In Progress
         </span>
       </div>
@@ -243,7 +244,7 @@ function TrackingStep() {
             <div className="flex flex-col items-center flex-shrink-0">
               <div
                 className="w-6 h-6 rounded-full flex items-center justify-center"
-                style={{ background: item.done ? (i === 1 ? '#dcfce7' : `${TEAL}18`) : 'rgba(0,0,0,0.04)', border: item.done ? (i === 1 ? '1px solid #86efac' : `1px solid ${TEAL}30`) : '1px solid rgba(0,0,0,0.08)' }}
+                style={{ background: item.done ? (i === 1 ? '#dcfce7' : tint(TEAL, 10)) : 'rgba(0,0,0,0.04)', border: item.done ? (i === 1 ? '1px solid #86efac' : `1px solid ${tint(TEAL, 20)}`) : '1px solid rgba(0,0,0,0.08)' }}
               >
                 {item.done ? (
                   <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke={i === 1 ? '#16a34a' : TEAL} strokeWidth={2.5}>
@@ -254,13 +255,13 @@ function TrackingStep() {
                 )}
               </div>
               {i < timeline.length - 1 && (
-                <div className="w-px flex-1 my-0.5" style={{ height: '20px', background: item.done ? `${TEAL}30` : 'rgba(0,0,0,0.06)' }} />
+                <div className="w-px flex-1 my-0.5" style={{ height: '20px', background: item.done ? tint(TEAL, 20) : 'rgba(0,0,0,0.06)' }} />
               )}
             </div>
 
             {/* Text */}
             <div className="pb-3 min-w-0">
-              <p className="text-xs font-semibold" style={{ color: item.done ? '#042238' : '#9ca3af' }}>{item.label}</p>
+              <p className="text-xs font-semibold" style={{ color: item.done ? NAVY : 'var(--brand-slate)' }}>{item.label}</p>
               <p className="text-[10px] text-[#9ca3af]">{item.sub}</p>
             </div>
           </motion.div>
@@ -332,7 +333,7 @@ export default function MaintenanceAgent() {
           >
             <div
               className="rounded-2xl border border-gray-200 overflow-hidden"
-              style={{ background: '#ffffff', boxShadow: '0 20px 60px rgba(10,45,82,0.10)' }}
+              style={{ background: 'var(--brand-surface)', boxShadow: '0 20px 60px color-mix(in srgb, var(--brand-forest) 10%, transparent)' }}
               onMouseEnter={() => { isPausedRef.current = true; }}
               onMouseLeave={() => { isPausedRef.current = false; }}
             >
@@ -340,7 +341,7 @@ export default function MaintenanceAgent() {
               <div className="px-5 pt-5 pb-4 border-b border-gray-100">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `${GREEN}18` }}>
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: tint(GREEN, 10) }}>
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={GREEN} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
                       </svg>
@@ -357,7 +358,7 @@ export default function MaintenanceAgent() {
                   </div>
                   <span
                     className="text-xs px-2.5 py-1 rounded-full font-medium"
-                    style={{ background: `${GREEN}14`, color: '#16a34a', border: `1px solid ${GREEN}30`, fontFamily: '"Inter", sans-serif' }}
+                    style={{ background: tint(GREEN, 8), color: GREEN, border: `1px solid ${tint(GREEN, 20)}`, fontFamily: '"Inter", sans-serif' }}
                   >
                     {activeStep === 0 ? 'In conversation' : activeStep === 1 ? 'Ticket ready' : 'In progress'}
                   </span>
@@ -373,8 +374,8 @@ export default function MaintenanceAgent() {
                         onClick={() => handleStepClick(i)}
                         className="flex-1 relative flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-left overflow-hidden transition-colors duration-200"
                         style={{
-                          background: isActive ? `${GREEN}0e` : 'rgba(0,0,0,0.02)',
-                          border: isActive ? `1px solid ${GREEN}30` : '1px solid rgba(0,0,0,0.06)',
+                          background: isActive ? tint(GREEN, 6) : 'rgba(0,0,0,0.02)',
+                          border: isActive ? `1px solid ${tint(GREEN, 20)}` : '1px solid rgba(0,0,0,0.06)',
                         }}
                       >
                         <span
@@ -390,7 +391,7 @@ export default function MaintenanceAgent() {
                           {step.label}
                         </span>
                         {isActive && (
-                          <div className="absolute bottom-0 left-0 right-0 h-0.5" style={{ background: `${GREEN}20` }}>
+                          <div className="absolute bottom-0 left-0 right-0 h-0.5" style={{ background: tint(GREEN, 12) }}>
                             <div className="h-full" style={{ width: `${progress}%`, background: GREEN, transition: 'none' }} />
                           </div>
                         )}
@@ -429,20 +430,20 @@ export default function MaintenanceAgent() {
           >
             <span
               className="inline-block text-xs font-semibold tracking-widest uppercase mb-5 px-3 py-1 rounded-full border"
-              style={{ fontFamily: '"Inter", sans-serif', color: '#16a34a', borderColor: 'rgba(34,197,94,0.20)', background: 'rgba(34,197,94,0.08)' }}
+              style={{ fontFamily: '"Inter", sans-serif', color: TEAL, borderColor: tint(TEAL, 20), background: tint(TEAL, 8) }}
             >
               Percy Maintenance Agent
             </span>
 
             <h2
               className="text-3xl md:text-4xl lg:text-5xl font-bold mb-5 text-primary-main"
-              style={{ fontFamily: '"Poppins", sans-serif', lineHeight: '1.2' }}
+              style={{ fontFamily: '"Host Grotesk", sans-serif', lineHeight: '1.2' }}
             >
               Complete tickets,<br />not complaints.
             </h2>
 
             <p
-              className="text-base md:text-lg text-[#737373] mb-6 leading-relaxed"
+              className="text-base md:text-lg text-brand-slate mb-6 leading-relaxed"
               style={{ fontFamily: '"Inter", sans-serif' }}
             >
               Instead of a blank text box, tenants chat with Percy. Percy asks the right
@@ -455,13 +456,13 @@ export default function MaintenanceAgent() {
                 <li key={i} className="flex items-start gap-2.5">
                   <span
                     className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
-                    style={{ background: `${GREEN}18` }}
+                    style={{ background: tint(GREEN, 10) }}
                   >
                     <svg width="9" height="9" viewBox="0 0 10 10" fill="none">
                       <path d="M2 5l2.5 2.5L8 3" stroke={GREEN} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   </span>
-                  <span className="text-sm text-[#516A80]" style={{ fontFamily: '"Inter", sans-serif' }}>
+                  <span className="text-sm text-brand-slate" style={{ fontFamily: '"Inter", sans-serif' }}>
                     {b}
                   </span>
                 </li>
@@ -469,7 +470,7 @@ export default function MaintenanceAgent() {
             </ul>
 
             <p
-              className="text-sm md:text-base text-[#516A80] italic pl-4"
+              className="text-sm md:text-base text-brand-slate italic pl-4"
               style={{ fontFamily: '"Inter", sans-serif', borderLeft: `3px solid ${GREEN}` }}
             >
               Your landlord has been notified and will follow up shortly.

@@ -11,22 +11,22 @@ type CTAProps = {
 export default function CTA({ featured = false }: CTAProps) {
   if (featured) {
     return (
-      <section className="bg-white px-4 py-16 sm:px-6 lg:px-8">
+      <section className="bg-brand-ivory px-4 py-16 sm:px-6 lg:px-8">
         <motion.div
-          className="relative mx-auto max-w-[1440px] overflow-hidden rounded-[2rem] bg-[#061e35] px-6 py-14 text-center shadow-[0_24px_70px_rgba(6,30,53,0.22)] sm:px-10 sm:py-16 lg:px-16"
+          className="relative mx-auto max-w-[1440px] overflow-hidden rounded-[2rem] bg-brand-forest px-6 py-14 text-center shadow-[0_24px_70px_rgba(16,44,41,0.22)] sm:px-10 sm:py-16 lg:px-16"
           initial={{ opacity: 0, y: 24 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.2 }}
           transition={{ duration: 0.6, ease: 'easeOut' }}
         >
           <div className="pointer-events-none absolute inset-0 opacity-70" aria-hidden="true">
-            <div className="absolute left-1/2 top-0 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-green-400/10 blur-3xl" />
-            <div className="absolute bottom-0 right-0 h-72 w-72 translate-x-1/3 translate-y-1/3 rounded-full bg-green-500/10 blur-3xl" />
+            <div className="absolute left-1/2 top-0 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[color-mix(in_srgb,var(--brand-mint)_10%,transparent)] blur-3xl" />
+            <div className="absolute bottom-0 right-0 h-72 w-72 translate-x-1/3 translate-y-1/3 rounded-full bg-[color-mix(in_srgb,var(--brand-mint)_10%,transparent)] blur-3xl" />
           </div>
 
           <div className="relative z-10 mx-auto max-w-4xl">
             <div
-              className="mb-6 inline-flex items-center rounded-full border border-green-400/20 bg-green-400/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.24em] text-green-200"
+              className="mb-6 inline-flex items-center rounded-full border border-[color-mix(in_srgb,var(--brand-mint)_20%,transparent)] bg-[color-mix(in_srgb,var(--brand-mint)_10%,transparent)] px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.24em] text-brand-mint"
               style={{ fontFamily: '"Inter", sans-serif' }}
             >
               Ready when you are
@@ -34,7 +34,7 @@ export default function CTA({ featured = false }: CTAProps) {
 
             <h2
               className="text-4xl font-bold leading-tight text-white md:text-5xl lg:text-6xl"
-              style={{ fontFamily: '"Poppins", sans-serif' }}
+              style={{ fontFamily: '"Host Grotesk", sans-serif' }}
             >
               Start with the tools you need today. Grow into the rest tomorrow.
             </h2>
@@ -51,20 +51,20 @@ export default function CTA({ featured = false }: CTAProps) {
               style={{ fontFamily: '"Inter", sans-serif' }}
             >
               <li className="flex items-center gap-2">
-                <span className="text-green-400">✓</span> No credit card required
+                <span className="text-brand-mint">✓</span> No credit card required
               </li>
               <li className="flex items-center gap-2">
-                <span className="text-green-400">✓</span> Free forever plan
+                <span className="text-brand-mint">✓</span> Free forever plan
               </li>
               <li className="flex items-center gap-2">
-                <span className="text-green-400">✓</span> Built for landlords with 1–50 units
+                <span className="text-brand-mint">✓</span> Built for landlords with 1–50 units
               </li>
             </ul>
 
             <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
               <Link
                 href="https://app.propertypeace.io/register"
-                className="inline-flex min-h-[52px] items-center justify-center gap-2 rounded-none bg-gradient-to-r from-green-500 to-green-600 px-7 py-3 text-base font-semibold text-white shadow-[0_14px_30px_rgba(34,197,94,0.28)] transition-all duration-300 hover:-translate-y-0.5 hover:from-green-600 hover:to-green-700 hover:shadow-[0_18px_36px_rgba(34,197,94,0.34)]"
+                className="inline-flex min-h-[52px] items-center justify-center gap-2 rounded-none bg-brand-teal px-7 py-3 text-base font-semibold text-white shadow-[0_14px_30px_rgba(16,44,41,0.28)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-brand-teal-hover hover:shadow-[0_18px_36px_rgba(16,44,41,0.34)]"
                 style={{ fontFamily: '"Inter", "Inter Placeholder", sans-serif' }}
               >
                 <span>Start free</span>
@@ -85,7 +85,7 @@ export default function CTA({ featured = false }: CTAProps) {
   }
 
   return (
-    <section className="relative flex min-h-[620px] items-center justify-center overflow-hidden bg-[#061E35] px-4 py-20 sm:min-h-[680px] sm:px-6 lg:min-h-[760px] lg:px-8">
+    <section className="relative flex min-h-[620px] items-center justify-center overflow-hidden bg-brand-forest px-4 py-20 sm:min-h-[680px] sm:px-6 lg:min-h-[760px] lg:px-8">
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 bg-cover bg-center bg-no-repeat"
@@ -93,12 +93,12 @@ export default function CTA({ featured = false }: CTAProps) {
       />
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom,#061E35_0%,rgba(6,30,53,0.84)_20%,rgba(6,30,53,0.56)_48%,rgba(6,30,53,0.66)_68%,rgba(6,30,53,0.9)_85%,#061E35_100%)]"
+        className="marketing-cta-fade pointer-events-none absolute inset-0"
       />
       <div className="relative z-10 mx-auto w-full max-w-4xl text-center">
         <motion.h2
           className="mb-4 text-4xl font-bold text-white md:text-5xl"
-          style={{ fontFamily: '"Poppins", sans-serif' }}
+          style={{ fontFamily: '"Host Grotesk", sans-serif' }}
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.2 }}
@@ -125,13 +125,13 @@ export default function CTA({ featured = false }: CTAProps) {
           transition={{ duration: 0.6, ease: "easeOut", delay: 0.25 }}
         >
           <li className="flex items-center gap-2">
-            <span className="text-green-600">✓</span> Start free — no credit card required
+            <span className="text-brand-mint">✓</span> Start free — no credit card required
           </li>
           <li className="flex items-center gap-2">
-            <span className="text-green-600">✓</span> Cancel anytime
+            <span className="text-brand-mint">✓</span> Cancel anytime
           </li>
           <li className="flex items-center gap-2">
-            <span className="text-green-600">✓</span> Built for landlords with 1–50 units
+            <span className="text-brand-mint">✓</span> Built for landlords with 1–50 units
           </li>
         </motion.ul>
         <motion.div
@@ -143,14 +143,14 @@ export default function CTA({ featured = false }: CTAProps) {
         >
           <Link
             href="https://app.propertypeace.io/register"
-            className="inline-flex items-center justify-center space-x-2 px-5 py-2.5 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-none font-medium transition-all duration-300 hover:from-green-600 hover:to-green-700 hover:translate-y-[-2px] hover:shadow-[0_4px_12px_rgba(34,197,94,0.3)]"
+            className="inline-flex items-center justify-center space-x-2 px-5 py-2.5 bg-brand-teal text-white rounded-none font-medium transition-all duration-300 hover:bg-brand-teal-hover hover:translate-y-[-2px] hover:shadow-[0_4px_12px_rgba(16,44,41,0.3)]"
             style={{ fontFamily: '"Inter", "Inter Placeholder", sans-serif' }}
           >
             <span>Start free</span>
           </Link>
           <Link
             href="/demo"
-            className="inline-flex items-center justify-center space-x-2 rounded-none bg-white px-5 py-2.5 font-medium text-[#061E35] transition-all duration-300 hover:-translate-y-0.5 hover:bg-white/90 hover:shadow-[0_4px_12px_rgba(6,30,53,0.2)]"
+            className="inline-flex items-center justify-center space-x-2 rounded-none bg-white px-5 py-2.5 font-medium text-brand-forest transition-all duration-300 hover:-translate-y-0.5 hover:bg-white/90 hover:shadow-[0_4px_12px_rgba(16,44,41,0.2)]"
             style={{ fontFamily: '"Inter", "Inter Placeholder", sans-serif' }}
           >
             <FiCalendar className="w-4 h-4" />

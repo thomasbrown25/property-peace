@@ -11,19 +11,15 @@ export default function TrustedBy() {
   ];
 
   return (
-    <section className="py-12 px-4 sm:px-6 lg:px-8 bg-[#F5F5F5]">
+    <section className="py-12 px-4 sm:px-6 lg:px-8 bg-brand-ivory">
       <div className="max-w-6xl mx-auto">
         <div className="flex flex-wrap items-center justify-center gap-8 md:gap-12">
           {companies.map((company, index) => (
             <div key={index} className="flex items-center space-x-2">
               {company.icon && (
-                <div className={`w-4 h-4 rounded ${
-                  company.icon === 'green' ? 'bg-green-500' :
-                  company.icon === 'blue' ? 'bg-blue-500' :
-                  company.icon === 'red' ? 'bg-red-500' : 'bg-gray-400'
-                }`}></div>
+                <div className="w-4 h-4 rounded bg-brand-teal"></div>
               )}
-              <div className="text-[#737373] font-semibold text-lg">
+              <div className="text-brand-slate font-semibold text-lg">
                 {company.name}
               </div>
               {index < companies.length - 1 && (

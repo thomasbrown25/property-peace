@@ -188,28 +188,28 @@ export default function FeaturesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#061E35]">
+    <div className="min-h-screen bg-brand-forest">
       <StructuredData data={pageSchema} />
       <StructuredData data={softwareSchema} />
       <StructuredData data={breadcrumbSchema} />
 
       <main className="overflow-hidden">
         {/* Hero */}
-        <section className="relative bg-[#061E35] px-4 pb-16 pt-24 sm:px-6 lg:px-8 lg:pb-20 lg:pt-28">
-          <div className="absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-green-500/10 via-[#061E35] to-[#061E35]" />
+        <section className="relative bg-brand-forest px-4 pb-16 pt-24 sm:px-6 lg:px-8 lg:pb-20 lg:pt-28">
+          <div className="absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-[color-mix(in_srgb,var(--brand-teal)_10%,transparent)] via-brand-forest to-brand-forest" />
           <div className="relative mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-[1.05fr_0.95fr]">
             <div>
               <span
-                className="inline-flex items-center gap-2 rounded-full border border-green-500/20 bg-green-50 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-green-600"
+                className="inline-flex items-center gap-2 rounded-full border border-[color:color-mix(in_srgb,var(--brand-teal)_20%,transparent)] bg-brand-mint px-3 py-1 text-xs font-semibold uppercase tracking-widest text-brand-teal"
                 style={{ fontFamily: '"Inter", sans-serif' }}
               >
                 Features built for small landlords
               </span>
               <h1
-                className="mt-5 max-w-4xl text-4xl font-bold tracking-tight text-white md:text-5xl lg:text-6xl"
-                style={{ fontFamily: '"Poppins", sans-serif' }}
+                className="mt-5 max-w-4xl text-4xl font-extrabold tracking-tight text-white md:text-5xl lg:text-6xl"
+                style={{ fontFamily: '"Host Grotesk", sans-serif' }}
               >
-                All your rental workflows, <span className="text-green-400">finally in one calm system.</span>
+                All your rental workflows, <span className="text-brand-mint">finally in one calm system.</span>
               </h1>
               <p
                 className="mt-5 max-w-2xl text-lg leading-8 text-white/75 md:text-xl"
@@ -220,7 +220,7 @@ export default function FeaturesPage() {
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <Link
                   href="https://app.propertypeace.io/register"
-                  className="inline-flex items-center justify-center gap-2 rounded-none bg-gradient-to-r from-green-500 to-green-600 px-5 py-3 font-semibold text-white transition-all duration-300 hover:-translate-y-0.5 hover:from-green-600 hover:to-green-700 hover:shadow-[0_10px_24px_rgba(34,197,94,0.28)]"
+                  className="inline-flex items-center justify-center gap-2 rounded-none bg-gradient-to-r from-brand-teal to-brand-teal px-5 py-3 font-semibold text-white transition-all duration-300 hover:-translate-y-0.5 hover:from-brand-teal hover:to-brand-teal-hover hover:shadow-[0_10px_24px_rgba(36,117,104,0.28)]"
                   style={{ fontFamily: '"Inter", sans-serif' }}
                 >
                   Start free
@@ -228,16 +228,16 @@ export default function FeaturesPage() {
                 </Link>
                 <Link
                   href="/demo"
-                  className="inline-flex items-center justify-center rounded-none border border-slate-200 bg-white px-5 py-3 font-semibold text-[#061e35] shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-green-200 hover:shadow-lg hover:shadow-slate-950/5"
+                  className="inline-flex items-center justify-center rounded-none border border-[var(--brand-border)] bg-brand-surface px-5 py-3 font-semibold text-brand-forest shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-brand-mint hover:shadow-lg hover:shadow-[color:color-mix(in_srgb,var(--brand-forest)_5%,transparent)]"
                   style={{ fontFamily: '"Inter", sans-serif' }}
                 >
                   Book a demo
                 </Link>
               </div>
-              <div className="mt-8 flex flex-wrap gap-3 text-sm font-medium text-slate-600" style={{ fontFamily: '"Inter", sans-serif' }}>
+              <div className="mt-8 flex flex-wrap gap-3 text-sm font-medium text-brand-slate" style={{ fontFamily: '"Inter", sans-serif' }}>
                 {['No credit card required', 'Free forever plan', 'Built for 1–50 units'].map((item) => (
-                  <span key={item} className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 shadow-sm">
-                    <FiCheck className="h-4 w-4 text-green-600" />
+                  <span key={item} className="inline-flex items-center gap-2 rounded-full border border-[var(--brand-border)] bg-brand-surface px-3 py-1.5 shadow-sm">
+                    <FiCheck className="h-4 w-4 text-brand-teal" />
                     {item}
                   </span>
                 ))}
@@ -245,15 +245,15 @@ export default function FeaturesPage() {
             </div>
 
             <div className="relative">
-              <div className="absolute -right-8 -top-8 h-40 w-40 rounded-full bg-green-200/40 blur-3xl" />
-              <div className="absolute -bottom-10 -left-8 h-44 w-44 rounded-full bg-[#061e35]/10 blur-3xl" />
-              <div className="relative overflow-hidden rounded-[2rem] bg-[#061e35] p-5 shadow-2xl shadow-slate-950/20">
+              <div className="absolute -right-8 -top-8 h-40 w-40 rounded-full bg-[color-mix(in_srgb,var(--brand-mint)_40%,transparent)] blur-3xl" />
+              <div className="absolute -bottom-10 -left-8 h-44 w-44 rounded-full bg-[color-mix(in_srgb,var(--brand-forest)_10%,transparent)] blur-3xl" />
+              <div className="relative overflow-hidden rounded-[2rem] bg-brand-forest p-5 shadow-2xl shadow-[color:color-mix(in_srgb,var(--brand-forest)_20%,transparent)]">
                 <div className="mb-5 flex items-center justify-between border-b border-white/10 pb-4">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-green-400">Property Peace</p>
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-mint">Property Peace</p>
                     <p className="mt-1 text-sm text-white/70">Today&apos;s landlord dashboard</p>
                   </div>
-                  <span className="rounded-full bg-green-500/15 px-3 py-1 text-sm font-semibold text-green-300">Live</span>
+                  <span className="rounded-full bg-[color-mix(in_srgb,var(--brand-teal)_15%,transparent)] px-3 py-1 text-sm font-semibold text-brand-mint">Live</span>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   {[
@@ -264,18 +264,18 @@ export default function FeaturesPage() {
                   ].map(([label, value, caption]) => (
                     <div key={label} className="rounded-2xl border border-white/10 bg-white/[0.06] p-4">
                       <p className="text-sm text-white/60">{label}</p>
-                      <p className="mt-3 text-2xl font-bold text-white" style={{ fontFamily: '"Poppins", sans-serif' }}>{value}</p>
-                      <p className="mt-1 text-xs text-green-200">{caption}</p>
+                      <p className="mt-3 text-2xl font-bold text-white" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>{value}</p>
+                      <p className="mt-1 text-xs text-brand-mint">{caption}</p>
                     </div>
                   ))}
                 </div>
-                <div className="mt-4 rounded-2xl bg-white p-4">
+                <div className="mt-4 rounded-2xl bg-brand-surface p-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-bold text-[#061e35]">Percy summary</p>
-                      <p className="mt-1 text-sm text-slate-500">Two tenants need follow-up. One maintenance request is waiting on photos.</p>
+                      <p className="text-sm font-bold text-brand-forest">Percy summary</p>
+                      <p className="mt-1 text-sm text-brand-slate">Two tenants need follow-up. One maintenance request is waiting on photos.</p>
                     </div>
-                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-green-100 text-green-600">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-mint text-brand-teal">
                       <FiActivity className="h-5 w-5" />
                     </div>
                   </div>
@@ -286,7 +286,7 @@ export default function FeaturesPage() {
         </section>
 
         {/* Features by Category */}
-        <section className="bg-[#061E35] px-4 py-16 sm:px-6 lg:px-8">
+        <section className="bg-brand-forest px-4 py-16 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-6xl space-y-16">
             {featureCategories.map((category) => {
               const details = categoryDetails[category.title];
@@ -294,10 +294,10 @@ export default function FeaturesPage() {
                 <div key={category.title}>
                   <div className="mb-7 flex flex-col justify-between gap-4 md:flex-row md:items-end">
                     <div className="max-w-2xl">
-                      <p className="text-sm font-bold uppercase tracking-[0.2em] text-green-400">{details.eyebrow}</p>
+                      <p className="text-sm font-bold uppercase tracking-[0.2em] text-brand-mint">{details.eyebrow}</p>
                       <h2
-                        className="mt-3 text-3xl font-bold text-white md:text-4xl"
-                        style={{ fontFamily: '"Poppins", sans-serif' }}
+                        className="mt-3 text-3xl font-extrabold text-white md:text-4xl"
+                        style={{ fontFamily: '"Host Grotesk", sans-serif' }}
                       >
                         {category.title}
                       </h2>
@@ -313,26 +313,26 @@ export default function FeaturesPage() {
                         <Link
                           key={feature.slug}
                           href={`/features/${feature.slug}`}
-                          className="group relative flex h-full flex-col overflow-hidden rounded-none border border-slate-200 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-green-300 hover:shadow-xl hover:shadow-slate-950/8"
+                          className="group relative flex h-full flex-col overflow-hidden rounded-none border border-[var(--brand-border)] bg-brand-surface p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-brand-mint hover:shadow-xl hover:shadow-[color:color-mix(in_srgb,var(--brand-forest)_8%,transparent)]"
                         >
-                          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-green-500 to-transparent opacity-80" />
-                          <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-2xl bg-green-50 text-green-600 ring-1 ring-green-500/10 transition group-hover:bg-green-500 group-hover:text-white group-hover:shadow-[0_10px_24px_rgba(34,197,94,0.24)]">
+                          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-brand-teal to-transparent opacity-80" />
+                          <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-mint text-brand-teal ring-1 ring-[color:color-mix(in_srgb,var(--brand-teal)_10%,transparent)] transition group-hover:bg-brand-teal group-hover:text-white group-hover:shadow-[0_10px_24px_rgba(36,117,104,0.24)]">
                             <IconComponent className="h-6 w-6" />
                           </div>
                           <h3
-                            className="text-xl font-bold leading-snug text-primary-main md:text-2xl"
-                            style={{ fontFamily: '"Poppins", sans-serif' }}
+                            className="text-xl font-extrabold leading-snug text-primary-main md:text-2xl"
+                            style={{ fontFamily: '"Host Grotesk", sans-serif' }}
                           >
                             {feature.title}
                           </h3>
                           <p
-                            className="mt-3 flex-1 text-base leading-7 text-slate-500"
+                            className="mt-3 flex-1 text-base leading-7 text-brand-slate"
                             style={{ fontFamily: '"Inter", sans-serif' }}
                           >
                             {feature.description}
                           </p>
                           <span
-                            className="mt-6 inline-flex items-center gap-2 font-semibold text-green-600 transition-colors group-hover:text-green-700"
+                            className="mt-6 inline-flex items-center gap-2 font-semibold text-brand-teal transition-colors group-hover:text-brand-teal"
                             style={{ fontFamily: '"Inter", sans-serif' }}
                           >
                             Learn more
@@ -349,14 +349,14 @@ export default function FeaturesPage() {
         </section>
 
         {/* Call to Action */}
-        <section className="bg-[#061E35] px-4 pb-20 pt-6 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-5xl overflow-hidden rounded-[2rem] bg-[#061e35] p-8 text-center shadow-2xl shadow-slate-950/15 md:p-12">
-            <span className="inline-flex rounded-full border border-green-400/20 bg-green-400/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-green-300">
+        <section className="bg-brand-forest px-4 pb-20 pt-6 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-5xl overflow-hidden rounded-[2rem] bg-brand-forest p-8 text-center shadow-2xl shadow-[color:color-mix(in_srgb,var(--brand-forest)_15%,transparent)] md:p-12">
+            <span className="inline-flex rounded-full border border-[color:color-mix(in_srgb,var(--brand-teal)_20%,transparent)] bg-[color-mix(in_srgb,var(--brand-mint)_10%,transparent)] px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-brand-mint">
               Ready when you are
             </span>
             <h2
-              className="mt-5 text-3xl font-bold text-white md:text-5xl"
-              style={{ fontFamily: '"Poppins", sans-serif' }}
+              className="mt-5 text-3xl font-extrabold text-white md:text-5xl"
+              style={{ fontFamily: '"Host Grotesk", sans-serif' }}
             >
               Start with the tools you need today. Grow into the rest tomorrow.
             </h2>
@@ -367,14 +367,14 @@ export default function FeaturesPage() {
               Property Peace keeps rent, maintenance, leases, accounting, documents, and Percy insights connected from day one.
             </p>
             <ul className="mt-7 flex flex-wrap justify-center gap-x-8 gap-y-3 font-medium text-white/85" style={{ fontFamily: '"Inter", sans-serif' }}>
-              <li className="flex items-center gap-2"><FiCheck className="text-green-400" /> No credit card required</li>
-              <li className="flex items-center gap-2"><FiCheck className="text-green-400" /> Free forever plan</li>
-              <li className="flex items-center gap-2"><FiCheck className="text-green-400" /> Built for landlords with 1–50 units</li>
+              <li className="flex items-center gap-2"><FiCheck className="text-brand-mint" /> No credit card required</li>
+              <li className="flex items-center gap-2"><FiCheck className="text-brand-mint" /> Free forever plan</li>
+              <li className="flex items-center gap-2"><FiCheck className="text-brand-mint" /> Built for landlords with 1–50 units</li>
             </ul>
             <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
               <Link
                 href="https://app.propertypeace.io/register"
-                className="inline-flex items-center justify-center gap-2 rounded-none bg-gradient-to-r from-green-500 to-green-600 px-5 py-3 font-semibold text-white transition-all duration-300 hover:-translate-y-0.5 hover:from-green-600 hover:to-green-700 hover:shadow-[0_10px_24px_rgba(34,197,94,0.25)]"
+                className="inline-flex items-center justify-center gap-2 rounded-none bg-gradient-to-r from-brand-teal to-brand-teal px-5 py-3 font-semibold text-white transition-all duration-300 hover:-translate-y-0.5 hover:from-brand-teal hover:to-brand-teal-hover hover:shadow-[0_10px_24px_rgba(36,117,104,0.25)]"
                 style={{ fontFamily: '"Inter", sans-serif' }}
               >
                 Start free

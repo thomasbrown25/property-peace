@@ -612,11 +612,11 @@ export default function FinancialReports() {
                   <Table>
                     <TableHead>
                       <TableRow>
-                        <TableCell><Typography variant="subtitle2">Property</Typography></TableCell>
-                        <TableCell align="right"><Typography variant="subtitle2">Total Rent</Typography></TableCell>
-                        <TableCell align="right"><Typography variant="subtitle2">Total Expenses</Typography></TableCell>
-                        <TableCell align="right"><Typography variant="subtitle2">Net Income</Typography></TableCell>
-                        <TableCell align="right"><Typography variant="subtitle2">Profit Margin</Typography></TableCell>
+                        <TableCell>Property</TableCell>
+                        <TableCell align="right">Total Rent</TableCell>
+                        <TableCell align="right">Total Expenses</TableCell>
+                        <TableCell align="right">Net Income</TableCell>
+                        <TableCell align="right">Profit Margin</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -648,12 +648,9 @@ export default function FinancialReports() {
                             <Chip
                               label={`${prop.profitMargin.toFixed(1)}%`}
                               size="small"
-                              sx={{
-                                bgcolor: (t) => alpha(prop.profitMargin >= 0 ? t.palette.success.main : t.palette.error.main, 0.12),
-                                color: prop.profitMargin >= 0 ? 'success.dark' : 'error.dark',
-                                fontWeight: 600,
-                                fontSize: '0.75rem'
-                              }}
+                              color={prop.profitMargin >= 0 ? 'success' : 'error'}
+                              variant="light"
+                              sx={{ fontWeight: 600, fontSize: '0.75rem' }}
                             />
                           </TableCell>
                         </TableRow>

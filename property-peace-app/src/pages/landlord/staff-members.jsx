@@ -1014,10 +1014,6 @@ export default function StaffMembers() {
             component={Paper}
             variant="outlined"
             sx={{
-              bgcolor: (t) => alpha(t.palette.background.paper, 0.8),
-              boxShadow: (t) => `0 4px 20px ${alpha(t.palette.primary.main, 0.15)}`,
-              border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-              borderRadius: 2,
               overflow: 'hidden'
             }}
           >

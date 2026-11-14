@@ -365,12 +365,8 @@ export default function PublicListingPage() {
                     label={listing.petsAllowed ? 'Pets allowed' : 'No pets'}
                     variant="outlined"
                     size="small"
-                    sx={{
-                      fontWeight: 500,
-                      borderRadius: 1.5,
-                      color: listing.petsAllowed ? 'success.main' : 'text.secondary',
-                      borderColor: listing.petsAllowed ? 'success.main' : 'divider'
-                    }}
+                    color={listing.petsAllowed ? 'success' : 'default'}
+                    sx={{ fontWeight: 500, borderRadius: 1.5 }}
                   />
                 </Stack>
               )}

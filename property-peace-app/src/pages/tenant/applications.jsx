@@ -221,11 +221,11 @@ export default function TenantApplications() {
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell sx={{ fontWeight: 600 }}>Property/Unit</TableCell>
-                <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
-                <TableCell sx={{ fontWeight: 600 }}>Submitted</TableCell>
-                <TableCell sx={{ fontWeight: 600 }}>Desired Move-In</TableCell>
-                <TableCell sx={{ fontWeight: 600 }}>Actions</TableCell>
+                <TableCell>Property/Unit</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell>Submitted</TableCell>
+                <TableCell>Desired Move-In</TableCell>
+                <TableCell>Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>

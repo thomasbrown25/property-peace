@@ -894,14 +894,10 @@ export default function AICenter() {
                   </Typography>
                   <Chip
                     label={readinessMarker.label}
+                    color={readinessMarker.active ? 'success' : 'default'}
+                    variant="light"
                     size="small"
-                    sx={{
-                      height: 20,
-                      fontSize: '0.65rem',
-                      bgcolor: readinessMarker.active ? alpha(GREEN, 0.09) : alpha(NAVY, 0.06),
-                      color: readinessMarker.active ? GREEN : 'text.secondary',
-                      fontWeight: 800
-                    }}
+                    sx={{ height: 20, fontSize: '0.65rem', fontWeight: 800 }}
                   />
                 </Stack>
                 <Typography variant="caption" color="text.secondary">

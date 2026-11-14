@@ -23,7 +23,7 @@ export default function PropertyOverview({ property, propertyId, rentRecords = [
         </Grid>
       )}
       <Grid size={12}>
-        <PropertyStory property={property} propertyId={propertyId} />
+        <PropertyStory property={property} propertyId={propertyId} compact />
       </Grid>
     </Grid>
   );

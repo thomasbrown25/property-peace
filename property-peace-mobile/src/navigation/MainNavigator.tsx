@@ -132,7 +132,7 @@ function useStackOptions() {
   const { mode, colors } = useAppTheme();
   const background = colors.background;
   return {
-    headerTintColor: mode === 'dark' ? colors.text : '#0b3558',
+    headerTintColor: mode === 'dark' ? colors.text : colors.accent,
     // Native iOS otherwise prints the previous screen's title beside the arrow.
     headerBackTitleVisible: false,
     headerTitleStyle: { fontWeight: '800' as const, color: colors.text },

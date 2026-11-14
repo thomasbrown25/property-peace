@@ -324,11 +324,11 @@ export default function AdminLeaseShield() {
               <Table size="small">
                 <TableHead>
                   <TableRow>
-                    <TableCell sx={{ width: 72 }}><strong>State</strong></TableCell>
-                    <TableCell><strong>Base URL</strong></TableCell>
-                    <TableCell><strong>Description</strong></TableCell>
-                    <TableCell sx={{ width: 160 }}><strong>Updated</strong></TableCell>
-                    <TableCell sx={{ width: 120 }} align="right"><strong>Actions</strong></TableCell>
+                    <TableCell sx={{ width: 72 }}>State</TableCell>
+                    <TableCell>Base URL</TableCell>
+                    <TableCell>Description</TableCell>
+                    <TableCell sx={{ width: 160 }}>Updated</TableCell>
+                    <TableCell sx={{ width: 120 }} align="right">Actions</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>

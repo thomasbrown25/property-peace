@@ -19,6 +19,15 @@ test('management page headers use a transparent surface with normal page typogra
   assert.equal(styles.managementPageHeaderDescriptionSx.color, 'text.secondary');
 });
 
+test('creation actions use theme primary instead of legacy navy', async () => {
+  const styles = await loadStyles();
+  assert.ok(styles);
+  assert.equal(styles.creationActionSx.bgcolor, 'primary.main');
+  assert.equal(styles.creationActionSx.color, 'primary.contrastText');
+  assert.equal(styles.creationActionSx['&:hover'].bgcolor, 'primary.dark');
+  assert.equal(styles.creationActionSx['&:hover'].color, 'primary.contrastText');
+});
+
 test('management page header actions retain the standard light-surface treatment', async () => {
   const styles = await loadStyles();
 

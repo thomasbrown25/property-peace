@@ -39,11 +39,11 @@ export default function SeoPathways() {
     <section className="px-4 py-16 sm:px-6 lg:px-8 bg-white">
       <div className="max-w-6xl mx-auto">
         <div className="max-w-3xl mx-auto text-center mb-10">
-          <p className="text-sm font-bold uppercase tracking-[0.2em] text-green-600 mb-3">Landlord workflows</p>
-          <h2 className="text-3xl md:text-4xl font-bold text-primary-main" style={{ fontFamily: '"Poppins", sans-serif' }}>
+          <p className="text-sm font-bold uppercase tracking-[0.2em] text-brand-teal mb-3">Landlord workflows</p>
+          <h2 className="text-3xl md:text-4xl font-bold text-primary-main" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>
             Built for the rental jobs small landlords search for every day
           </h2>
-          <p className="mt-4 text-lg text-[#637083]" style={{ fontFamily: '"Inter", sans-serif' }}>
+          <p className="mt-4 text-lg text-brand-slate" style={{ fontFamily: '"Inter", sans-serif' }}>
             Choose the workflow you need most: rent, maintenance, accounting, leases, or replacing a spreadsheet that has become too messy to trust.
           </p>
         </div>
@@ -52,11 +52,11 @@ export default function SeoPathways() {
             <Link
               key={pathway.href}
               href={pathway.href}
-              className="group rounded-none border border-slate-200 bg-slate-50 p-6 transition hover:-translate-y-1 hover:border-blue-200 hover:bg-blue-50/60 hover:shadow-lg hover:shadow-blue-950/5"
+              className="group rounded-none border border-[var(--brand-border)] bg-brand-ivory p-6 transition hover:-translate-y-1 hover:border-brand-teal hover:bg-brand-surface hover:shadow-lg"
             >
               <h3 className="text-xl font-bold text-primary-main">{pathway.title}</h3>
-              <p className="mt-3 leading-7 text-[#637083]">{pathway.description}</p>
-              <span className="mt-5 inline-flex items-center gap-2 font-bold text-green-600">
+              <p className="mt-3 leading-7 text-brand-slate">{pathway.description}</p>
+              <span className="mt-5 inline-flex items-center gap-2 font-bold text-brand-teal">
                 Learn more
                 <FiArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
               </span>

@@ -4,14 +4,24 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export type ThemeMode = 'light' | 'dark';
 
+// Brand roles are separate from status colors (success, warning, error).
+export const brandColors = {
+  forest: '#102C29',
+  teal: '#247568',
+  mint: '#B9E4CB',
+  ivory: '#F8F7F1',
+  slate: '#24343A',
+} as const;
+
 export const themeColors = {
   light: {
-    background: '#ffffff', surface: '#ffffff', text: '#102d43', muted: '#596876',
-    border: '#e8edf2', accent: '#0b3558', dock: '#0b3558', dockText: '#ffffff',
+    background: brandColors.ivory, surface: '#ffffff', text: brandColors.slate, muted: '#596876',
+    border: '#e8edf2', accent: brandColors.teal, dock: brandColors.forest, dockText: brandColors.ivory,
   },
   dark: {
-    background: '#101923', surface: '#1b2937', text: '#f2f6fa', muted: '#b4c3d0',
-    border: '#35495b', accent: '#72b6ff', dock: '#1b2937', dockText: '#f2f6fa',
+    background: '#101923', surface: '#1b2937', text: brandColors.ivory, muted: '#b4c3d0',
+    // Keep the existing high-contrast dark accent until every filled control can use a dark foreground.
+    border: '#35495b', accent: '#72b6ff', dock: '#1b2937', dockText: brandColors.ivory,
   },
 } as const;
 

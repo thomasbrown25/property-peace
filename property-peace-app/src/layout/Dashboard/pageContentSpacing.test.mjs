@@ -7,37 +7,48 @@ const contentStart = layout.indexOf('<Box data-testid="main-app-page-content"');
 const contentEnd = layout.indexOf('</Box>', contentStart);
 const content = layout.slice(contentStart, contentEnd);
 
-test('shared route content has centered, responsive dashboard-sized gutters', () => {
+// Evaluate the actual production spacing expressions, not a duplicate layout policy.
+function contentValue(key, isAddPropertyPage = false) {
+  const line = content.split('\n').find((line) => line.trim().startsWith(`${key}: `));
+  assert.ok(line, `Missing ${key}`);
+  const expression = line.trim().slice(key.length + 2).replace(/,$/, '');
+  return new Function('isAddPropertyPage', `return (${expression})`)(isAddPropertyPage);
+}
+
+test('all shared route content, including the dashboard, stays uncapped with modest responsive gutters', () => {
   assert.ok(contentStart >= 0);
-  assert.match(content, /width: '100%'/);
-  assert.match(content, /maxWidth: isAddPropertyPage \? 'none' : isLandlordDashboard \? 1280 : 1120/);
-  assert.match(content, /mx: 'auto'/);
-  assert.match(content, /px: isAddPropertyPage \|\| isLandlordDashboard \? 0 : \{ xs: 0, sm: 1, md: 2, lg: 3 \}/);
-  assert.match(content, /boxSizing: 'border-box'/);
-  assert.match(content, /minWidth: 0/);
+  assert.equal(contentValue('width'), '100%');
+  assert.equal(contentValue('maxWidth'), 'none');
+  assert.deepEqual(contentValue('px'), { xs: 0, sm: 1, md: 1.5, lg: 2 });
+  assert.equal(contentValue('mx'), 'auto');
+  assert.equal(contentValue('boxSizing'), 'border-box');
+  assert.equal(contentValue('minWidth'), 0);
   assert.match(content, /<Outlet \/>/);
 });
 
-test('navigation and footer stay outside the page-only spacing wrapper', () => {
+test('navigation, footer, outer gutter, and vertical spacing stay unchanged', () => {
   assert.ok(layout.indexOf('<Header ') < contentStart);
   assert.ok(layout.indexOf('<Footer />') > contentEnd);
   assert.doesNotMatch(content, /<Header\b|<Footer\b/);
   assert.match(layout, /p: isAddPropertyPage \? 0 : 2\.5/);
+  assert.match(layout, /pb: 0/);
+  const header = readFileSync(new URL('./Header/index.jsx', import.meta.url), 'utf8');
+  const spacer = layout.match(/minHeight: \{ xs: '(\d+)px !important', sm: '(\d+)px !important' \}/);
+  const toolbar = header.match(/minHeight: \{ xs: (\d+), sm: (\d+) \}/);
+  assert.ok(spacer && toolbar, 'Header and spacer must declare responsive heights');
+  assert.deepEqual(spacer.slice(1), toolbar.slice(1), 'Content spacer must match the existing header height');
 });
 
 test('standalone property onboarding keeps its existing edge-to-edge shell', () => {
-  assert.match(layout, /const isAddPropertyPage = pathname === '\/landlord\/properties\/add' \|\| pathname === '\/landlord\/property-add-workflow'/);
-  assert.match(content, /maxWidth: isAddPropertyPage \? 'none'/);
-  assert.match(content, /px: isAddPropertyPage \|\| isLandlordDashboard \? 0/);
-});
-
-test('only the landlord dashboard opts out of additional horizontal page padding', () => {
-  const expression = layout.match(/const isLandlordDashboard = ([^;]+);/)[1];
-  const matchesDashboard = new Function('pathname', `return ${expression}`);
-  for (const pathname of ['/landlord/dashboard', '/landlord/dashboard/']) {
-    assert.equal(matchesDashboard(pathname), true, pathname);
+  const expression = layout.match(/const isAddPropertyPage = ([^;]+);/)[1];
+  const isOnboarding = new Function('pathname', `return ${expression}`);
+  for (const pathname of ['/landlord/properties/add', '/landlord/property-add-workflow']) {
+    assert.equal(isOnboarding(pathname), true, pathname);
   }
-  for (const pathname of ['/landlord/properties', '/landlord/leases', '/landlord/calendar', '/landlord/dashboard/settings', '/tenant/dashboard', '/admin/dashboard']) {
-    assert.equal(matchesDashboard(pathname), false, pathname);
+  for (const pathname of ['/landlord/dashboard', '/landlord/properties', '/landlord/leases']) {
+    assert.equal(isOnboarding(pathname), false, pathname);
   }
+  assert.match(layout, /p: isAddPropertyPage \? 0 : 2\.5/);
+  assert.equal(contentValue('maxWidth'), 'none');
+  assert.equal(contentValue('px', true), 0);
 });

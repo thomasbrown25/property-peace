@@ -1698,7 +1698,7 @@ export default function LeasesPage({ onEditLease }) {
                       <TableContainer sx={{ width: '100%', overflowX: 'auto' }}>
                         <Table size="small" sx={{ minWidth: 980 }}>
                           <TableHead>
-                            <TableRow sx={{ bgcolor: (t) => alpha(t.palette.primary.main, t.palette.mode === 'dark' ? 0.07 : 0.025) }}>
+                            <TableRow>
                               <TableCell onClick={() => handleSort('property')} sx={{ cursor: 'pointer' }}>Property · Tenant</TableCell>
                               <TableCell align="right" onClick={() => handleSort('rentAmount')} sx={{ cursor: 'pointer', minWidth: 150, pr: 3.5 }}>Rent · Balance</TableCell>
                               <TableCell sx={{ pl: 3 }}>Payment timing</TableCell>
@@ -1732,7 +1732,7 @@ export default function LeasesPage({ onEditLease }) {
                                     cursor: hasLease ? 'pointer' : 'default',
                                     bgcolor: 'transparent',
                                     borderLeft: '4px solid transparent',
-                                    '& td': { py: 1.45, borderBottomColor: (t) => alpha(t.palette.divider, t.palette.mode === 'dark' ? 0.14 : 0.12) },
+                                    '& td': { py: 1.45 },
                                     '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.035) }
                                   }}
                                 >
@@ -2011,13 +2011,13 @@ export default function LeasesPage({ onEditLease }) {
                     <TableContainer>
                       <Table size="small">
                         <TableHead>
-                          <TableRow sx={{ bgcolor: (t) => alpha(t.palette.grey[500], 0.04) }}>
-                            <TableCell sx={{ fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: 0.8, color: 'text.secondary', fontWeight: 800 }}>Property · tenant</TableCell>
-                            <TableCell sx={{ fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: 0.8, color: 'text.secondary', fontWeight: 800 }} align="center">Tenant signed</TableCell>
-                            <TableCell sx={{ fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: 0.8, color: 'text.secondary', fontWeight: 800 }} align="center">Owner signed</TableCell>
-                            <TableCell sx={{ fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: 0.8, color: 'text.secondary', fontWeight: 800 }}>Term</TableCell>
-                            <TableCell sx={{ fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: 0.8, color: 'text.secondary', fontWeight: 800 }}>Status</TableCell>
-                            <TableCell sx={{ fontWeight: 600 }} align="right" />
+                          <TableRow>
+                            <TableCell>Property · tenant</TableCell>
+                            <TableCell align="center">Tenant signed</TableCell>
+                            <TableCell align="center">Owner signed</TableCell>
+                            <TableCell>Term</TableCell>
+                            <TableCell>Status</TableCell>
+                            <TableCell align="right" />
                           </TableRow>
                         </TableHead>
                         <TableBody>
@@ -2036,7 +2036,7 @@ export default function LeasesPage({ onEditLease }) {
                             const tenantDisplay = getTenantDisplay(leaseAgreement);
 
                             return (
-                              <TableRow key={leaseAgreement.id} hover onClick={() => handleViewLeaseFromAgreement(leaseAgreement)} sx={{ cursor: 'pointer', '& td': { borderBottomColor: (t) => alpha(t.palette.divider, 0.08) } }}>
+                              <TableRow key={leaseAgreement.id} hover onClick={() => handleViewLeaseFromAgreement(leaseAgreement)} sx={{ cursor: 'pointer' }}>
                                 <TableCell>
                                   <Box sx={{ minWidth: 0 }}>
                                     <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap">

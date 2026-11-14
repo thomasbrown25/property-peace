@@ -45,13 +45,13 @@ const faqs = [
 
 export default function HelpCenterPage() {
   return (
-    <div className="min-h-screen bg-[#061E35] text-white">
+    <div className="min-h-screen bg-brand-forest text-white">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24">
         {/* Header Section */}
         <div className="text-center mb-16">
           <h1
-            className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6"
-            style={{ fontFamily: '"Poppins", sans-serif' }}
+            className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-white mb-6"
+            style={{ fontFamily: '"Host Grotesk", sans-serif' }}
           >
             Help Center
           </h1>
@@ -67,57 +67,57 @@ export default function HelpCenterPage() {
         <div className="grid md:grid-cols-2 gap-6 mb-16">
           <Link
             href="/contact-us"
-            className="flex items-start space-x-4 p-6 bg-[#F5F5F5] border border-[#E5E5E5] rounded-none hover:border-primary-main/30 transition-colors"
+            className="flex items-start space-x-4 p-6 bg-brand-ivory border border-[var(--brand-border)] rounded-none hover:border-primary-main/30 transition-colors"
           >
             <div className="w-12 h-12 bg-primary-main/10 rounded-xl flex items-center justify-center flex-shrink-0">
               <FiMail className="w-6 h-6 text-primary-main" />
             </div>
             <div>
               <h2
-                className="text-xl font-bold text-primary-main mb-2"
-                style={{ fontFamily: '"Poppins", sans-serif' }}
+                className="text-xl font-extrabold text-primary-main mb-2"
+                style={{ fontFamily: '"Host Grotesk", sans-serif' }}
               >
                 Contact Us
               </h2>
-              <p className="text-[#737373] text-sm" style={{ fontFamily: '"Inter", sans-serif' }}>
+              <p className="text-brand-slate text-sm" style={{ fontFamily: '"Inter", sans-serif' }}>
                 Email support is available for account help and product questions.
               </p>
             </div>
           </Link>
           <Link
             href="/demo"
-            className="flex items-start space-x-4 p-6 bg-[#F5F5F5] border border-[#E5E5E5] rounded-none hover:border-primary-main/30 transition-colors"
+            className="flex items-start space-x-4 p-6 bg-brand-ivory border border-[var(--brand-border)] rounded-none hover:border-primary-main/30 transition-colors"
           >
             <div className="w-12 h-12 bg-primary-main/10 rounded-xl flex items-center justify-center flex-shrink-0">
               <FiCalendar className="w-6 h-6 text-primary-main" />
             </div>
             <div>
               <h2
-                className="text-xl font-bold text-primary-main mb-2"
-                style={{ fontFamily: '"Poppins", sans-serif' }}
+                className="text-xl font-extrabold text-primary-main mb-2"
+                style={{ fontFamily: '"Host Grotesk", sans-serif' }}
               >
                 Watch Demo
               </h2>
-              <p className="text-[#737373] text-sm" style={{ fontFamily: '"Inter", sans-serif' }}>
+              <p className="text-brand-slate text-sm" style={{ fontFamily: '"Inter", sans-serif' }}>
                 Schedule a personalized demo to see Property Peace in action.
               </p>
             </div>
           </Link>
           <Link
             href="/blog"
-            className="flex items-start space-x-4 p-6 bg-[#F5F5F5] border border-[#E5E5E5] rounded-none hover:border-primary-main/30 transition-colors"
+            className="flex items-start space-x-4 p-6 bg-brand-ivory border border-[var(--brand-border)] rounded-none hover:border-primary-main/30 transition-colors"
           >
             <div className="w-12 h-12 bg-primary-main/10 rounded-xl flex items-center justify-center flex-shrink-0">
               <FiBook className="w-6 h-6 text-primary-main" />
             </div>
             <div>
               <h2
-                className="text-xl font-bold text-primary-main mb-2"
-                style={{ fontFamily: '"Poppins", sans-serif' }}
+                className="text-xl font-extrabold text-primary-main mb-2"
+                style={{ fontFamily: '"Host Grotesk", sans-serif' }}
               >
                 Blog
               </h2>
-              <p className="text-[#737373] text-sm" style={{ fontFamily: '"Inter", sans-serif' }}>
+              <p className="text-brand-slate text-sm" style={{ fontFamily: '"Inter", sans-serif' }}>
                 Tips, guides, and insights for landlords and property managers.
               </p>
             </div>
@@ -126,19 +126,19 @@ export default function HelpCenterPage() {
             href="https://app.propertypeace.io/register"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-start space-x-4 p-6 bg-[#F5F5F5] border border-[#E5E5E5] rounded-none hover:border-primary-main/30 transition-colors"
+            className="flex items-start space-x-4 p-6 bg-brand-ivory border border-[var(--brand-border)] rounded-none hover:border-primary-main/30 transition-colors"
           >
             <div className="w-12 h-12 bg-primary-main/10 rounded-xl flex items-center justify-center flex-shrink-0">
               <FiZap className="w-6 h-6 text-primary-main" />
             </div>
             <div>
               <h2
-                className="text-xl font-bold text-primary-main mb-2"
-                style={{ fontFamily: '"Poppins", sans-serif' }}
+                className="text-xl font-extrabold text-primary-main mb-2"
+                style={{ fontFamily: '"Host Grotesk", sans-serif' }}
               >
                 Get Started
               </h2>
-              <p className="text-[#737373] text-sm" style={{ fontFamily: '"Inter", sans-serif' }}>
+              <p className="text-brand-slate text-sm" style={{ fontFamily: '"Inter", sans-serif' }}>
                 Create a Free account. No credit card required.
               </p>
             </div>
@@ -148,8 +148,8 @@ export default function HelpCenterPage() {
         {/* FAQ Section */}
         <div className="mb-16">
           <h2
-            className="text-2xl md:text-3xl font-bold text-white mb-8"
-            style={{ fontFamily: '"Poppins", sans-serif' }}
+            className="text-2xl md:text-3xl font-extrabold text-white mb-8"
+            style={{ fontFamily: '"Host Grotesk", sans-serif' }}
           >
             Frequently Asked Questions
           </h2>
@@ -157,16 +157,16 @@ export default function HelpCenterPage() {
             {faqs.map((faq, index) => (
               <div
                 key={index}
-                className="bg-[#F5F5F5] border border-[#E5E5E5] rounded-xl p-6"
+                className="bg-brand-ivory border border-[var(--brand-border)] rounded-xl p-6"
               >
                 <h3
                   className="text-lg font-semibold text-primary-main mb-3"
-                  style={{ fontFamily: '"Poppins", sans-serif' }}
+                  style={{ fontFamily: '"Host Grotesk", sans-serif' }}
                 >
                   {faq.question}
                 </h3>
                 <p
-                  className="text-[#737373] leading-relaxed"
+                  className="text-brand-slate leading-relaxed"
                   style={{ fontFamily: '"Inter", sans-serif' }}
                 >
                   {faq.answer}
@@ -177,15 +177,15 @@ export default function HelpCenterPage() {
         </div>
 
         {/* CTA */}
-        <div className="text-center bg-[#F5F5F5] rounded-2xl p-8 md:p-12 border border-[#E5E5E5]">
+        <div className="text-center bg-brand-ivory rounded-2xl p-8 md:p-12 border border-[var(--brand-border)]">
           <h2
-            className="text-2xl md:text-3xl font-bold text-primary-main mb-4"
-            style={{ fontFamily: '"Poppins", sans-serif' }}
+            className="text-2xl md:text-3xl font-extrabold text-primary-main mb-4"
+            style={{ fontFamily: '"Host Grotesk", sans-serif' }}
           >
             Still Have Questions?
           </h2>
           <p
-            className="text-lg text-[#737373] max-w-xl mx-auto mb-6"
+            className="text-lg text-brand-slate max-w-xl mx-auto mb-6"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
             Reach out to our team. We&apos;re here to help.

@@ -65,13 +65,13 @@ function ScanStep() {
   return (
     <div className="space-y-0" style={{ fontFamily: '"Inter", sans-serif' }}>
       {/* Running banner */}
-      <div className="flex items-center gap-2 mb-4 px-3 py-2 rounded-lg bg-purple-50 border border-purple-100">
+      <div className="flex items-center gap-2 mb-4 px-3 py-2 rounded-lg bg-brand-ivory border border-[var(--brand-border)]">
         <div className="flex gap-0.5 items-center">
           {[0, 120, 240].map((d) => (
-            <div key={d} className="w-1 h-1 rounded-full bg-purple-400 animate-bounce" style={{ animationDelay: `${d}ms` }} />
+            <div key={d} className="w-1 h-1 rounded-full bg-brand-teal animate-bounce" style={{ animationDelay: `${d}ms` }} />
           ))}
         </div>
-        <span className="text-xs font-medium text-purple-700">Daily scan running · Oct 6 · 9:00 AM</span>
+        <span className="text-xs font-medium text-brand-teal">Daily scan running · Oct 6 · 9:00 AM</span>
       </div>
 
       {/* Lease rows */}
@@ -113,8 +113,8 @@ function ScanStep() {
         style={{ borderTop: '1px solid #e5e7eb' }}
       >
         {[
-          { value: '4', label: 'Leases reviewed', color: '#042238' },
-          { value: '3', label: 'Messages queued', color: '#a855f7' },
+          { value: '4', label: 'Leases reviewed', color: 'var(--brand-forest)' },
+          { value: '3', label: 'Messages queued', color: 'var(--brand-teal)' },
           { value: '1', label: 'Flagged',          color: '#ef4444' },
         ].map((s, i) => (
           <div key={i} className="text-center">
@@ -144,7 +144,7 @@ function ActionsStep() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.18, duration: 0.28, ease: 'easeOut' }}
               className="flex items-start gap-3 p-2.5 rounded-xl"
-              style={{ background: 'rgba(6,30,53,0.06)', border: '1px solid rgba(6,30,53,0.10)' }}
+              style={{ background: 'var(--brand-ivory)', border: '1px solid var(--brand-border)' }}
             >
               <div
                 className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
@@ -243,10 +243,10 @@ function FlaggedStep() {
         transition={{ delay: 0.75 }}
         className="flex gap-2"
       >
-        <button className="flex-1 py-1.5 text-xs font-semibold rounded-none text-white" style={{ background: '#061e35' }}>
+        <button className="flex-1 py-1.5 text-xs font-semibold rounded-none text-white" style={{ background: 'var(--brand-teal)' }}>
           Apply Late Fee
         </button>
-        <button className="flex-1 py-1.5 text-xs font-semibold rounded-none text-white" style={{ background: '#061e35' }}>
+        <button className="flex-1 py-1.5 text-xs font-semibold rounded-none text-white" style={{ background: 'var(--brand-teal)' }}>
           Send Notice
         </button>
         <button className="flex-1 py-1.5 text-xs font-semibold rounded-none border border-gray-200 text-gray-500">
@@ -322,9 +322,9 @@ export default function AiSummaries() {
               className="inline-block text-xs font-semibold tracking-widest uppercase mb-5 px-3 py-1 rounded-full border"
               style={{
                 fontFamily: '"Inter", sans-serif',
-                color: '#16a34a',
-                borderColor: 'rgba(34,197,94,0.20)',
-                background: 'rgba(34,197,94,0.08)',
+                color: 'var(--brand-teal)',
+                borderColor: 'var(--brand-border)',
+                background: 'var(--brand-ivory)',
               }}
             >
               Percy Collections Agent
@@ -332,13 +332,13 @@ export default function AiSummaries() {
 
             <h2
               className="text-3xl md:text-4xl lg:text-5xl font-bold mb-5 text-primary-main"
-              style={{ fontFamily: '"Poppins", sans-serif', lineHeight: '1.2' }}
+              style={{ fontFamily: '"Host Grotesk", sans-serif', lineHeight: '1.2' }}
             >
               Rent follow-ups that write themselves.
             </h2>
 
             <p
-              className="text-base md:text-lg text-[#737373] mb-6 leading-relaxed"
+              className="text-base md:text-lg text-brand-slate mb-6 leading-relaxed"
               style={{ fontFamily: '"Inter", sans-serif' }}
             >
               Percy reviews every active lease daily — checking balances, grace periods,
@@ -351,13 +351,13 @@ export default function AiSummaries() {
                 <li key={i} className="flex items-start gap-2.5">
                   <span
                     className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
-                    style={{ background: 'rgba(168,85,247,0.12)' }}
+                    style={{ background: 'var(--brand-mint)' }}
                   >
                     <svg width="9" height="9" viewBox="0 0 10 10" fill="none">
-                      <path d="M2 5l2.5 2.5L8 3" stroke="#a855f7" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M2 5l2.5 2.5L8 3" stroke="var(--brand-teal)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   </span>
-                  <span className="text-sm text-[#516A80]" style={{ fontFamily: '"Inter", sans-serif' }}>
+                  <span className="text-sm text-brand-slate" style={{ fontFamily: '"Inter", sans-serif' }}>
                     {b}
                   </span>
                 </li>
@@ -365,8 +365,8 @@ export default function AiSummaries() {
             </ul>
 
             <p
-              className="text-sm md:text-base text-[#516A80] italic pl-4"
-              style={{ fontFamily: '"Inter", sans-serif', borderLeft: '3px solid #a855f7' }}
+              className="text-sm md:text-base text-brand-slate italic pl-4"
+              style={{ fontFamily: '"Inter", sans-serif', borderLeft: '3px solid var(--brand-teal)' }}
             >
               Stop managing rent collection from memory, text threads, and vibes.
             </p>
@@ -383,7 +383,7 @@ export default function AiSummaries() {
           >
             <div
               className="rounded-2xl border border-gray-200 overflow-hidden"
-              style={{ background: '#ffffff', boxShadow: '0 20px 60px rgba(10,45,82,0.10)' }}
+              style={{ background: 'var(--brand-surface)', boxShadow: '0 20px 60px color-mix(in srgb, var(--brand-forest) 10%, transparent)' }}
             >
               {/* Card header */}
               <div className="px-5 pt-5 pb-4 border-b border-gray-100">
@@ -391,12 +391,12 @@ export default function AiSummaries() {
                   <div className="flex items-center gap-3">
                     <div
                       className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                      style={{ background: 'rgba(34,197,94,0.12)' }}
+                      style={{ background: 'var(--brand-ivory)' }}
                     >
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--brand-teal)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <rect x="3" y="11" width="18" height="10" rx="2" />
                         <path d="M9 11V7a3 3 0 0 1 6 0v4" />
-                        <circle cx="12" cy="16" r="1" fill="#22c55e" stroke="none" />
+                        <circle cx="12" cy="16" r="1" fill="var(--brand-teal)" stroke="none" />
                       </svg>
                     </div>
                     <div>
@@ -432,30 +432,30 @@ export default function AiSummaries() {
                         onClick={() => handleStepClick(i)}
                         className="flex-1 relative flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-left overflow-hidden transition-colors duration-200"
                         style={{
-                          background: isActive ? 'rgba(34,197,94,0.08)' : 'rgba(0,0,0,0.02)',
-                          border: isActive ? '1px solid rgba(34,197,94,0.25)' : '1px solid rgba(0,0,0,0.06)',
+                          background: isActive ? 'var(--brand-ivory)' : 'var(--brand-surface)',
+                          border: isActive ? '1px solid var(--brand-teal)' : '1px solid var(--brand-border)',
                         }}
                       >
                         <span
                           className="w-4 h-4 rounded-full text-[10px] font-bold flex items-center justify-center flex-shrink-0"
                           style={{
-                            background: isActive ? '#22c55e' : 'rgba(0,0,0,0.08)',
-                            color: isActive ? '#fff' : '#9ca3af',
+                            background: isActive ? 'var(--brand-teal)' : 'var(--brand-ivory)',
+                            color: isActive ? 'var(--brand-surface)' : 'var(--brand-slate)',
                           }}
                         >
                           {i + 1}
                         </span>
                         <span
                           className="text-[9px] sm:text-[10px] font-medium leading-tight"
-                          style={{ color: isActive ? '#16a34a' : '#9ca3af' }}
+                          style={{ color: isActive ? 'var(--brand-teal)' : 'var(--brand-slate)' }}
                         >
                           {step.label}
                         </span>
                         {isActive && (
-                          <div className="absolute bottom-0 left-0 right-0 h-0.5" style={{ background: 'rgba(34,197,94,0.15)' }}>
+                          <div className="absolute bottom-0 left-0 right-0 h-0.5" style={{ background: 'var(--brand-mint)' }}>
                             <div
                               className="h-full"
-                              style={{ width: `${progress}%`, background: '#22c55e', transition: 'none' }}
+                              style={{ width: `${progress}%`, background: 'var(--brand-teal)', transition: 'none' }}
                             />
                           </div>
                         )}

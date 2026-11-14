@@ -1,25 +1,33 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { landlordPrimaryLinks, activeLandlordPrimaryLink } from './landlordPrimaryNavigation.js';
+import { landlordPrimaryLinks, landlordMoreLinks, activeLandlordPrimaryLink } from './landlordPrimaryNavigation.js';
 
-test('owner header presents four working destinations in reference order', () => {
+test('outer navigation presents the requested primary destinations in order', () => {
   assert.deepEqual(landlordPrimaryLinks, [
-    { label: 'Dashboard', to: '/landlord/dashboard' },
-    { label: 'Calendar', to: '/landlord/calendar' },
-    { label: 'Listings', to: '/landlord/listings' },
-    { label: 'Bookings', to: '/landlord/bookings' }
+    { label: 'Home', to: '/landlord/dashboard' },
+    { label: 'Tenants', to: '/landlord/tenants' },
+    { label: 'Maintenance', to: '/landlord/maintenances' },
+    { label: 'Finances', to: '/landlord/finances' },
+    { label: 'Documents', to: '/landlord/documents' }
   ]);
+  for (const label of ['Calendar', 'Listings', 'Bookings', 'Leases', 'Reports', 'Settings', 'Help']) {
+    assert.ok(landlordMoreLinks.some((link) => link.label === label));
+  }
 });
 
-test('selects only the current workspace, including nested listings and property details', () => {
-  assert.equal(activeLandlordPrimaryLink('/landlord/dashboard', ''), 'Dashboard');
-  assert.equal(activeLandlordPrimaryLink('/landlord/dashboard', '?tab=overview'), 'Dashboard');
-  assert.equal(activeLandlordPrimaryLink('/landlord/calendar', ''), 'Calendar');
-  assert.equal(activeLandlordPrimaryLink('/landlord/dashboard', '?tab=calendar'), 'Calendar');
-  assert.equal(activeLandlordPrimaryLink('/landlord/dashboard', '?tab=tasks'), null);
-  assert.equal(activeLandlordPrimaryLink('/landlord/listings/123', ''), 'Listings');
-  assert.equal(activeLandlordPrimaryLink('/landlord/bookings', ''), 'Bookings');
-  assert.equal(activeLandlordPrimaryLink('/landlord/bookings/123', ''), 'Bookings');
-  assert.equal(activeLandlordPrimaryLink('/landlord/properties/123', ''), null);
-  assert.equal(activeLandlordPrimaryLink('/landlord/settings', ''), null);
+test('selects the correct primary section for list pages, details, and secondary tools', () => {
+  for (const [path, expected] of [
+    ['/landlord', 'Home'], ['/landlord/dashboard', 'Home'], ['/landlord/properties', 'Properties'],
+    ['/landlord/property/123', 'Properties'], ['/landlord/properties/123', 'Properties'],
+    ['/landlord/unit/123', 'Properties'], ['/landlord/tenants/12', 'Tenants'],
+    ['/landlord/maintenances', 'Maintenance'], ['/landlord/maintenance/12', 'Maintenance'],
+    ['/landlord/finances', 'Finances'], ['/landlord/accounting/expenses', 'Finances'],
+    ['/landlord/documents', 'Documents'], ['/landlord/files', 'Documents'],
+    ['/landlord/calendar', 'More'], ['/landlord/listings/123', 'More'],
+    ['/landlord/bookings/123', 'More'], ['/landlord/settings', 'More'], ['/admin/dashboard', null]
+  ]) assert.equal(activeLandlordPrimaryLink(path), expected, path);
+  assert.equal(activeLandlordPrimaryLink('/landlord/dashboard', '?tab=calendar'), 'More');
+  assert.equal(activeLandlordPrimaryLink('/landlord/dashboard', '?tab=tasks'), 'Home');
+  assert.equal(activeLandlordPrimaryLink('/landlord/leases', '?tab=tenants'), 'Tenants');
+  assert.equal(activeLandlordPrimaryLink('/landlord/leases', '?tab=leases'), 'More');
 });

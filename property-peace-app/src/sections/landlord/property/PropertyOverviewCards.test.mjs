@@ -4,8 +4,21 @@ import { readFile } from 'node:fs/promises';
 
 const read = (name) => readFile(new URL(name, import.meta.url), 'utf8');
 
-test('property header exposes one actions menu with the requested destinations', async () => {
+test('property breadcrumbs and Actions share a row above equal-height hero and rent cards', async () => {
   const header = await read('./PropertyHeader.jsx');
+  const actions = await read('./PropertyActions.jsx');
+  const page = await read('../../../pages/landlord/property.jsx');
+  assert.match(page, /<Stack direction="row" alignItems="center" justifyContent="space-between"[^>]*>[\s\S]*?<PageBreadcrumbs[\s\S]*?<PropertyActions[\s\S]*?<\/Stack>[\s\S]*?<PropertyHeader/);
+  assert.doesNotMatch(header, /ThunderboltOutlined|property-actions-menu/);
+  assert.match(actions, /aria-expanded=\{Boolean\(actionsAnchor\)\}/);
+  assert.match(header, /<Grid container spacing=\{2\} alignItems="stretch">/);
+  assert.match(header, /<Grid size=\{\{ xs: 12, md: 7 \}\} sx=\{\{ display: 'flex' \}\}>/);
+  assert.match(header, /width: '100%',\s*height: '100%',\s*minHeight: 300/);
+  assert.match(header, /height: '100%', minHeight: 300, boxSizing: 'border-box'/);
+});
+
+test('property Actions preserves the seven menu destinations and deletion confirmation', async () => {
+  const header = await read('./PropertyActions.jsx');
   const overview = await read('./PropertyOverview.jsx');
   assert.doesNotMatch(overview, /PropertyQuickActionsPanel/);
   assert.match(header, /startIcon=\{<ThunderboltOutlined/);
@@ -25,14 +38,16 @@ test('property header exposes one actions menu with the requested destinations',
   assert.match(header, /onDelete\?\.\(\)/);
 });
 
-test('property header Actions button remains white with navy text on hover and focus', async () => {
+test('property Actions matches the payment button using theme-contained styling', async () => {
+  const actions = await read('./PropertyActions.jsx');
   const header = await read('./PropertyHeader.jsx');
-  const buttonStyle = header.match(/const heroButtonSx = \{([\s\S]*?)\n\};/)?.[1];
+  const buttonStyle = actions.match(/const actionButtonSx = \{([\s\S]*?)\n\};/)?.[1];
   assert.ok(buttonStyle, 'property Actions button style exists');
-  assert.match(buttonStyle, /bgcolor: '#fff'/);
-  assert.match(buttonStyle, /color: '#061e35'/);
-  assert.match(buttonStyle, /'&:hover, &:focus-visible': \{[^}]*color: '#061e35'[^}]*bgcolor: '#fff'/);
-  assert.match(header, /aria-expanded=\{Boolean\(actionsAnchor\)\}[\s\S]*?sx=\{heroButtonSx\}[\s\S]*?>\s*Actions/);
+  assert.match(actions, /<Button\s+variant="contained"\s+startIcon=\{<ThunderboltOutlined/);
+  assert.match(header, /<Button\s+variant="contained"\s+startIcon=\{<DollarOutlined/);
+  assert.match(buttonStyle, /textTransform: 'none'/);
+  assert.doesNotMatch(buttonStyle, /borderColor|bgcolor|background|color:|fontWeight|&:hover|&:focus-visible/);
+  assert.match(actions, /aria-expanded=\{Boolean\(actionsAnchor\)\}[\s\S]*?sx=\{actionButtonSx\}[\s\S]*?>\s*Actions/);
 });
 
 test('overview removes the current tenant and current lease cards but keeps property context', async () => {

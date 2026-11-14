@@ -256,13 +256,13 @@ export default function AdminUpcomingFeatures() {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell><strong>Order</strong></TableCell>
-                  <TableCell><strong>Title</strong></TableCell>
-                  <TableCell><strong>Description</strong></TableCell>
-                  <TableCell><strong>Icon</strong></TableCell>
-                  <TableCell><strong>Expected Date</strong></TableCell>
-                  <TableCell><strong>Status</strong></TableCell>
-                  <TableCell align="right"><strong>Actions</strong></TableCell>
+                  <TableCell>Order</TableCell>
+                  <TableCell>Title</TableCell>
+                  <TableCell>Description</TableCell>
+                  <TableCell>Icon</TableCell>
+                  <TableCell>Expected Date</TableCell>
+                  <TableCell>Status</TableCell>
+                  <TableCell align="right">Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>

@@ -58,27 +58,12 @@ export default function RentCollectionTable({ sortedRents, sortField, sortOrder,
       component={Paper}
       variant="outlined"
       sx={{
-        bgcolor: (t) => alpha(t.palette.background.paper, 0.8),
-        boxShadow: (t) => `0 4px 20px ${alpha(t.palette.primary.main, 0.15)}`,
-        border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-        borderRadius: 2,
         overflow: 'hidden'
       }}
     >
       <Table size="medium">
         <TableHead>
-          <TableRow
-            sx={{
-              bgcolor: (t) => alpha(t.palette.primary.main, 0.05),
-              '& .MuiTableCell-head': {
-                fontWeight: 700,
-                fontSize: '0.875rem',
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px',
-                borderBottom: `2px solid ${alpha(theme.palette.divider, 0.1)}`
-              }
-            }}
-          >
+          <TableRow>
             <TableCell
               sx={{ cursor: 'pointer', userSelect: 'none', '&:hover': { bgcolor: alpha(theme.palette.action.hover, 0.05) } }}
               onClick={() => handleSort('property')}
@@ -89,7 +74,7 @@ export default function RentCollectionTable({ sortedRents, sortField, sortOrder,
                   (sortOrder === 'asc' ? <ArrowUpOutlined style={{ fontSize: 12 }} /> : <ArrowDownOutlined style={{ fontSize: 12 }} />)}
               </Stack>
             </TableCell>
-            <TableCell sx={{ fontWeight: 700 }}>Tenant(s)</TableCell>
+            <TableCell>Tenant(s)</TableCell>
             <TableCell
               sx={{ cursor: 'pointer', userSelect: 'none', '&:hover': { bgcolor: alpha(theme.palette.action.hover, 0.05) } }}
               align="right"
@@ -133,7 +118,7 @@ export default function RentCollectionTable({ sortedRents, sortField, sortOrder,
                   (sortOrder === 'asc' ? <ArrowUpOutlined style={{ fontSize: 12 }} /> : <ArrowDownOutlined style={{ fontSize: 12 }} />)}
               </Stack>
             </TableCell>
-            <TableCell sx={{ fontWeight: 700 }} align="center">
+            <TableCell align="center">
               Actions
             </TableCell>
           </TableRow>

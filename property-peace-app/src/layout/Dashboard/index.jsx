@@ -12,6 +12,7 @@ import { Container, Toolbar, Box, alpha } from '@mui/material';
 // project imports
 import Header from './Header';
 import MainDrawer from './Drawer';
+import LandlordSidebar, { LANDLORD_SIDEBAR_WIDTH } from './LandlordSidebar';
 import { DRAWER_WIDTH } from 'config';
 import Footer from './Footer';
 import Loader from 'components/Loader';
@@ -32,10 +33,12 @@ import { useGetMenuMaster } from 'api/menu';
 export default function DashboardLayout() {
   const { pathname } = useLocation();
   const isAdminPortal = pathname === '/admin' || pathname.startsWith('/admin/');
-  const isLandlordDashboard = pathname === '/landlord/dashboard' || pathname === '/landlord/dashboard/';
-  const [adminMobileMenuOpen, setAdminMobileMenuOpen] = useState(false);
-  // Standalone property onboarding supplies its own logo, Save & exit, and step footer.
+
   const isAddPropertyPage = pathname === '/landlord/properties/add' || pathname === '/landlord/property-add-workflow';
+  const isLandlordPortal = (pathname === '/landlord' || pathname.startsWith('/landlord/')) && !isAddPropertyPage;
+  const [adminMobileMenuOpen, setAdminMobileMenuOpen] = useState(false);
+  const [landlordMobileMenuOpen, setLandlordMobileMenuOpen] = useState(false);
+  // Standalone property onboarding supplies its own logo, Save & exit, and step footer.
   const { menuMasterLoading, menuMaster } = useGetMenuMaster();
   const { user } = useAuth();
   const drawer = useDrawer();
@@ -65,6 +68,7 @@ export default function DashboardLayout() {
   // Hide loader once layout is ready (menu loaded)
   useEffect(() => {
     setAdminMobileMenuOpen(false);
+    setLandlordMobileMenuOpen(false);
   }, [pathname]);
 
   // Keep it visible longer to allow page components to start animating
@@ -150,13 +154,14 @@ export default function DashboardLayout() {
           })
         })}
       >
-        {!isAddPropertyPage && <Header adminPortal={isAdminPortal} onAdminMenuOpen={() => setAdminMobileMenuOpen(true)} />}
+        {!isAddPropertyPage && <Header adminPortal={isAdminPortal} landlordPortal={isLandlordPortal} onAdminMenuOpen={() => setAdminMobileMenuOpen(true)} onLandlordMenuOpen={() => setLandlordMobileMenuOpen(true)} />}
         {isAdminPortal && <MainDrawer mobileOpen={adminMobileMenuOpen} onMobileClose={() => setAdminMobileMenuOpen(false)} />}
+        {isLandlordPortal && <LandlordSidebar mobileOpen={landlordMobileMenuOpen} onMobileClose={() => setLandlordMobileMenuOpen(false)} />}
 
         <Box 
           component="main" 
           sx={{ 
-            width: isAdminPortal ? { xs: '100%', lg: `calc(100% - ${DRAWER_WIDTH}px)` } : '100%',
+            width: isAdminPortal ? { xs: '100%', lg: `calc(100% - ${DRAWER_WIDTH}px)` } : isLandlordPortal ? { xs: '100%', lg: `calc(100% - ${LANDLORD_SIDEBAR_WIDTH}px)` } : '100%',
             flexGrow: 1, 
             p: isAddPropertyPage ? 0 : 2.5,
             pb: 0,
@@ -166,7 +171,7 @@ export default function DashboardLayout() {
             minWidth: 0
           }}
         >
-          {!isAddPropertyPage && <Toolbar sx={{ minHeight: { xs: '68px !important', sm: '84px !important' } }} />}
+          {!isAddPropertyPage && <Toolbar sx={{ minHeight: { xs: '52px !important', sm: '60px !important' } }} />}
           <Container
             maxWidth={false}
             disableGutters
@@ -203,9 +208,9 @@ export default function DashboardLayout() {
               {/* Keep page gutters separate from the header and footer. */}
               <Box data-testid="main-app-page-content" sx={{
                 width: '100%',
-                maxWidth: isAddPropertyPage ? 'none' : isLandlordDashboard ? 1280 : 1120,
+                maxWidth: 'none',
                 mx: 'auto',
-                px: isAddPropertyPage || isLandlordDashboard ? 0 : { xs: 0, sm: 1, md: 2, lg: 3 },
+                px: isAddPropertyPage ? 0 : { xs: 0, sm: 1, md: 1.5, lg: 2 },
                 boxSizing: 'border-box',
                 minWidth: 0,
                 flex: 1,

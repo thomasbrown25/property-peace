@@ -184,18 +184,7 @@ export default function PaymentHistoryTable({ payments, deposits = [], onPayment
       <TableContainer>
         <Table>
           <TableHead>
-            <TableRow
-              sx={{
-                bgcolor: (t) => alpha(t.palette.primary.main, 0.05),
-                '& .MuiTableCell-head': {
-                  fontWeight: 700,
-                  fontSize: '0.875rem',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.5px',
-                  borderBottom: `2px solid ${alpha(theme.palette.divider, 0.1)}`
-                }
-              }}
-            >
+            <TableRow>
               <TableCell>Date</TableCell>
               <TableCell>Type</TableCell>
               <TableCell>Amount</TableCell>

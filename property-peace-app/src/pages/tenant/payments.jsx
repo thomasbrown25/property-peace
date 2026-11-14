@@ -670,13 +670,13 @@ export default function TenantPayments() {
                   <TableContainer sx={{ display: { xs: 'none', md: 'block' } }}>
                     <Table size="small" sx={{ tableLayout: 'fixed' }}>
                       <TableHead>
-                        <TableRow sx={{ bgcolor: alpha(theme.palette.primary.main, 0.04) }}>
-                          <TableCell sx={{ width: '20%', fontWeight: 600, fontSize: '0.75rem' }}>Date</TableCell>
-                          <TableCell sx={{ width: '15%', fontWeight: 600, fontSize: '0.75rem' }}>Amount</TableCell>
-                          <TableCell sx={{ width: '15%', fontWeight: 600, fontSize: '0.75rem' }}>Status</TableCell>
-                          <TableCell sx={{ width: '20%', fontWeight: 600, fontSize: '0.75rem' }}>Method</TableCell>
-                          <TableCell sx={{ width: '18%', fontWeight: 600, fontSize: '0.75rem' }}>Reference</TableCell>
-                          <TableCell sx={{ width: '12%', fontWeight: 600, fontSize: '0.75rem' }}>Action</TableCell>
+                        <TableRow>
+                          <TableCell sx={{ width: '20%' }}>Date</TableCell>
+                          <TableCell sx={{ width: '15%' }}>Amount</TableCell>
+                          <TableCell sx={{ width: '15%' }}>Status</TableCell>
+                          <TableCell sx={{ width: '20%' }}>Method</TableCell>
+                          <TableCell sx={{ width: '18%' }}>Reference</TableCell>
+                          <TableCell sx={{ width: '12%' }}>Action</TableCell>
                         </TableRow>
                       </TableHead>
                       <TableBody>

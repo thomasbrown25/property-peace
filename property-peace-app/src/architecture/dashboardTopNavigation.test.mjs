@@ -4,73 +4,92 @@ import assert from 'node:assert/strict';
 
 const source = (path) => readFileSync(new URL(path, import.meta.url), 'utf8');
 
-test('dashboard shell restores the existing drawer only for admin routes', () => {
+test('admin keeps its own route-scoped drawer', () => {
+  const layout = source('../layout/Dashboard/index.jsx');
+  const drawer = source('../layout/Dashboard/Drawer/index.jsx');
+  assert.match(layout, /pathname === '\/admin' \|\| pathname\.startsWith\('\/admin\/'\)/);
+  assert.match(layout, /\{isAdminPortal && <MainDrawer mobileOpen=\{adminMobileMenuOpen\}/);
+  assert.match(drawer, /variant="permanent"/);
+  assert.match(drawer, /variant="temporary"/);
+});
+
+test('desktop layout and header reserve room for both sidebars without changing standalone onboarding', () => {
   const layout = source('../layout/Dashboard/index.jsx');
   const header = source('../layout/Dashboard/Header/index.jsx');
   const content = source('../layout/Dashboard/Header/HeaderContent/index.jsx');
-  const drawer = source('../layout/Dashboard/Drawer/index.jsx');
-  const navigation = source('../layout/Dashboard/Drawer/DrawerContent/Navigation/index.jsx');
-  assert.match(layout, /pathname === '\/admin' \|\| pathname\.startsWith\('\/admin\/'\)/);
-  assert.match(layout, /\{isAdminPortal && <MainDrawer mobileOpen=\{adminMobileMenuOpen\}/);
-  assert.match(layout, /width: isAdminPortal \?/);
-  assert.match(header, /width: adminPortal \?/);
-  assert.match(header, /<HeaderContent adminPortal=\{adminPortal\}/);
-  assert.match(content, /adminPortal && \([\s\S]*?aria-label="Open admin navigation"/);
-  assert.match(drawer, /variant="permanent"/);
-  assert.match(drawer, /variant="temporary"/);
-  assert.match(drawer, /onClose=\{onMobileClose\}/);
-  assert.match(navigation, /menuData = \{ items: \[adminPages\] \}/);
+  const sidebar = source('../layout/Dashboard/LandlordSidebar.jsx');
+  assert.match(layout, /const isLandlordPortal = .*pathname\.startsWith\('\/landlord\/'\).*&& !isAddPropertyPage/);
+  assert.match(layout, /\{isLandlordPortal && <LandlordSidebar mobileOpen=\{landlordMobileMenuOpen\}/);
+  for (const text of [layout, header]) assert.match(text, /lg: `calc\(100% - \$\{LANDLORD_SIDEBAR_WIDTH\}px\)`/);
+  assert.match(sidebar, /LANDLORD_SIDEBAR_WIDTH = LANDLORD_PRIMARY_SIDEBAR_WIDTH \+ LANDLORD_PROPERTY_SIDEBAR_WIDTH/);
+  assert.match(sidebar, /component="aside" aria-label="Property sidebar"/);
+  assert.match(sidebar, /left: LANDLORD_PRIMARY_SIDEBAR_WIDTH/);
+  assert.match(sidebar, /bgcolor: 'background.paper'/);
+  assert.match(sidebar, /<Logo darkSurface[\s\S]*?to="\/landlord\/dashboard"/);
+  assert.match(content, /aria-label="Open landlord navigation"/);
+  assert.doesNotMatch(content, /calc\(100% \+|lg: `-\$/);
 });
 
-test('mobile More keeps Calendar reachable when the centered desktop links are hidden', () => {
-  const mobile = source('../layout/Dashboard/BottomNavBar/index.jsx');
-  assert.match(mobile, /id: 'calendar', title: 'Calendar', url: '\/landlord\/calendar'/);
-  assert.match(mobile, /flattenedLandlordItems\.map/);
+test('outer navigation has the requested sections and an expandable More menu', () => {
+  const sidebar = source('../layout/Dashboard/LandlordSidebar.jsx');
+  const primary = source('../utils/landlordPrimaryNavigation.js');
+  for (const label of ['Home', 'Tenants', 'Maintenance', 'Finances', 'Documents']) assert.ok(primary.includes(`label: '${label}'`));
+  assert.doesNotMatch(primary, /label: 'Properties'/);
+  assert.match(sidebar, /landlordPrimaryLinks\.map/);
+  assert.match(sidebar, /primary="More"/);
+  assert.match(sidebar, /aria-expanded=\{moreOpen\}/);
+  assert.match(sidebar, /landlordMoreLinks\.map/);
+  assert.doesNotMatch(sidebar, />Workspace<\/Typography>|PORTFOLIO CONVERSATIONS|fresh conversation/);
 });
 
-test('desktop More follows the primary links and exposes Properties with the former landlord destinations', () => {
-  const navigation = source('../layout/Dashboard/Header/HeaderContent/LandlordPrimaryNavigation.jsx');
-  const more = source('../layout/Dashboard/Header/HeaderContent/TopNavigation.jsx');
-  const pages = source('../menu-items/pages.js');
-  assert.match(navigation, /landlordPrimaryLinks\.map\([\s\S]*?<TopNavigation \/>/);
-  assert.match(more, /primaryDestinations = new Set\(landlordPrimaryLinks\.map/);
-  assert.match(more, /landlordPagesForInventory\(pages, shortTermOnly\)/);
-  assert.match(pages, /title: 'Properties',[\s\S]*?url: '\/landlord\/properties'/);
-  assert.match(more, /if \(primaryDestinations\.has\(item\.url\)\) return \[\]/);
-  assert.match(more, /id: 'tenants', title: 'Tenants'[\s\S]*?\/landlord\/leases\?tab=tenants/);
-  assert.match(more, /aria-expanded=\{Boolean\(anchor\)\}/);
-  assert.match(more, /maxHeight: 'calc\(100dvh - 88px\)'/);
-  assert.match(more, /minHeight: 34, py: 0\.5/);
-  assert.match(navigation, /color: 'inherit'/);
-  assert.match(more, /component="button"[\s\S]*?color: 'inherit'/);
-  assert.match(more, /fontWeight: moreSelected \? 700 : 500/);
-  assert.match(more, /component="span"[\s\S]*?'&::after': \{[\s\S]*?bottom: -6,[\s\S]*?opacity: moreSelected \? 1 : 0/);
-  assert.match(more, /disabled=\{item\.disabled \|\| trialExpired\}/);
-  for (const title of ['Leases', 'Percy', 'Checklists', 'Maintenance', 'Vendors', 'Team', 'Announcements', 'Online Payments', 'Finances', 'Tax Center', 'Reports']) {
-    assert.ok(pages.includes(`title: '${title}'`), `Missing former sidebar destination: ${title}`);
+test('inner property navigation always searches the full portfolio, with real thumbnails and links', () => {
+  const sidebar = source('../layout/Dashboard/LandlordSidebar.jsx');
+  assert.match(sidebar, /useFetchProperties\(\)/);
+  assert.match(sidebar, /visibleProperties = propertyRows\.filter/);
+  assert.match(sidebar, /property\.name} \$\{property\.address/);
+  assert.doesNotMatch(sidebar, /MAX_SIDEBAR_PROPERTIES|hasMoreProperties/);
+  assert.match(sidebar, /placeholder="Search properties" value=\{search\}/);
+  assert.match(sidebar, /'aria-label': 'Search properties'/);
+  assert.match(sidebar, /\/landlord\/property\/\$\{encodeURIComponent\(property\.id\)\}/);
+  assert.match(sidebar, /component="img" src=\{property\.image\}/);
+  assert.match(sidebar, /aria-current=\{isActive \? 'page' : undefined\}/);
+  assert.match(sidebar, /primary="All properties"/);
+  assert.match(sidebar, /aria-label="Add property"/);
+  assert.match(sidebar, /No matching properties\./);
+  assert.match(sidebar, /Loading properties…/);
+  assert.match(sidebar, /Properties could not be loaded\./);
+  assert.match(sidebar, /No properties yet\./);
+  assert.match(sidebar, /role="status"/);
+});
+
+test('property list preserves readable rows, visible scrolling and conditional overflow fade', () => {
+  const sidebar = source('../layout/Dashboard/LandlordSidebar.jsx');
+  assert.match(sidebar, /minHeight: 56/);
+  assert.match(sidebar, /overflowY: 'scroll', scrollbarWidth: 'thin'/);
+  assert.match(sidebar, /onScroll=\{updateOverflow\}/);
+  assert.match(sidebar, /ResizeObserver\(updateOverflow\)/);
+  assert.match(sidebar, /observer\.disconnect\(\)/);
+  assert.match(sidebar, /\{hasMoreBelow && <Box aria-hidden="true"/);
+});
+
+test('sidenav preserves property recency, account scope, and subscription gating', () => {
+  const sidebar = source('../layout/Dashboard/LandlordSidebar.jsx');
+  assert.match(sidebar, /readPropertyVisitDates\(user\)/);
+  assert.match(sidebar, /sortPropertiesByLastVisit\([\s\S]*?visitDates\)/);
+  for (const event of ['PROPERTY_VISITED_EVENT', "'storage'"]) {
+    assert.ok(sidebar.includes(`window.addEventListener(${event}, refreshVisits)`));
+    assert.ok(sidebar.includes(`window.removeEventListener(${event}, refreshVisits)`));
   }
-  assert.match(more, /Support/);
-  assert.match(more, /Settings/);
+  assert.match(sidebar, /recordRecentlyViewedProperty\(property\.id, user\)/);
+  assert.match(sidebar, /disabled=\{trialExpired\}/);
 });
 
-test('top bar keeps the logo, mounts the landlord navigation, and places search before messages', () => {
+test('mobile keeps both menus accessible without reserving desktop sidebar space', () => {
+  const sidebar = source('../layout/Dashboard/LandlordSidebar.jsx');
   const content = source('../layout/Dashboard/Header/HeaderContent/index.jsx');
-  const search = source('../layout/Dashboard/Header/HeaderContent/MobileSearch.jsx');
-  const field = source('../layout/Dashboard/Header/HeaderContent/Search.jsx');
-  assert.match(content, /<Logo[\s\S]*?to={`\$\{basePath\}\/dashboard`}/);
-  assert.doesNotMatch(content, /<TopNavigation\s*\/>|<Search shrink\s*\/>/);
-  assert.match(content, /!isAdmin && !hasTenantRole && <LandlordPrimaryNavigation\s*\/>/);
-  const navigation = source('../layout/Dashboard/Header/HeaderContent/LandlordPrimaryNavigation.jsx');
-  assert.match(navigation, /component="nav" aria-label="Landlord primary navigation"/);
-  assert.match(navigation, /aria-current=\{active === label \? 'page' : undefined\}/);
-  assert.match(navigation, /display: \{ xs: 'none', md: 'flex' \}/);
-  assert.match(navigation, /component="span"[\s\S]*?'&::after': \{[\s\S]*?bottom: -6,[\s\S]*?opacity: active === label \? 1 : 0/);
-  assert.doesNotMatch(navigation, /borderBottom:/);
-  assert.match(content, /<MobileSearch\s*\/>[\s\S]*?<Message\s*\/>/);
-  assert.match(search, /<Popper[\s\S]*?placement="bottom-end"/);
-  assert.match(search, /<Search autoFocus onResultSelect=/);
-  assert.match(search, /ClickAwayListener/);
-  assert.match(search, /event\.key === 'Escape'/);
-  assert.match(field, /useGlobalSearch\(debouncedQuery, 10\)/);
-  assert.match(field, /onResultSelect\?\.\(\)/);
+  assert.match(sidebar, /variant="temporary" open=\{mobileOpen\} onClose=\{onMobileClose\}/);
+  assert.match(sidebar, /maxWidth: '90vw'/);
+  assert.match(sidebar, /minHeight: 0, bgcolor: 'background.paper' }}>\{propertyNavigation\}/);
+  for (const utility of ['MobileSearch', 'Search', 'Message', 'Notification', 'Profile']) assert.ok(content.includes(`<${utility} />`));
+  assert.doesNotMatch(content, /<TopNavigation\s*\/>|<LandlordPrimaryNavigation\s*\/>/);
 });

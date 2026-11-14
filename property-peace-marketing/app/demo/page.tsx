@@ -88,15 +88,15 @@ export default function DemoPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#061E35] text-white">
-      <section data-marketing-hero-theme="dark" className="relative flex min-h-[480px] items-center justify-center overflow-hidden bg-[#061E35] px-4 pb-24 pt-36 text-center sm:min-h-[540px] sm:px-6 sm:pt-40 lg:px-8">
+    <div className="min-h-screen bg-brand-forest text-white">
+      <section data-marketing-hero-theme="dark" className="relative flex min-h-[480px] items-center justify-center overflow-hidden bg-brand-forest px-4 pb-24 pt-36 text-center sm:min-h-[540px] sm:px-6 sm:pt-40 lg:px-8">
         <div
           className="absolute inset-0 bg-cover bg-[position:64%_center] bg-no-repeat sm:bg-center"
           style={{ backgroundImage: 'url(/images/book-demo/hero.png)' }}
           aria-hidden="true"
         />
         <div
-          className="absolute inset-0 bg-[linear-gradient(to_top,#061E35_0%,rgba(6,30,53,0.98)_18%,rgba(6,30,53,0.82)_58%,rgba(6,30,53,0.72)_100%)] sm:bg-[linear-gradient(to_top,#061E35_0%,rgba(6,30,53,0.98)_18%,rgba(6,30,53,0.72)_60%,rgba(6,30,53,0.62)_100%)]"
+          className="absolute inset-0 bg-[linear-gradient(to_top,#061E35_0%,rgba(16,44,41,0.98)_18%,rgba(16,44,41,0.82)_58%,rgba(16,44,41,0.72)_100%)] sm:bg-[linear-gradient(to_top,#061E35_0%,rgba(16,44,41,0.98)_18%,rgba(16,44,41,0.72)_60%,rgba(16,44,41,0.62)_100%)]"
           aria-hidden="true"
         />
         <motion.div
@@ -106,8 +106,8 @@ export default function DemoPage() {
           transition={{ duration: 0.6, ease: 'easeOut' }}
         >
           <h1
-            className="mb-4 text-4xl font-bold text-white md:text-5xl"
-            style={{ fontFamily: '"Poppins", sans-serif' }}
+            className="mb-4 text-4xl font-extrabold text-white md:text-5xl"
+            style={{ fontFamily: '"Host Grotesk", sans-serif' }}
           >
             Simplify Your Property Management
           </h1>
@@ -119,7 +119,7 @@ export default function DemoPage() {
           </p>
         </motion.div>
       </section>
-      <main className="bg-[#061E35] px-4 pb-16 pt-4 sm:px-6 lg:px-8">
+      <main className="bg-brand-forest px-4 pb-16 pt-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-4xl">
           {/* Progress Indicator */}
           <motion.div
@@ -145,12 +145,12 @@ export default function DemoPage() {
               </div>
 
               {/* Connector */}
-              <div className="w-16 h-0.5 bg-[#E5E5E5] mx-4"></div>
+              <div className="w-16 h-0.5 bg-[var(--brand-border)] mx-4"></div>
 
               {/* Step 2 - Inactive */}
               <div className="flex items-center">
-                <div className="w-10 h-10 rounded-full bg-[#E5E5E5] flex items-center justify-center">
-                  <FiCalendar className="w-5 h-5 text-[#737373]" />
+                <div className="w-10 h-10 rounded-full bg-[var(--brand-border)] flex items-center justify-center">
+                  <FiCalendar className="w-5 h-5 text-brand-slate" />
                 </div>
                 <div className="ml-3">
                   <p
@@ -166,7 +166,7 @@ export default function DemoPage() {
 
           {/* Form Card */}
           <motion.div
-            className="bg-white text-[#061E35] rounded-2xl p-8 md:p-12 shadow-lg"
+            className="bg-brand-surface text-brand-forest rounded-2xl p-8 md:p-12 shadow-lg"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: "easeOut", delay: 0.4 }}
@@ -189,8 +189,8 @@ export default function DemoPage() {
                     name="firstName"
                     value={formData.firstName}
                     onChange={handleChange}
-                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#217eff] transition-colors ${
-                      errors.firstName ? 'border-red-500' : 'border-[#E5E5E5]'
+                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-teal transition-colors ${
+                      errors.firstName ? 'border-red-500' : 'border-[var(--brand-border)]'
                     }`}
                     style={{ fontFamily: '"Inter", sans-serif' }}
                     placeholder="First Name"
@@ -217,8 +217,8 @@ export default function DemoPage() {
                     name="lastName"
                     value={formData.lastName}
                     onChange={handleChange}
-                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#217eff] transition-colors ${
-                      errors.lastName ? 'border-red-500' : 'border-[#E5E5E5]'
+                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-teal transition-colors ${
+                      errors.lastName ? 'border-red-500' : 'border-[var(--brand-border)]'
                     }`}
                     style={{ fontFamily: '"Inter", sans-serif' }}
                     placeholder="Last Name"
@@ -245,8 +245,8 @@ export default function DemoPage() {
                     name="companyName"
                     value={formData.companyName}
                     onChange={handleChange}
-                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#217eff] transition-colors ${
-                      errors.companyName ? 'border-red-500' : 'border-[#E5E5E5]'
+                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-teal transition-colors ${
+                      errors.companyName ? 'border-red-500' : 'border-[var(--brand-border)]'
                     }`}
                     style={{ fontFamily: '"Inter", sans-serif' }}
                     placeholder="Company Name"
@@ -273,8 +273,8 @@ export default function DemoPage() {
                     name="email"
                     value={formData.email}
                     onChange={handleChange}
-                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#217eff] transition-colors ${
-                      errors.email ? 'border-red-500' : 'border-[#E5E5E5]'
+                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-teal transition-colors ${
+                      errors.email ? 'border-red-500' : 'border-[var(--brand-border)]'
                     }`}
                     style={{ fontFamily: '"Inter", sans-serif' }}
                     placeholder="Email"
@@ -301,8 +301,8 @@ export default function DemoPage() {
                     name="phone"
                     value={formData.phone}
                     onChange={handleChange}
-                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#217eff] transition-colors ${
-                      errors.phone ? 'border-red-500' : 'border-[#E5E5E5]'
+                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-teal transition-colors ${
+                      errors.phone ? 'border-red-500' : 'border-[var(--brand-border)]'
                     }`}
                     style={{ fontFamily: '"Inter", sans-serif' }}
                     placeholder="Phone"
@@ -331,8 +331,8 @@ export default function DemoPage() {
                     name="numberOfUnits"
                     value={formData.numberOfUnits}
                     onChange={handleChange}
-                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#217eff] transition-colors ${
-                      errors.numberOfUnits ? 'border-red-500' : 'border-[#E5E5E5]'
+                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-teal transition-colors ${
+                      errors.numberOfUnits ? 'border-red-500' : 'border-[var(--brand-border)]'
                     }`}
                     style={{ fontFamily: '"Inter", sans-serif' }}
                     placeholder="Number of Units"
@@ -359,8 +359,8 @@ export default function DemoPage() {
                   name="howCanWeHelp"
                   value={formData.howCanWeHelp}
                   onChange={handleChange}
-                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#217eff] transition-colors bg-white ${
-                    errors.howCanWeHelp ? 'border-red-500' : 'border-[#E5E5E5]'
+                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-teal transition-colors bg-brand-surface ${
+                    errors.howCanWeHelp ? 'border-red-500' : 'border-[var(--brand-border)]'
                   }`}
                   style={{ fontFamily: '"Inter", sans-serif' }}
                 >
@@ -394,18 +394,18 @@ export default function DemoPage() {
                         });
                       }
                     }}
-                    className="mt-1 mr-3 w-4 h-4 text-[#217eff] border-[#E5E5E5] rounded focus:ring-[#217eff]"
+                    className="mt-1 mr-3 w-4 h-4 text-brand-teal border-[var(--brand-border)] rounded focus:ring-brand-teal"
                   />
                   <span
-                    className="text-sm text-[#737373]"
+                    className="text-sm text-brand-slate"
                     style={{ fontFamily: '"Inter", sans-serif' }}
                   >
                     By submitting this form, you consent to the use of your contact information in accordance with{' '}
-                    <a href="/terms" className="text-[#217eff] hover:underline" target="_blank" rel="noopener noreferrer">
+                    <a href="/terms" className="text-brand-teal hover:underline" target="_blank" rel="noopener noreferrer">
                       Property Peace Terms
                     </a>
                     {' '}and{' '}
-                    <a href="/privacy" className="text-[#217eff] hover:underline" target="_blank" rel="noopener noreferrer">
+                    <a href="/privacy" className="text-brand-teal hover:underline" target="_blank" rel="noopener noreferrer">
                       Privacy Policy
                     </a>
                     .

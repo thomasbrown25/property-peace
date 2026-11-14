@@ -7,7 +7,7 @@ import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { logout } from '../store/user/user.slice';
 import { useMoreDrawer } from './MoreDrawerContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAppTheme } from '../theme/AppTheme';
+import { brandColors, useAppTheme } from '../theme/AppTheme';
 import { mainTabIconNames, type MainAudience } from './mainTabModel';
 import PropertyAPI from '../api/propertyAPI';
 import { loadPortfolioRentalMode } from '../features/properties/portfolioRentalMode';
@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
   handle: { alignSelf: 'center', width: 38, height: 4, borderRadius: 2, marginBottom: 24 },
   sheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 },
   sheetLogo: { width: 148, height: 42 },
-  sheetEyebrow: { color: '#2f8f46', fontSize: 11, fontWeight: '800', letterSpacing: 1.2 },
+  sheetEyebrow: { color: brandColors.teal, fontSize: 11, fontWeight: '800', letterSpacing: 1.2 },
   closeButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   actionScroll: { flexShrink: 1 },
   scrollContent: { paddingBottom: 8 },

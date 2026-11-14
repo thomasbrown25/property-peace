@@ -84,6 +84,7 @@ import listingApi from 'api/listing';
 
 // Enhanced components
 import PropertyHeader from 'sections/landlord/property/PropertyHeader';
+import PropertyActions from 'sections/landlord/property/PropertyActions';
 import PropertyMetrics from 'sections/landlord/property/PropertyMetrics';
 import PropertyHero from 'sections/landlord/property/PropertyHero';
 import MaintenanceTab from 'sections/landlord/property/MaintenanceTab';
@@ -1819,15 +1820,15 @@ function LeaseTab({ property, onRefresh, leases: propLeases, loadingLeases: prop
           </Button>
         </MainCard>
       ) : (
-        <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
+        <TableContainer component={Paper} variant="outlined">
           <Table size="small">
             <TableHead>
-              <TableRow sx={{ bgcolor: (t) => alpha(t.palette.grey[100], 0.8) }}>
-                <TableCell sx={{ fontWeight: 600 }}>Lease</TableCell>
-                <TableCell sx={{ fontWeight: 600 }}>Term</TableCell>
-                <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
-                <TableCell sx={{ fontWeight: 600 }}>Rent</TableCell>
-                <TableCell align="right" sx={{ fontWeight: 600 }}>Actions</TableCell>
+              <TableRow>
+                <TableCell>Lease</TableCell>
+                <TableCell>Term</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell>Rent</TableCell>
+                <TableCell align="right">Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -2612,11 +2613,18 @@ export default function Property() {
     <>
       <Fade in={fadeIn} timeout={600}>
         <Box sx={{ overflow: 'visible' }}>
-        <PageBreadcrumbs items={[
-          { label: 'Dashboard', path: '/landlord/dashboard' },
-          { label: 'Properties', path: '/landlord/properties' },
-          { label: selectedProperty?.name || 'Property' }
-        ]} />
+        <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1.5} sx={{ mb: 2, '& .MuiBreadcrumbs-root': { mb: 0, minWidth: 0 } }}>
+          <PageBreadcrumbs items={[
+            { label: 'Dashboard', path: '/landlord/dashboard' },
+            { label: 'Properties', path: '/landlord/properties' },
+            { label: selectedProperty?.name || 'Property' }
+          ]} />
+          <PropertyActions
+            property={selectedProperty}
+            onEdit={drawer.openPropertyEditDrawer}
+            onDelete={() => setDeletePropertyModalOpen(true)}
+          />
+        </Stack>
         {/* Enhanced Header */}
         <AnimateIn direction="bottom" delay={100} distance={120}>
           <PropertyHeader
@@ -2624,8 +2632,6 @@ export default function Property() {
             rentRecords={rentRecords}
             rentLoading={rentCollectionLoading}
             rentError={rentCollectionError}
-            onEdit={drawer.openPropertyEditDrawer}
-            onDelete={() => setDeletePropertyModalOpen(true)}
             onDeactivate={() => setOpenConfirm(true)}
             onReactivate={handleConfirmReactivateProperty}
             onRefresh={handlePropertyRefresh}

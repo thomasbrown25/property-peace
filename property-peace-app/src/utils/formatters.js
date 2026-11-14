@@ -147,7 +147,7 @@ export const formatDateAndTime = (dateString) => {
  * @param {string|Date} dateString - The date to format (backend sends UTC dates)
  * @returns {string} - Relative time string
  */
-export const formatRelativeTime = (dateString) => {
+export const formatRelativeTime = (dateString, now = Date.now()) => {
   if (!dateString) {
     return '';
   }
@@ -170,8 +170,6 @@ export const formatRelativeTime = (dateString) => {
     
     date = new Date(dateStr);
   }
-  
-  const now = new Date();
   
   // Check if date is valid
   if (isNaN(date.getTime())) {

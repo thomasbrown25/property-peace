@@ -22,4 +22,9 @@ test('lazy module failures use the branded customer-friendly recovery state', as
   assert.match(friendlyErrorSource, /Sorry, we ran into an issue/);
   assert.match(friendlyErrorSource, /We couldn’t load this page right now/);
   assert.match(friendlyErrorSource, /Try again/);
+  assert.match(friendlyErrorSource, /color: 'text.primary'/);
+  assert.match(friendlyErrorSource, /color="primary"/);
+  assert.match(friendlyErrorSource, /theme\.palette\.brand\.(forest|teal|mint)/);
+  assert.match(friendlyErrorSource, /theme\.palette\.mode === 'dark'/);
+  assert.doesNotMatch(friendlyErrorSource, /#061e35|#0b3458|#16b364/i);
 });

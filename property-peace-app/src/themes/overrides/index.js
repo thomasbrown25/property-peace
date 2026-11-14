@@ -95,7 +95,7 @@ export default function ComponentsOverrides(theme) {
     Tab(theme),
     TableBody(theme),
     TableCell(theme),
-    TableContainer(),
+    TableContainer(theme),
     TableFooter(theme),
     TableHead(theme),
     TablePagination(),

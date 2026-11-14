@@ -360,7 +360,7 @@ export default function Navigation() {
             closeFeaturesDropdown();
           }
         }}
-        style={{ fontFamily: '"Poppins", sans-serif' }}
+        style={{ fontFamily: '"Host Grotesk", sans-serif' }}
       >
       <div className="mx-auto w-full min-w-0 max-w-[1660px] px-5 sm:px-6 lg:px-10 xl:px-12">
         <div className="relative grid h-[72px] grid-cols-[76px_minmax(0,1fr)_76px] items-center nav:flex nav:h-[88px] nav:justify-between">
@@ -368,7 +368,7 @@ export default function Navigation() {
           <div className="nav:hidden flex h-11 w-[76px] flex-shrink-0 items-center justify-start">
             <button
               className={`inline-flex h-11 w-11 items-center justify-start rounded-xl transition-colors duration-300 ${
-                whiteSurface ? 'text-[#061E35] hover:text-[#15803D]' : 'text-white hover:text-white'
+                whiteSurface ? 'text-brand-forest hover:text-brand-teal' : 'text-white hover:text-brand-mint'
               }`}
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
@@ -413,7 +413,7 @@ export default function Navigation() {
           <div className="nav:hidden flex h-11 w-full flex-shrink-0 items-center justify-end">
             <Link
               href={loginUrl}
-              className="inline-flex h-[38px] items-center justify-center rounded-sm border border-[#B8C8D5] bg-white px-3 text-xs font-semibold uppercase text-[#061E35] transition-colors duration-[220ms] hover:bg-[#F7FAFC] motion-reduce:transition-none"
+              className="inline-flex h-[38px] items-center justify-center rounded-sm border border-[color-mix(in_srgb,var(--brand-forest)_20%,transparent)] bg-white px-3 text-xs font-semibold uppercase text-brand-forest transition-colors duration-[220ms] hover:bg-brand-ivory motion-reduce:transition-none"
               style={{ fontFamily: '"Inter", "Inter Placeholder", sans-serif' }}
             >
               LOGIN
@@ -439,7 +439,7 @@ export default function Navigation() {
                 onKeyDown={handleFeaturesTriggerKeyDown}
                 className={`flex items-center space-x-1 border-b-2 border-transparent py-2 font-medium transition-[color,border-color] duration-[220ms] motion-reduce:transition-none ${
                   whiteSurface
-                    ? 'text-[#061E35] hover:text-[#15803D]'
+                    ? 'text-brand-forest hover:text-brand-teal'
                     : 'text-white hover:text-white'
                 }`}
               >
@@ -449,22 +449,22 @@ export default function Navigation() {
             </div>
 
             <Link href="/listings" className={`font-medium transition-all duration-300 py-2 border-b-2 border-transparent ${
-              whiteSurface ? 'text-[#061E35] hover:text-[#15803D]' : 'text-white hover:text-white'
+              whiteSurface ? 'text-brand-forest hover:text-brand-teal' : 'text-white hover:text-brand-mint'
             }`}>
               Listings
             </Link>
             <Link href="/pricing" className={`font-medium transition-all duration-300 py-2 border-b-2 border-transparent ${
-              whiteSurface ? 'text-[#061E35] hover:text-[#15803D]' : 'text-white hover:text-white'
+              whiteSurface ? 'text-brand-forest hover:text-brand-teal' : 'text-white hover:text-brand-mint'
             }`}>
               Pricing
             </Link>
             <Link href="/resources" className={`font-medium transition-all duration-300 py-2 border-b-2 border-transparent ${
-              whiteSurface ? 'text-[#061E35] hover:text-[#15803D]' : 'text-white hover:text-white'
+              whiteSurface ? 'text-brand-forest hover:text-brand-teal' : 'text-white hover:text-brand-mint'
             }`}>
               Resources
             </Link>
             <Link href="/about" className={`font-medium transition-all duration-300 py-2 border-b-2 border-transparent ${
-              whiteSurface ? 'text-[#061E35] hover:text-[#15803D]' : 'text-white hover:text-white'
+              whiteSurface ? 'text-brand-forest hover:text-brand-teal' : 'text-white hover:text-brand-mint'
             }`}>
               About
             </Link>
@@ -473,12 +473,12 @@ export default function Navigation() {
           {/* CTA: Login + Book a Demo (desktop) */}
           <div className={`hidden nav:flex items-center gap-3 ${pathname === '/' ? '' : 'lg:nav:mr-12'}`}>
             <Link href={loginUrl}
-              className="inline-flex h-[38px] items-center justify-center rounded-sm border border-[#B8C8D5] bg-white px-[18px] text-center text-xs font-semibold uppercase text-[#061E35] transition-colors duration-200 hover:bg-[#F7FAFC]"
+              className="inline-flex h-[38px] items-center justify-center rounded-sm border border-[color-mix(in_srgb,var(--brand-forest)_20%,transparent)] bg-white px-[18px] text-center text-xs font-semibold uppercase text-brand-forest transition-colors duration-200 hover:bg-brand-ivory"
               style={{ fontFamily: '"Inter", "Inter Placeholder", sans-serif' }}>
               LOGIN
             </Link>
             <Link href="/demo"
-              className="inline-flex h-[38px] items-center justify-center rounded-sm bg-green-600 px-[18px] text-center text-xs font-bold uppercase text-white transition-colors duration-200 hover:bg-green-500"
+              className="inline-flex h-[38px] items-center justify-center rounded-sm bg-brand-teal px-[18px] text-center text-xs font-bold uppercase text-white transition-colors duration-200 hover:bg-brand-teal-hover"
               style={{ fontFamily: '"Inter", "Inter Placeholder", sans-serif' }}>
               BOOK A DEMO
             </Link>
@@ -506,7 +506,7 @@ export default function Navigation() {
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-6 lg:gap-8">
             {featuresCategories.map((category, categoryIndex) => (
               <div key={category.title}>
-                <h3 className="text-xs font-semibold text-[#4ade80] uppercase tracking-wide mb-6">
+                <h3 className="text-xs font-semibold text-brand-mint uppercase tracking-wide mb-6">
                   {category.title}
                 </h3>
                 <ul className="space-y-4">
@@ -521,8 +521,8 @@ export default function Navigation() {
                           onClick={closeFeaturesDropdown}
                         >
                           <div className="flex items-start space-x-3 mb-1">
-                            <IconComponent className="w-5 h-5 text-[#4ade80] flex-shrink-0 mt-0.5 group-hover:text-[#86efac] transition-colors" />
-                            <span className="text-sm font-semibold text-white group-hover:text-[#86efac] transition-colors" style={{ fontFamily: '"Poppins", sans-serif' }}>
+                            <IconComponent className="w-5 h-5 text-brand-mint flex-shrink-0 mt-0.5 group-hover:text-brand-mint transition-colors" />
+                            <span className="text-sm font-semibold text-white group-hover:text-brand-mint transition-colors" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>
                               {feature.title}
                             </span>
                           </div>
@@ -540,7 +540,7 @@ export default function Navigation() {
           <div className="mt-8 pt-6 border-t border-white/20">
             <Link
               href="/features"
-              className="text-sm font-medium text-[#4ade80] hover:text-[#86efac] transition-colors inline-flex items-center"
+              className="text-sm font-medium text-brand-mint hover:text-brand-mint transition-colors inline-flex items-center"
               style={{ fontFamily: '"Inter", sans-serif' }}
               onClick={closeFeaturesDropdown}
             >
@@ -561,7 +561,7 @@ export default function Navigation() {
         {/* Backdrop */}
         <button
           type="button"
-          className="absolute inset-0 bg-[#03101d]/70 backdrop-blur-[2px] transition-opacity duration-300"
+          className="absolute inset-0 bg-[color-mix(in_srgb,var(--brand-forest)_70%,transparent)] backdrop-blur-[2px] transition-opacity duration-300"
           onClick={() => setMobileMenuOpen(false)}
           aria-label="Close menu"
         />
@@ -573,10 +573,10 @@ export default function Navigation() {
           className={`fixed left-0 top-0 flex max-h-dvh w-[min(22rem,88vw)] max-w-full flex-col overflow-hidden rounded-r-[1.75rem] border-r border-white/10 shadow-[24px_0_70px_rgba(0,0,0,0.42)] transition-transform duration-300 ease-out ${
             mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
-          style={{ background: 'linear-gradient(180deg, #061e35 0%, #082b4d 55%, #061e35 100%)' }}
+          style={{ background: 'linear-gradient(180deg, var(--brand-forest) 0%, var(--brand-forest-raised) 55%, var(--brand-forest) 100%)' }}
         >
-          <div className="pointer-events-none absolute -right-24 top-16 h-48 w-48 rounded-full bg-emerald-400/10 blur-3xl" aria-hidden="true" />
-          <div className="pointer-events-none absolute -bottom-20 left-4 h-56 w-56 rounded-full bg-blue-400/10 blur-3xl" aria-hidden="true" />
+          <div className="pointer-events-none absolute -right-24 top-16 h-48 w-48 rounded-full bg-[color-mix(in_srgb,var(--brand-mint)_10%,transparent)] blur-3xl" aria-hidden="true" />
+          <div className="pointer-events-none absolute -bottom-20 left-4 h-56 w-56 rounded-full bg-[color-mix(in_srgb,var(--brand-mint)_10%,transparent)] blur-3xl" aria-hidden="true" />
 
           <div className="relative z-10 flex items-center justify-between border-b border-white/10 px-5 py-4">
             <Link href="/" className="flex items-center" onClick={() => setMobileMenuOpen(false)}>
@@ -607,12 +607,12 @@ export default function Navigation() {
                 <nav className="divide-y divide-white/10 border-y border-white/10" aria-label="Primary mobile navigation">
                   <button
                     type="button"
-                    className="group flex min-h-[58px] w-full items-center justify-between gap-4 py-3 text-left text-white transition-colors hover:text-emerald-100"
+                    className="group flex min-h-[58px] w-full items-center justify-between gap-4 py-3 text-left text-white transition-colors hover:text-brand-mint"
                     onClick={() => setMobileFeaturesOpen(true)}
                     aria-label="Open features menu"
                   >
                     <span className="flex min-w-0 items-center gap-3">
-                      <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-400/12 text-emerald-300"><FiLayout className="h-4 w-4" /></span>
+                      <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-[color-mix(in_srgb,var(--brand-mint)_12%,transparent)] text-brand-mint"><FiLayout className="h-4 w-4" /></span>
                       <span className="min-w-0">
                         <span className="block text-[15px] font-semibold">Features</span>
                         <span className="block text-xs text-white/50">Rent, leases, maintenance, Percy</span>
@@ -622,10 +622,10 @@ export default function Navigation() {
                   </button>
                   <Link
                     href="/listings"
-                    className="group flex min-h-[58px] items-center gap-3 py-3 text-white transition-colors hover:text-blue-100"
+                    className="group flex min-h-[58px] items-center gap-3 py-3 text-white transition-colors hover:text-brand-mint"
                     onClick={() => setMobileMenuOpen(false)}
                   >
-                    <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-blue-400/12 text-blue-200"><FiHome className="h-4 w-4" /></span>
+                    <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-[color-mix(in_srgb,var(--brand-mint)_12%,transparent)] text-brand-mint"><FiHome className="h-4 w-4" /></span>
                     <span className="min-w-0">
                       <span className="block text-[15px] font-semibold">Listings</span>
                       <span className="block text-xs text-white/50">Share vacant rentals</span>
@@ -633,10 +633,10 @@ export default function Navigation() {
                   </Link>
                   <Link
                     href="/pricing"
-                    className="group flex min-h-[58px] items-center gap-3 py-3 text-white transition-colors hover:text-emerald-100"
+                    className="group flex min-h-[58px] items-center gap-3 py-3 text-white transition-colors hover:text-brand-mint"
                     onClick={() => setMobileMenuOpen(false)}
                   >
-                    <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-400/12 text-emerald-300"><FiDollarSign className="h-4 w-4" /></span>
+                    <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-[color-mix(in_srgb,var(--brand-mint)_12%,transparent)] text-brand-mint"><FiDollarSign className="h-4 w-4" /></span>
                     <span className="min-w-0">
                       <span className="block text-[15px] font-semibold">Pricing</span>
                       <span className="block text-xs text-white/50">Start free, upgrade when ready</span>
@@ -647,7 +647,7 @@ export default function Navigation() {
                     className="group flex min-h-[58px] items-center gap-3 py-3 text-white transition-colors hover:text-white"
                     onClick={() => setMobileMenuOpen(false)}
                   >
-                    <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-blue-400/12 text-blue-200"><FiFileText className="h-4 w-4" /></span>
+                    <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-[color-mix(in_srgb,var(--brand-mint)_12%,transparent)] text-brand-mint"><FiFileText className="h-4 w-4" /></span>
                     <span className="min-w-0">
                       <span className="block text-[15px] font-semibold">Resources</span>
                       <span className="block text-xs text-white/50">Guides and practical checklists</span>
@@ -655,10 +655,10 @@ export default function Navigation() {
                   </Link>
                   <Link
                     href="/about"
-                    className="group flex min-h-[58px] items-center gap-3 py-3 text-white transition-colors hover:text-emerald-100"
+                    className="group flex min-h-[58px] items-center gap-3 py-3 text-white transition-colors hover:text-brand-mint"
                     onClick={() => setMobileMenuOpen(false)}
                   >
-                    <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-400/12 text-emerald-300"><FiUsers className="h-4 w-4" /></span>
+                    <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-[color-mix(in_srgb,var(--brand-mint)_12%,transparent)] text-brand-mint"><FiUsers className="h-4 w-4" /></span>
                     <span className="min-w-0">
                       <span className="block text-[15px] font-semibold">About</span>
                       <span className="block text-xs text-white/50">Why we built Property Peace</span>
@@ -678,14 +678,14 @@ export default function Navigation() {
                 </button>
                 <div className="flex items-center justify-between border-b border-white/10 pb-3">
                   <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-200/80" style={{ fontFamily: '"Inter", "Inter Placeholder", sans-serif' }}>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[color-mix(in_srgb,var(--brand-mint)_80%,transparent)]" style={{ fontFamily: '"Inter", "Inter Placeholder", sans-serif' }}>
                       Features
                     </p>
                     <p className="mt-1 text-xs text-white/50">Choose what you want to simplify.</p>
                   </div>
                   <Link
                     href="/features"
-                    className="text-xs font-semibold text-blue-200"
+                    className="text-xs font-semibold text-brand-mint"
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     View all
@@ -695,7 +695,7 @@ export default function Navigation() {
                 <div className="divide-y divide-white/10">
                   {featuresCategories.map((category) => (
                     <div key={category.title} className="py-4">
-                      <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-200/70" style={{ fontFamily: '"Inter", "Inter Placeholder", sans-serif' }}>
+                      <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-[color-mix(in_srgb,var(--brand-mint)_70%,transparent)]" style={{ fontFamily: '"Inter", "Inter Placeholder", sans-serif' }}>
                         {category.title}
                       </p>
                       <div className="divide-y divide-white/[0.08] border-y border-white/[0.08]">
@@ -705,11 +705,11 @@ export default function Navigation() {
                             <Link
                               key={feature.slug}
                               href={feature.href ?? `/features/${feature.slug}`}
-                              className="group flex min-h-[54px] items-center justify-between gap-3 py-3 text-white transition-colors hover:text-blue-100"
+                              className="group flex min-h-[54px] items-center justify-between gap-3 py-3 text-white transition-colors hover:text-brand-mint"
                               onClick={() => setMobileMenuOpen(false)}
                             >
                               <span className="flex min-w-0 items-center gap-3">
-                                <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-white/8 text-blue-200"><IconComponent className="h-4 w-4" /></span>
+                                <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-white/8 text-brand-mint"><IconComponent className="h-4 w-4" /></span>
                                 <span className="min-w-0 text-sm font-semibold leading-tight">{feature.title}</span>
                               </span>
                               <FiChevronRight className="h-4 w-4 flex-shrink-0 text-white/35 transition-transform group-hover:translate-x-0.5 group-hover:text-white/70" />
@@ -724,11 +724,11 @@ export default function Navigation() {
             )}
           </div>
 
-          <div className="relative z-10 border-t border-white/10 bg-[#04182c]/80 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4">
+          <div className="relative z-10 border-t border-white/10 bg-[color-mix(in_srgb,var(--brand-forest)_80%,transparent)] px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4">
             <div className="grid grid-cols-2 gap-3">
               <Link
                 href={loginUrl}
-                className="inline-flex h-[38px] items-center justify-center rounded-sm border border-white bg-white px-3 text-xs font-semibold uppercase text-[#061E35] transition-colors duration-200 hover:bg-white/85"
+                className="inline-flex h-[38px] items-center justify-center rounded-sm border border-white bg-white px-3 text-xs font-semibold uppercase text-brand-forest transition-colors duration-200 hover:bg-white/85"
                 style={{ fontFamily: '"Inter", "Inter Placeholder", sans-serif' }}
                 onClick={() => setMobileMenuOpen(false)}
               >
@@ -736,7 +736,7 @@ export default function Navigation() {
               </Link>
               <Link
                 href="/demo"
-                className="inline-flex h-[38px] items-center justify-center rounded-sm bg-green-600 px-3 text-xs font-bold uppercase text-white transition-colors duration-200 hover:bg-green-500"
+                className="inline-flex h-[38px] items-center justify-center rounded-sm bg-brand-teal px-3 text-xs font-bold uppercase text-white transition-colors duration-200 hover:bg-brand-teal-hover"
                 style={{ fontFamily: '"Inter", "Inter Placeholder", sans-serif' }}
                 onClick={() => setMobileMenuOpen(false)}
               >

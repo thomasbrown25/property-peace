@@ -457,14 +457,15 @@ function ReportLibrary({ locked }) {
                 label={item}
                 clickable
                 onClick={() => setFilter(item)}
+                color={active ? 'primary' : 'default'}
                 sx={{
                   minHeight: 44,
                   flexShrink: 0,
                   fontWeight: 650,
-                  bgcolor: active ? NAVY : 'background.paper',
-                  color: active ? '#fff' : 'text.secondary',
-                  border: `1px solid ${active ? NAVY : alpha(theme.palette.divider, 0.2)}`,
-                  '&:hover': { bgcolor: active ? NAVY : alpha(NAVY, 0.05) }
+                  bgcolor: active ? 'primary.main' : 'background.paper',
+                  color: active ? 'primary.contrastText' : 'text.secondary',
+                  border: `1px solid ${active ? theme.palette.primary.main : alpha(theme.palette.divider, 0.2)}`,
+                  '&:hover': { bgcolor: active ? 'primary.dark' : alpha(theme.palette.primary.main, 0.05) }
                 }}
               />
             );

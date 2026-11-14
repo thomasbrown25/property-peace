@@ -539,8 +539,8 @@ export default function TenantMaintenance() {
               <TableContainer sx={{ display: { xs: 'none', md: 'block' } }}>
                 <Table size="small" sx={{ tableLayout: 'fixed' }}>
                   <TableHead>
-                    <TableRow sx={{ bgcolor: alpha(theme.palette.primary.main, 0.04) }}>
-                      <TableCell sx={{ width: '35%', fontWeight: 600, fontSize: '0.75rem' }}>
+                    <TableRow>
+                      <TableCell sx={{ width: '35%' }}>
                         <TableSortLabel
                           active={sortField === 'title'}
                           direction={sortField === 'title' ? sortOrder : 'asc'}
@@ -549,7 +549,7 @@ export default function TenantMaintenance() {
                           Title
                         </TableSortLabel>
                       </TableCell>
-                      <TableCell sx={{ width: '15%', fontWeight: 600, fontSize: '0.75rem' }}>
+                      <TableCell sx={{ width: '15%' }}>
                         <TableSortLabel
                           active={sortField === 'category'}
                           direction={sortField === 'category' ? sortOrder : 'asc'}
@@ -558,7 +558,7 @@ export default function TenantMaintenance() {
                           Category
                         </TableSortLabel>
                       </TableCell>
-                      <TableCell sx={{ width: '12%', fontWeight: 600, fontSize: '0.75rem' }}>
+                      <TableCell sx={{ width: '12%' }}>
                         <TableSortLabel
                           active={sortField === 'priority'}
                           direction={sortField === 'priority' ? sortOrder : 'asc'}
@@ -567,7 +567,7 @@ export default function TenantMaintenance() {
                           Priority
                         </TableSortLabel>
                       </TableCell>
-                      <TableCell sx={{ width: '13%', fontWeight: 600, fontSize: '0.75rem' }}>
+                      <TableCell sx={{ width: '13%' }}>
                         <TableSortLabel
                           active={sortField === 'status'}
                           direction={sortField === 'status' ? sortOrder : 'asc'}
@@ -576,7 +576,7 @@ export default function TenantMaintenance() {
                           Status
                         </TableSortLabel>
                       </TableCell>
-                      <TableCell sx={{ width: '18%', fontWeight: 600, fontSize: '0.75rem' }}>
+                      <TableCell sx={{ width: '18%' }}>
                         <TableSortLabel
                           active={sortField === 'createdAt'}
                           direction={sortField === 'createdAt' ? sortOrder : 'asc'}

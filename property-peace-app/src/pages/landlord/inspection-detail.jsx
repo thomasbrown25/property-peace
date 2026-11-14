@@ -285,7 +285,7 @@ function ItemPhotosModal({ open, onClose, item, checklistId, onUpdated }) {
                   <Chip
                     label={`${photos.length} ${photos.length === 1 ? 'photo' : 'photos'}`}
                     size="small"
-                    sx={{ height: 22, fontSize: 11, fontWeight: 700, color: 'success.dark', bgcolor: alpha(theme.palette.success.main, 0.1) }}
+                    sx={{ height: 22, fontSize: 11, fontWeight: 700 }}
                   />
                 )}
               </Stack>

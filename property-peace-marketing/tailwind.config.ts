@@ -18,11 +18,22 @@ const config: Config = {
         '7xl': '96rem',
       },
       colors: {
+        brand: {
+          forest: 'var(--brand-forest)',
+          teal: 'var(--brand-teal)',
+          mint: 'var(--brand-mint)',
+          ivory: 'var(--brand-ivory)',
+          slate: 'var(--brand-slate)',
+          surface: 'var(--brand-surface)',
+          'forest-raised': 'var(--brand-forest-raised)',
+          'forest-hover': 'var(--brand-forest-hover)',
+          'teal-hover': 'var(--brand-teal-hover)',
+        },
         primary: {
-          deep: '#061e35',    // Deepest navy
-          main: '#1e3a5f',    // Primary navy - Buttons / backgrounds
-          light: '#E8F1FF',   // Light blue - Background highlights
-          hover: '#061e35',   // Hover state (darker navy)
+          deep: 'var(--brand-forest)',
+          main: 'var(--brand-forest)',
+          light: 'var(--brand-ivory)',
+          hover: 'var(--brand-teal)',
         },
       },
     },

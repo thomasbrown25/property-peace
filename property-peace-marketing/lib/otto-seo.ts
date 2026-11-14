@@ -13,11 +13,11 @@ type OttoSeoOverride = {
 
 const ottoSeoOverrides: Record<string, OttoSeoOverride> = {
   '/': {
-    title: 'Free Rental Management Software | Property Peace',
+    title: 'Property Peace | Property Management Software',
     description: 'Free rental management software for independent landlords with up to 5 units. Manage rent, tenants, leases, maintenance, and expenses in one calm dashboard. No credit card required.',
     canonical: 'https://propertypeace.io/',
-    openGraphTitle: 'Free Rental Management Software | Property Peace',
-    twitterTitle: 'Free Rental Management Software | Property Peace',
+    openGraphTitle: 'Property Peace | Property Management Software',
+    twitterTitle: 'Property Peace | Property Management Software',
   },
   '/blog/': {
     openGraphUrl: 'https://propertypeace.io/blog/',

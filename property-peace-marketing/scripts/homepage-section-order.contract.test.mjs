@@ -25,7 +25,9 @@ test('homepage omits the three retired landlord workflow sections', () => {
 
 test('homepage renders the final signup CTA immediately before FAQ', () => {
   const ctaIndex = markerIndex('Get started today for Free');
-  const faqIndex = markerIndex('Questions landlords ask before getting started.');
+  const faqHeading = /<h2\b[^>]*>FAQ<\/h2>/.exec(homepage);
+  assert.ok(faqHeading, 'homepage should render the dark FAQ section heading');
+  const faqIndex = faqHeading.index;
 
   assert.ok(ctaIndex < faqIndex, 'signup CTA should render before FAQ');
 

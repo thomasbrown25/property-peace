@@ -240,17 +240,14 @@ export default function ReviewStep({
               <TableContainer
                 sx={{
                   maxHeight: 280,
-                  overflow: 'auto',
-                  border: 1,
-                  borderColor: 'divider',
-                  borderRadius: 1.5
+                  overflow: 'auto'
                 }}
               >
                 <Table stickyHeader size="small" aria-label="Announcement recipients">
                   <TableHead>
                     <TableRow>
-                      <TableCell sx={{ fontWeight: 700 }}>Name</TableCell>
-                      <TableCell sx={{ fontWeight: 700 }}>Email</TableCell>
+                      <TableCell>Name</TableCell>
+                      <TableCell>Email</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>

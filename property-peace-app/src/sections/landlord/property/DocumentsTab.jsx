@@ -660,28 +660,13 @@ export default function DocumentsTab({ property, onRefresh }) {
             component={Paper}
             variant="outlined"
             sx={{
-              bgcolor: (t) => alpha(t.palette.background.paper, 0.8),
-              boxShadow: (t) => `0 4px 20px ${alpha(t.palette.primary.main, 0.15)}`,
-              border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-              borderRadius: 2,
               overflow: 'hidden',
               ...(property ? { minHeight: { xs: 260, sm: 360 } } : {})
             }}
           >
             <Table size="medium">
               <TableHead>
-                <TableRow
-                  sx={{
-                    bgcolor: (t) => alpha(t.palette.primary.main, 0.05),
-                    '& .MuiTableCell-head': {
-                      fontWeight: 700,
-                      fontSize: '0.875rem',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.5px',
-                      borderBottom: `2px solid ${alpha(theme.palette.divider, 0.1)}`
-                    }
-                  }}
-                >
+                <TableRow>
                   <TableCell padding="checkbox">
                     <Checkbox
                       indeterminate={selectedDocuments.length > 0 && selectedDocuments.length < filteredDocuments.length}

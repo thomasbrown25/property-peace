@@ -12,6 +12,7 @@ import MainCard from 'components/MainCard';
 import Avatar from 'components/@extended/Avatar';
 import useFetchActivities from 'hooks/useFetchActivities';
 import { formatRelativeTime } from 'utils/formatters';
+import useCurrentTime from 'hooks/useCurrentTime';
 import { getActivityDestination, getActivityKey } from 'utils/activityNavigation.mjs';
 import CircularLoader from 'components/CircularLoader';
 import AnimateItem from 'components/AnimateItem';
@@ -67,6 +68,7 @@ const getActivityColor = (colorName) => {
 
 export default function RecentActivity() {
   const navigate = useNavigate();
+  const now = useCurrentTime();
   const { activities, activitiesLoading } = useFetchActivities({ pageSize: 3 });
 
   const recentActivities = useMemo(() => {
@@ -138,7 +140,7 @@ export default function RecentActivity() {
             {recentActivities.map((activity, index) => {
               const Icon = getActivityIcon(activity.iconType || 'BellOutlined');
               const color = getActivityColor(activity.color || 'default');
-              const displayTime = formatRelativeTime(activity.createdAt);
+              const displayTime = formatRelativeTime(activity.createdAt, now);
 
               return (
                 <AnimateItem key={getActivityKey(activity, index)} delay={index * 50} direction="bottom">

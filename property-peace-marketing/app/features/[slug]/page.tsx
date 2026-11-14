@@ -496,37 +496,37 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
     </>
   );
 
-  const glass    = { background: '#fff', border: '1px solid #dcfce7' };
-  const glassDim = { background: '#fff', border: '1px solid #dcfce7' };
+  const glass    = { background: 'var(--brand-surface)', border: '1px solid var(--brand-mint)' };
+  const glassDim = { background: 'var(--brand-surface)', border: '1px solid var(--brand-mint)' };
 
   // ── shared hero + trust bar ────────────────────────────────────────────────
   const renderHero = (title: React.ReactNode, subtitle: string, badge?: string, ctaLabel?: string, trustItems?: string[]) => (
     <>
       <div className="mx-auto max-w-6xl px-4 pb-14 pt-32 sm:px-6 sm:pb-18 sm:pt-36 lg:px-8 lg:pb-20">
-        <Link href="/features" className="mb-10 inline-flex items-center text-white/75 transition-colors hover:text-[#4ade80]" style={{ fontFamily: '"Inter", sans-serif' }}>
+        <Link href="/features" className="mb-10 inline-flex items-center text-white/75 transition-colors hover:text-brand-mint" style={{ fontFamily: '"Inter", sans-serif' }}>
           <FiArrowLeft className="mr-2 h-4 w-4" />Back to Features
         </Link>
         <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,0.95fr)_minmax(420px,1.05fr)] lg:gap-12">
           <div className="text-center lg:text-left">
             {badge && (
-              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#DCE6ED] bg-green-50 px-3.5 py-2 text-xs font-semibold uppercase leading-snug tracking-widest text-[#15803D] shadow-sm sm:px-4" style={{ fontFamily: '"Inter", sans-serif' }}>
+              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[var(--brand-border)] bg-brand-mint px-3.5 py-2 text-xs font-semibold uppercase leading-snug tracking-widest text-brand-teal shadow-sm sm:px-4" style={{ fontFamily: '"Inter", sans-serif' }}>
                 {badge}
               </div>
             )}
-            <h1 className="mb-5 text-[2.3rem] font-bold leading-[1.08] text-white sm:text-5xl md:text-6xl" style={{ fontFamily: '"Poppins", sans-serif' }}>{title}</h1>
+            <h1 className="mb-5 text-[2.3rem] font-extrabold leading-[1.08] text-white sm:text-5xl md:text-6xl" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>{title}</h1>
             <p className="mx-auto mb-7 max-w-2xl text-[17px] leading-relaxed text-white/75 md:text-xl lg:mx-0" style={{ fontFamily: '"Inter", sans-serif' }}>{subtitle}</p>
             <div className="mx-auto grid max-w-[22rem] grid-cols-2 justify-center gap-2.5 sm:flex sm:max-w-none sm:flex-row sm:justify-center sm:gap-3 lg:mx-0 lg:justify-start">
-              <Link href="https://app.propertypeace.io/register" className="inline-flex min-h-[50px] items-center justify-center gap-2 rounded-none bg-gradient-to-r from-green-500 to-green-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:from-green-600 hover:to-green-700 sm:min-h-[56px] rounded-none sm:px-8 sm:text-base" style={{ fontFamily: '"Inter", sans-serif' }}>
+              <Link href="https://app.propertypeace.io/register" className="inline-flex min-h-[50px] items-center justify-center gap-2 rounded-none bg-gradient-to-r from-brand-teal to-brand-teal px-4 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:from-brand-teal hover:to-brand-teal-hover sm:min-h-[56px] rounded-none sm:px-8 sm:text-base" style={{ fontFamily: '"Inter", sans-serif' }}>
                 <FiZap className="h-4 w-4" />{ctaLabel ?? 'Get Started Free'}
               </Link>
-              <Link href="/pricing" className="inline-flex min-h-[50px] items-center justify-center gap-2 rounded-none border border-[#DCE6ED] bg-white px-4 py-3 text-sm font-semibold text-[#061E35] shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-[#15803D] hover:text-[#15803D] sm:min-h-[56px] rounded-none sm:px-8 sm:text-base" style={{ fontFamily: '"Inter", sans-serif' }}>
+              <Link href="/pricing" className="inline-flex min-h-[50px] items-center justify-center gap-2 rounded-none border border-[var(--brand-border)] bg-brand-surface px-4 py-3 text-sm font-semibold text-brand-forest shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-brand-teal hover:text-brand-teal sm:min-h-[56px] rounded-none sm:px-8 sm:text-base" style={{ fontFamily: '"Inter", sans-serif' }}>
                 View Pricing
               </Link>
             </div>
             {(trustItems ?? []).length > 0 && (
-              <div className="mt-5 grid grid-cols-2 gap-2 text-[13px] font-semibold text-[#405A70] sm:flex sm:flex-wrap lg:justify-start" style={{ fontFamily: '"Inter", sans-serif' }}>
+              <div className="mt-5 grid grid-cols-2 gap-2 text-[13px] font-semibold text-brand-slate sm:flex sm:flex-wrap lg:justify-start" style={{ fontFamily: '"Inter", sans-serif' }}>
                 {(trustItems ?? []).slice(0, 4).map((t) => (
-                  <span key={t} className="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-2xl border border-[#DCE6ED] bg-white px-3 py-2 leading-snug shadow-sm sm:min-h-0 sm:rounded-full sm:py-1"><FiCheck className="h-4 w-4 flex-shrink-0 text-[#16A34A]" />{t}</span>
+                  <span key={t} className="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-2xl border border-[var(--brand-border)] bg-brand-surface px-3 py-2 leading-snug shadow-sm sm:min-h-0 sm:rounded-full sm:py-1"><FiCheck className="h-4 w-4 flex-shrink-0 text-brand-teal" />{t}</span>
                 ))}
               </div>
             )}
@@ -544,35 +544,35 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
     return (
       <div
         data-marketing-hero-theme="dark"
-        className="relative overflow-hidden bg-[#061E35]"
+        className="relative overflow-hidden bg-brand-forest"
       >
         <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 pb-20 pt-32 sm:px-6 sm:pt-36 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
           <div className="text-center lg:text-left">
-            <Link href="/features" className="mb-8 inline-flex items-center text-sm font-semibold text-white/75 hover:text-[#4ade80]">
+            <Link href="/features" className="mb-8 inline-flex items-center text-sm font-semibold text-white/75 hover:text-brand-mint">
               <FiArrowLeft className="mr-2 h-4 w-4" />Back to Features
             </Link>
-            <p className="mb-4 text-xs font-bold uppercase tracking-[0.18em] text-green-400">Maintenance tracking</p>
-            <h1 className="text-[2.3rem] font-bold leading-[1.08] text-white sm:text-5xl md:text-6xl">
-              Maintenance Tracking for <span className="text-[#16a34a]">Landlords</span>
+            <p className="mb-4 text-xs font-bold uppercase tracking-[0.18em] text-brand-mint">Maintenance tracking</p>
+            <h1 className="text-[2.3rem] font-extrabold leading-[1.08] text-white sm:text-5xl md:text-6xl">
+              Maintenance Tracking for <span className="text-brand-mint">Landlords</span>
             </h1>
             <p className="mx-auto mt-6 max-w-2xl text-[17px] leading-relaxed text-white/75 md:text-xl lg:mx-0">{feature.shortDescription}</p>
             <div className="mx-auto mt-8 grid max-w-[22rem] grid-cols-2 gap-3 sm:flex sm:max-w-none lg:mx-0">
-              <Link href="https://app.propertypeace.io/register" className="inline-flex min-h-[56px] items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-green-600 px-6 py-3 font-semibold text-white hover:from-green-600 hover:to-green-700">
+              <Link href="https://app.propertypeace.io/register" className="inline-flex min-h-[56px] items-center justify-center gap-2 bg-gradient-to-r from-brand-teal to-brand-teal px-6 py-3 font-semibold text-white hover:from-brand-teal hover:to-brand-teal-hover">
                 <FiZap className="h-4 w-4" />Get Started Free
               </Link>
-              <Link href="/pricing" className="inline-flex min-h-[56px] items-center justify-center border border-[#DCE6ED] bg-white px-6 py-3 font-semibold text-[#061E35] hover:border-green-300 hover:text-[#15803D]">
+              <Link href="/pricing" className="inline-flex min-h-[56px] items-center justify-center border border-[var(--brand-border)] bg-brand-surface px-6 py-3 font-semibold text-brand-forest hover:border-brand-mint hover:text-brand-teal">
                 View Pricing
               </Link>
             </div>
-            <div className="mt-5 flex flex-wrap justify-center gap-2 text-[13px] font-semibold text-[#061E35] lg:justify-start">
+            <div className="mt-5 flex flex-wrap justify-center gap-2 text-[13px] font-semibold text-brand-forest lg:justify-start">
               {trustItems.map((item) => (
-                <span key={item} className="inline-flex min-h-[38px] items-center gap-2 rounded-full border border-[#DCE6ED] bg-white px-3 py-1.5 shadow-sm">
-                  <FiCheck className="h-4 w-4 text-[#16a34a]" />{item}
+                <span key={item} className="inline-flex min-h-[38px] items-center gap-2 rounded-full border border-[var(--brand-border)] bg-brand-surface px-3 py-1.5 shadow-sm">
+                  <FiCheck className="h-4 w-4 text-brand-teal" />{item}
                 </span>
               ))}
             </div>
           </div>
-          <div className="overflow-hidden border border-[#DCE6ED] bg-white p-3 shadow-[0_24px_60px_rgba(6,30,53,0.12)]">
+          <div className="overflow-hidden border border-[var(--brand-border)] bg-brand-surface p-3 shadow-[0_24px_60px_rgba(16,44,41,0.12)]">
             <div
               className="min-h-[360px] bg-cover bg-center sm:min-h-[430px]"
               style={{ backgroundImage: 'url(/images/landing/maintenance-tracking-hero.jpg)' }}
@@ -588,32 +588,32 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
   // ── before/after comparison cards ────────────────────────────────────────
   const renderBeforeAfter = (label: string, without: string[], withItems: string[], icon: React.ReactNode) => (
     <div className="grid md:grid-cols-2 gap-6">
-      <div className="rounded-2xl bg-white p-8" style={{ border: '1px solid rgba(239,68,68,0.15)' }}>
+      <div className="rounded-2xl bg-brand-surface p-8" style={{ border: '1px solid rgba(239,68,68,0.15)' }}>
         <div className="flex items-center gap-3 mb-6">
           <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(239,68,68,0.1)' }}>
             <FiAlertTriangle className="w-5 h-5 text-red-500" />
           </div>
-          <h3 className="text-lg font-bold text-primary-main" style={{ fontFamily: '"Poppins", sans-serif' }}>Without {label}</h3>
+          <h3 className="text-lg font-extrabold text-primary-main" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>Without {label}</h3>
         </div>
         <ul className="space-y-3">
           {without.map((item) => (
-            <li key={item} className="flex items-start gap-3 text-sm text-[#516A80]" style={{ fontFamily: '"Inter", sans-serif' }}>
+            <li key={item} className="flex items-start gap-3 text-sm text-brand-slate" style={{ fontFamily: '"Inter", sans-serif' }}>
               <FiX className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />{item}
             </li>
           ))}
         </ul>
       </div>
-      <div className="rounded-2xl bg-white p-8" style={{ border: '1px solid rgba(34,197,94,0.18)' }}>
+      <div className="rounded-2xl bg-brand-surface p-8" style={{ border: '1px solid rgba(36,117,104,0.18)' }}>
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(34,197,94,0.12)' }}>
+          <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(36,117,104,0.12)' }}>
             {icon}
           </div>
-          <h3 className="text-lg font-bold text-primary-main" style={{ fontFamily: '"Poppins", sans-serif' }}>With {label}</h3>
+          <h3 className="text-lg font-extrabold text-primary-main" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>With {label}</h3>
         </div>
         <ul className="space-y-3">
           {withItems.map((item) => (
-            <li key={item} className="flex items-start gap-3 text-sm text-[#2d4a62]" style={{ fontFamily: '"Inter", sans-serif' }}>
-              <FiCheck className="w-4 h-4 text-[#16a34a] flex-shrink-0 mt-0.5" />{item}
+            <li key={item} className="flex items-start gap-3 text-sm text-brand-forest-raised" style={{ fontFamily: '"Inter", sans-serif' }}>
+              <FiCheck className="w-4 h-4 text-brand-teal flex-shrink-0 mt-0.5" />{item}
             </li>
           ))}
         </ul>
@@ -623,11 +623,11 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
 
   // ── navy CTA card ─────────────────────────────────────────────────────────
   const renderCTA = (headline: string, sub: string, icon: React.ReactNode, ctaLabel: string) => (
-    <div className="relative overflow-hidden rounded-2xl bg-[#061e35] p-10 text-center md:p-14" style={{ boxShadow: '0 20px 60px rgba(10,45,82,0.18)' }}>
+    <div className="relative overflow-hidden rounded-2xl bg-brand-forest p-10 text-center md:p-14" style={{ boxShadow: '0 20px 60px rgba(16,44,41,0.18)' }}>
       <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-6" style={{ background: 'rgba(255,255,255,0.1)' }}>{icon}</div>
-      <h2 className="text-3xl md:text-4xl font-bold text-white mb-4" style={{ fontFamily: '"Poppins", sans-serif' }}>{headline}</h2>
+      <h2 className="text-3xl md:text-4xl font-extrabold text-white mb-4" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>{headline}</h2>
       <p className="text-lg text-white/70 max-w-xl mx-auto mb-8 leading-relaxed" style={{ fontFamily: '"Inter", sans-serif' }}>{sub}</p>
-      <Link href="https://app.propertypeace.io/register" className="inline-flex items-center justify-center gap-2 px-10 py-4 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-none font-semibold transition-all duration-300 hover:from-green-600 hover:to-green-700 hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(34,197,94,0.25)] shadow-lg" style={{ fontFamily: '"Inter", sans-serif' }}>
+      <Link href="https://app.propertypeace.io/register" className="inline-flex items-center justify-center gap-2 px-10 py-4 bg-gradient-to-r from-brand-teal to-brand-teal text-white rounded-none font-semibold transition-all duration-300 hover:from-brand-teal hover:to-brand-teal-hover hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(36,117,104,0.25)] shadow-lg" style={{ fontFamily: '"Inter", sans-serif' }}>
         <FiZap className="w-4 h-4" />{ctaLabel}
       </Link>
     </div>
@@ -635,7 +635,7 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
 
   // ── section heading ───────────────────────────────────────────────────────
   const renderSectionHeading = (children: React.ReactNode) => (
-    <h2 className="text-3xl md:text-4xl font-bold text-white text-center mb-12" style={{ fontFamily: '"Poppins", sans-serif' }}>{children}</h2>
+    <h2 className="text-3xl md:text-4xl font-extrabold text-white text-center mb-12" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>{children}</h2>
   );
 
   // ── step cards (how-it-works) ─────────────────────────────────────────────
@@ -643,12 +643,12 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
     <div className="grid md:grid-cols-3 gap-6">
       {steps.map(({ icon: Icon, step, title, body }) => (
         <div key={step} className="relative rounded-2xl p-8" style={glass}>
-          <div className="text-5xl font-bold absolute top-6 right-6 leading-none select-none" style={{ fontFamily: '"Poppins", sans-serif', color: 'rgba(34,197,94,0.10)' }}>{step}</div>
-          <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-5" style={{ background: 'rgba(34,197,94,0.12)' }}>
-            <Icon className="w-6 h-6 text-[#16a34a]" />
+          <div className="text-5xl font-bold absolute top-6 right-6 leading-none select-none" style={{ fontFamily: '"Host Grotesk", sans-serif', color: 'rgba(36,117,104,0.10)' }}>{step}</div>
+          <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-5" style={{ background: 'rgba(36,117,104,0.12)' }}>
+            <Icon className="w-6 h-6 text-brand-teal" />
           </div>
-          <h3 className="text-lg font-bold text-primary-main mb-3" style={{ fontFamily: '"Poppins", sans-serif' }}>{title}</h3>
-          <p className="text-sm text-[#516A80] leading-relaxed" style={{ fontFamily: '"Inter", sans-serif' }}>{body}</p>
+          <h3 className="text-lg font-extrabold text-primary-main mb-3" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>{title}</h3>
+          <p className="text-sm text-brand-slate leading-relaxed" style={{ fontFamily: '"Inter", sans-serif' }}>{body}</p>
         </div>
       ))}
     </div>
@@ -658,14 +658,14 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
   const renderDetailGrid = (items: { title: string; body: string }[]) => (
     <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
       {items.map(({ title, body }) => (
-        <div key={title} className="rounded-2xl p-6 transition-all duration-200 hover:bg-green-50/70" style={glass}>
+        <div key={title} className="rounded-2xl p-6 transition-all duration-200 hover:bg-[color-mix(in_srgb,var(--brand-mint)_70%,transparent)]" style={glass}>
           <div className="mb-3 flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg flex flex-shrink-0 items-center justify-center" style={{ background: 'rgba(34,197,94,0.12)' }}>
-              <FiCheck className="w-4 h-4 text-[#16a34a]" />
+            <div className="w-8 h-8 rounded-lg flex flex-shrink-0 items-center justify-center" style={{ background: 'rgba(36,117,104,0.12)' }}>
+              <FiCheck className="w-4 h-4 text-brand-teal" />
             </div>
-            <h3 className="text-base font-bold text-primary-main" style={{ fontFamily: '"Poppins", sans-serif' }}>{title}</h3>
+            <h3 className="text-base font-extrabold text-primary-main" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>{title}</h3>
           </div>
-          <p className="text-sm text-[#516A80] leading-relaxed" style={{ fontFamily: '"Inter", sans-serif' }}>{body}</p>
+          <p className="text-sm text-brand-slate leading-relaxed" style={{ fontFamily: '"Inter", sans-serif' }}>{body}</p>
         </div>
       ))}
     </div>
@@ -676,7 +676,7 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
     return (
       <>
         {structuredData()}
-        <div data-marketing-hero-theme="dark" className="relative overflow-hidden bg-[#061E35]">
+        <div data-marketing-hero-theme="dark" className="relative overflow-hidden bg-brand-forest">
           <div className="relative">
             {renderHero(
               'Percy Pilot Summaries: Your Entire Property Portfolio at a Glance',
@@ -687,12 +687,12 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
             )}
           </div>
         </div>
-        <div className="bg-[#061E35]">
+        <div className="bg-brand-forest">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-16">
             {renderBeforeAfter('Percy Pilot Summaries',
               ['Opening three different reports just to check in', 'Missing overdue rent because it got buried', 'Forgetting a lease expires next month', 'Manually cross-referencing maintenance and payments', 'Spending 20 minutes to get a 30-second answer'],
               ['One summary covers your entire portfolio', "See who has paid and who hasn't — instantly", 'Upcoming lease expirations surfaced automatically', 'Open maintenance requests called out clearly', 'Full picture in seconds, not minutes'],
-              <FiActivity className="w-5 h-5 text-[#16a34a]" />
+              <FiActivity className="w-5 h-5 text-brand-teal" />
             )}
             <div>
               {renderSectionHeading('What Percy Pilot Summaries Cover')}
@@ -704,18 +704,18 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
                 ].map(({ icon: Icon, title, body }) => (
                   <div key={title} className="rounded-2xl p-8" style={glass}>
                     <div className="mb-4 flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl flex flex-shrink-0 items-center justify-center" style={{ background: 'rgba(34,197,94,0.12)' }}>
-                        <Icon className="w-6 h-6 text-[#16a34a]" />
+                      <div className="w-12 h-12 rounded-xl flex flex-shrink-0 items-center justify-center" style={{ background: 'rgba(36,117,104,0.12)' }}>
+                        <Icon className="w-6 h-6 text-brand-teal" />
                       </div>
-                      <h3 className="text-lg font-bold text-primary-main" style={{ fontFamily: '"Poppins", sans-serif' }}>{title}</h3>
+                      <h3 className="text-lg font-extrabold text-primary-main" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>{title}</h3>
                     </div>
-                    <p className="text-sm text-[#516A80] leading-relaxed" style={{ fontFamily: '"Inter", sans-serif' }}>{body}</p>
+                    <p className="text-sm text-brand-slate leading-relaxed" style={{ fontFamily: '"Inter", sans-serif' }}>{body}</p>
                   </div>
                 ))}
               </div>
             </div>
             <div>
-              {renderSectionHeading(<>Built for landlords <span className="text-[#16a34a]">short on time</span></>)}
+              {renderSectionHeading(<>Built for landlords <span className="text-brand-mint">short on time</span></>)}
               {renderDetailGrid([
                 { title: 'Portfolio-wide coverage', body: 'One summary spans every property and unit you manage — not just the one you happen to be looking at.' },
                 { title: 'Plain English, always', body: "No dashboards to interpret, no numbers to cross-reference. Just a clear paragraph that tells you what's going on." },
@@ -737,7 +737,7 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
     return (
       <>
         {structuredData()}
-        <div data-marketing-hero-theme="dark" className="relative overflow-hidden bg-[#061E35]">
+        <div data-marketing-hero-theme="dark" className="relative overflow-hidden bg-brand-forest">
           <div className="relative">
             {renderHero(
               'Data-Driven Rent Estimates for Independent Landlords',
@@ -748,15 +748,15 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
             )}
           </div>
         </div>
-        <div className="bg-[#061E35]">
+        <div className="bg-brand-forest">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-16">
             {renderBeforeAfter('Rent Estimates',
               ['Guessing based on old listings and gut feel', 'Underpricing — losing hundreds of dollars every month', 'Overpricing — sitting vacant while the market moves on', 'Hours manually searching Zillow and Craigslist', 'Second-guessing every price change'],
               ['Instant rent range based on real nearby listings', 'Price confidently — maximize income from day one', 'Attract quality tenants faster at the right price', 'No more manual market research before listing', 'Make data-backed decisions on every unit'],
-              <FiTrendingUp className="w-5 h-5 text-[#16a34a]" />
+              <FiTrendingUp className="w-5 h-5 text-brand-teal" />
             )}
             <div>
-              {renderSectionHeading(<>How it <span className="text-[#16a34a]">works</span></>)}
+              {renderSectionHeading(<>How it <span className="text-brand-mint">works</span></>)}
               {renderStepCards([
                 { icon: FiMapPin, step: '01', title: 'Select your unit', body: 'Open any unit in your Property Peace dashboard. Rent Estimates is available right inline — no separate tool or tab needed.' },
                 { icon: FiGlobe, step: '02', title: 'We scan the market', body: "We pull real comparable rental listings near your property's address — filtered by unit type, bedroom count, and proximity." },
@@ -764,7 +764,7 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
               ])}
             </div>
             <div>
-              {renderSectionHeading(<>Price right. <span className="text-[#16a34a]">Every time.</span></>)}
+              {renderSectionHeading(<>Price right. <span className="text-brand-mint">Every time.</span></>)}
               {renderDetailGrid([
                 { title: 'Real comparables', body: 'Estimates are based on actual rental listings near your address — not broad regional averages or generic algorithms.' },
                 { title: 'Address-level accuracy', body: "Results are scoped to your property's location so you see what similar units are actually renting for nearby." },
@@ -786,10 +786,10 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
     return (
       <>
         {structuredData()}
-        <div data-marketing-hero-theme="dark" className="relative overflow-hidden bg-[#061E35]">
+        <div data-marketing-hero-theme="dark" className="relative overflow-hidden bg-brand-forest">
           <div className="relative">
             {renderHero(
-              <>Lease<span className="text-[#16A34A]">Shield</span></>,
+              <>Lease<span className="text-brand-mint">Shield</span></>,
               'Lease and landlord–tenant law answers sourced exclusively from government statutes, attorney general guides, and official .gov sites — never generic AI or random blogs.',
               'Premium Feature',
               'Try LeaseShield Free',
@@ -797,15 +797,15 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
             )}
           </div>
         </div>
-        <div className="bg-[#061E35]">
+        <div className="bg-brand-forest">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-16">
             {renderBeforeAfter('LeaseShield',
               ['Generic AI that cites blogs and opinion sites', "No idea if the answer applies to your state", 'No citations — nothing to show a tenant or attorney', 'Risk of acting on outdated or incorrect information', 'Hours spent searching .gov sites yourself'],
               ['Every answer drawn from government statutes & .gov sites', 'State selection so guidance matches your jurisdiction', 'Direct citations and links you can share or reference', 'Accurate, defensible info you can stand behind', 'Answers in seconds — right inside Property Peace'],
-              <FiShield className="w-5 h-5 text-[#16a34a]" />
+              <FiShield className="w-5 h-5 text-brand-teal" />
             )}
             <div>
-              {renderSectionHeading(<>How it <span className="text-[#16a34a]">works</span></>)}
+              {renderSectionHeading(<>How it <span className="text-brand-mint">works</span></>)}
               {renderStepCards([
                 { icon: FiGlobe, step: '01', title: 'Select your state', body: "Tell LeaseShield which state your property is in. Every answer is filtered to match that jurisdiction's statutes and housing agency guidance." },
                 { icon: FiMessageSquare, step: '02', title: 'Ask your question', body: 'Type any lease or landlord–tenant law question in plain English. LeaseShield searches only official government and state law sources — never third-party blogs.' },
@@ -813,7 +813,7 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
               ])}
             </div>
             <div>
-              {renderSectionHeading(<>Everything you need to <span className="text-[#16a34a]">stay compliant</span></>)}
+              {renderSectionHeading(<>Everything you need to <span className="text-brand-mint">stay compliant</span></>)}
               {renderDetailGrid([
                 { title: 'Government sources only', body: 'Answers come exclusively from statutes, .gov sites, and state attorney general or housing agency publications — nothing else.' },
                 { title: 'State-specific context', body: "Select your state once per lease. Every follow-up answer stays grounded in that jurisdiction's law, not a national generalization." },
@@ -841,10 +841,10 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
     <>
       {structuredData()}
       {isMaintenanceTrackingFeature ? renderMaintenanceTrackingHero() : (
-        <div data-marketing-hero-theme="dark" className="relative overflow-hidden bg-[#061E35]">
+        <div data-marketing-hero-theme="dark" className="relative overflow-hidden bg-brand-forest">
           <div className="relative">
             {renderHero(
-              restWords ? <>{restWords} <span className="text-[#16A34A]">{accentWord}</span></> : <span className="text-[#16A34A]">{accentWord}</span>,
+              restWords ? <>{restWords} <span className="text-brand-mint">{accentWord}</span></> : <span className="text-brand-mint">{accentWord}</span>,
               feature.shortDescription,
               undefined,
               'Get Started Free',
@@ -853,7 +853,7 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
           </div>
         </div>
       )}
-      <div className="bg-[#061E35]">
+      <div className="bg-brand-forest">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-16">
           {isMaintenanceTrackingFeature ? (
             <div className="[&>div>div>h2]:text-white [&>div>div>h3]:text-white [&>div>div>p]:text-white/75">
@@ -874,16 +874,16 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
             <div>
               {renderSectionHeading(
                 slug === 'lease-management'
-                  ? <>Lease Management <span className="text-[#16a34a]">Features</span></>
-                  : ottoFeatureH2 ?? <>What you <span className="text-[#16a34a]">get</span></>
+                  ? <>Lease Management <span className="text-brand-mint">Features</span></>
+                  : ottoFeatureH2 ?? <>What you <span className="text-brand-mint">get</span></>
               )}
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
                 {feature.benefits.map((benefit, i) => (
-                  <div key={i} className="rounded-2xl p-6 transition-all duration-200 hover:bg-green-50/70" style={glass}>
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center mb-4" style={{ background: 'rgba(34,197,94,0.12)' }}>
-                      <FiCheck className="w-4 h-4 text-[#16a34a]" />
+                  <div key={i} className="rounded-2xl p-6 transition-all duration-200 hover:bg-[color-mix(in_srgb,var(--brand-mint)_70%,transparent)]" style={glass}>
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center mb-4" style={{ background: 'rgba(36,117,104,0.12)' }}>
+                      <FiCheck className="w-4 h-4 text-brand-teal" />
                     </div>
-                    <p className="text-sm text-[#2d4a62] font-medium leading-relaxed" style={{ fontFamily: '"Inter", sans-serif' }}>{benefit}</p>
+                    <p className="text-sm text-brand-forest-raised font-medium leading-relaxed" style={{ fontFamily: '"Inter", sans-serif' }}>{benefit}</p>
                   </div>
                 ))}
               </div>
@@ -891,17 +891,17 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
           )}
           {isMaintenanceTrackingFeature ? (
             <div>
-              <h2 className="mb-8 text-left text-2xl font-bold text-white md:text-3xl" style={{ fontFamily: '"Poppins", sans-serif' }}>
-                Everything <span className="text-[#16a34a]">included</span>
+              <h2 className="mb-8 text-left text-2xl font-extrabold text-white md:text-3xl" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>
+                Everything <span className="text-brand-mint">included</span>
               </h2>
               <div className="rounded-2xl p-8 md:p-12" style={glassDim}>
                 <div className="grid sm:grid-cols-2 gap-4">
                   {feature.features.map((item, i) => (
                     <div key={i} className="flex items-start gap-3">
-                      <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: 'rgba(34,197,94,0.12)' }}>
-                        <FiCheck className="w-3.5 h-3.5 text-[#16a34a]" />
+                      <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: 'rgba(36,117,104,0.12)' }}>
+                        <FiCheck className="w-3.5 h-3.5 text-brand-teal" />
                       </div>
-                      <p className="text-sm text-[#516A80] leading-relaxed" style={{ fontFamily: '"Inter", sans-serif' }}>{item}</p>
+                      <p className="text-sm text-brand-slate leading-relaxed" style={{ fontFamily: '"Inter", sans-serif' }}>{item}</p>
                     </div>
                   ))}
                 </div>
@@ -909,16 +909,16 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
             </div>
           ) : (
             <div className="rounded-2xl p-8 md:p-12" style={glassDim}>
-              <h2 className="text-2xl md:text-3xl font-bold text-primary-main mb-8" style={{ fontFamily: '"Poppins", sans-serif' }}>
-                Everything <span className="text-[#16a34a]">included</span>
+              <h2 className="text-2xl md:text-3xl font-extrabold text-primary-main mb-8" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>
+                Everything <span className="text-brand-teal">included</span>
               </h2>
               <div className="grid sm:grid-cols-2 gap-4">
                 {feature.features.map((item, i) => (
                   <div key={i} className="flex items-start gap-3">
-                    <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: 'rgba(34,197,94,0.12)' }}>
-                      <FiCheck className="w-3.5 h-3.5 text-[#16a34a]" />
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: 'rgba(36,117,104,0.12)' }}>
+                      <FiCheck className="w-3.5 h-3.5 text-brand-teal" />
                     </div>
-                    <p className="text-sm text-[#516A80] leading-relaxed" style={{ fontFamily: '"Inter", sans-serif' }}>{item}</p>
+                    <p className="text-sm text-brand-slate leading-relaxed" style={{ fontFamily: '"Inter", sans-serif' }}>{item}</p>
                   </div>
                 ))}
               </div>

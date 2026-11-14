@@ -13,9 +13,11 @@ test('property tabs match listing detail spacing, bottom border, and interaction
   assert.equal(propertyStyle[1].replace(/\s+/g, ' ').trim(), listingStyle[1].replace(/\s+/g, ' ').trim());
 });
 
-test('property tabs retain scrollable navigation and all property sections', () => {
+test('property tabs retain scrollable navigation and show primary sections', () => {
   assert.match(propertySource, /variant="scrollable" scrollButtons="auto" aria-label="Property sections"/);
-  for (const tab of ['overview', 'leases', 'tenants', 'payments', 'maintenances', 'listings', 'applications', 'expenses', 'documents', 'settings']) {
+  for (const tab of ['overview', 'leases', 'tenants', 'payments', 'maintenances']) {
     assert.ok(propertySource.includes(`<Tab value="${tab}"`));
   }
+  assert.match(propertySource, /value="maintenances" label="Maintenance"/);
+  assert.match(propertySource, /value="more" label=\{activeMore/);
 });

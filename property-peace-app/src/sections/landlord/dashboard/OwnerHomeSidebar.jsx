@@ -7,6 +7,7 @@ import { useOrganization } from 'contexts/OrganizationContext';
 import useAuth from 'hooks/useAuth';
 import axiosServices from 'utils/axios';
 import { formatRelativeTime } from 'utils/formatters';
+import useCurrentTime from 'hooks/useCurrentTime';
 import { getActivityDestination, getActivityKey } from 'utils/activityNavigation.mjs';
 import { formatAccountMoney, loadDashboardAccounts, loadDashboardActivity } from './dashboardAccounts.mjs';
 
@@ -30,6 +31,7 @@ function LoadState({ loading, error, onRetry, children }) {
 
 export default function OwnerHomeSidebar() {
   const [accountsOpen, setAccountsOpen] = useState(true);
+  const now = useCurrentTime();
   const { currentOrganization, loading: organizationLoading } = useOrganization();
   const { user } = useAuth();
   const organizationId = currentOrganization?.id ?? currentOrganization?.Id;
@@ -110,7 +112,7 @@ export default function OwnerHomeSidebar() {
                 <Box sx={{ minWidth: 0 }}>
                   <Link component={RouterLink} to={getActivityDestination(item) || '/landlord/activity'} variant="body2" underline="hover" sx={{ fontWeight: 600, overflowWrap: 'anywhere' }}>{item.title || item.message}</Link>
                   <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, overflowWrap: 'anywhere' }}>
-                    {item.createdAt ? formatRelativeTime(item.createdAt) : ''}
+                    {item.createdAt ? formatRelativeTime(item.createdAt, now) : ''}
                     {item.performedByName && ` · ${item.performedByName}`}
                   </Typography>
                 </Box>

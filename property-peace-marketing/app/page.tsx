@@ -10,7 +10,7 @@ import FAQ from '@/components/Sections/FAQ';
 import ResourceHighlights from '@/components/Sections/ResourceHighlights';
 
 export const metadata: Metadata = applyOttoSeo('/', {
-  title: 'Free Rental Management Software | Property Peace',
+  title: 'Property Peace | Property Management Software',
   description: 'Free rental management software for independent landlords with up to 5 units. Manage rent, tenants, leases, maintenance, and expenses in one calm dashboard. No credit card required.',
   // Next.js replaces (rather than deep-merges) root Open Graph metadata on this route.
   openGraph: {
@@ -21,11 +21,11 @@ export const metadata: Metadata = applyOttoSeo('/', {
 
 export default function Home() {
   return (
-    <div data-marketing-home className="min-h-screen bg-white w-full min-w-0 overflow-x-hidden">
+    <div data-marketing-home className="min-h-screen bg-brand-ivory w-full min-w-0 overflow-x-hidden">
       <main className="w-full min-w-0">
 
         {/* Homepage sections share the hero's navy background; cards provide light contrast. */}
-        <div className="relative overflow-hidden bg-white">
+        <div className="relative overflow-hidden bg-brand-surface">
           <div className="relative z-10">
             <Hero />
             <PropertyManagementWheel />
@@ -40,7 +40,7 @@ export default function Home() {
         {/* Zone 3: Social proof + Compare — hidden for now */}
         {/* <div
           className="relative overflow-hidden"
-          style={{ background: 'linear-gradient(160deg, #061e35 0%, #0a2d52 55%, #0d2040 100%)' }}
+          style={{ background: 'linear-gradient(160deg, var(--brand-forest) 0%, var(--brand-forest) 55%, var(--brand-forest) 100%)' }}
         >
           <div
             className="absolute inset-0 pointer-events-none opacity-[0.04]"
@@ -49,8 +49,8 @@ export default function Home() {
               backgroundSize: '28px 28px',
             }}
           />
-          <div className="absolute top-0 right-0 w-[500px] h-[500px] rounded-full pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(99,102,241,0.12) 0%, transparent 65%)' }} />
-          <div className="absolute bottom-0 left-0 w-[400px] h-[400px] rounded-full pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(59,130,246,0.1) 0%, transparent 65%)' }} />
+          <div className="absolute top-0 right-0 w-[500px] h-[500px] rounded-full pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(36,117,104,0.12) 0%, transparent 65%)' }} />
+          <div className="absolute bottom-0 left-0 w-[400px] h-[400px] rounded-full pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(36,117,104,0.1) 0%, transparent 65%)' }} />
           <SocialProof />
           <Compare />
         </div> */}

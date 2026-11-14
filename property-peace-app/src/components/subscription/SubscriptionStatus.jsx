@@ -147,17 +147,7 @@ export default function SubscriptionStatus({ status }) {
                   Units: {currentTotalUnits || 0} / {maxTotalUnits === null ? '∞' : maxTotalUnits}
                 </Typography>
                 {!canAddUnit && (
-                  <Chip 
-                    label="Limit Reached" 
-                    size="small"
-                    sx={{
-                      bgcolor: '#061e35',
-                      color: '#ffffff',
-                      '& .MuiChip-label': {
-                        color: '#ffffff'
-                      }
-                    }}
-                  />
+                  <Chip label="Limit Reached" size="small" />
                 )}
               </Box>
               {maxTotalUnits !== null && (

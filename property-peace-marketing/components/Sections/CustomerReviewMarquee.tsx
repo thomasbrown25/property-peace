@@ -26,7 +26,7 @@ export default function CustomerReviewMarquee() {
     <section
       data-homepage-review-marquee="true"
       aria-labelledby="customer-review-marquee-heading"
-      className="relative overflow-hidden bg-[#061E35] px-4 pb-24 pt-20 text-white sm:px-6 sm:pb-28 sm:pt-24 lg:px-8 lg:pt-28"
+      className="relative overflow-hidden bg-brand-forest px-4 pb-24 pt-20 text-white sm:px-6 sm:pb-28 sm:pt-24 lg:px-8 lg:pt-28"
     >
       <div
         aria-hidden="true"
@@ -35,7 +35,7 @@ export default function CustomerReviewMarquee() {
       />
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom,#061E35_0%,rgba(6,30,53,0.96)_35%,rgba(6,30,53,0.87)_76%,#061E35_100%)]"
+        className="pointer-events-none absolute inset-0 bg-brand-forest opacity-90"
       />
 
       <div className="relative mx-auto max-w-7xl">
@@ -43,9 +43,9 @@ export default function CustomerReviewMarquee() {
           <h2
             id="customer-review-marquee-heading"
             className="text-3xl font-bold tracking-[-0.04em] text-white sm:text-4xl lg:text-[3.35rem]"
-            style={{ fontFamily: '"Poppins", sans-serif', lineHeight: 1.1 }}
+            style={{ fontFamily: '"Host Grotesk", sans-serif', lineHeight: 1.1 }}
           >
-            Built for <span className="text-green-400">independent landlords</span>
+            Built for <span className="text-brand-mint">independent landlords</span>
           </h2>
           <p
             className="mx-auto mt-5 max-w-2xl text-base leading-7 text-white/80 sm:text-lg"
@@ -59,7 +59,7 @@ export default function CustomerReviewMarquee() {
           {reviews.map((review) => (
             <li key={review.name} data-review-card="true" className="min-w-0">
               <figure className="flex h-full flex-col">
-                <div className="relative h-48 w-44 shrink-0 overflow-hidden bg-[#263e52] sm:h-52 sm:w-48">
+                <div className="relative h-48 w-44 shrink-0 overflow-hidden bg-brand-forest-raised sm:h-52 sm:w-48">
                   <Image
                     src={review.image}
                     alt={`Portrait of ${review.name}`}
@@ -72,7 +72,7 @@ export default function CustomerReviewMarquee() {
                   “{review.quote}”
                 </blockquote>
                 <figcaption className="mt-6 text-sm leading-6">
-                  <span className="block font-bold text-white" style={{ fontFamily: '"Poppins", sans-serif' }}>{review.name}</span>
+                  <span className="block font-bold text-white" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>{review.name}</span>
                   <span className="block text-white/65">{review.location}</span>
                 </figcaption>
               </figure>
