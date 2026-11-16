@@ -10,10 +10,9 @@ import { landlordPrimaryLinks } from 'utils/landlordPrimaryNavigation';
 import { groupLandlordMoreNavigation } from 'utils/landlordMoreNavigation';
 
 const primaryDestinations = new Set(landlordPrimaryLinks.map(({ to }) => to));
-const tenantsItem = { id: 'tenants', title: 'Tenants', type: 'item', url: '/landlord/leases?tab=tenants' };
 
 // The desktop overflow uses the former landlord sidebar's grouped destinations.
-// Tenants is a tab of Leases rather than a separate route in the current app.
+// Primary destinations are omitted here so each page has one header entry.
 export default function TopNavigation() {
   const { pathname, search } = useLocation();
   const { status: subscriptionStatus } = useSubscriptionStatus();
@@ -21,17 +20,12 @@ export default function TopNavigation() {
   const [anchor, setAnchor] = useState(null);
   const groups = groupLandlordMoreNavigation(landlordPagesForInventory(pages, shortTermOnly).map((group) => ({
     ...group,
-    children: (group.children || []).flatMap((item) => {
-      if (primaryDestinations.has(item.url)) return [];
-      return item.id === 'leases' ? [item, tenantsItem] : [item];
-    })
+    children: (group.children || []).filter((item) => !primaryDestinations.has(item.url) && item.url !== '/landlord/properties' && item.id !== 'tenants')
   })));
   const trialExpired = subscriptionStatus?.isTrialActive &&
     (subscriptionStatus.trialDaysRemaining == null || subscriptionStatus.trialDaysRemaining <= 0);
-  const isSelected = (item) => item.id === 'tenants'
-    ? pathname === '/landlord/tenants' || (pathname === '/landlord/leases' && new URLSearchParams(search).get('tab') === 'tenants')
-    : item.id === 'leases'
-      ? (pathname === '/landlord/leases' && new URLSearchParams(search).get('tab') !== 'tenants') || pathname.startsWith('/landlord/leases/')
+  const isSelected = (item) => item.id === 'leases'
+      ? pathname === '/landlord/leases' || pathname.startsWith('/landlord/leases/')
       : pathname === item.url || pathname.startsWith(`${item.url}/`);
 
   useEffect(() => setAnchor(null), [pathname, search]);

@@ -22,7 +22,7 @@ function expectBareFiltersBeforeTable(page, filterId, tableId, searchPlaceholder
   assert.doesNotMatch(filterOpeningTag, /bgcolor|border|boxShadow/);
 }
 
-test('leases header actions swap with the active workspace tab', async () => {
+test('leases header actions swap between leases and agreements', async () => {
   const [leases, header] = await Promise.all([
     source('../pages/landlord/leases.jsx'),
     source('../sections/landlord/leases/LeasesHeader.jsx')
@@ -30,9 +30,9 @@ test('leases header actions swap with the active workspace tab', async () => {
 
   assert.match(header, /function LeasesHeader\(\{ actions \}\)/);
   assert.match(header, /actions=\{actions\}/);
-  assert.match(leases, /activeTab === 2[\s\S]*<TenantCsvImportButton[\s\S]*Add tenant/);
   assert.match(leases, /activeTab === 1[\s\S]*New agreement/);
   assert.match(leases, /Create lease/);
+  assert.doesNotMatch(leases, /<TenantsContent|<TabPanel[^>]*index=\{2\}/);
 });
 
 test('tenant controls are bare and tenant actions are no longer embedded above the table', async () => {

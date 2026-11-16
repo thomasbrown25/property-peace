@@ -22,7 +22,7 @@ export function activeLandlordPrimaryLink(pathname = '', search = '') {
     return new URLSearchParams(search).get('tab') === 'calendar' ? 'More' : 'Home';
   }
   if (pathname === '/landlord/leases' && new URLSearchParams(search).get('tab') === 'tenants') return 'Tenants';
-  if (/^\/landlord\/(properties|property|unit)(\/|$)/.test(pathname)) return 'Properties';
+  if (/^\/landlord\/(properties|property|unit)(\/|$)/.test(pathname)) return null;
   if (/^\/landlord\/(tenants|renter-profile)(\/|$)/.test(pathname)) return 'Tenants';
   if (/^\/landlord\/(maintenances|maintenance)(\/|$)/.test(pathname)) return 'Maintenance';
   if (/^\/landlord\/(finances|accounting|expenses|payments)(\/|$)/.test(pathname)) return 'Finances';

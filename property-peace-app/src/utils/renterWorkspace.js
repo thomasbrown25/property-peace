@@ -1,4 +1,4 @@
-export const TENANT_DIRECTORY_ROUTE = '/landlord/leases?tab=tenants';
+export const TENANT_DIRECTORY_ROUTE = '/landlord/tenants';
 
 export const RENTER_PROFILE_TABS = Object.freeze([
   'profile',

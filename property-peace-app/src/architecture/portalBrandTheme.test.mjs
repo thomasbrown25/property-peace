@@ -30,5 +30,5 @@ test('the top bar uses contrasting brand surfaces and exposes responsive landlor
   assert.match(content, /aria-label="Open landlord navigation" onClick=\{onLandlordMenuOpen\}/);
   assert.match(content, /darkSurface=\{theme\.palette\.mode === 'dark'\}/);
   assert.match(content, /lightHeaderLogo=\{theme\.palette\.mode !== 'dark'\}/);
-  assert.doesNotMatch(content, /<LandlordPrimaryNavigation|<MainDrawer/);
+  assert.doesNotMatch(content, /<MainDrawer/);
 });

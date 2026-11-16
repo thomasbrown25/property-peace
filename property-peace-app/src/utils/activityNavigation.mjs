@@ -33,7 +33,7 @@ export function getActivityDestination(activity = {}) {
     case 'Calendar': return '/landlord/calendar';
     // Bookings have no standalone detail route.
     case 'Booking': return '/landlord/bookings';
-    case 'Tenant': return detail('/landlord/leases?tab=tenants', `/landlord/tenants/${id}`);
+    case 'Tenant': return detail('/landlord/tenants', `/landlord/tenants/${id}`);
     case 'Checklist': return detail('/landlord/checklists', `/landlord/checklist/${id}`);
     case 'Announcement': return detail('/landlord/announcements', `/landlord/announcements/details?id=${id}`);
     case 'Payment': return '/landlord/finances?tab=payments';

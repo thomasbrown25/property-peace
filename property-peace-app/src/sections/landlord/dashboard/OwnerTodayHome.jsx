@@ -40,7 +40,7 @@ export default function OwnerTodayHome({ reminders = [], properties = [], proper
   const places = sortPropertiesByLastVisit(getOwnerProperties(properties), visitDates);
 
   return (
-    <Box sx={{ maxWidth: 1120, mx: 'auto', pb: 2 }}>
+    <Box sx={{ width: '100%', minWidth: 0, pb: 2 }}>
       <Box sx={{ pt: { xs: 1, md: 1.5 } }}>
         <Typography variant="overline" sx={{ color: 'text.secondary', letterSpacing: '0.12em', fontWeight: 700 }}>
           {format(new Date(), 'EEEE, MMMM d')}
