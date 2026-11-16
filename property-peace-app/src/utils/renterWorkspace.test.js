@@ -31,7 +31,7 @@ test('renter profile tab accepts only the six supported URL keys', () => {
 });
 
 test('tenant-directory and renter-profile links use their canonical destinations', () => {
-  assert.equal(call('tenantDirectoryRoute'), '/landlord/leases?tab=tenants');
+  assert.equal(call('tenantDirectoryRoute'), '/landlord/tenants');
   assert.equal(call('renterProfileRoute', 78), '/landlord/tenants/78');
   assert.equal(call('renterProfileRoute', '78'), '/landlord/tenants/78');
   assert.equal(call('renterProfileRoute', 0), null);

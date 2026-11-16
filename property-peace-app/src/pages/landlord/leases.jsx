@@ -96,10 +96,7 @@ import { leasesWorkspaceSearch, leasesWorkspaceTabFromSearch } from 'utils/rente
 
 // Enhanced components
 import LeasesHeader from 'sections/landlord/leases/LeasesHeader';
-import TenantsContent from 'sections/landlord/tenants/TenantsContent';
-import TenantAddDrawer from 'components/drawers/TenantAddDrawer';
-import { TenantCsvImportButton } from 'components/import/CsvImportButtons';
-import { creationActionSx, managementPageHeaderActionSx } from 'components/headers/managementPageHeaderStyles';
+import { creationActionSx } from 'components/headers/managementPageHeaderStyles';
 
 // TabPanel component with slide animation
 function TabPanel({ children, value, index, slideDirection, ...other }) {
@@ -657,7 +654,7 @@ export default function LeasesPage({ onEditLease }) {
   
   // The URL is the source of truth for the top-level Leases workspace.
   const activeWorkspaceTab = leasesWorkspaceTabFromSearch(searchParams);
-  const activeTab = activeWorkspaceTab === 'agreements' ? 1 : activeWorkspaceTab === 'tenants' ? 2 : 0;
+  const activeTab = activeWorkspaceTab === 'agreements' ? 1 : 0;
   const [slideDirection, setSlideDirection] = useState('left');
   
   // Lease Agreements tab state
@@ -1286,24 +1283,11 @@ export default function LeasesPage({ onEditLease }) {
       // Moving left (e.g., Lease Agreements -> Leases)
       setSlideDirection('right'); // New content comes from left (slides in from left to right)
     }
-    const nextTab = newValue === 1 ? 'agreements' : newValue === 2 ? 'tenants' : 'leases';
+    const nextTab = newValue === 1 ? 'agreements' : 'leases';
     navigate({ pathname: location.pathname, search: leasesWorkspaceSearch(nextTab, location.search) });
   };
 
-  const headerActions = activeTab === 2 ? (
-    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-      <TenantCsvImportButton buttonProps={{ variant: 'outlined', sx: managementPageHeaderActionSx }} />
-      <Button
-        variant="contained"
-        color="primary"
-        startIcon={<PlusOutlined />}
-        onClick={() => drawer.openTenantAddDrawer()}
-        sx={creationActionSx}
-      >
-        Add tenant
-      </Button>
-    </Stack>
-  ) : activeTab === 1 ? (
+  const headerActions = activeTab === 1 ? (
     <Button
       variant="contained"
       color="primary"
@@ -1397,13 +1381,6 @@ export default function LeasesPage({ onEditLease }) {
                 <Stack direction="row" spacing={0.75} alignItems="center">
                   <Typography component="span" variant="body2" fontWeight={700}>Lease agreements</Typography>
                   <Chip label={filteredLeaseAgreements.length} size="small" sx={{ height: 18, minWidth: 18, '& .MuiChip-label': { px: 0.65, fontSize: '0.68rem', fontWeight: 700 } }} />
-                </Stack>
-              )}
-            />
-            <Tab
-              label={(
-                <Stack direction="row" spacing={0.75} alignItems="center">
-                  <Typography component="span" variant="body2" fontWeight={700}>Tenants</Typography>
                 </Stack>
               )}
             />
@@ -2141,11 +2118,6 @@ export default function LeasesPage({ onEditLease }) {
               })()}
             </Menu>
           </TabPanel>
-
-          {/* Tab Panel: Tenants */}
-          <TabPanel key="tenants" value={activeTab} index={2} slideDirection={slideDirection}>
-            <TenantsContent embedded />
-          </TabPanel>
         </Box>
 
       {/* End Lease Confirmation Dialog */}
@@ -2188,7 +2160,6 @@ export default function LeasesPage({ onEditLease }) {
 
 
       <LeaseAddDrawer />
-      <TenantAddDrawer />
       <RenewLeaseDrawer onRenewSuccess={() => propertiesRefetch()} />
       <LeaseViewDrawer />
       </Box>

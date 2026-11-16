@@ -6,7 +6,7 @@ import Profile from './Profile';
 import Notification from './Notification';
 import MobileSection from './MobileSection';
 import MobileSearch from './MobileSearch';
-import Search from './Search';
+import LandlordPrimaryNavigation from './LandlordPrimaryNavigation';
 import Logo from 'components/logo';
 import useAuth from 'hooks/useAuth';
 import useIsAdmin from 'hooks/useIsAdmin';
@@ -24,13 +24,9 @@ export default function HeaderContent({ adminPortal = false, landlordPortal = fa
 
   return (
     <Box sx={{
-      display: downMD ? 'flex' : 'grid',
-      gridTemplateColumns: landlordPortal
-        ? { md: 'minmax(0, 1fr) minmax(0, 420px) auto', lg: 'minmax(0, 1fr) auto' }
-        : 'minmax(200px, 1fr) minmax(0, 420px) minmax(200px, 1fr)',
+      display: 'flex',
       alignItems: 'center',
       gap: { xs: 1, sm: 2 },
-      // Search and utilities stay within the space to the right of both sidebars.
       width: '100%',
       minWidth: 0
     }}>
@@ -55,12 +51,13 @@ export default function HeaderContent({ adminPortal = false, landlordPortal = fa
         sx={{ flexShrink: 0, lineHeight: 0, display: landlordPortal ? { xs: 'flex', lg: 'none' } : 'flex', alignItems: 'center' }}
       />
       </Box>
-      {downMD ? <Box sx={{ flex: 1, minWidth: 0 }} /> : (
-        <Box sx={{ minWidth: 0 }}>{!hasTenantRole && <Search />}</Box>
-      )}
+      <Box sx={{ flex: 1, minWidth: 0, display: 'flex', justifyContent: 'center', height: 60 }}>
+        {landlordPortal && <LandlordPrimaryNavigation />}
+      </Box>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: { xs: 1, sm: 2 }, flexShrink: 0 }}>
         {!downMD && (
           <>
+            {!hasTenantRole && <MobileSearch />}
             <Message />
             <Notification />
             <Divider orientation="vertical" flexItem sx={{ height: 28, alignSelf: 'center', mx: 1, borderColor: 'divider' }} />

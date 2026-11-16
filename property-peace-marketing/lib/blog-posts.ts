@@ -44,7 +44,7 @@ Look for software that integrates with payment processors like Stripe. This elim
 - Payment history tracking
 - Multiple payment methods (credit card, ACH)
 
-Learn more about [rent tracking and reminder tools](/features/rent-collection) and the [online payment processing roadmap](/features/payment-processing). Property Peace currently records payments received outside the platform rather than processing them online.
+Learn more about [rent tracking, reminders, and online payments](/features/rent-collection). Property Peace offers online rent payments after an organization requests access, is approved, and completes secure payment setup; landlords can also record payments received elsewhere.
 
 ### 2. Tenant Portal
 A good tenant portal reduces your workload significantly. Tenants can:
@@ -562,7 +562,7 @@ When testing software:
 
 The best property management software for small landlords includes these 10 essential features without unnecessary complexity. You don't need enterprise features—you need tools that solve real problems.
 
-Property Peace offers a focused set of tools for landlords managing 1-50 units, including rent records and reminders, application organization, maintenance tracking, and lease administration. Online payment processing and integrated screening reports are not currently available. Explore our [current feature list](/features), see how we compare in our [property management software reviews](/blog/property-management-software-reviews-top-10-2024), or [get started](https://app.propertypeace.io/register).
+Property Peace offers a focused set of tools for landlords managing 1-50 units, including rent records and reminders, application organization, maintenance tracking, and lease administration. Online rent payments are available after organization request, approval, and secure payment setup; integrated screening reports are not currently available. Explore our [current feature list](/features), see how we compare in our [property management software reviews](/blog/property-management-software-reviews-top-10-2024), or [get started](https://app.propertypeace.io/register).
     `,
     date: '2024-01-29',
     author: 'Property Peace Team',
@@ -627,7 +627,7 @@ Tenants can pay rent directly through the tenant portal:
 - Automatic receipt generation
 - Payment history always available
 
-Property Peace does not currently process online payments. Learn about the [online payment roadmap](/features/payment-processing) and use the available [rent ledger and reminder tools](/features/rent-collection) to organize payments received elsewhere.
+Property Peace offers online rent payments after an organization requests access, is approved, and completes secure payment setup. See the [rent collection tools](/features/rent-collection) to track online payments or organize payments received elsewhere.
 
 ### 2. Automated Payment Reminders
 
@@ -804,7 +804,7 @@ Automated rent collection through property management software:
 
 The small monthly cost is typically offset by time savings alone, not to mention improved collection rates.
 
-Explore Property Peace's [online payment roadmap](/features/payment-processing) and currently available [rent ledger and reminder tools](/features/rent-collection). Property Peace does not currently process online payments; you can record payments received elsewhere, monitor balances, and organize reminders. Compare options in our [property management software reviews](/blog/property-management-software-reviews-top-10-2024), or [start organizing your rent records](https://app.propertypeace.io/register).
+Explore Property Peace's [rent collection tools](/features/rent-collection). Online rent payments are available after organization request, approval, and secure payment setup; you can also record payments received elsewhere, monitor balances, and organize reminders. Compare options in our [property management software reviews](/blog/property-management-software-reviews-top-10-2024), or [start organizing your rent records](https://app.propertypeace.io/register).
     `,
     date: '2024-02-05',
     author: 'Property Peace Team',
@@ -1977,7 +1977,7 @@ Online rent collection through property management software:
 
 The small cost is typically offset by time savings alone, not to mention improved collection rates and reduced stress.
 
-Explore Property Peace's [online payment roadmap](/features/payment-processing) and currently available [rent ledger and reminder tools](/features/rent-collection). Property Peace does not currently process online payments, but you can record payments received elsewhere and track balances and reminders. Learn more about [organizing rent collection](/blog/streamline-rent-collection-property-management-software), review the [current feature list](/features), or [start organizing your rent records](https://app.propertypeace.io/register).
+Explore Property Peace's [rent collection tools](/features/rent-collection). Online rent payments are available after organization request, approval, and secure payment setup; you can also record payments received elsewhere and track balances and reminders. Learn more about [organizing rent collection](/blog/streamline-rent-collection-property-management-software), review the [current feature list](/features), or [start organizing your rent records](https://app.propertypeace.io/register).
     `,
     date: '2024-03-05',
     author: 'Property Peace Team',
@@ -2241,7 +2241,7 @@ Property management software designed for landlords can transform how you manage
 
 Whether you're managing one property in South End or dozens across Mecklenburg County, the right software makes all the difference in Charlotte's dynamic rental market.
 
-Explore our [complete feature list](/features) designed for landlords, including [rent tracking](/features/rent-collection), [rental application organization](/features/rental-applications), and [maintenance management](/features/maintenance-tracking). Property Peace does not currently process online payments or provide integrated credit, criminal, or eviction screening reports. Check our [pricing](/pricing) and read our [property management software reviews](/blog/property-management-software-reviews-top-10-2024). [Get started with property management software today](https://app.propertypeace.io/register) and see how it can help you manage your Charlotte, NC rental properties more effectively.
+Explore our [complete feature list](/features) designed for landlords, including [rent tracking](/features/rent-collection), [rental application organization](/features/rental-applications), and [maintenance management](/features/maintenance-tracking). Online rent payments are available after organization request, approval, and secure payment setup; Property Peace does not currently provide integrated credit, criminal, or eviction screening reports. Check our [pricing](/pricing) and read our [property management software reviews](/blog/property-management-software-reviews-top-10-2024). [Get started with property management software today](https://app.propertypeace.io/register) and see how it can help you manage your Charlotte, NC rental properties more effectively.
     `,
     date: '2024-03-12',
     author: 'Property Peace Team',
@@ -6933,7 +6933,7 @@ Property management software designed for landlords can transform how you manage
 
 Whether you're managing one property in South Austin or dozens across Travis County, the right software makes all the difference in Austin's dynamic rental market.
 
-Explore our [current feature list](/features) for landlords, including [rent records and reminders](/features/rent-collection), [rental application organization](/features/rental-applications), and [maintenance management](/features/maintenance-tracking). Property Peace does not currently process online payments or provide integrated credit, criminal, or eviction screening reports. Check our [pricing](/pricing), read our [property management software reviews](/blog/property-management-software-reviews-top-10-2024), or [get started](https://app.propertypeace.io/register) to organize your Austin rental operations.
+Explore our [current feature list](/features) for landlords, including [rent records and reminders](/features/rent-collection), [rental application organization](/features/rental-applications), and [maintenance management](/features/maintenance-tracking). Online rent payments are available after organization request, approval, and secure payment setup; Property Peace does not currently provide integrated credit, criminal, or eviction screening reports. Check our [pricing](/pricing), read our [property management software reviews](/blog/property-management-software-reviews-top-10-2024), or [get started](https://app.propertypeace.io/register) to organize your Austin rental operations.
     `,
     date: '2025-02-10',
     author: 'Property Peace Team',
@@ -8592,7 +8592,7 @@ Avoid tools that feel heavier than your portfolio. If you manage 1-50 units, you
 
 ## How Property Peace Helps Track Rent Records
 
-Property Peace is built for independent landlords who want rent records and follow-up to feel organized without adding bloat. It connects recorded payments, tenants, leases, communication, and property records. Property Peace does not currently process online payments.
+Property Peace is built for independent landlords who want rent records and follow-up to feel organized without adding bloat. It connects recorded payments, tenants, leases, communication, and property records. Online rent payments are available after organization request, approval, and secure payment setup.
 
 With Property Peace, landlords can use:
 

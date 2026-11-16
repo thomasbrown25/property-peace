@@ -12,7 +12,7 @@ const cases = {
   Listing: ['/landlord/listings/42', '/landlord/listings'],
   Calendar: ['/landlord/calendar', '/landlord/calendar'],
   Booking: ['/landlord/bookings', '/landlord/bookings'],
-  Tenant: ['/landlord/tenants/42', '/landlord/leases?tab=tenants'],
+  Tenant: ['/landlord/tenants/42', '/landlord/tenants'],
   Checklist: ['/landlord/checklist/42', '/landlord/checklists'],
   Announcement: ['/landlord/announcements/details?id=42', '/landlord/announcements'],
   Payment: ['/landlord/finances?tab=payments', '/landlord/finances?tab=payments']

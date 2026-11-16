@@ -1,5 +1,6 @@
 import { Link as RouterLink, useLocation } from 'react-router-dom';
 import { Box } from '@mui/material';
+import { useSubscriptionStatus } from 'hooks/useSubscription';
 import { activeLandlordPrimaryLink, landlordPrimaryLinks } from 'utils/landlordPrimaryNavigation';
 import TopNavigation from './TopNavigation';
 
@@ -8,18 +9,18 @@ import TopNavigation from './TopNavigation';
 export default function LandlordPrimaryNavigation() {
   const { pathname, search } = useLocation();
   const active = activeLandlordPrimaryLink(pathname, search);
+  const { status: subscriptionStatus } = useSubscriptionStatus();
+  const trialExpired = subscriptionStatus?.isTrialActive &&
+    (subscriptionStatus.trialDaysRemaining == null || subscriptionStatus.trialDaysRemaining <= 0);
 
   return (
     <Box
       component="nav" aria-label="Landlord primary navigation"
       sx={{
-        display: { xs: 'none', md: 'flex' },
+        display: { xs: 'none', lg: 'flex' },
         alignItems: 'center',
         justifyContent: 'center',
-        gap: { md: 1.5, lg: 3 },
-        position: 'absolute',
-        left: '50%',
-        transform: 'translateX(-50%)',
+        gap: { lg: 2.5, xl: 3 },
         height: '100%',
         whiteSpace: 'nowrap'
       }}
@@ -29,6 +30,9 @@ export default function LandlordPrimaryNavigation() {
           key={label}
           component={RouterLink}
           to={to}
+          onClick={trialExpired ? (event) => event.preventDefault() : undefined}
+          aria-disabled={trialExpired || undefined}
+          tabIndex={trialExpired ? -1 : undefined}
           aria-current={active === label ? 'page' : undefined}
           sx={(theme) => ({
             display: 'inline-flex',
@@ -36,7 +40,7 @@ export default function LandlordPrimaryNavigation() {
             alignSelf: 'stretch',
             px: 0.25,
             color: 'inherit',
-            fontSize: { md: 13, lg: 14 },
+            fontSize: { lg: 13, xl: 14 },
             fontWeight: active === label ? 700 : 500,
             lineHeight: 1,
             textDecoration: 'none',

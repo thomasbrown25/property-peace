@@ -17,9 +17,9 @@ test('outer navigation presents the requested primary destinations in order', ()
 
 test('selects the correct primary section for list pages, details, and secondary tools', () => {
   for (const [path, expected] of [
-    ['/landlord', 'Home'], ['/landlord/dashboard', 'Home'], ['/landlord/properties', 'Properties'],
-    ['/landlord/property/123', 'Properties'], ['/landlord/properties/123', 'Properties'],
-    ['/landlord/unit/123', 'Properties'], ['/landlord/tenants/12', 'Tenants'],
+    ['/landlord', 'Home'], ['/landlord/dashboard', 'Home'], ['/landlord/properties', null],
+    ['/landlord/property/123', null], ['/landlord/properties/123', null],
+    ['/landlord/unit/123', null], ['/landlord/tenants/12', 'Tenants'],
     ['/landlord/maintenances', 'Maintenance'], ['/landlord/maintenance/12', 'Maintenance'],
     ['/landlord/finances', 'Finances'], ['/landlord/accounting/expenses', 'Finances'],
     ['/landlord/documents', 'Documents'], ['/landlord/files', 'Documents'],

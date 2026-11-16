@@ -270,9 +270,9 @@ export default function Navigation() {
       features: [
         {
           slug: 'payment-processing',
-          title: 'Online Payments Roadmap',
+          title: 'Online Payments',
           icon: FiCreditCard,
-          description: 'Not currently available. Rent tracking and reminder workflows are live.'
+          description: 'Online rent payments are available after organization request, approval, and secure payment setup.'
         },
         {
           slug: 'rent-collection',

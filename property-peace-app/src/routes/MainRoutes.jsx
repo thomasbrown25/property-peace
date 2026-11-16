@@ -20,6 +20,14 @@ const Property = Loadable(lazy(() => import('pages/landlord/property')));
 const PropertyAddWorkflow = Loadable(lazy(() => import('pages/landlord/property-add-workflow')));
 const PropertyImportPage = Loadable(lazy(() => import('pages/landlord/property-import')));
 const Leases = Loadable(lazy(() => import('pages/landlord/leases')));
+const Tenants = Loadable(lazy(() => import('pages/landlord/tenants')));
+
+function LeasesWorkspaceRoute() {
+  const { search } = useLocation();
+  return new URLSearchParams(search).get('tab') === 'tenants'
+    ? <Navigate to="/landlord/tenants" replace />
+    : <Leases />;
+}
 const Listings = Loadable(lazy(() => import('pages/landlord/listings')));
 const Bookings = Loadable(lazy(() => import('pages/landlord/bookings')));
 const ListingCreate = Loadable(lazy(() => import('pages/landlord/listing-create')));
@@ -264,7 +272,11 @@ const MainRoutes = {
         },
         {
           path: 'landlord/tenants',
-          element: <Navigate to="/landlord/leases?tab=tenants" replace />
+          element: (
+            <SubscriptionPausedGuard>
+              <Tenants />
+            </SubscriptionPausedGuard>
+          )
         },
         {
           path: 'landlord/tenants/import',
@@ -386,7 +398,7 @@ const MainRoutes = {
           path: 'landlord/leases',
           element: (
             <SubscriptionPausedGuard>
-              <Leases />
+              <LeasesWorkspaceRoute />
             </SubscriptionPausedGuard>
           )
         },

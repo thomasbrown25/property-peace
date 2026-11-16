@@ -270,7 +270,7 @@ export default function TenantImportPage() {
       <PageBreadcrumbs
         items={[
           { label: 'Dashboard', path: '/landlord/dashboard' },
-          { label: 'Tenants', path: '/landlord/leases?tab=tenants' },
+          { label: 'Tenants', path: '/landlord/tenants' },
           { label: 'Import' }
         ]}
       />
@@ -284,7 +284,7 @@ export default function TenantImportPage() {
             <Button
               size="small"
               startIcon={<ArrowLeftOutlined />}
-              onClick={() => navigate('/landlord/leases?tab=tenants')}
+              onClick={() => navigate('/landlord/tenants')}
               sx={{ textTransform: 'none' }}
             >
               Back to Tenants

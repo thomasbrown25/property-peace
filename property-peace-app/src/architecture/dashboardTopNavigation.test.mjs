@@ -4,92 +4,69 @@ import assert from 'node:assert/strict';
 
 const source = (path) => readFileSync(new URL(path, import.meta.url), 'utf8');
 
-test('admin keeps its own route-scoped drawer', () => {
+test('admin drawer and standalone property onboarding remain route-scoped', () => {
   const layout = source('../layout/Dashboard/index.jsx');
   const drawer = source('../layout/Dashboard/Drawer/index.jsx');
   assert.match(layout, /pathname === '\/admin' \|\| pathname\.startsWith\('\/admin\/'\)/);
   assert.match(layout, /\{isAdminPortal && <MainDrawer mobileOpen=\{adminMobileMenuOpen\}/);
+  assert.match(layout, /const isLandlordPortal = .*pathname\.startsWith\('\/landlord\/'\).*&& !isAddPropertyPage/);
+  assert.match(layout, /\{isLandlordPortal && <LandlordSidebar mobileOpen=\{landlordMobileMenuOpen\}/);
   assert.match(drawer, /variant="permanent"/);
   assert.match(drawer, /variant="temporary"/);
 });
 
-test('desktop layout and header reserve room for both sidebars without changing standalone onboarding', () => {
+test('landlord shell reserves one green property rail rather than two sidebars', () => {
   const layout = source('../layout/Dashboard/index.jsx');
   const header = source('../layout/Dashboard/Header/index.jsx');
-  const content = source('../layout/Dashboard/Header/HeaderContent/index.jsx');
   const sidebar = source('../layout/Dashboard/LandlordSidebar.jsx');
-  assert.match(layout, /const isLandlordPortal = .*pathname\.startsWith\('\/landlord\/'\).*&& !isAddPropertyPage/);
-  assert.match(layout, /\{isLandlordPortal && <LandlordSidebar mobileOpen=\{landlordMobileMenuOpen\}/);
+  assert.match(sidebar, /LANDLORD_SIDEBAR_WIDTH = 260/);
   for (const text of [layout, header]) assert.match(text, /lg: `calc\(100% - \$\{LANDLORD_SIDEBAR_WIDTH\}px\)`/);
-  assert.match(sidebar, /LANDLORD_SIDEBAR_WIDTH = LANDLORD_PRIMARY_SIDEBAR_WIDTH \+ LANDLORD_PROPERTY_SIDEBAR_WIDTH/);
-  assert.match(sidebar, /component="aside" aria-label="Property sidebar"/);
-  assert.match(sidebar, /left: LANDLORD_PRIMARY_SIDEBAR_WIDTH/);
-  assert.match(sidebar, /bgcolor: 'background.paper'/);
+  assert.doesNotMatch(sidebar, /LANDLORD_PROPERTY_SIDEBAR_WIDTH|LANDLORD_PRIMARY_SIDEBAR_WIDTH|aria-label="Property sidebar"|\{navigation\}/);
+  assert.match(sidebar, /bgcolor: brand\.forest/);
   assert.match(sidebar, /<Logo darkSurface[\s\S]*?to="\/landlord\/dashboard"/);
-  assert.match(content, /aria-label="Open landlord navigation"/);
-  assert.doesNotMatch(content, /calc\(100% \+|lg: `-\$/);
 });
 
-test('outer navigation has the requested sections and an expandable More menu', () => {
-  const sidebar = source('../layout/Dashboard/LandlordSidebar.jsx');
-  const primary = source('../utils/landlordPrimaryNavigation.js');
-  for (const label of ['Home', 'Tenants', 'Maintenance', 'Finances', 'Documents']) assert.ok(primary.includes(`label: '${label}'`));
-  assert.doesNotMatch(primary, /label: 'Properties'/);
-  assert.match(sidebar, /landlordPrimaryLinks\.map/);
-  assert.match(sidebar, /primary="More"/);
-  assert.match(sidebar, /aria-expanded=\{moreOpen\}/);
-  assert.match(sidebar, /landlordMoreLinks\.map/);
-  assert.doesNotMatch(sidebar, />Workspace<\/Typography>|PORTFOLIO CONVERSATIONS|fresh conversation/);
-});
-
-test('inner property navigation always searches the full portfolio, with real thumbnails and links', () => {
-  const sidebar = source('../layout/Dashboard/LandlordSidebar.jsx');
-  assert.match(sidebar, /useFetchProperties\(\)/);
-  assert.match(sidebar, /visibleProperties = propertyRows\.filter/);
-  assert.match(sidebar, /property\.name} \$\{property\.address/);
-  assert.doesNotMatch(sidebar, /MAX_SIDEBAR_PROPERTIES|hasMoreProperties/);
-  assert.match(sidebar, /placeholder="Search properties" value=\{search\}/);
-  assert.match(sidebar, /'aria-label': 'Search properties'/);
-  assert.match(sidebar, /\/landlord\/property\/\$\{encodeURIComponent\(property\.id\)\}/);
-  assert.match(sidebar, /component="img" src=\{property\.image\}/);
-  assert.match(sidebar, /aria-current=\{isActive \? 'page' : undefined\}/);
-  assert.match(sidebar, /primary="All properties"/);
-  assert.match(sidebar, /aria-label="Add property"/);
-  assert.match(sidebar, /No matching properties\./);
-  assert.match(sidebar, /Loading properties…/);
-  assert.match(sidebar, /Properties could not be loaded\./);
-  assert.match(sidebar, /No properties yet\./);
-  assert.match(sidebar, /role="status"/);
-});
-
-test('property list preserves readable rows, visible scrolling and conditional overflow fade', () => {
-  const sidebar = source('../layout/Dashboard/LandlordSidebar.jsx');
-  assert.match(sidebar, /minHeight: 56/);
-  assert.match(sidebar, /overflowY: 'scroll', scrollbarWidth: 'thin'/);
-  assert.match(sidebar, /onScroll=\{updateOverflow\}/);
-  assert.match(sidebar, /ResizeObserver\(updateOverflow\)/);
-  assert.match(sidebar, /observer\.disconnect\(\)/);
-  assert.match(sidebar, /\{hasMoreBelow && <Box aria-hidden="true"/);
-});
-
-test('sidenav preserves property recency, account scope, and subscription gating', () => {
-  const sidebar = source('../layout/Dashboard/LandlordSidebar.jsx');
-  assert.match(sidebar, /readPropertyVisitDates\(user\)/);
-  assert.match(sidebar, /sortPropertiesByLastVisit\([\s\S]*?visitDates\)/);
-  for (const event of ['PROPERTY_VISITED_EVENT', "'storage'"]) {
-    assert.ok(sidebar.includes(`window.addEventListener(${event}, refreshVisits)`));
-    assert.ok(sidebar.includes(`window.removeEventListener(${event}, refreshVisits)`));
-  }
-  assert.match(sidebar, /recordRecentlyViewedProperty\(property\.id, user\)/);
-  assert.match(sidebar, /disabled=\{trialExpired\}/);
-});
-
-test('mobile keeps both menus accessible without reserving desktop sidebar space', () => {
-  const sidebar = source('../layout/Dashboard/LandlordSidebar.jsx');
+test('desktop top bar has ordered landlord links, More, and icon search', () => {
   const content = source('../layout/Dashboard/Header/HeaderContent/index.jsx');
+  const primary = source('../layout/Dashboard/Header/HeaderContent/LandlordPrimaryNavigation.jsx');
+  const more = source('../layout/Dashboard/Header/HeaderContent/TopNavigation.jsx');
+  assert.match(content, /landlordPortal && <LandlordPrimaryNavigation \/>/);
+  assert.match(content, /!hasTenantRole && <MobileSearch \/>[\s\S]*?<Message \/>/);
+  assert.doesNotMatch(content, /<Search \/>/);
+  assert.match(primary, /landlordPrimaryLinks\.map/);
+  assert.match(primary, /<TopNavigation \/>/);
+  assert.match(primary, /display: \{ xs: 'none', lg: 'flex' \}/);
+  assert.match(primary, /aria-disabled=\{trialExpired \|\| undefined\}/);
+  assert.match(more, /groupLandlordMoreNavigation\(landlordPagesForInventory/);
+  assert.match(more, /primaryDestinations\.has\(item\.url\)/);
+  assert.doesNotMatch(more, /const tenantsItem/);
+});
+
+test('property rail snapshots visit order until page reload, while still recording clicks for the next load', () => {
+  const sidebar = source('../layout/Dashboard/LandlordSidebar.jsx');
+  assert.match(sidebar, /const sidebarVisitDates = new Map\(\)/);
+  assert.match(sidebar, /if \(!sidebarVisitDates\.has\(scope\)\) sidebarVisitDates\.set\(scope, readPropertyVisitDates\(user\)\)/);
+  assert.match(sidebar, /const visitDates = visitDatesForSidebar\(user\)/);
+  assert.match(sidebar, /recordRecentlyViewedProperty\(property\.id, user\)/);
+  assert.doesNotMatch(sidebar, /addEventListener\((?:PROPERTY_VISITED_EVENT|'storage')/);
+});
+
+test('properties are searchable, accessible, and scroll in the single green rail', () => {
+  const sidebar = source('../layout/Dashboard/LandlordSidebar.jsx');
+  for (const token of ['useFetchProperties()', 'visibleProperties = propertyRows.filter', 'sortPropertiesByLastVisit',
+    'readPropertyVisitDates(user)', 'recordRecentlyViewedProperty(property.id, user)',
+    'placeholder="Search properties"', "'aria-label': 'Search properties'", '<HomeOutlined aria-hidden="true" />',
+    'component="span" variant="caption"', "sx: { color: '#FFFFFF' }", 'aria-label="Add property"',
+    'component="img" src={property.image}', 'No matching properties.',
+    'Loading properties…', 'Properties could not be loaded.', 'No properties yet.', 'ResizeObserver(updateOverflow)',
+    "overflowY: 'auto'", 'maxWidth: \'90vw\'']) assert.ok(sidebar.includes(token), token);
+  assert.match(sidebar, /<Box component=\{Link\} to="\/landlord\/properties"/);
+  assert.doesNotMatch(sidebar, /primary="All properties"/);
+  assert.match(sidebar, /\/landlord\/property\/\$\{encodeURIComponent\(property\.id\)\}/);
   assert.match(sidebar, /variant="temporary" open=\{mobileOpen\} onClose=\{onMobileClose\}/);
-  assert.match(sidebar, /maxWidth: '90vw'/);
-  assert.match(sidebar, /minHeight: 0, bgcolor: 'background.paper' }}>\{propertyNavigation\}/);
-  for (const utility of ['MobileSearch', 'Search', 'Message', 'Notification', 'Profile']) assert.ok(content.includes(`<${utility} />`));
-  assert.doesNotMatch(content, /<TopNavigation\s*\/>|<LandlordPrimaryNavigation\s*\/>/);
+  assert.match(sidebar, /aria-label="Landlord pages"/);
+  assert.match(sidebar, /landlordPrimaryLinks\.map/);
+  assert.match(sidebar, /landlordMoreLinks\.map/);
+  assert.match(sidebar, /renderPropertyNavigation\(\)/);
+  assert.match(sidebar, /disabled=\{trialExpired\}/);
 });
