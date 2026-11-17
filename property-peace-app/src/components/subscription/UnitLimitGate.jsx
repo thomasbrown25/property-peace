@@ -1,6 +1,6 @@
 import { Box, Typography, Button, Stack, alpha, useTheme } from '@mui/material';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { HomeOutlined, CrownOutlined } from '@ant-design/icons';
+import { HomeOutlined } from '@ant-design/icons';
 import { useSubscription, useSubscriptionStatus } from 'hooks/useSubscription';
 
 // Pages where the gate should not appear — these are where the user goes to fix their situation
@@ -78,19 +78,11 @@ export default function UnitLimitGate({ children }) {
             You have <strong>{currentTotalUnits}</strong> units, but the Free plan allows a maximum of <strong>{maxTotalUnits}</strong>.
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3.5 }}>
-            To continue using the app, either upgrade to Premium for unlimited units or remove some properties.
+            To continue using the app, remove excess units or contact support for help.
           </Typography>
 
           <Stack spacing={1.5}>
-            <Button
-              variant="contained"
-              size="large"
-              startIcon={<CrownOutlined />}
-              onClick={() => navigate('/landlord/settings?tab=subscription')}
-              sx={{ textTransform: 'none', py: 1.25 }}
-            >
-              Upgrade to Premium
-            </Button>
+
             <Button
               variant="outlined"
               size="large"

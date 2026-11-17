@@ -182,6 +182,11 @@ const MaintenanceComingSoon = Loadable(lazy(() => import('pages/maintenance/comi
 
 // ==============================|| MAIN ROUTING ||============================== //
 
+function LegacyChatRedirect() {
+  const { search, hash } = useLocation();
+  return <Navigate to={`/landlord/chat${search}${hash}`} replace />;
+}
+
 function LegacyInspectionRedirect() {
   return <Navigate to="/landlord/checklists" replace />;
 }
@@ -928,12 +933,16 @@ const MainRoutes = {
           )
         },
         {
-          path: 'landlord/messages',
+          path: 'landlord/chat',
           element: (
             <SubscriptionPausedGuard>
               <Messages />
             </SubscriptionPausedGuard>
           )
+        },
+        {
+          path: 'landlord/messages',
+          element: <LegacyChatRedirect />
         },
         {
           path: 'landlord/urgent-messages',

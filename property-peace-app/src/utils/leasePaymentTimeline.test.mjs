@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { buildLeasePaymentTimeline } from './leasePaymentTimeline.js';
+import { buildLeasePaymentTimeline, paymentsForLeaseCycle, firstOfCycleMonth } from './leasePaymentTimeline.js';
 
 const lease = {
   startDate: '2026-01-01', endDate: '2026-04-30', rentAmount: 1000,
@@ -23,6 +23,23 @@ test('grace boundary, draft leases and missing schedule are safe', () => {
   assert.equal(buildLeasePaymentTimeline(lease, [], new Date(2026, 0, 7))[0].status, 'overdue');
   assert.ok(buildLeasePaymentTimeline(lease, [], new Date(2026, 3, 30), true).every((cycle) => cycle.status === 'upcoming'));
   assert.deepEqual(buildLeasePaymentTimeline({ startDate: '2026-01-01' }), []);
+});
+
+test('a paid installment shows the actual contributing rent records, including split payments, not fees or later months', () => {
+  const records = [
+    payment('2026-01-05', 500, { id: 1 }),
+    payment('2026-01-06', 700, { id: 2 }),
+    payment('2026-01-07', 800, { id: 3 }),
+    payment('2026-01-04', 200, { id: 4, type: 'deposit' }),
+    payment('2026-01-04', 300, { id: 5, status: 'failed' })
+  ];
+  assert.deepEqual(paymentsForLeaseCycle(lease, records, 0).map((entry) => [entry.payment.id, entry.appliedAmount]), [[1, 500], [2, 500]]);
+  assert.deepEqual(paymentsForLeaseCycle(lease, records, 1).map((entry) => [entry.payment.id, entry.appliedAmount]), [[2, 200], [3, 800]]);
+});
+
+test('the selected month pre-fills the first even for a prorated installment due later in the month', () => {
+  const selected = firstOfCycleMonth('2026-08-17');
+  assert.deepEqual([selected.getFullYear(), selected.getMonth(), selected.getDate()], [2026, 7, 1]);
 });
 
 test('long leases include every scheduled month beyond the list-page twelve-tile preview', () => {

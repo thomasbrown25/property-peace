@@ -178,7 +178,7 @@ export default function BulkUnitCreateDrawer({ property, open, onClose, onSucces
             current: currentTotalUnits,
             limit: maxTotalUnits,
             attempting: unitsToAdd,
-            message: `Cannot add ${unitsToAdd} unit(s). This would exceed your plan's total unit limit (${currentTotalUnits}/${maxTotalUnits} units). Upgrade your subscription to add more units.`
+            message: `Cannot add ${unitsToAdd} unit(s). This would exceed your plan's total unit limit (${currentTotalUnits}/${maxTotalUnits} units). Contact support to add more units.`
           };
           setLimitWarning(warning);
           setIsSubmitting(false);
@@ -304,7 +304,7 @@ export default function BulkUnitCreateDrawer({ property, open, onClose, onSucces
                       component="span"
                       onClick={() => {
                         onClose();
-                        navigate('/landlord/settings?tab=subscription');
+                        navigate('/landlord/support/ticket');
                       }}
                       sx={{
                         color: 'primary.main',
@@ -315,9 +315,9 @@ export default function BulkUnitCreateDrawer({ property, open, onClose, onSucces
                         }
                       }}
                     >
-                      Upgrade your subscription
+                      Contact support
                     </Typography>
-                    {' '}to add more units.
+                    {' '}if you need help with this limit.
                   </Typography>
                 </Alert>
               )}
@@ -337,7 +337,7 @@ export default function BulkUnitCreateDrawer({ property, open, onClose, onSucces
                         component="span"
                         onClick={() => {
                           onClose();
-                          navigate('/landlord/settings?tab=subscription');
+                          navigate('/landlord/support/ticket');
                         }}
                         sx={{
                           color: 'primary.main',
@@ -348,9 +348,9 @@ export default function BulkUnitCreateDrawer({ property, open, onClose, onSucces
                           }
                         }}
                       >
-                        Upgrade your subscription
+                        Contact support
                       </Typography>
-                      {' '}to add more units.
+                      {' '}if you need help with this limit.
                     </Typography>
                   )}
                 </Alert>

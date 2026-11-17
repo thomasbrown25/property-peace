@@ -4,7 +4,7 @@ import { FiArrowRight } from 'react-icons/fi';
 const pathways = [
   {
     title: 'Free landlord software',
-    description: 'Start with a free plan for up to 5 units, then upgrade when your rental workflow grows.',
+    description: 'Manage unlimited rental units for free, without paid tiers or per-unit charges.',
     href: '/free-landlord-software',
   },
   {

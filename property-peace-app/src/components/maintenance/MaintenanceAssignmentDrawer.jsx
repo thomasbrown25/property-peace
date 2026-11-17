@@ -17,7 +17,7 @@ export default function MaintenanceAssignmentDrawer({ open, onClose, assignees, 
   }, [assignees, currentAssignment, open]);
 
   const selected = assignees.find((option) => option.key === selection);
-  const borderColor = theme.palette.mode === 'dark' ? alpha(theme.palette.primary.main, 0.22) : alpha('#061e35', 0.12);
+  const borderColor = theme.palette.mode === 'dark' ? alpha(theme.palette.primary.main, 0.22) : alpha(theme.palette.brand.forest, 0.12);
 
   return (
     <ThemeAdaptiveDrawer
@@ -30,7 +30,7 @@ export default function MaintenanceAssignmentDrawer({ open, onClose, assignees, 
           bgcolor: 'background.paper',
           backgroundImage: theme.palette.mode === 'dark'
             ? `linear-gradient(180deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, transparent 220px)`
-            : 'linear-gradient(180deg, #f3f8fc 0%, #ffffff 190px)',
+            : `linear-gradient(180deg, ${alpha(theme.palette.primary.main, 0.06)} 0%, ${theme.palette.background.paper} 190px)`,
           borderLeft: `1px solid ${borderColor}`
         }
       }}

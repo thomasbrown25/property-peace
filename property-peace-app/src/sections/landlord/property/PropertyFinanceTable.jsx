@@ -3,7 +3,7 @@ import { Box, Button, Chip, FormControl, IconButton, MenuItem, Select, Stack, Ta
 import { CheckCircleOutlined, DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
 import MainCard from 'components/MainCard';
 import { formatCurrency, formatDate } from 'utils/formatters';
-import { combinePropertyFinances, financeUnitName, hasFinanceUnits, paymentCategory } from './propertyFinances.mjs';
+import { combinePropertyFinances, financeUnitName, hasFinanceUnits, paymentCategory, paymentTenantName } from './propertyFinances.mjs';
 
 const financeSurfaceSx = {
   border: 'none',
@@ -12,7 +12,7 @@ const financeSurfaceSx = {
   '&:hover': { border: 'none', boxShadow: 'none' }
 };
 
-export default function PropertyFinanceTable({ propertyId, property, payments = [], expenses = [], mode = 'payments', rentOverview, monthlyExpenses, monthlyExpensesLoading = false, monthlyExpensesError = false, onRecordPayment, onAddExpense, onEditExpense, onDeleteExpense, onMarkAsPaid }) {
+export default function PropertyFinanceTable({ propertyId, property, payments = [], expenses = [], mode = 'payments', monthlyExpenses, monthlyExpensesLoading = false, monthlyExpensesError = false, onAddExpense, onEditExpense, onDeleteExpense, onMarkAsPaid }) {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
   const [page, setPage] = useState(0);
@@ -25,7 +25,7 @@ export default function PropertyFinanceTable({ propertyId, property, payments = 
   const filterOptions = [...new Set(rows.map(({ record }) => getFilterValue(record)))].sort();
   const filtered = rows.filter(({ record }) => {
     if (filter !== 'all' && filter !== getFilterValue(record)) return false;
-    const text = [record.name, record.vendor, record.category, record.tenantName, record.lease?.tenantName,
+    const text = [record.name, record.vendor, record.category, isPayments && paymentTenantName(record, property),
       financeUnitName(record, property), paymentCategory(record), record.reference, record.method, record.status, isPayments && record.paymentTiming].filter(Boolean).join(' ').toLowerCase();
     return text.includes(query.trim().toLowerCase());
   });
@@ -38,15 +38,11 @@ export default function PropertyFinanceTable({ propertyId, property, payments = 
   return (
     <Box sx={{ mb: 3 }}>
       {isPayments ? (
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ xs: 'stretch', sm: 'center' }} justifyContent="space-between" sx={{ px: 2.5, pt: 1, pb: 0.5 }}>
-          <Stack spacing={0.75} sx={{ minWidth: 0 }}>
-            <Box sx={{ display: 'grid', gridTemplateColumns: '112px minmax(0, 1fr)', columnGap: 1.5, alignItems: 'baseline' }}>
-              <Typography variant="body2" color="text.secondary">Total received:</Typography>
-              <Typography variant="body1" fontWeight={700} color="success.main">{formatCurrency(total)}</Typography>
-            </Box>
-            {rentOverview}
-          </Stack>
-          {onRecordPayment && <Button variant="contained" startIcon={<PlusOutlined />} onClick={onRecordPayment} sx={{ alignSelf: { xs: 'flex-end', sm: 'center' }, flexShrink: 0, whiteSpace: 'nowrap', textTransform: 'none' }}>Record payment</Button>}
+        <Stack sx={{ px: 2.5, pt: 1, pb: 0.5 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: '112px minmax(0, 1fr)', columnGap: 1.5, alignItems: 'baseline' }}>
+            <Typography variant="body2" color="text.secondary">Total received:</Typography>
+            <Typography variant="body1" fontWeight={700} color="success.main">{formatCurrency(total)}</Typography>
+          </Box>
         </Stack>
       ) : (
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ xs: 'stretch', sm: 'center' }} justifyContent="space-between" sx={{ px: 2.5, pt: 1, pb: 0.5 }}>
@@ -77,7 +73,7 @@ export default function PropertyFinanceTable({ propertyId, property, payments = 
         <TableContainer sx={{ overflowX: 'auto', minHeight: { xs: 260, sm: 360 } }}>
           <Table size="small" aria-label={`Property ${label}`}>
             <TableHead><TableRow>
-              <TableCell>Date</TableCell><TableCell>{isPayments ? 'Tenant' : 'Name'}</TableCell><TableCell>{isPayments ? 'Payment type' : 'Category'}</TableCell>
+              <TableCell>{isPayments ? 'PAID DATE' : 'Date'}</TableCell><TableCell>{isPayments ? 'Tenant' : 'Name'}</TableCell><TableCell>{isPayments ? 'Payment type' : 'Category'}</TableCell>
               {showUnit && <TableCell>Unit</TableCell>}<TableCell>Status</TableCell>
               {isPayments && <TableCell sx={{ whiteSpace: 'nowrap' }}>Payment timing</TableCell>}
               <TableCell align="right">Amount</TableCell>
@@ -87,7 +83,7 @@ export default function PropertyFinanceTable({ propertyId, property, payments = 
               {filtered.slice(safePage * rowsPerPage, (safePage + 1) * rowsPerPage).map(({ record, date }, index) => (
                 <TableRow key={record.id ?? index} hover>
                   <TableCell sx={{ whiteSpace: 'nowrap' }}>{date ? formatDate(date) : '—'}</TableCell>
-                  <TableCell>{isPayments ? record.tenantName || record.lease?.tenantName || '—' : record.name || '—'}
+                  <TableCell>{isPayments ? paymentTenantName(record, property) : record.name || '—'}
                     {!isPayments && record.vendor && <Typography variant="caption" display="block" color="text.secondary">{record.vendor}</Typography>}</TableCell>
                   <TableCell>{isPayments ? paymentCategory(record) : record.category || 'Other'}</TableCell>
                   {showUnit && <TableCell>{financeUnitName(record, property)}</TableCell>}

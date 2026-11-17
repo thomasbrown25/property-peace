@@ -201,7 +201,7 @@ export default function CurrentPlan({ subscription, loading, onUpdate }) {
       )}
       {isCancelled && (
         <Alert severity="info" sx={{ mt: 1.5, py: 0.5 }}>
-          Subscription cancelled. Select a plan to reactivate.
+          Subscription cancelled. Contact support if you need help restoring access.
         </Alert>
       )}
       {error && (

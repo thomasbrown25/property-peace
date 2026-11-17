@@ -70,17 +70,18 @@ const US_STATES = [
 
 // Mock UI panels used in the upgrade gate stepper
 function LeaseShieldMock1() {
+  const theme = useTheme();
   return (
     <div style={{ fontFamily: '"Inter", sans-serif', display: 'flex', flexDirection: 'column', height: '100%', background: '#fff' }}>
       <div style={{ padding: '10px 14px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 8 }}>
-        <div style={{ width: 24, height: 24, borderRadius: 6, background: '#1e3a5f', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        <div style={{ width: 24, height: 24, borderRadius: 6, background: theme.palette.brand.forest, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
         </div>
         <span style={{ fontSize: 12, fontWeight: 700, color: '#1e293b' }}>LeaseShield</span>
         <span style={{ marginLeft: 'auto', fontSize: 11, padding: '2px 8px', background: '#eff6ff', color: '#1877F2', borderRadius: 12, border: '1px solid #bfdbfe', fontWeight: 600 }}>California</span>
       </div>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '16px 20px', gap: 8 }}>
-        <div style={{ width: 36, height: 36, borderRadius: 10, background: '#1e3a5f', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
+        <div style={{ width: 36, height: 36, borderRadius: 10, background: theme.palette.brand.forest, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
         </div>
         <div style={{ fontSize: 12, fontWeight: 700, color: '#1e293b' }}>Ask a landlord-tenant question</div>
@@ -89,7 +90,7 @@ function LeaseShieldMock1() {
       <div style={{ padding: '10px 12px', borderTop: '1px solid #f1f5f9' }}>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: '8px 12px' }}>
           <span style={{ flex: 1, fontSize: 11, color: '#475569' }}>What is the eviction process in California?</span>
-          <div style={{ width: 24, height: 24, borderRadius: 6, background: '#1e3a5f', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <div style={{ width: 24, height: 24, borderRadius: 6, background: theme.palette.brand.forest, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>
           </div>
         </div>
@@ -99,10 +100,11 @@ function LeaseShieldMock1() {
 }
 
 function LeaseShieldMock2() {
+  const theme = useTheme();
   return (
     <div style={{ fontFamily: '"Inter", sans-serif', display: 'flex', flexDirection: 'column', height: '100%', background: '#fff', overflow: 'hidden' }}>
       <div style={{ padding: '10px 14px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 8 }}>
-        <div style={{ width: 24, height: 24, borderRadius: 6, background: '#1e3a5f', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        <div style={{ width: 24, height: 24, borderRadius: 6, background: theme.palette.brand.forest, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
         </div>
         <span style={{ fontSize: 12, fontWeight: 700, color: '#1e293b' }}>LeaseShield</span>
@@ -131,6 +133,7 @@ function LeaseShieldMock2() {
 }
 
 function LeaseShieldMock3() {
+  const theme = useTheme();
   const items = [
     { label: 'Notice to pay or quit', value: '3 days' },
     { label: 'Security deposit max', value: '2× rent' },
@@ -140,13 +143,13 @@ function LeaseShieldMock3() {
   return (
     <div style={{ fontFamily: '"Inter", sans-serif', display: 'flex', flexDirection: 'column', height: '100%', background: '#fff' }}>
       <div style={{ padding: '10px 14px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 8 }}>
-        <div style={{ width: 24, height: 24, borderRadius: 6, background: '#1e3a5f', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        <div style={{ width: 24, height: 24, borderRadius: 6, background: theme.palette.brand.forest, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
         </div>
         <span style={{ fontSize: 12, fontWeight: 700, color: '#1e293b' }}>LeaseShield</span>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
           {['CA', 'TX', 'NY', 'FL'].map((s, i) => (
-            <span key={s} style={{ fontSize: 10, padding: '2px 6px', background: i === 0 ? '#1e3a5f' : '#f1f5f9', color: i === 0 ? 'white' : '#64748b', borderRadius: 8, fontWeight: 600 }}>{s}</span>
+            <span key={s} style={{ fontSize: 10, padding: '2px 6px', background: i === 0 ? theme.palette.brand.forest : '#f1f5f9', color: i === 0 ? 'white' : '#64748b', borderRadius: 8, fontWeight: 600 }}>{s}</span>
           ))}
         </div>
       </div>
@@ -582,7 +585,7 @@ export default function LeaseShield() {
             <Box sx={{ p: { xs: 3, md: 4 }, display: 'flex', flexDirection: 'column', gap: 3 }}>
               <Box>
                 <Typography variant="overline" color="primary" fontWeight={700} sx={{ letterSpacing: 1 }}>
-                  Premium Feature
+                  Availability limited
                 </Typography>
                 <Typography variant="h4" fontWeight={800} sx={{ mt: 0.5, mb: 1.5, lineHeight: 1.25 }}>
                   Know your rights.<br />Know the law.
@@ -628,10 +631,10 @@ export default function LeaseShield() {
                   variant="contained"
                   color="success"
                   size="large"
-                  onClick={() => navigate(subscriptionPlansUrl)}
+                  onClick={() => navigate('/landlord/support/ticket')}
                   sx={{ fontWeight: 700, textTransform: 'none', px: 4 }}
                 >
-                  Upgrade to Premium
+                  Contact support
                 </Button>
                 <Button variant="outlined" size="large" onClick={() => navigate(dashboardPath)} sx={{ textTransform: 'none' }}>
                   Back to Dashboard
@@ -664,7 +667,7 @@ export default function LeaseShield() {
                 }}
               >
                 {/* Browser chrome */}
-                <Box sx={{ bgcolor: '#1a2035', px: 2, py: 1.5, display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                <Box sx={{ bgcolor: theme.palette.brand.forest, px: 2, py: 1.5, display: 'flex', alignItems: 'center', gap: 1.5 }}>
                   <Stack direction="row" spacing={0.75}>
                     <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: '#ff5f57' }} />
                     <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: '#febc2e' }} />
@@ -908,8 +911,8 @@ export default function LeaseShield() {
                         <Stack direction="column" alignItems="center" spacing={1.5}>
                           <Stack direction="row" alignItems="center" justifyContent="center" spacing={1.5} flexWrap="wrap">
                             <SafetyCertificateOutlined style={{ color: 'var(--mui-palette-primary-main)', fontSize: 20 }} />
-                            <Typography variant="body2" fontWeight={600} color="primary.main">LeaseShield is a Premium feature.</Typography>
-                            <Typography variant="body2" color="text.secondary">Upgrade your subscription to use LeaseShield and get lease and state law answers from government sources only.</Typography>
+                            <Typography variant="body2" fontWeight={600} color="primary.main">LeaseShield is unavailable for this organization.</Typography>
+                            <Typography variant="body2" color="text.secondary">Contact support if you expected access to LeaseShield.</Typography>
                           </Stack>
                         </Stack>
                       </Paper>
@@ -920,7 +923,7 @@ export default function LeaseShield() {
                         onClick={() => setUpgradeModalOpen(true)}
                         sx={{ mx: 'auto', textTransform: 'none', fontWeight: 600 }}
                       >
-                        Upgrade
+                        Learn more
                       </Button>
                     </>
                   ) : (
@@ -1205,12 +1208,12 @@ export default function LeaseShield() {
         </DialogActions>
       </Dialog>
 
-      {/* Upgrade dialog */}
+      {/* Availability dialog */}
       <Dialog open={upgradeModalOpen} onClose={() => setUpgradeModalOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 2 } }}>
-        <DialogTitle>LeaseShield is a Premium feature</DialogTitle>
+        <DialogTitle>LeaseShield is unavailable</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary">
-            Upgrade to Premium to use LeaseShield and get lease and state law answers from government sources only.
+            Contact support if you expected access to LeaseShield and government-sourced lease and state law answers.
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
@@ -1218,10 +1221,10 @@ export default function LeaseShield() {
           <Button
             variant="contained"
             color="success"
-            onClick={() => { setUpgradeModalOpen(false); navigate(subscriptionPlansUrl); }}
+            onClick={() => { setUpgradeModalOpen(false); navigate('/landlord/support/ticket'); }}
             sx={{ textTransform: 'none' }}
           >
-            Upgrade
+            Contact support
           </Button>
         </DialogActions>
       </Dialog>

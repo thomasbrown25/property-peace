@@ -67,8 +67,8 @@ export default function PortfolioHealthSummary({ properties, summary, totalExpen
   const successColor = theme.palette.success.main;
   const warningColor = theme.palette.warning.main;
   const textPrimary = theme.palette.text.primary;
-  const brandNavy = '#061e35';
-  const brandGreen = '#41a541';
+  const brandForest = theme.palette.brand.forest;
+  const brandGreen = theme.palette.brand.teal;
 
   const metrics = [
     {
@@ -175,16 +175,16 @@ export default function PortfolioHealthSummary({ properties, summary, totalExpen
                 alignItems: 'center',
                 justifyContent: 'center',
                 borderRadius: 1.5,
-                bgcolor: alpha(brandNavy, 0.08),
+                bgcolor: alpha(brandForest, 0.08),
                 fontSize: 16,
-                color: brandNavy
+                color: brandForest
               }}
             >
               {m.icon}
             </Box>
             {/* Text */}
             <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Typography variant="body1" fontWeight={700} noWrap sx={{ color: brandNavy, lineHeight: 1.3 }}>
+              <Typography variant="body1" fontWeight={700} noWrap sx={{ color: 'text.primary', lineHeight: 1.3 }}>
                 {m.statement}
               </Typography>
               <Typography variant="body2" sx={{ fontSize: '0.8rem', color: brandGreen, fontWeight: 600 }}>

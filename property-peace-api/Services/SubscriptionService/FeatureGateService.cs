@@ -235,8 +235,7 @@ namespace brownstone_hub_api.Services.SubscriptionService
                 if (string.Equals(featureName, "ListingSyndication", StringComparison.OrdinalIgnoreCase))
                     return syndicationEntitlement.CanUseCoreDestinations;
 
-                // These features are Premium-only. Base external listing syndication has its own
-                // Free/Premium/Lifetime allowance policy and is intentionally not part of this list.
+                // Included on Free and legacy paid plans; readiness is enforced separately.
                 if (string.Equals(featureName, "LeaseShield", StringComparison.OrdinalIgnoreCase) ||
                     string.Equals(featureName, "RentEstimate", StringComparison.OrdinalIgnoreCase) ||
                     string.Equals(featureName, "Reports", StringComparison.OrdinalIgnoreCase) ||
@@ -246,13 +245,7 @@ namespace brownstone_hub_api.Services.SubscriptionService
                     string.Equals(featureName, "DedicatedSmsNumber", StringComparison.OrdinalIgnoreCase) ||
                     string.Equals(featureName, "Percy", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (isPremium) return true;
-
-                    // Admin override: allow all premium features on free plan
-                    var adminSettings = await _adminSettingsRepository.GetAdminSettings();
-                    if (adminSettings?.AllPremiumFeaturesOnFreePlan == true) return true;
-
-                    return false;
+                    return isPremium;
                 }
 
                 return true;
@@ -333,9 +326,10 @@ namespace brownstone_hub_api.Services.SubscriptionService
 
                 // Check total units across all properties
                 var currentTotalUnits = await GetCurrentTotalUnitsAsync(userId);
-                var maxTotalUnits = subscription.SubscriptionPlan.MaxTotalUnits;
+                var maxTotalUnits = string.Equals(subscription.SubscriptionPlan?.Name?.Trim(), "Free", StringComparison.OrdinalIgnoreCase)
+                    ? null : subscription.SubscriptionPlan?.MaxTotalUnits;
 
-                // If MaxTotalUnits is null, it means unlimited (Business tier)
+                // Null means unlimited, including Free before old catalog rows are reseeded.
                 if (maxTotalUnits == null)
                 {
                     return true;
@@ -385,7 +379,8 @@ namespace brownstone_hub_api.Services.SubscriptionService
                 }
 
                 var currentTotalUnits = await GetCurrentTotalUnitsAsync(userId);
-                var maxTotalUnits = subscription.SubscriptionPlan.MaxTotalUnits;
+                var maxTotalUnits = string.Equals(subscription.SubscriptionPlan?.Name?.Trim(), "Free", StringComparison.OrdinalIgnoreCase)
+                    ? null : subscription.SubscriptionPlan?.MaxTotalUnits;
 
                 // Unlimited
                 if (maxTotalUnits == null)

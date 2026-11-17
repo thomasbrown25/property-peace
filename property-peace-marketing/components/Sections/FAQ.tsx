@@ -20,7 +20,7 @@ const faqs = [
   },
   {
     question: 'Can I start without a credit card?',
-    answer: 'Yes. You can start free with no credit card required, organize your first units, and decide when you are ready to upgrade.',
+    answer: 'Yes. Create your free account without a credit card and organize your rental units in one place.',
   },
   {
     question: 'Does Property Peace replace spreadsheets?',
@@ -35,8 +35,8 @@ const faqs = [
     answer: 'Yes. Property Peace includes Percy import tools that automatically map your spreadsheet columns, making it easy to bring over tenants, properties, leases, rent history, expenses, and other rental data without rebuilding everything by hand.',
   },
   {
-    question: 'Can I cancel anytime?',
-    answer: 'Yes. There are no long-term contracts. You can cancel whenever your needs change.',
+    question: 'Is there a paid subscription?',
+    answer: 'No. Property Peace is free for unlimited units, with no paid tiers or per-unit charges.',
   },
 ];
 

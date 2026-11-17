@@ -384,7 +384,7 @@ export default function Maintenances() {
           </Box>
           <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
             <Button variant="outlined" startIcon={<ShopOutlined />} onClick={() => navigate('/landlord/vendors')} sx={{ textTransform: 'none' }}>Vendors</Button>
-            <Button variant="contained" startIcon={<PlusOutlined />} onClick={() => drawer.openMaintenanceAddDrawer()} sx={{ bgcolor: '#061e35', color: '#fff', '&:hover': { bgcolor: '#0b2f4f' }, textTransform: 'none', fontWeight: 700 }}>New request</Button>
+            <Button variant="contained" startIcon={<PlusOutlined />} onClick={() => drawer.openMaintenanceAddDrawer()} sx={{ bgcolor: theme.palette.brand.forest, color: '#fff', '&:hover': { bgcolor: theme.palette.primary.dark }, textTransform: 'none', fontWeight: 700 }}>New request</Button>
           </Stack>
         </Stack>
       </Box>

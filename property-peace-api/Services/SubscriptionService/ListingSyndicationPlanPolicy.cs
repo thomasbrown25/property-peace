@@ -19,17 +19,17 @@ public static class ListingSyndicationPlanPolicy
             return ListingSyndicationEntitlement.None;
 
         var normalizedPlanName = planName?.Trim() ?? string.Empty;
-        var normalizedBillingCycle = billingCycle?.Trim() ?? string.Empty;
+        // Billing-cycle metadata is not plan authority; only recognized persisted plans grant access.
         var isPremiumOrLifetime =
-            normalizedPlanName.Contains("premium", StringComparison.OrdinalIgnoreCase) ||
-            normalizedPlanName.Contains("lifetime", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(normalizedBillingCycle, "Lifetime", StringComparison.OrdinalIgnoreCase);
+            string.Equals(normalizedPlanName, "Premium", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(normalizedPlanName, "Premium Plan", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(normalizedPlanName, "Lifetime Plan", StringComparison.OrdinalIgnoreCase);
 
         if (isPremiumOrLifetime)
             return new ListingSyndicationEntitlement(true, true, null);
 
         if (string.Equals(normalizedPlanName, "Free", StringComparison.OrdinalIgnoreCase))
-            return new ListingSyndicationEntitlement(true, false, 1);
+            return new ListingSyndicationEntitlement(true, true, null);
 
         return ListingSyndicationEntitlement.None;
     }

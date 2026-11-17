@@ -12,15 +12,13 @@ const surface = ({ children, title }) => React.createElement('div', { title }, c
 const Card = new Function('React', 'Box', 'Typography', 'formatCurrency', 'getPropertyOverdueRent', `${compiled}; return PropertyRentStatusCard;`)(
   React, surface, surface, value => `$${value.toFixed(2)}`, getPropertyOverdueRent
 );
-test('payments summary uses two compact aligned label/value rows without oversized cards', () => {
+test('payments tab shows total received without rendering a rent status label or value', () => {
   const table = readFileSync(new URL('./PropertyFinanceTable.jsx', import.meta.url), 'utf8');
-  assert.match(table, /<Stack spacing=\{0\.75\}/);
+  const payments = readFileSync(new URL('./PaymentsTab.jsx', import.meta.url), 'utf8');
   assert.match(table, /Total received:/);
-  for (const component of [table, source]) {
-    assert.match(component, /gridTemplateColumns: '112px minmax\(0, 1fr\)'/);
-  }
-  assert.match(source, /Rent status:/);
-  assert.doesNotMatch(source, /MainCard|variant="h4"|variant="caption"/);
+  assert.match(table, /gridTemplateColumns: '112px minmax\(0, 1fr\)'/);
+  assert.doesNotMatch(table, /rentOverview|Rent status:/);
+  assert.doesNotMatch(payments, /PropertyRentStatusCard|rentOverview/);
 });
 
 const render = props => renderToStaticMarkup(React.createElement(Card, { propertyId: 7, ...props }));

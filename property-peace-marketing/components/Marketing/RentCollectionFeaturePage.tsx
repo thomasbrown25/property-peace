@@ -54,7 +54,7 @@ const workflowItems = [
   {
     icon: FiBell,
     title: "Follow-up reminders",
-    body: "Schedule in-app and email reminders; configured SMS messaging remains a Premium feature.",
+    body: "Schedule in-app and email reminders; SMS messaging requires activation and configuration.",
   },
   {
     icon: FiTool,

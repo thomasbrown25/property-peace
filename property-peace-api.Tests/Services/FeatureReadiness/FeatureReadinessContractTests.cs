@@ -54,12 +54,13 @@ public class FeatureReadinessContractTests
     }
 
     [Fact]
-    public void Options_DefaultEveryCanonicalFeatureToUnavailable_FailClosed()
+    public void Options_DefaultRolloutFeaturesToUnavailable_WhileESignatureUsesProviderReadiness()
     {
         var options = new FeatureReadinessOptions();
 
-        FeatureKeys.All.Should().OnlyContain(key =>
+        FeatureKeys.All.Where(key => key != FeatureKeys.ESignature).Should().OnlyContain(key =>
             options.GetState(key) == FeatureReadinessState.Unavailable);
+        options.GetState(FeatureKeys.ESignature).Should().Be(FeatureReadinessState.Available);
     }
 
     [Fact]

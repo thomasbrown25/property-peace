@@ -94,7 +94,7 @@ export default function FeatureLandingPage({
       "@type": "Offer",
       price: "0",
       priceCurrency: "USD",
-      description: "Built for hands-on landlords with 1–50 units. Start free; premium plans available.",
+      description: "Built for hands-on landlords with 1–50 units. Free for unlimited units, with no subscription.",
     },
     featureList: features,
   };

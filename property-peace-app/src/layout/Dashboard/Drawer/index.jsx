@@ -66,7 +66,7 @@ export default function MainDrawer({ window, mobileOpen = false, onMobileClose }
                 borderRight: 'none',
                 boxShadow: (theme) =>
                   theme.palette.mode === 'dark' ? '4px 0 18px rgba(0, 0, 0, 0.2)' : '4px 0 18px rgba(6, 30, 53, 0.1)',
-                backgroundColor: (theme) => (theme.palette.mode === 'dark' ? '#061e35' : theme.palette.common.white)
+                backgroundColor: (theme) => (theme.palette.mode === 'dark' ? theme.palette.brand.forest : theme.palette.common.white)
               }
             }
           }}

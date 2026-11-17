@@ -1,5 +1,6 @@
 using brownstone_hub_api.Config;
 using brownstone_hub_api.Data;
+using brownstone_hub_api.Dtos.Property;
 using brownstone_hub_api.Dtos.User;
 using brownstone_hub_api.Models;
 using brownstone_hub_api.Repositories.AdminSettings;
@@ -41,8 +42,8 @@ public class FeatureGateOrganizationIsolationTests
             repository => repository.GetSubscriptionByOwnerUserIdAsync(It.IsAny<long>()),
             Times.Never);
         entitlement.CanUseCoreDestinations.Should().BeTrue();
-        entitlement.CanUseExtendedDestinations.Should().BeFalse();
-        entitlement.MaxActiveExternalListings.Should().Be(1);
+        entitlement.CanUseExtendedDestinations.Should().BeTrue();
+        entitlement.MaxActiveExternalListings.Should().BeNull();
     }
 
     [Fact]
@@ -115,6 +116,47 @@ public class FeatureGateOrganizationIsolationTests
             "global provider readiness remains a separate gate");
         subscriptions.Verify(repository => repository.GetSubscriptionByOwnerUserIdAsync(It.IsAny<long>()), Times.Never);
     }
+    [Theory]
+    [InlineData("LeaseShield")]
+    [InlineData("RentEstimate")]
+    [InlineData("Reports")]
+    [InlineData("TenantScreening")]
+    [InlineData("ListingSyndicationExtended")]
+    [InlineData("ESignature")]
+    [InlineData("DedicatedSmsNumber")]
+    [InlineData("Percy")]
+    public async Task Free_organization_includes_legacy_subscription_features(string feature)
+    {
+        await using var context = CreateContext();
+        var subscriptions = new Mock<ISubscriptionRepository>();
+        subscriptions.Setup(repository => repository.GetSubscriptionByOrganizationIdAsync(17))
+            .ReturnsAsync(CreateSubscription("Free"));
+        var service = CreateService(context, subscriptions, userId: 42, organizationId: 17);
+
+        (await service.HasPlanFeatureAccessAsync(42, feature)).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Free_unit_gate_ignores_legacy_five_unit_catalog_row_but_checks_lifecycle()
+    {
+        await using var context = CreateContext();
+        var subscriptions = new Mock<ISubscriptionRepository>();
+        var free = CreateSubscription("Free");
+        free.SubscriptionPlan.MaxTotalUnits = 5;
+        subscriptions.Setup(repository => repository.GetSubscriptionByOrganizationIdAsync(17)).ReturnsAsync(free);
+        var properties = new Mock<IPropertyRepository>();
+        properties.Setup(repository => repository.GetPropertyById(9))
+            .ReturnsAsync(new LoadPropertyDto { Id = 9, LandlordId = 42 });
+        properties.Setup(repository => repository.GetTotalUnitCountAsync(17)).ReturnsAsync(50);
+        var service = CreateService(context, subscriptions, userId: 42, organizationId: 17, properties: properties.Object);
+
+        (await service.CanAddUnitToPropertyAsync(42, 9)).Should().BeTrue();
+        (await service.GetRemainingUnitSlotsAsync(42)).Should().BeNull();
+        free.Status = "Paused";
+        (await service.CanAddUnitToPropertyAsync(42, 9)).Should().BeFalse();
+        (await service.GetRemainingUnitSlotsAsync(42)).Should().Be(0);
+    }
+
     private static DataContext CreateContext()
     {
         var options = new DbContextOptionsBuilder<DataContext>()
@@ -127,7 +169,8 @@ public class FeatureGateOrganizationIsolationTests
         DataContext context,
         Mock<ISubscriptionRepository> subscriptions,
         long userId,
-        long organizationId)
+        long organizationId,
+        IPropertyRepository? properties = null)
     {
         var users = new Mock<IUserRepository>();
         users.Setup(repository => repository.GetCurrentUser())
@@ -138,7 +181,7 @@ public class FeatureGateOrganizationIsolationTests
 
         return new FeatureGateService(
             subscriptions.Object,
-            Mock.Of<IPropertyRepository>(),
+            properties ?? Mock.Of<IPropertyRepository>(),
             users.Object,
             Mock.Of<IAdminSettingsRepository>(),
             context,

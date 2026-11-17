@@ -12,7 +12,7 @@ import { parseListingAddress } from './listing-address.mjs';
 
 const blankAddress = { streetAddress: '', unit: '', city: '', state: '', zipCode: '', country: 'US' };
 const outlinedButton = { textTransform: 'none', borderRadius: 6, color: '#172b3d', borderColor: '#d4d9dd', fontWeight: 650, px: 2.3, '&:hover': { borderColor: '#718b95', bgcolor: '#f6f9f7' } };
-const primaryButton = { textTransform: 'none', borderRadius: 6, px: 3.5, py: 1.2, bgcolor: '#061e35', color: '#fff', fontWeight: 700, '&:hover': { bgcolor: '#042238', color: '#fff' } };
+const primaryButton = { textTransform: 'none', borderRadius: 6, px: 3.5, py: 1.2, bgcolor: 'primary.main', color: '#fff', fontWeight: 700, '&:hover': { bgcolor: 'primary.dark', color: '#fff' } };
 const required = ['streetAddress', 'city', 'state', 'zipCode'];
 
 export default function ListingCreatePage({ propertyMode = false, onContinue } = {}) {
@@ -177,7 +177,7 @@ export default function ListingCreatePage({ propertyMode = false, onContinue } =
           <Typography component="h1" sx={{ fontSize: { xs: 32, md: 43 }, lineHeight: 1.17, letterSpacing: '-0.035em', fontWeight: 750, mb: 5 }}>What type of rental describes your place best?</Typography>
           <Stack spacing={2} role="radiogroup" aria-label="Rental type">
             {[['shortTerm', 'Short-term leasing (Airbnb style)'], ['longTerm', 'Long-term leasing']].map(([mode, label]) => (
-              <Box key={mode} component="button" role="radio" aria-checked={rentalMode === mode} onClick={() => setRentalMode(mode)} sx={{ width: '100%', minHeight: 92, px: 3, border: '2px solid', borderColor: rentalMode === mode ? '#061e35' : '#d6deda', borderRadius: 2, bgcolor: rentalMode === mode ? '#f4f8f6' : '#fff', color: '#172b3d', textAlign: 'left', font: 'inherit', fontSize: 20, fontWeight: 650, cursor: 'pointer', '&:hover': { borderColor: '#061e35' }, '&:focus-visible': { outline: '3px solid #6baf93', outlineOffset: 2 } }}>{label}</Box>
+              <Box key={mode} component="button" role="radio" aria-checked={rentalMode === mode} onClick={() => setRentalMode(mode)} sx={{ width: '100%', minHeight: 92, px: 3, border: '2px solid', borderColor: rentalMode === mode ? 'primary.main' : '#d6deda', borderRadius: 2, bgcolor: rentalMode === mode ? '#f4f8f6' : '#fff', color: '#172b3d', textAlign: 'left', font: 'inherit', fontSize: 20, fontWeight: 650, cursor: 'pointer', '&:hover': { borderColor: 'primary.main' }, '&:focus-visible': { outline: '3px solid #6baf93', outlineOffset: 2 } }}>{label}</Box>
             ))}
           </Stack>
         </Box>
@@ -185,7 +185,7 @@ export default function ListingCreatePage({ propertyMode = false, onContinue } =
 
       {(step === 'place' || (propertyMode && step === 'rental')) && (
         <Box component="footer" sx={{ position: 'fixed', bottom: 0, left: 0, right: 0, bgcolor: '#fff', borderTop: '1px solid #e4e8e5', px: { xs: 3, md: 6 }, pt: 2.5, pb: 'max(20px, env(safe-area-inset-bottom))', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Box sx={{ position: 'absolute', top: -2, left: 0, width: step === 'place' ? '18%' : '36%', height: 3, bgcolor: '#061e35' }} />
+          <Box sx={{ position: 'absolute', top: -2, left: 0, width: step === 'place' ? '18%' : '36%', height: 3, bgcolor: 'primary.main' }} />
           {step === 'rental' || !propertyMode ? <Button onClick={() => go(step === 'rental' ? 'place' : 'address')} sx={{ textTransform: 'none', color: '#172b3d', minWidth: 0, px: 0, fontSize: 16 }}>Back</Button> : <Box />}
           {propertyMode ? <Button variant="contained" disabled={step === 'rental' && !rentalMode} onClick={() => { if (step === 'place') { go('rental'); } else { if (userId) localStorage.setItem(draftKey, JSON.stringify({ address, rentalMode, step: 'rental' })); onContinue?.({ ...address, rentalMode }); } }} sx={primaryButton}>Next</Button> : <Stack direction="row" spacing={2} alignItems="center"><Typography sx={{ fontSize: 13, color: '#687b80' }}>The next setup step is coming soon.</Typography><Button disabled variant="contained" sx={primaryButton}>Next</Button></Stack>}
         </Box>

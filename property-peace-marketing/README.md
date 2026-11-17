@@ -19,7 +19,7 @@ A modern, responsive Next.js landing page for Brownstone Hub property management
 6. **Integrations** - Stripe and DocuSign integration highlights
 7. **Dashboard Overview** - Split design showing dashboard preview and features
 8. **Testimonials** - Customer testimonials with ratings
-9. **Pricing** - Starter and Growth plans with monthly/yearly toggle
+9. **Pricing** - Free software for unlimited units; no paid plans or billing toggle
 10. **FAQ** - Accordion-style frequently asked questions
 11. **Footer** - Dark footer with links, newsletter signup, and company info
 

@@ -186,7 +186,7 @@ export default function AIMaintenancePage() {
                 className="mt-8 flex flex-wrap gap-x-5 gap-y-3 text-sm font-medium text-white/75"
                 style={{ fontFamily: '"Inter", sans-serif' }}
               >
-                {["Free for up to 5 units", "Built for 1–50 units", "You stay in control"].map((item) => (
+                {["Free for unlimited units", "Built for 1–50 units", "Percy Pilot access is limited"].map((item) => (
                   <span key={item} className="inline-flex items-center gap-2">
                     <FiCheck className="h-4 w-4 text-brand-teal" /> {item}
                   </span>

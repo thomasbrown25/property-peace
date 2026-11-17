@@ -382,7 +382,7 @@ const featureSteps: Record<string, MockStep[]> = {
     },
     {
       label: 'Reminder sent',
-      caption: 'Send by email; Premium includes one SMS number, with activation and configuration required.',
+      caption: 'Send by email; an organization SMS number requires activation and configuration.',
       callout: 'Reminder ready',
       eyebrow: 'Tenant reminder',
       title: 'Friendly follow-up',
@@ -461,7 +461,7 @@ const featureSteps: Record<string, MockStep[]> = {
   'tenant-communication': [
     {
       label: 'Choose channel',
-      caption: 'Reach tenants in-app or by email. Premium includes one SMS number, with activation and configuration required.',
+      caption: 'Reach tenants in-app or by email. An organization SMS number requires activation and configuration.',
       callout: 'Channels ready',
       eyebrow: 'Notifications',
       title: 'Message Sarah Mitchell',

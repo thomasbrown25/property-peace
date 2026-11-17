@@ -43,7 +43,7 @@ import { selectProperties } from 'store/property/property.selector';
 import useFetchProperties from 'hooks/useFetchProperties';
 import { useDrawer } from 'contexts/DrawerContext';
 import UnitEditDrawer from 'components/drawers/UnitEditDrawer';
-import { useSubscription } from 'hooks/useSubscription';
+
 import RentEstimateCard from 'components/RentEstimateCard';
 import { deleteUnit } from 'store/unit/unit.action';
 import { openSnackbar } from 'api/snackbar';
@@ -59,9 +59,7 @@ export default function UnitPage() {
   const { properties } = useFetchProperties();
   const selectedProperties = useSelector(selectProperties);
   const drawer = useDrawer();
-  const { subscription } = useSubscription();
-  const planName = (subscription?.plan?.name || subscription?.subscriptionPlan?.name || '').toLowerCase();
-  const isPremium = planName === 'premium' || planName.includes('lifetime');
+
 
   const [unit, setUnit] = useState(null);
   const [property, setPropertyState] = useState(null);
@@ -579,7 +577,7 @@ export default function UnitPage() {
             <RentEstimateCard
               propertyId={property.id}
               unitId={unit.id}
-              isPremium={isPremium}
+
             />
           </Box>
         )}

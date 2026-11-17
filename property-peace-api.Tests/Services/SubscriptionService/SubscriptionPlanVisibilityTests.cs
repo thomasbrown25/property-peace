@@ -31,7 +31,7 @@ public sealed class SubscriptionPlanVisibilityTests
 
         response.Success.Should().BeTrue();
         response.Data.Should().NotBeNull();
-        response.Data!.Select(plan => plan.Name).Should().Equal("Free", "Premium");
+        response.Data!.Select(plan => plan.Name).Should().Equal("Free");
     }
 
     [Fact]

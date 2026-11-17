@@ -36,7 +36,7 @@ import { createOrUpdateLateFee } from 'api/lease';
 import PlusOutlined from '@ant-design/icons/PlusOutlined';
 import { getStateDepositLaw, getStateName } from 'api/stateDepositLaw';
 import { getStateLaw as getStateLateFeeLaw } from 'api/stateLateFeeLaw';
-import { useSubscription } from 'hooks/useSubscription';
+
 import RentEstimateCard from 'components/RentEstimateCard';
 import { calculateProratedRent } from 'utils/leaseDraft';
 
@@ -46,9 +46,7 @@ export default function RentDepositFeesPage({ embedded = false, onSaved } = {}) 
   const [searchParams] = useSearchParams();
   const properties = useSelector(selectProperties);
   const { propertiesRefetch } = useFetchProperties();
-  const { subscription } = useSubscription();
-  const planName = (subscription?.plan?.name || subscription?.subscriptionPlan?.name || '').toLowerCase();
-  const isPremium = planName === 'premium' || planName.includes('lifetime');
+
 
   // Get data from URL params
   const leaseId = searchParams.get('leaseId') ? parseInt(searchParams.get('leaseId')) : null;
@@ -676,7 +674,7 @@ export default function RentDepositFeesPage({ embedded = false, onSaved } = {}) 
                   <RentEstimateCard
                     propertyId={propertyId}
                     unitId={unit.id}
-                    isPremium={isPremium}
+
                     onUseAmount={(amount) => setMonthlyBaseRent(amount)}
                   />
                 </Box>

@@ -520,7 +520,7 @@ export function PaymentsSettingsContent({ rentPaymentAccess, headerActionElement
         appearance: {
           overlays: 'dialog',
           variables: {
-            colorPrimary: '#061e35',
+            colorPrimary: theme.palette.primary.main,
             colorBackground: 'transparent',
             colorText: 'inherit',
             colorDanger: '#f44336',
@@ -537,8 +537,8 @@ export function PaymentsSettingsContent({ rentPaymentAccess, headerActionElement
               padding: '8px 12px'
             },
             '.Input:focus': {
-              borderColor: '#061e35',
-              boxShadow: '0 0 0 2px rgba(6, 30, 53, 0.2)'
+              borderColor: theme.palette.primary.main,
+              boxShadow: `0 0 0 2px ${alpha(theme.palette.primary.main, 0.2)}`
             },
             '.Label': {
               color: 'inherit',
@@ -609,7 +609,7 @@ export function PaymentsSettingsContent({ rentPaymentAccess, headerActionElement
           appearance: {
             overlays: 'dialog',
             variables: {
-              colorPrimary: '#061e35',
+              colorPrimary: theme.palette.primary.main,
               fontFamily: "'Public Sans', sans-serif",
               borderRadius: '8px',
               spacingUnit: '4px'
@@ -734,7 +734,7 @@ export function PaymentsSettingsContent({ rentPaymentAccess, headerActionElement
         fetchingSession ||
         openingBankManagement
       }
-      sx={{ whiteSpace: 'nowrap', width: { xs: '100%', sm: 'auto' }, bgcolor: '#061e35', color: '#fff', '&:hover': { bgcolor: '#0b2f4f' } }}
+      sx={{ whiteSpace: 'nowrap', width: { xs: '100%', sm: 'auto' }, bgcolor: 'brand.forest', color: '#fff', '&:hover': { bgcolor: 'primary.dark' } }}
     >
       {connecting
         ? 'Connecting…'
@@ -1029,8 +1029,8 @@ export function PaymentsSettingsContent({ rentPaymentAccess, headerActionElement
                   fontSize: '0.875rem !important',
                   borderRadius: '4px !important',
                   '&:focus': {
-                    borderColor: '#061e35 !important',
-                    boxShadow: '0 0 0 2px rgba(6, 30, 53, 0.2) !important',
+                    borderColor: `${theme.palette.primary.main} !important`,
+                    boxShadow: `0 0 0 2px ${alpha(theme.palette.primary.main, 0.2)} !important`,
                     outline: 'none !important'
                   }
                 },
@@ -1041,13 +1041,13 @@ export function PaymentsSettingsContent({ rentPaymentAccess, headerActionElement
                   marginBottom: '8px !important'
                 },
                 '& button[type="submit"]': {
-                  backgroundColor: '#061e35 !important',
+                  backgroundColor: `${theme.palette.brand.forest} !important`,
                   color: '#fff !important',
                   borderRadius: '4px !important',
                   fontWeight: 600,
                   textTransform: 'none',
                   '&:hover': {
-                    backgroundColor: '#042238 !important'
+                    backgroundColor: `${theme.palette.primary.dark} !important`
                   }
                 }
               }}

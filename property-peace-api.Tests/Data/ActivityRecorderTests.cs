@@ -12,6 +12,18 @@ namespace brownstone_hub_api.Tests.ActivityRecording;
 public sealed class ActivityRecorderTests
 {
     [Fact]
+    public void Savepoint_names_fit_sql_server_limit_and_remain_unique()
+    {
+        var names = Enumerable.Range(0, 100).Select(_ => ActivityRecorder.NewSavepointName()).ToArray();
+        Assert.Equal(names.Length, names.Distinct().Count());
+        Assert.All(names, name =>
+        {
+            Assert.Matches("^activity_[0-9a-f]+$", name);
+            Assert.True(name.Length <= 32, $"Savepoint name exceeds SQL Server's 32-character limit: {name}");
+        });
+    }
+
+    [Fact]
     public async Task Relational_create_update_noop_soft_and_hard_delete_have_durable_safe_actor_scoped_events()
     {
         await using var f = await Fixture.Create();

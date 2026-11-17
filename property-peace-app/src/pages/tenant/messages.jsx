@@ -54,6 +54,7 @@ import ConversationQuickReplies from 'components/conversation/ConversationQuickR
 import { useOrganization } from 'contexts/OrganizationContext';
 import { getSendAttempt } from 'utils/clientRequestId';
 import { getConversationBubbleSx } from 'utils/conversationPresentation';
+import { latestConfirmedSentMessageId } from 'utils/latestSentMessage.mjs';
 
 const FALLBACK_SMS_NUMBER = import.meta.env.VITE_TWILIO_SMS_NUMBER || '+198****0067';
 const MAX_MESSAGE_LENGTH = 2000;
@@ -341,6 +342,7 @@ export default function TenantMessages() {
     const pending = optimisticMessages.filter((message) => String(message.conversationId) === String(selectedConversationId));
     return [...persisted, ...pending].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
   }, [messages, optimisticMessages, selectedConversationId]);
+  const latestSentMessageId = latestConfirmedSentMessageId(visibleMessages, userId);
 
   const unreadCount = conversations.reduce((total, conversation) => total + (conversation.unreadCount || 0), 0);
   const activeLandlordName = getLandlordName(selectedConversation);
@@ -710,7 +712,7 @@ export default function TenantMessages() {
                     overflowX: 'hidden',
                     px: { xs: 1, sm: 2.5 },
                     py: { xs: 1.5, sm: 2.5 },
-                    bgcolor: isDarkMode ? alpha(theme.palette.background.default, 0.25) : '#f7f9fc',
+                    bgcolor: isDarkMode ? theme.palette.background.default : theme.palette.surface.nested,
                     '&::-webkit-scrollbar': { width: 8 },
                     '&::-webkit-scrollbar-track': { bgcolor: 'transparent' },
                     '&::-webkit-scrollbar-thumb': {
@@ -806,29 +808,30 @@ export default function TenantMessages() {
                                     </Typography>
                                   </Stack>
                                 )}
-                                <Paper
-                                  elevation={0}
-                                  sx={{
-                                    p: 1.25,
-                                    px: 1.5,
-                                    width: 'fit-content',
-                                    maxWidth: '100%',
-                                    ...getConversationBubbleSx({ isOwn, isConsecutive })
-                                  }}
-                                >
-                                  <Stack direction="row" spacing={0.75} alignItems="flex-end">
+                                <Stack direction="row" spacing={0.75} alignItems="flex-end" sx={{ maxWidth: '100%' }}>
+                                  <Paper
+                                    elevation={0}
+                                    sx={{
+                                      p: 1.25,
+                                      px: 1.5,
+                                      width: 'fit-content',
+                                      minWidth: 0,
+                                      maxWidth: '100%',
+                                      ...getConversationBubbleSx({ isOwn, isConsecutive, brandedChat: true })
+                                    }}
+                                  >
                                     <Typography
                                       variant="body2"
-                                      sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.5, color: '#000000' }}
+                                      sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.5, color: 'text.primary' }}
                                     >
                                       {message.content}
                                     </Typography>
-                                    {message._optimistic && <CircularProgress size={11} sx={{ color: '#061E35', mb: '2px' }} />}
-                                    {!message._optimistic && isOwn && (
-                                      <CheckCircleOutlined style={{ fontSize: 12, color: '#061E35', marginBottom: 2 }} />
-                                    )}
-                                  </Stack>
-                                </Paper>
+                                  </Paper>
+                                  {message._optimistic && isOwn && <CircularProgress size={12} sx={{ color: 'primary.main', mb: 0.25, flexShrink: 0 }} />}
+                                  {isOwn && !message._optimistic && latestSentMessageId != null && String(message.id) === String(latestSentMessageId) && (
+                                    <CheckCircleOutlined aria-label="Message sent" style={{ fontSize: 15, color: theme.palette.success.main, marginBottom: 2, flexShrink: 0 }} />
+                                  )}
+                                </Stack>
                               </Box>
                             </Box>
                           </Fragment>

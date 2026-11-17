@@ -126,10 +126,10 @@ const pages = [
         icon: icons.NotificationOutlined
       },
       {
-        id: 'messages',
-        title: 'Messages',
+        id: 'chat',
+        title: 'Chat',
         type: 'item',
-        url: '/landlord/messages',
+        url: '/landlord/chat',
         icon: icons.MessageOutlined
       }
     ]

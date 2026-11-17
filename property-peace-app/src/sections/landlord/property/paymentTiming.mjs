@@ -8,9 +8,31 @@ const calendarDate = value => {
   return date.toISOString().slice(0, 10) === `${year}-${month}-${day}` ? `${year}-${month}-${day}` : null;
 };
 
+// Match RentCalculator.GetGraceDays: the earliest configured late-fee deadline,
+// or zero days when no late-fee grace has been configured on the lease.
+const rentGraceDays = (property, leaseId) => {
+  const units = property?.units ?? property?.Units ?? [];
+  const leases = [property?.lease, property?.Lease, ...(property?.leases ?? property?.Leases ?? []),
+    ...units.flatMap(unit => [unit.lease ?? unit.Lease, ...(unit.leases ?? unit.Leases ?? [])])];
+  const lease = leases.find(item => item && String(item.id ?? item.Id) === String(leaseId));
+  if (!lease) return null;
+  const days = (lease.fees ?? lease.Fees ?? [])
+    .filter(fee => fee.isLateFee ?? fee.IsLateFee)
+    .map(fee => fee.appliedAfterDays ?? fee.AppliedAfterDays ?? fee.startingAfterDays ?? fee.StartingAfterDays)
+    .filter(day => day != null && Number.isFinite(Number(day)))
+    .map(day => Math.max(0, Number(day)));
+  return days.length ? Math.min(...days) : 0;
+};
+
+const deadlineFor = (date, days) => {
+  const deadline = new Date(`${date}T00:00:00Z`);
+  deadline.setUTCDate(deadline.getUTCDate() + days);
+  return deadline.toISOString().slice(0, 10);
+};
+
 // Use the ledger's allocations: a payment received this month can cover older rent.
 // No allocation, incomplete allocation, non-final attempts, and missing dates remain unknown.
-export function getPaymentTiming(payment, charges) {
+export function getPaymentTiming(payment, charges, property) {
   if (!['completed', 'paid'].includes(String(payment.status).toLowerCase()) || !(Number(payment.amount) > 0)) return null;
   const paidOn = calendarDate(payment.paymentDate);
   if (!paidOn || !Array.isArray(charges)) return null;
@@ -22,13 +44,15 @@ export function getPaymentTiming(payment, charges) {
         && String(receipt.status).toLowerCase() === String(payment.status).toLowerCase()
         && calendarDate(receipt.paymentDate) === paidOn && Number(receipt.amount) > 0)
       .map(receipt => ({ due: calendarDate(charge.dueDate), amount: Number(receipt.amount) })));
-  if (allocations.some(item => item.due && paidOn > item.due)) return 'Late';
   const allocated = allocations.reduce((sum, item) => sum + item.amount, 0);
-  if (allocations.length && allocations.every(item => item.due) && Math.abs(allocated - Number(payment.amount)) < 0.005) return 'On time';
-  return null;
+  if (!allocations.length || !allocations.every(item => item.due) || Math.abs(allocated - Number(payment.amount)) >= 0.005) return null;
+  const graceDays = type === 'Rent' ? (property ? rentGraceDays(property, payment.leaseId) : 0) : 0;
+  if (graceDays == null) return null;
+  if (allocations.some(item => paidOn > deadlineFor(item.due, graceDays))) return 'Late';
+  return 'On time';
 }
 
-export async function loadPaymentTimings(payments, getCharges) {
+export async function loadPaymentTimings(payments, getCharges, property) {
   const leaseIds = [...new Set(payments.map(payment => payment.leaseId).filter(id => id != null).map(String))];
   const ledgers = new Map(await Promise.all(leaseIds.map(async leaseId => {
     try {
@@ -40,7 +64,7 @@ export async function loadPaymentTimings(payments, getCharges) {
     }
   })));
   return {
-    payments: payments.map(payment => ({ ...payment, paymentTiming: getPaymentTiming(payment, ledgers.get(String(payment.leaseId))) })),
+    payments: payments.map(payment => ({ ...payment, paymentTiming: getPaymentTiming(payment, ledgers.get(String(payment.leaseId)), property) })),
     timingError: [...ledgers.values()].some(charges => charges === null)
   };
 }

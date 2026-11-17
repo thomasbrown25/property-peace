@@ -138,7 +138,7 @@ export default function UrgentMessages() {
   };
 
   const handleViewMessage = (conversationId) => {
-    navigate(`/landlord/messages?conversation=${conversationId}`);
+    navigate(`/landlord/chat?conversation=${conversationId}`);
   };
 
   const getPropertyDisplay = (message) => {
@@ -276,7 +276,7 @@ export default function UrgentMessages() {
       }
     } else {
       // Default: Navigate to conversation
-      navigate(`/landlord/messages?conversation=${message.conversationId}`);
+      navigate(`/landlord/chat?conversation=${message.conversationId}`);
     }
   };
 

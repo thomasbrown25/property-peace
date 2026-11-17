@@ -295,9 +295,7 @@ export default function AdminDashboard() {
           borderRadius: 1.5,
           overflow: 'hidden',
           position: 'relative',
-          background: currentTheme.palette.mode === 'dark'
-            ? 'linear-gradient(120deg, #12242a 0%, #193841 62%, #1f4d52 100%)'
-            : 'linear-gradient(120deg, #102f38 0%, #174b53 62%, #24656a 100%)',
+          background: `linear-gradient(120deg, ${currentTheme.palette.primary.dark} 0%, ${currentTheme.palette.primary.main} 100%)`,
           '&::after': {
             content: '""',
             position: 'absolute',

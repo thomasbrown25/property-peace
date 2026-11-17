@@ -24,7 +24,7 @@ import PageTransition from 'components/PageTransition';
 import useAuth from 'hooks/useAuth';
 import { useDrawer } from 'contexts/DrawerContext';
 import { useDashboardLoading } from 'contexts/DashboardLoadingContext';
-import UnitLimitGate from 'components/subscription/UnitLimitGate';
+
 
 import { useGetMenuMaster } from 'api/menu';
 
@@ -103,8 +103,8 @@ export default function DashboardLayout() {
   const isLeasePage = pathname.match(/\/lease\/\d+/) !== null;
   // Check if it's the maintenances page (e.g., /landlord/maintenances)
   const isMaintenancesPage = pathname === '/landlord/maintenances' || pathname.startsWith('/landlord/maintenances?');
-  // Check if it's the messages page (e.g., /landlord/messages)
-  const isMessagesPage = pathname === '/landlord/messages' || pathname.startsWith('/landlord/messages?');
+  // Check if it's the messages page (e.g., /landlord/chat)
+  const isMessagesPage = pathname === '/landlord/chat' || pathname.startsWith('/landlord/chat?');
   // Check if it's the reports page (e.g., /landlord/reports)
   const isReportsPage = pathname === '/landlord/reports' || pathname.startsWith('/landlord/reports?');
   // Check if it's the settings page (e.g., /landlord/settings)
@@ -115,8 +115,8 @@ export default function DashboardLayout() {
     pathname.includes('/landlord/dashboard') ||
     pathname === '/landlord/maintenances' ||
     pathname.startsWith('/landlord/maintenances?') ||
-    pathname === '/landlord/messages' ||
-    pathname.startsWith('/landlord/messages?') ||
+    pathname === '/landlord/chat' ||
+    pathname.startsWith('/landlord/chat?') ||
     pathname.match(/\/landlord\/property\/\d+/) !== null ||
     pathname === '/landlord/urgent-messages' ||
     pathname.startsWith('/landlord/urgent-messages?');
@@ -223,11 +223,9 @@ export default function DashboardLayout() {
                   height: 'auto !important'
                 }
               }}>
-                <UnitLimitGate>
-                  <PageTransition>
-                    <Outlet />
-                  </PageTransition>
-                </UnitLimitGate>
+                <PageTransition>
+                  <Outlet />
+                </PageTransition>
               </Box>
               {!isAddPropertyPage && <Box sx={{
                 flexShrink: 0,

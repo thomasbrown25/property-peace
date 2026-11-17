@@ -6,8 +6,6 @@ import { AppstoreOutlined, ArrowRightOutlined, CalendarOutlined, CheckSquareOutl
 import { format } from 'date-fns';
 import { dashboardWorkspaceTabs, getDashboardWorkspaceTab } from 'utils/dashboardWorkspace';
 
-const dashboardNavy = '#061e35';
-
 const tabIcons = {
   overview: AppstoreOutlined,
   calendar: CalendarOutlined,
@@ -26,7 +24,7 @@ export function DashboardReminderCard({ reminders = [] }) {
   const navigate = useNavigate();
   const now = useMemo(() => new Date(), []);
   const nextReminder = reminders[0];
-  const actionColor = theme.palette.mode === 'dark' ? theme.palette.primary.light : dashboardNavy;
+  const actionColor = theme.palette.mode === 'dark' ? theme.palette.primary.light : theme.palette.brand.forest;
 
   return (
     <Box
@@ -39,7 +37,7 @@ export function DashboardReminderCard({ reminders = [] }) {
         borderRadius: 2.25,
         border: `1px solid ${alpha(theme.palette.success.main, theme.palette.mode === 'dark' ? 0.34 : 0.2)}`,
         bgcolor: 'background.paper',
-        boxShadow: theme.palette.mode === 'dark' ? `0 12px 30px ${alpha('#000', 0.2)}` : `0 9px 24px ${alpha(dashboardNavy, 0.055)}`
+        boxShadow: theme.palette.mode === 'dark' ? `0 12px 30px ${alpha('#000', 0.2)}` : `0 9px 24px ${alpha(theme.palette.brand.forest, 0.055)}`
       }}
     >
       <Stack
@@ -48,7 +46,7 @@ export function DashboardReminderCard({ reminders = [] }) {
         sx={{
           px: 1,
           color: '#fff',
-          bgcolor: dashboardNavy
+          bgcolor: 'brand.forest'
         }}
       >
         <Typography sx={{ color: alpha('#fff', 0.7), fontSize: '0.58rem', fontWeight: 800, letterSpacing: 1 }}>
@@ -130,7 +128,7 @@ export default function DashboardHeader({ userName, activeTab: controlledActiveT
   const activeTab = controlledActiveTab || getDashboardWorkspaceTab(location.pathname, location.search);
   const now = useMemo(() => new Date(), []);
   const firstName = userName?.trim().split(/\s+/)[0];
-  const tabAccent = theme.palette.mode === 'dark' ? theme.palette.primary.light : dashboardNavy;
+  const tabAccent = theme.palette.mode === 'dark' ? theme.palette.primary.light : theme.palette.brand.forest;
 
   const activateTab = (tab) => {
     if (onTabChange) onTabChange(tab.key);

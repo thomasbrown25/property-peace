@@ -3,6 +3,15 @@ import { statusLabel } from '../../../utils/maintenanceWorkflow.js';
 
 const field = (row, key) => row?.[key] ?? row?.[key[0].toUpperCase() + key.slice(1)];
 
+export const propertyLeaseDisplayName = (lease, property) => {
+  const name = [field(lease, 'name'), field(lease, 'leaseNickname')]
+    .find(value => typeof value === 'string' && value.trim());
+  if (name) return name.trim();
+  const propertyName = String(field(property, 'name') || '').trim();
+  const unitName = String(field(lease, 'unitName') || '').trim();
+  return [propertyName, unitName].filter(Boolean).join(' · ') || 'Lease';
+};
+
 export const maintenanceUnitName = (row, property) => {
   const unitId = field(row, 'unitId');
   const unit = (property?.units || []).find(item => String(field(item, 'id')) === String(unitId));

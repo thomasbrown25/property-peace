@@ -11,7 +11,7 @@ namespace brownstone_hub_api.Tests.Entitlements;
 public sealed class EfEntitlementDecisionFactsProviderTests
 {
     [Theory]
-    [InlineData("Free", "Active", true, "upgrade-required")]
+    [InlineData("Free", "Active", true, "allowed")]
     [InlineData("Premium", "Active", true, "allowed")]
     [InlineData("Lifetime Plan", "Active", true, "allowed")]
     [InlineData("Premium", "Paused", true, "paused")]
@@ -33,7 +33,7 @@ public sealed class EfEntitlementDecisionFactsProviderTests
     }
 
     [Fact]
-    public async Task Provider_uses_only_exact_organization_membership_subscription_and_unit_usage_without_fallback()
+    public async Task Provider_uses_only_exact_organization_membership_and_subscription_without_fallback()
     {
         await using var db = Db();
         SeedOrganization(db, 10, 42, "Free", "Active", memberActive: true);
@@ -54,14 +54,14 @@ public sealed class EfEntitlementDecisionFactsProviderTests
         Assert.Equal(10, facts.Membership!.OrganizationId);
         Assert.Equal(10, facts.Subscription!.OrganizationId);
         Assert.Equal("Free", facts.Subscription.PersistedPlanName);
-        Assert.Equal(1, facts.CurrentUsage);
+        Assert.Null(facts.CurrentUsage); // Unlimited Free needs no unit-count query.
         Assert.NotNull(facts.ActiveAddOns);
         Assert.Empty(facts.ActiveAddOns!);
         Assert.Empty(facts.Readiness!);
     }
 
     [Fact]
-    public async Task Unit_usage_excludes_units_belonging_to_deleted_properties_like_canonical_repository_counts()
+    public async Task Unlimited_free_skips_unit_usage_even_with_deleted_properties()
     {
         await using var db = Db();
         SeedOrganization(db, 10, 42, "Free", "Active", memberActive: true);
@@ -75,7 +75,7 @@ public sealed class EfEntitlementDecisionFactsProviderTests
 
         var facts = await Provider(db).GetFactsAsync("42", 10, FeatureKeys.PropertyManagement);
 
-        Assert.Equal(1, facts!.CurrentUsage);
+        Assert.Null(facts!.CurrentUsage);
     }
 
     [Fact]

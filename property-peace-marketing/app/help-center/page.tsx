@@ -24,17 +24,17 @@ const faqs = [
   {
     question: "Is Property Peace free?",
     answer:
-      "Property Peace has a free plan for up to 5 units, with no credit card required to get started. Paid plans add features and capacity; check the pricing page for the current plan details.",
+      "Property Peace is free for unlimited units, with no credit card required. Some provider-backed features require activation or approval; check the pricing page for availability details.",
   },
   {
     question: "Can tenants pay rent online through Property Peace?",
     answer:
-      "Not currently. Online payment processing is on the roadmap. Today, landlords can record payments, track overdue balances and late fees, and organize rent reminders in Property Peace.",
+      "Online rent payments require an organization request, approval, and payment setup before tenants can pay. Availability depends on provider compatibility. Landlords can also record payments, track overdue balances and late fees, and organize reminders.",
   },
   {
     question: "Can I manage multiple properties?",
     answer:
-      "Yes. The permanent Free plan supports up to 5 total units, while Premium supports unlimited units. Both plans organize properties, units, tenants, leases, maintenance, and financial records in one workspace; advanced reporting depends on plan entitlement and feature readiness.",
+      "Yes. Property Peace supports unlimited units for free. Organize properties, units, tenants, leases, maintenance, and financial records in one workspace; some features depend on provider readiness or configuration.",
   },
   {
     question: "How do I get support?",

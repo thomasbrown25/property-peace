@@ -153,7 +153,7 @@ export default function HowItWorksPage() {
           <div>
             <div className="mb-5 flex items-center gap-3 text-brand-teal"><FiMessageSquare className="h-5 w-5" /><span className="text-xs font-bold uppercase tracking-[0.22em]">Ready when the next task arrives</span></div>
             <h2 className="max-w-3xl text-3xl font-extrabold tracking-[-0.035em] md:text-5xl" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>One property record. A clearer next move.</h2>
-            <p className="mt-5 max-w-2xl text-lg leading-8 text-white/65">Start free for up to five units, or book a walkthrough to see how the workflows fit your portfolio.</p>
+            <p className="mt-5 max-w-2xl text-lg leading-8 text-white/65">Start free with unlimited units, or book a walkthrough to see how the workflows fit your portfolio.</p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
             <Link href="https://app.propertypeace.io/register" className="inline-flex min-h-12 items-center justify-center gap-2 px-8 py-3.5 font-bold text-white transition hover:brightness-95" style={{ background: 'linear-gradient(135deg, var(--brand-teal), var(--brand-teal))' }}>Start free <FiArrowRight className="h-4 w-4" /></Link>

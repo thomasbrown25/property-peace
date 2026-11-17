@@ -11,12 +11,36 @@ const dateOnly = (value) => {
   return Number.isNaN(parsed.getTime()) ? null : new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
 };
 
+export const firstOfCycleMonth = (dueDate) => {
+  const match = String(dueDate).match(/^(\d{4})-(\d{2})-/);
+  return match ? new Date(Number(match[1]), Number(match[2]) - 1, 1) : null;
+};
+
 const rentPayment = (payment) => {
   const type = String(payment.type ?? payment.Type ?? '').toLowerCase();
   const status = String(payment.status ?? payment.Status ?? '').toLowerCase();
   return !payment.feeId && !payment.FeeId && !payment.depositId && !payment.DepositId &&
     !type.includes('fee') && !type.includes('deposit') &&
     (!status || ['completed', 'paid', 'succeeded', 'success'].includes(status));
+};
+
+// Allocate each receipt across scheduled installments oldest-first, matching the
+// cumulative accounting used for the timeline. A single receipt can span months.
+export const paymentsForLeaseCycle = (lease, payments, cycleIndex) => {
+  const cycles = buildLeasePaymentSchedule(lease).cycles;
+  if (!cycles[cycleIndex]) return [];
+  const lower = Math.round(cycles.slice(0, cycleIndex).reduce((sum, cycle) => sum + cycle.amount, 0) * 100);
+  const upper = lower + Math.round(cycles[cycleIndex].amount * 100);
+  let collected = 0;
+  return (payments || []).filter(rentPayment)
+    .filter((payment) => dateOnly(payment.paymentDate ?? payment.PaymentDate) && Number(payment.amount ?? payment.Amount) > 0)
+    .sort((a, b) => dateOnly(a.paymentDate ?? a.PaymentDate) - dateOnly(b.paymentDate ?? b.PaymentDate))
+    .map((payment) => {
+      const start = collected;
+      collected += Math.round(Number(payment.amount ?? payment.Amount) * 100);
+      return { payment, appliedAmount: Math.max(0, Math.min(collected, upper) - Math.max(start, lower)) / 100 };
+    })
+    .filter(({ appliedAmount }) => appliedAmount > 0);
 };
 
 // Allocate completed rent payments oldest-first across the actual due-date schedule,

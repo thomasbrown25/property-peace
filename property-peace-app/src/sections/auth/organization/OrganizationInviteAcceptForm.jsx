@@ -665,7 +665,7 @@ export default function OrganizationInviteAcceptForm({ inviteToken, inviteData }
                 variant="contained"
                 color="primary"
                 onClick={handleAcceptInvite}
-                sx={{ py: 1.35, bgcolor: '#061e35', '&:hover': { bgcolor: '#0a314f' } }}
+                sx={{ py: 1.35, bgcolor: 'primary.main', '&:hover': { bgcolor: 'primary.dark' } }}
               >
                 {accepting ? <CircularProgress size={20} /> : 'Accept Invite'}
               </Button>

@@ -31,8 +31,7 @@ const checks = [
 
 const required = [
   ['components/Sections/PricingPlans.tsx', /Online rent payments \(approval required\)/i],
-  ['components/Sections/PricingPlans.tsx', /name: 'Free Plan for Small Portfolios'[\s\S]{0,600}Online rent payments \(approval required\)/i],
-  ['components/Sections/PricingPlans.tsx', /name: 'Premium'[\s\S]{0,900}one dedicated organization SMS number included with Premium/i],
+  ['components/Sections/PricingPlans.tsx', /One dedicated organization SMS number \(activation and configuration required\)/i],
   ['app/privacy/page.tsx', /approved organizations[\s\S]{0,300}Stripe processes payment[\s\S]{0,300}provider identifiers, status, and ledger records[\s\S]{0,180}not raw bank\/card credentials/i],
   ['lib/otto-seo.ts', /Online rent payments are included with Free[\s\S]{0,180}request access[\s\S]{0,180}secure payment setup/i],
   ['components/Sections/FeaturesSection.tsx', /Online rent payments are included with Free[\s\S]{0,180}request access/i],
@@ -42,12 +41,12 @@ const required = [
   ['app/rent-collection-software-for-landlords/page.tsx', /Online rent payments are included with Free[\s\S]{0,180}request access/i],
   ['app/landlord-software/page.tsx', /Online rent payments are included with Free[\s\S]{0,180}request access/i],
   ['app/features/page.tsx', /Online rent payments are included with Free[\s\S]{0,180}request access/i],
-  ['app/blog/[slug]/page.tsx', /Online rent payments are included with Free[\s\S]{0,180}request access/i],
+  ['app/blog/[slug]/page.tsx', /Online rent processing is not currently available[\s\S]{0,180}request access[\s\S]{0,180}secure payment setup/i],
   ['app/property-management-app/page.tsx', /Online rent payments are included with Free[\s\S]{0,180}request access/i],
   ['app/comparison/turbotenant/page.tsx', /checkedOn = 'August 11, 2026'/i],
   ['app/comparison/turbotenant/page.tsx', /dateModified: '2026-08-11'/i],
-  ['app/comparison/turbotenant/page.tsx', /Free[^\r\n]{0,80}\$0[^\r\n]{0,80}5 total units/i],
-  ['app/comparison/turbotenant/page.tsx', /Premium[^\r\n]{0,80}\$14\.99[^\r\n]{0,80}month/i],
+  ['app/comparison/turbotenant/page.tsx', /\$0[^\r\n]{0,80}unlimited units/i],
+  ['app/comparison/turbotenant/page.tsx', /No subscription billing \(Property Peace\)/i],
   ['app/comparison/turbotenant/page.tsx', /Essentials[^\r\n]{0,100}\$12\.42[^\r\n]{0,100}billed annually at \$149/i],
   ['app/comparison/turbotenant/page.tsx', /Pro[^\r\n]{0,100}\$16\.58[^\r\n]{0,100}billed annually at \$199/i],
   ['app/comparison/turbotenant/page.tsx', /Landlord subscription/i],
@@ -70,12 +69,11 @@ const required = [
   ['components/Sections/PricingPlans.tsx', /Percy Pilot/i],
 
   ['lib/otto-seo.ts', /limited Percy Pilot/i],
-  ['components/Sections/Hero.tsx', /Percy-assisted tools, currently in limited pilot/i],
+  ['components/Sections/Hero.tsx', /Get Started Free/i],
 
   ['app/privacy/page.tsx', /<li><strong>DocuSign<\/strong>[\s\S]{0,300}only if and when integrated digital lease signing is operationally enabled[\s\S]{0,150}currently unavailable[\s\S]{0,100}<\/li>/i],
-  ['components/Sections/PricingPlans.tsx', /name: 'Free Plan for Small Portfolios'[\s\S]{0,250}'Up to 5 units'/i],
-  ['components/Sections/PricingPlans.tsx', /name: 'Premium'[\s\S]{0,120}monthlyPrice: 14\.99[\s\S]{0,120}annualTotal: 152\.90/i],
-  ['components/Sections/PricingPlans.tsx', /one dedicated organization SMS number included with Premium[\s\S]{0,120}activation and configuration required/i],
+  ['components/Sections/PricingPlans.tsx', /'Unlimited units'/i],
+  ['components/Sections/PricingPlans.tsx', /Multiple active external listings \(coming soon\)/i],
   ['app/blog/[slug]/page.tsx', /const editorial = getArticleEditorial\(post\.slug\);[\s\S]*if \(!post \|\| !editorial\) notFound\(\)/i],
   ['app/blog/page.tsx', /getAllBlogPosts\(\)\s*\.filter\(\(post\) => getArticleEditorial\(post\.slug\)\)\s*\.map\(\(\{ slug, title, description, date, author, category \}\)/i],
   ['scripts/generate-sitemap.mjs', /const blogSlugs = \[[\s\S]*landlord-move-in-move-out-checklist[\s\S]*rental-property-cash-flow-template-landlords[\s\S]*landlord-maintenance-checklist-prevent-costly-repairs[\s\S]*\];/i],
@@ -129,39 +127,33 @@ if (/['"]@\/lib\/(?:blog-posts|article-editorial)['"]/.test(blogIndexClient)) {
   failures.push('app/blog/BlogPageClient.tsx: public client bundle must not import the full unpublished article corpus or editorial registry');
 }
 
-// Keep the Free card useful and concrete. Scope these checks to the Free object so a Premium
-// bullet cannot accidentally satisfy the permanent-Free packaging contract.
+// The public pricing surface presents one Free offer; keep its features and qualifiers together.
 const pricing = await readFile(new URL('../components/Sections/PricingPlans.tsx', import.meta.url), 'utf8');
-const freePlan = pricing.match(/name: 'Free Plan for Small Portfolios'([\s\S]*?)\n\s*},\r?\n\s*{\r?\n\s*name: 'Premium'/)?.[1];
-if (!freePlan) {
-  failures.push('components/Sections/PricingPlans.tsx: unable to isolate Free pricing card');
-} else {
-  const freeRequirements = [
-    /monthlyPrice: 0/,
-    /annualTotal: 0/,
-    /no credit card required/i,
-    /Up to 5 units/i,
-    /Hosted Property Peace listing page/i,
-    /Lead management & showing scheduling/i,
-    /Digital rental applications/i,
-    /Tenant portal/i,
-    /Maintenance request tracking/i,
-    /Lease management/i,
-    /Basic rent & expense tracking/i,
-    /Document storage/i,
-    /Start for free/i,
-  ];
-  for (const requirement of freeRequirements) {
-    if (!requirement.test(freePlan)) {
-      failures.push(`components/Sections/PricingPlans.tsx: Free card is missing contract item ${requirement}`);
-    }
+const freeRequirements = [
+  /<h1[\s\S]*?Free\s*<\/h1>/i,
+  /No credit card required/i,
+  /Unlimited units/i,
+  /Hosted Property Peace listing page/i,
+  /Lead management & showing scheduling/i,
+  /Digital rental applications/i,
+  /Tenant portal/i,
+  /Maintenance request tracking/i,
+  /Lease management/i,
+  /Document storage/i,
+  /Rent ledger, late fees & automated reminders/i,
+  /Advanced accounting & Schedule E/i,
+  /Rent estimates/i,
+  /LeaseShield protection/i,
+  /Percy Pilot workflows \(limited availability\)/i,
+  /Start for free/i,
+];
+for (const requirement of freeRequirements) {
+  if (!requirement.test(pricing)) {
+    failures.push(`components/Sections/PricingPlans.tsx: Free offer is missing contract item ${requirement}`);
   }
-  if (/(?:online rent collection|tenant screening|e-signature|SMS|Percy)/i.test(freePlan)) {
-    failures.push('components/Sections/PricingPlans.tsx: Free card must not imply unavailable or Premium-only integrations');
-  }
-  if (/external listing/i.test(freePlan) && !/external listing \(coming soon\)/i.test(freePlan)) {
-    failures.push('components/Sections/PricingPlans.tsx: external listing on Free must remain explicitly labeled coming soon');
-  }
+}
+if (/monthlyPrice|annualTotal|Toggle annual billing|Everything in Free|Up to 5 units|included with Premium/i.test(pricing)) {
+  failures.push('components/Sections/PricingPlans.tsx: paid-plan or capped-unit copy remains on the Free offer');
 }
 
 for (const file of await sourceFiles(new URL('../', import.meta.url))) {
@@ -179,7 +171,7 @@ for (const file of await sourceFiles(new URL('../', import.meta.url))) {
     failures.push(`${file.pathname}: Percy availability must be labeled as a Pilot`);
   }
   if (/free 30-day trial|30-day free trial|start free trial/i.test(source)) {
-    failures.push(`${file.pathname}: Property Peace public CTA must say Start Free / Free up to 5 units, not a trial`);
+    failures.push(`${file.pathname}: Property Peace public CTA must say Start Free, not a trial`);
   }
 }
 
@@ -216,8 +208,8 @@ const smsClaims = [
 ];
 for (const file of smsClaims) {
   const source = await readFile(new URL(`../${file}`, import.meta.url), 'utf8');
-  if (/SMS/i.test(source) && (!/(?:one|1) (?:dedicated organization )?SMS number[^\r\n]{0,100}include|include[^\r\n]{0,100}(?:one|1) (?:dedicated organization )?(?:number|SMS number)/i.test(source) || !/activation and configuration (?:are )?required/i.test(source))) {
-    failures.push(`${file}: SMS claims must disclose one included eligible-plan number and required activation/configuration`);
+  if (/SMS/i.test(source) && (!/organization (?:SMS )?number|included number/i.test(source) || !/activation and configuration/i.test(source))) {
+    failures.push(`${file}: SMS claims must disclose organization-number setup and required activation/configuration`);
   }
   if (/SMS[^\r\n]{0,100}(?:paid )?add-on|(?:paid )?add-on[^\r\n]{0,100}SMS/i.test(source)) {
     failures.push(`${file}: SMS must not be described as a separate paid add-on`);

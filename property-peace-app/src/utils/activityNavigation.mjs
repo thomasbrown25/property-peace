@@ -43,7 +43,7 @@ export function getActivityDestination(activity = {}) {
     case 'File': return '/landlord/files';
     case 'Application': return '/landlord/listings';
     case 'Message': return !deleted && activity.conversationId
-      ? `/landlord/messages?conversationId=${encodeURIComponent(activity.conversationId)}` : '/landlord/messages';
+      ? `/landlord/chat?conversationId=${encodeURIComponent(activity.conversationId)}` : '/landlord/chat';
     case 'Notification': return '/landlord/notifications';
     default: return null;
   }

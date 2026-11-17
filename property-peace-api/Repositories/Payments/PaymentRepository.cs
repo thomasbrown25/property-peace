@@ -34,6 +34,7 @@ namespace brownstone_hub_api.Repositories.Payments
                 var payment = new Payment
                 {
                     LeaseId = leaseId,
+                    TenantId = newPayment.TenantId,
                     PropertyId = lease.Unit.Property.Id,
                     OrganizationId = lease.Unit.Property.OrganizationId,
                     PaymentDate = paymentDate,

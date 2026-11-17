@@ -119,7 +119,7 @@ export const PAGE_VIDEOS = {
   '/landlord/properties': 'createProperty',
   '/landlord/leases': 'createLease',
   '/landlord/settings': 'addUser',
-  '/landlord/messages': 'messageTenant'
+  '/landlord/chat': 'messageTenant'
 };
 
 // Get relevant video for a page

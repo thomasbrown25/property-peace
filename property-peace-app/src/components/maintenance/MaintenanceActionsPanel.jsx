@@ -12,8 +12,6 @@ import {
 import { normalizeWorkflowToken, statusLabel } from 'utils/maintenanceWorkflow';
 import { maintenanceActionSelected, maintenanceActionUnavailable } from './maintenanceActionState.mjs';
 
-const NAVY = '#061e35';
-
 export const MAINTENANCE_DETAIL_ACTIONS = [
   { key: 'acknowledge', label: 'Acknowledge', status: 'Acknowledged', icon: CheckCircleOutlined },
   { key: 'assign', label: 'Assign', status: 'Assigned', icon: TeamOutlined, drawer: 'assignment' },
@@ -44,7 +42,7 @@ export default function MaintenanceActionsPanel({ currentStatus, busy, onAcknowl
       sx={{
         p: { xs: 2, md: 2.5 },
         borderRadius: 2,
-        boxShadow: `0 8px 28px ${alpha(NAVY, 0.07)}`,
+        boxShadow: (t) => `0 8px 28px ${alpha(t.palette.brand.forest, 0.07)}`,
         position: { lg: 'sticky' },
         top: { lg: 88 }
       }}
@@ -83,10 +81,10 @@ export default function MaintenanceActionsPanel({ currentStatus, busy, onAcknowl
                 textTransform: 'none',
                 fontWeight: 780,
                 ...(isSelected && {
-                  bgcolor: NAVY,
+                  bgcolor: 'brand.forest',
                   color: '#fff',
-                  '&:hover': { bgcolor: '#123653' },
-                  '&.Mui-disabled': { bgcolor: NAVY, color: '#fff', opacity: 0.75 }
+                  '&:hover': { bgcolor: 'primary.dark' },
+                  '&.Mui-disabled': { bgcolor: 'brand.forest', color: '#fff', opacity: 0.75 }
                 }),
                 borderColor: action.key === 'cancel' && !isSelected ? 'error.light' : undefined
               }}

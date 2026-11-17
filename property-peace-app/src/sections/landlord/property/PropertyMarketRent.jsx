@@ -48,7 +48,7 @@ export default function PropertyMarketRent({ property }) {
     <Box
       sx={{
         borderRadius: 3,
-        background: `linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%)`,
+        background: `linear-gradient(135deg, ${theme.palette.brand.forest} 0%, ${theme.palette.primary.dark} 55%, ${theme.palette.brand.teal} 100%)`,
         border: `1px solid ${alpha(theme.palette.success.main, theme.palette.mode === 'dark' ? 0.38 : 0.2)}`,
         boxShadow: theme.palette.mode === 'dark'
           ? `0 18px 46px ${alpha(theme.palette.common.black, 0.28)}, 0 0 34px ${alpha(theme.palette.success.main, 0.16)}`

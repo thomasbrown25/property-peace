@@ -78,7 +78,7 @@ function PercyAvatar({ size = 32, elevated = false }) {
         borderRadius: size >= 50 ? 2.25 : 1.25,
         display: 'grid',
         placeItems: 'center',
-        bgcolor: darkMode ? alpha('#fff', 0.07) : alpha(NAVY, 0.055),
+        bgcolor: darkMode ? alpha('#fff', 0.07) : alpha(theme.palette.brand.forest, 0.055),
         border: `1px solid ${darkMode ? alpha('#fff', 0.1) : alpha(NAVY, 0.07)}`,
         boxShadow: elevated ? `0 12px 24px ${alpha(NAVY, darkMode ? 0.34 : 0.14)}` : 'none'
       }}
@@ -159,7 +159,7 @@ const errorMessage = (error, fallback) =>
 
 function ToolStatus({ tool }) {
   return (
-    <Box sx={{ mt: 1.5, px: 1.25, py: 1, borderRadius: 1.75, bgcolor: alpha(NAVY, 0.035), border: `1px solid ${alpha(NAVY, 0.08)}` }}>
+    <Box sx={{ mt: 1.5, px: 1.25, py: 1, borderRadius: 1.75, bgcolor: (theme) => alpha(theme.palette.brand.forest, 0.035), border: `1px solid ${alpha(NAVY, 0.08)}` }}>
       <Stack direction="row" spacing={1} alignItems="center">
         <Box
           sx={{ width: 28, height: 28, borderRadius: 1, display: 'grid', placeItems: 'center', bgcolor: alpha(GREEN, 0.1), color: GREEN }}
@@ -324,7 +324,7 @@ function AssistantMessage({ message, progressText, onResolveConfirmation, confir
 function UserMessage({ message }) {
   return (
     <Box sx={{ display: 'flex', justifyContent: 'flex-end', width: '100%' }}>
-      <Box sx={{ maxWidth: 680, px: 1.75, py: 1.15, borderRadius: '18px 18px 4px 18px', bgcolor: alpha(NAVY, 0.075), color: NAVY }}>
+      <Box sx={{ maxWidth: 680, px: 1.75, py: 1.15, borderRadius: '18px 18px 4px 18px', bgcolor: 'primary.main', color: '#fff' }}>
         <Typography variant="body1" sx={{ lineHeight: 1.6 }}>
           {message.content}
         </Typography>
@@ -343,7 +343,7 @@ function ConnectionRow({ icon, title, detail, active = false }) {
           borderRadius: 1.25,
           display: 'grid',
           placeItems: 'center',
-          bgcolor: active ? alpha(GREEN, 0.09) : alpha(NAVY, 0.05),
+          bgcolor: active ? alpha(GREEN, 0.09) : (theme) => alpha(theme.palette.brand.forest, 0.05),
           color: active ? GREEN : NAVY
         }}
       >
@@ -729,7 +729,7 @@ export default function AICenter() {
             flexShrink: 0,
             display: { xs: 'none', md: 'flex' },
             flexDirection: 'column',
-            bgcolor: alpha(NAVY, 0.025),
+            bgcolor: (theme) => alpha(theme.palette.brand.forest, 0.025),
             borderRight: `1px solid ${alpha(NAVY, 0.08)}`
           }}
         >
@@ -753,8 +753,8 @@ export default function AICenter() {
               sx={{
                 justifyContent: 'flex-start',
                 color: '#fff',
-                bgcolor: NAVY,
-                '&:hover': { bgcolor: '#0b2f4f' },
+                bgcolor: 'primary.main',
+                '&:hover': { bgcolor: 'primary.dark' },
                 textTransform: 'none',
                 fontWeight: 750
               }}
@@ -802,8 +802,8 @@ export default function AICenter() {
                       width: '100%',
                       mt: 0,
                       borderRadius: 1.5,
-                      bgcolor: selected ? alpha(NAVY, 0.07) : 'transparent',
-                      '&:hover': { bgcolor: alpha(NAVY, 0.05) },
+                      bgcolor: selected ? (theme) => alpha(theme.palette.brand.forest, 0.07) : 'transparent',
+                      '&:hover': { bgcolor: (theme) => alpha(theme.palette.brand.forest, 0.05) },
                       '&:hover .conversation-delete, &:focus-within .conversation-delete': { opacity: 1 },
                       '@media (hover: none)': { '& .conversation-delete': { opacity: 1 } }
                     }}
@@ -1078,9 +1078,9 @@ export default function AICenter() {
                   sx={{
                     width: 38,
                     height: 38,
-                    bgcolor: input.trim() ? NAVY : alpha(NAVY, 0.06),
+                    bgcolor: input.trim() ? 'primary.main' : (theme) => alpha(theme.palette.brand.forest, 0.06),
                     color: input.trim() ? '#fff' : 'text.disabled',
-                    '&:hover': { bgcolor: NAVY }
+                    '&:hover': { bgcolor: 'primary.dark' }
                   }}
                 >
                   {thinking ? <CircularProgress size={17} color="inherit" /> : <SendOutlined />}
@@ -1100,7 +1100,7 @@ export default function AICenter() {
             display: { xs: 'none', xl: 'flex' },
             flexDirection: 'column',
             borderLeft: `1px solid ${alpha(NAVY, 0.08)}`,
-            bgcolor: alpha(NAVY, 0.018),
+            bgcolor: (theme) => alpha(theme.palette.brand.forest, 0.018),
             overflowY: 'auto'
           }}
         >
@@ -1216,7 +1216,7 @@ export default function AICenter() {
                 handleNewChat();
                 setMobilePanelOpen(false);
               }}
-              sx={{ mb: 2, justifyContent: 'flex-start', textTransform: 'none', bgcolor: NAVY, color: '#fff', '&:hover': { bgcolor: '#0b2f4f' } }}
+              sx={{ mb: 2, justifyContent: 'flex-start', textTransform: 'none', bgcolor: 'primary.main', color: '#fff', '&:hover': { bgcolor: 'primary.dark' } }}
             >
               New conversation
             </Button>

@@ -12,6 +12,7 @@ import {
   TextField,
   Stack,
   Chip,
+  Collapse,
   alpha,
   useTheme
 } from '@mui/material';
@@ -121,7 +122,8 @@ const buildPaymentTarget = ({ lease, property, unit = null }) => {
     unitName,
     locationLabel,
     isRecordable,
-    label: primaryTenant ? `${tenantName} - ${locationLabel}` : locationLabel
+    label: locationLabel,
+    searchLabel: `${locationLabel} ${tenants.map(getTenantName).join(' ')}`
   };
 };
 
@@ -129,6 +131,9 @@ const buildPaymentTarget = ({ lease, property, unit = null }) => {
 
 export default function TenantPaymentSelector({
   selectedLease,
+  detailLease,
+  detailsVisible,
+  selectedTenant,
   autoSelectPropertyId,
   selectedProperty,
   selectedUnit,
@@ -222,16 +227,16 @@ export default function TenantPaymentSelector({
     return [selectedOption, ...paymentTargets];
   }, [selectedOption, paymentTargets]);
 
+  const leaseTenants = getLeaseTenants(detailLease);
+
   const handleTargetChange = (newValue) => {
     if (!newValue || !newValue.isRecordable) {
-      onSelectTenant(null);
       onSelectProperty(null);
       onSelectUnit(null);
       onConfirmLease(null);
       return;
     }
 
-    onSelectTenant(newValue.tenant || null);
     onSelectProperty(newValue.property || null);
     onSelectUnit(newValue.unit || null);
     onConfirmLease(newValue.lease || null);
@@ -241,7 +246,6 @@ export default function TenantPaymentSelector({
     if (!selectedOption || paymentTargets.length === 0) return;
     const matchedTarget = paymentTargets.find((target) => target.id === selectedOption.id);
     if (!matchedTarget || !matchedTarget.isRecordable) return;
-    onSelectTenant(matchedTarget.tenant || null);
     onSelectProperty(matchedTarget.property || null);
     onSelectUnit(matchedTarget.unit || null);
     onConfirmLease(matchedTarget.lease || null);
@@ -274,7 +278,7 @@ export default function TenantPaymentSelector({
           filterOptions={(options, state) => {
             const input = state.inputValue.trim().toLowerCase();
             if (!input) return options;
-            return options.filter((option) => option.label.toLowerCase().includes(input));
+            return options.filter((option) => option.searchLabel.toLowerCase().includes(input));
           }}
           renderOption={(props, option) => (
             <Box component="li" {...props} key={option.id}>
@@ -290,9 +294,9 @@ export default function TenantPaymentSelector({
                     variant={option.isRecordable ? 'filled' : 'outlined'}
                   />
                 </Stack>
-                {option.tenant && (
+                {getLeaseTenants(option.lease).length > 0 && (
                   <Typography variant="caption" color="text.secondary">
-                    {option.tenantName}
+                    {getLeaseTenants(option.lease).map(getTenantName).join(', ')}
                   </Typography>
                 )}
               </Stack>
@@ -323,6 +327,20 @@ export default function TenantPaymentSelector({
         />
       </Stack>
 
+      <Collapse in={detailsVisible} timeout={300} unmountOnExit>
+        <Stack spacing={0.75} sx={{ mt: 2 }}>
+          <Typography variant="caption" fontWeight={600} color="text.secondary">Tenant who paid</Typography>
+          <Autocomplete
+            options={leaseTenants}
+            value={leaseTenants.find((tenant) => (tenant.id ?? tenant.Id) === (selectedTenant?.id ?? selectedTenant?.Id)) || null}
+            onChange={(event, tenant) => onSelectTenant(tenant)}
+            getOptionLabel={getTenantName}
+            isOptionEqualToValue={(option, value) => (option?.id ?? option?.Id) === (value?.id ?? value?.Id)}
+            renderInput={(params) => <TextField {...params} placeholder="Select tenant" fullWidth />}
+          />
+        </Stack>
+      </Collapse>
+
       {displayTargets.length === 0 && (
         <Alert severity="warning" sx={{ mt: 2 }}>
           No lease records were found. Create a lease before recording a payment.
@@ -334,6 +352,9 @@ export default function TenantPaymentSelector({
 
 TenantPaymentSelector.propTypes = {
   selectedLease: PropTypes.object,
+  detailLease: PropTypes.object,
+  detailsVisible: PropTypes.bool.isRequired,
+  selectedTenant: PropTypes.object,
   autoSelectPropertyId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
   selectedProperty: PropTypes.object,
   selectedUnit: PropTypes.object,

@@ -144,14 +144,14 @@ Choose the platform that feels most natural and solves your biggest pain points.
 ## Why Property Peace?
 
 Property Peace is designed specifically for landlords managing 1-50 units. We offer:
-- Simple, flat pricing with Premium at $14.99/month
+- Free property management for unlimited units, with no subscription
 - No per-unit fees
 - Current records across supported property-management workflows
 - Comprehensive features without the complexity
 - Mobile-friendly interface
 - Dedicated support for small landlords
 
-Explore our [complete feature list](/features) and [pricing options](/pricing) to see how we compare to other property management software. [Get started today](https://app.propertypeace.io/register) and see how property management software can transform how you manage your rental properties.
+Explore our [complete feature list](/features) and [free pricing](/pricing) to see how we compare to other property management software. [Get started today](https://app.propertypeace.io/register) and see how property management software can transform how you manage your rental properties.
     `,
     date: '2024-01-15',
     author: 'Property Peace Team',
@@ -5482,11 +5482,11 @@ We prioritized:
 - Real-time updates
 - Mobile-friendly
 
-**Pricing**: Free for up to 5 units; Premium is $14.99/mo with no per-unit fees
+**Pricing**: Free for unlimited units, with no subscription or per-unit fees
 
 **Pros**:
 - Designed specifically for small landlords
-- Affordable flat-rate pricing
+- Free for unlimited units
 - Real-time updates
 - Comprehensive features
 - Easy to use
@@ -5498,7 +5498,7 @@ We prioritized:
 
 **Rating**: ⭐⭐⭐⭐⭐ (5/5)
 
-**Bottom line**: Excellent choice for landlords managing 1-50 units who want comprehensive features at an affordable price.
+**Bottom line**: Excellent choice for landlords managing 1-50 units who want comprehensive features for free.
 
 ### 2. Buildium
 
@@ -5758,8 +5758,8 @@ We prioritized:
 
 **Winner**: Property Peace
 - Comprehensive features
-- Affordable pricing
-- Free option available
+- Free for unlimited units
+- No paid tiers
 - Designed for small landlords
 
 ### Best for Large Portfolios
@@ -5772,9 +5772,9 @@ We prioritized:
 ### Best Free Option
 
 **Winner**: Property Peace or TenantCloud
-- Free tiers available
+- Free software available
 - Good basic features
-- Can upgrade as needed
+- Property Peace has no paid upgrade
 
 ### Best for Beginners
 
@@ -5812,12 +5812,11 @@ We prioritized:
 ### Budget
 
 **Free/Low cost**:
-- Property Peace (free for up to 5 units; Premium $14.99/mo)
+- Property Peace (free for unlimited units)
 - TenantCloud (free tier)
 - Cozy (free basic)
 
 **Mid-range ($50-100/month)**:
-- Property Peace
 - Rentec Direct
 - Buildium (small plans)
 
@@ -5908,7 +5907,7 @@ Choose based on:
 
 ## The Bottom Line
 
-The best property management software for you depends on your specific needs, portfolio size, and budget. Property Peace is designed for independent landlords managing 1-50 units, with a permanent Free plan for up to 5 units and a flat-price Premium option.
+The best property management software for you depends on your specific needs, portfolio size, and budget. Property Peace is designed for independent landlords managing 1-50 units and is free for unlimited units, with no paid tiers or subscription.
 
 Key takeaways:
 - **Start with free trials**: Test before committing
@@ -5919,7 +5918,7 @@ Key takeaways:
 
 Remember, the best software is the one that solves your specific problems and fits your budget. Don't be swayed by flashy features you'll never use—focus on what matters for your rental business.
 
-Compare our solution with others in our [property management software reviews](/blog/property-management-software-reviews-top-10-2024). Explore our [complete feature list](/features) and [pricing options](/pricing). Learn about [choosing property management software](/blog/how-to-choose-property-management-software-for-small-landlords). [Try Property Peace](https://app.propertypeace.io/register) to evaluate the workflow for your own portfolio.
+Compare our solution with others in our [property management software reviews](/blog/property-management-software-reviews-top-10-2024). Explore our [complete feature list](/features) and [free pricing](/pricing). Learn about [choosing property management software](/blog/how-to-choose-property-management-software-for-small-landlords). [Try Property Peace](https://app.propertypeace.io/register) to evaluate the workflow for your own portfolio.
     `,
     date: '2024-05-07',
     author: 'Property Peace Team',

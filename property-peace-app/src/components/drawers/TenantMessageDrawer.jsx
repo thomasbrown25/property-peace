@@ -114,9 +114,9 @@ export default function TenantMessageDrawer({ open, onClose, tenant, property })
   const handleOpenFull = () => {
     handleClose();
     if (conversation?.id) {
-      navigate(`/landlord/messages?conversationId=${conversation.id}`);
+      navigate(`/landlord/chat?conversationId=${conversation.id}`);
     } else {
-      navigate('/landlord/messages');
+      navigate('/landlord/chat');
     }
   };
 

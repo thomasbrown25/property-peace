@@ -13,6 +13,20 @@ export function financeUnitName(record, property) {
 export const paymentCategory = record => record.depositId != null || String(record.type).toLowerCase() === 'deposit'
   ? 'Deposit' : record.feeId != null ? record.feeName || 'Fee' : 'Rent payment';
 
+export function paymentTenantName(record, property) {
+  const name = record.tenantName || record.lease?.tenantName;
+  if (name?.trim()) return name.trim();
+  const leaseId = record.leaseId ?? record.LeaseId ?? record.lease?.id;
+  if (leaseId == null) return '—';
+  const leases = [property?.lease, ...(property?.leases ?? []),
+    ...(property?.units ?? []).flatMap(unit => [unit.lease, ...(unit.leases ?? [])])];
+  const lease = leases.find(item => item && String(item.id ?? item.Id) === String(leaseId));
+  const tenant = (lease?.tenants ?? lease?.Tenants ?? [])[0];
+  const tenantName = [tenant?.firstname ?? tenant?.firstName ?? tenant?.Firstname,
+    tenant?.lastname ?? tenant?.lastName ?? tenant?.Lastname].filter(Boolean).join(' ').trim();
+  return tenantName || '—';
+}
+
 export function combinePropertyFinances(payments = [], expenses = [], propertyId) {
   const matchesProperty = record => {
     const id = record.propertyId ?? record.PropertyId ?? record.property?.id ?? record.lease?.propertyId;

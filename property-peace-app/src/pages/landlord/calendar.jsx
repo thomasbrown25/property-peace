@@ -669,7 +669,7 @@ function EventDetailsDrawer({ event, onClose, onEditTask, onDeleteTask, onNaviga
           </Stack> : destination ? <Button
             variant="contained"
             onClick={() => onNavigate(destination)}
-            sx={{ alignSelf: 'flex-start', px: 2.5, bgcolor: '#061e35', color: '#fff', fontWeight: 800, '&:hover': { bgcolor: '#0b2f4f' } }}
+            sx={{ alignSelf: 'flex-start', px: 2.5, bgcolor: theme.palette.brand.forest, color: '#fff', fontWeight: 800, '&:hover': { bgcolor: theme.palette.primary.dark } }}
           >
             {event.source === 'recurring-expense' ? 'View expenses' : event.category === 'RentPayment' ? 'View payments' : event.category === 'Maintenance' ? 'View request' : event.source === 'inspection' ? 'Open checklist' : 'View lease'}
           </Button> : null}
@@ -872,7 +872,7 @@ export default function CalendarPage({ embedded = false }) {
           </Stack>
           <Stack direction="row" spacing={1} alignItems="center">
             <Stack direction="row" sx={{ border: (t) => `1px solid ${subtleBorder(t, 0.2)}`, borderRadius: 1.5, overflow: 'hidden' }}>
-              {VIEWS.map(v => <Box key={v} onClick={() => setView(v)} sx={{ px: { xs: 1.2, sm: 1.75 }, py: 0.6, cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, bgcolor: view === v ? '#061e35' : 'transparent', color: view === v ? '#fff' : 'text.secondary' }}>{v}</Box>)}
+              {VIEWS.map(v => <Box key={v} onClick={() => setView(v)} sx={{ px: { xs: 1.2, sm: 1.75 }, py: 0.6, cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, bgcolor: view === v ? theme.palette.brand.forest : 'transparent', color: view === v ? '#fff' : 'text.secondary' }}>{v}</Box>)}
             </Stack>
             <IconButton size="small" onClick={goPrev}><LeftOutlined /></IconButton>
             <Button size="small" onClick={goToday} variant="outlined" sx={{ textTransform: 'none' }}>Today</Button>

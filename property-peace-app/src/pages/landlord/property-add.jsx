@@ -761,7 +761,7 @@ export default function PropertyAdd() {
                               <Typography variant="caption" sx={{ mt: 0.5, display: 'block' }}>
                                 <Typography
                                   component="span"
-                                  onClick={() => navigate('/landlord/settings?tab=subscription')}
+                                  onClick={() => navigate('/landlord/support/ticket')}
                                   sx={{
                                     color: 'primary.main',
                                     cursor: 'pointer',
@@ -771,9 +771,9 @@ export default function PropertyAdd() {
                                     }
                                   }}
                                 >
-                                  Upgrade your subscription
+                                  Contact support
                                 </Typography>
-                                {' '}to add more units.
+                                {' '}if you need help with this limit.
                               </Typography>
                             )}
                           </Alert>

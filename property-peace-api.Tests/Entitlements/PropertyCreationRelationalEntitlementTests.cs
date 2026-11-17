@@ -46,7 +46,7 @@ public sealed class PropertyCreationRelationalEntitlementTests
     }
 
     [Fact]
-    public async Task Concurrent_last_slot_requests_on_separate_contexts_cannot_both_commit()
+    public async Task Free_creations_after_fifth_unit_are_allowed_on_separate_contexts()
     {
         await using var database = await TestDatabase.CreateAsync();
         await using (var seed = database.Context())
@@ -73,18 +73,16 @@ public sealed class PropertyCreationRelationalEntitlementTests
             await seed.SaveChangesAsync();
         }
 
-        var start = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var first = CreateAgainstLastSlotAsync(database, "One", start.Task);
-        var second = CreateAgainstLastSlotAsync(database, "Two", start.Task);
-        start.SetResult();
-        var results = await Task.WhenAll(first, second);
-
-        Assert.Single(results, committed => committed);
+        // Serialize this quota regression: SQLite lock contention must not be mistaken for
+        // a Free entitlement denial. The second request starts with five persisted units.
+        var start = Task.CompletedTask;
+        Assert.True(await CreateAgainstLastSlotAsync(database, "One", start));
+        Assert.True(await CreateAgainstLastSlotAsync(database, "Two", start));
         await using var verification = database.Context();
-        Assert.Equal(5, await verification.Units.CountAsync(unit =>
+        Assert.Equal(6, await verification.Units.CountAsync(unit =>
             unit.Property.OrganizationId == OrganizationId && !unit.Property.IsDeleted));
-        Assert.Equal(2, await verification.Properties.CountAsync(property => !property.IsDeleted));
-        Assert.Equal(2, await verification.ActivityEvents.CountAsync(activity =>
+        Assert.Equal(3, await verification.Properties.CountAsync(property => !property.IsDeleted));
+        Assert.Equal(3, await verification.ActivityEvents.CountAsync(activity =>
             activity.ActivityType == "Property" && activity.Operation == "Created" &&
             activity.OrganizationId == OrganizationId));
     }

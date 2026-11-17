@@ -342,6 +342,12 @@ public class AutoMapperProfile : Profile
             .ForMember(dest => dest.PropertyType, opt => opt.MapFrom(src => src.Unit != null && src.Unit.Property != null ? src.Unit.Property.PropertyType.ToString() : null))
             .ForMember(dest => dest.UnitName, opt => opt.MapFrom(src => src.Unit != null ? src.Unit.Name : null))
             .ForMember(dest => dest.IsActive, opt => opt.MapFrom(src => !src.IsDeleted))
+            .ForMember(dest => dest.ActiveLeaseId, opt => opt.MapFrom(src => src.TenantLeases != null
+                ? src.TenantLeases.Where(tl => tl.Lease != null && !tl.Lease.IsDeleted && tl.Lease.IsActive
+                    && tl.Lease.StartDate <= DateTime.UtcNow && (tl.Lease.EndDate == null || tl.Lease.EndDate >= DateTime.UtcNow)
+                    && src.UnitId == tl.Lease.UnitId)
+                    .OrderByDescending(tl => tl.Lease.StartDate).Select(tl => (long?)tl.LeaseId).FirstOrDefault()
+                : null))
             .ForMember(dest => dest.LeaseId, opt => opt.MapFrom(src => src.TenantLeases != null && src.TenantLeases.Any()
                 ? src.TenantLeases.First().Lease.Id : (long?)null))
             .ForMember(dest => dest.LeaseStartDate, opt => opt.MapFrom(src => src.TenantLeases != null && src.TenantLeases.Any()
@@ -387,7 +393,8 @@ public class AutoMapperProfile : Profile
             .ForMember(dest => dest.UnitId, opt => opt.MapFrom(src => src.Lease.Unit.Id))
             .ForMember(dest => dest.PropertyName, opt => opt.MapFrom(src => src.Lease.Unit.Property.Name))
             .ForMember(dest => dest.TenantName, opt => opt.MapFrom(src => src.Lease.TenantLeases
-                .OrderByDescending(tenantLease => src.CreatedByUserId.HasValue && tenantLease.Tenant.UserId == src.CreatedByUserId.Value)
+                .OrderByDescending(tenantLease => src.TenantId.HasValue && tenantLease.TenantId == src.TenantId.Value)
+                .ThenByDescending(tenantLease => !src.TenantId.HasValue && src.CreatedByUserId.HasValue && tenantLease.Tenant.UserId == src.CreatedByUserId.Value)
                 .ThenBy(tenantLease => tenantLease.TenantId)
                 .Select(tenantLease => (tenantLease.Tenant.Firstname + " " + tenantLease.Tenant.Lastname).Trim())
                 .FirstOrDefault()))

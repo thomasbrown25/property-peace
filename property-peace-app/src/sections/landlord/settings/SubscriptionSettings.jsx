@@ -17,35 +17,30 @@ import {
 import { useTheme } from '@mui/material/styles';
 import { LinkOutlined, TeamOutlined, DownOutlined, CheckOutlined, CreditCardOutlined, QuestionCircleOutlined, WarningOutlined } from '@ant-design/icons';
 import MainCard from 'components/MainCard';
-import { useSubscription, useSubscriptionStatus, useSubscriptionPlans } from 'hooks/useSubscription';
+import { useSubscription, useSubscriptionStatus } from 'hooks/useSubscription';
 import { useOrganization } from 'contexts/OrganizationContext';
-import PlanComparisonTable from 'components/subscription/PlanComparisonTable';
 import CurrentPlan from 'pages/landlord/subscription/current-plan';
 import Billing from 'pages/landlord/subscription/billing';
 import { subscriptionAPI } from 'api';
 import { openSnackbar } from 'api/snackbar';
-import ConfirmationDialog from 'components/dialogs/ConfirmationDialog';
+
 import OrphanedSubscriptionModal from 'components/subscription/OrphanedSubscriptionModal';
-import { canManagePaidBilling, shouldStartCheckoutForPlanChange } from 'utils/subscriptionPresentation';
+import { canManagePaidBilling } from 'utils/subscriptionPresentation';
 
 export default function SubscriptionSettings() {
   const theme = useTheme();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const [portalLoading, setPortalLoading] = useState(false);
-  const [checkoutLoading, setCheckoutLoading] = useState(false);
-  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
-  const [pendingPlan, setPendingPlan] = useState(null);
-  const [pendingBillingCycle, setPendingBillingCycle] = useState(null);
-  const [pendingAction, setPendingAction] = useState(null);
-  const [confirmMessage, setConfirmMessage] = useState('');
+
+
   const [orphanedModalOpen, setOrphanedModalOpen] = useState(false);
   const [orgMenuAnchor, setOrgMenuAnchor] = useState(null);
   const [switchingOrg, setSwitchingOrg] = useState(false);
 
   const { subscription, loading: subLoading, refetch: refetchSubscription } = useSubscription();
   const { status, loading: statusLoading, refetch: refetchStatus } = useSubscriptionStatus();
-  const { plans, loading: plansLoading } = useSubscriptionPlans();
+
   const { currentOrganization, organizations, loading: orgLoading, switchOrganization, refreshOrganizations } = useOrganization();
 
   useEffect(() => {
@@ -97,121 +92,12 @@ export default function SubscriptionSettings() {
     );
   }
 
-  const handlePlanSelected = async (plan, billingCycle) => {
-    if (subscription && subscription.isOrphaned && subscription.status !== 'Trial') {
-      openSnackbar({ open: true, message: 'Please fix your subscription payment issue before changing plans', variant: 'alert', alert: { color: 'warning' } });
-      setOrphanedModalOpen(true);
-      return;
-    }
-    if (subscription && subscription.status === 'PaymentPending') {
-      openSnackbar({ open: true, message: 'Your payment is being processed. Please wait before making changes.', variant: 'alert', alert: { color: 'warning' } });
-      return;
-    }
-    const isFreePlan = subscription?.plan?.name?.toLowerCase() === 'free';
-    const canReactivate = isFreePlan && subscription?.cancelAtPeriodEnd;
 
-    if (shouldStartCheckoutForPlanChange(subscription)) {
-      await handleCreateCheckoutSession(plan, billingCycle);
-      return;
-    }
-    if (subscription && subscription.status === 'Active') {
-      const currentPlanPrice = subscription.billingCycle === 'Annual'
-        ? (subscription.plan?.annualPrice || subscription.plan?.monthlyPrice * 12)
-        : (subscription.plan?.monthlyPrice || 0);
-      const newPlanPrice = billingCycle === 'Annual'
-        ? (plan.annualPrice || plan.monthlyPrice * 12)
-        : (plan.monthlyPrice || 0);
-      const isUpgrade = newPlanPrice > currentPlanPrice;
-      const action = isUpgrade ? 'upgrade' : 'downgrade';
-      const planChanged = subscription.plan?.id !== plan.id;
-      const billingCycleChanged = subscription.billingCycle !== billingCycle;
-      if (!planChanged && !billingCycleChanged) {
-        openSnackbar({ open: true, message: 'You are already subscribed to this plan with the same billing cycle', variant: 'alert', alert: { color: 'info' } });
-        return;
-      }
-      let message;
-      if (canReactivate) {
-        const periodEnd = subscription.currentPeriodEnd
-          ? new Date(subscription.currentPeriodEnd).toLocaleDateString()
-          : 'the end of your current period';
-        message = `Reactivate Premium? No additional charge — your existing billing period continues until ${periodEnd}.`;
-      } else {
-        const prorationNote = isUpgrade
-          ? ' You will be charged immediately for the prorated amount covering the remainder of your current billing period.'
-          : ' You will receive a prorated credit for the unused portion of your current plan.';
-        message = planChanged && billingCycleChanged
-          ? `Are you sure you want to ${action} from ${subscription.plan?.name} (${subscription.billingCycle}) to ${plan.name} (${billingCycle})?${prorationNote}`
-          : planChanged
-          ? `Are you sure you want to ${action} from ${subscription.plan?.name} to ${plan.name}?${prorationNote}`
-          : `Are you sure you want to change your billing cycle from ${subscription.billingCycle} to ${billingCycle}?${prorationNote}`;
-      }
-      setPendingPlan(plan);
-      setPendingBillingCycle(billingCycle);
-      setPendingAction(action);
-      setConfirmMessage(message);
-      setConfirmDialogOpen(true);
-    } else {
-      await handleCreateCheckoutSession(plan, billingCycle);
-    }
-  };
-
-  const handleConfirmPlanChange = async () => {
-    if (!pendingPlan || !pendingBillingCycle || !pendingAction) return;
-    try {
-      setCheckoutLoading(true);
-      setConfirmDialogOpen(false);
-      const response = pendingAction === 'upgrade'
-        ? await subscriptionAPI.upgradeSubscription(pendingPlan.id, true, pendingBillingCycle)
-        : await subscriptionAPI.downgradeSubscription(pendingPlan.id, true, pendingBillingCycle);
-      if (response.success) {
-        openSnackbar({ open: true, message: `Subscription ${pendingAction}d successfully!`, variant: 'alert', alert: { color: 'success' } });
-        refetchSubscription();
-        refetchStatus();
-      } else {
-        openSnackbar({ open: true, message: response.message || `Failed to ${pendingAction} subscription`, variant: 'alert', alert: { color: 'error' } });
-      }
-    } catch (error) {
-      console.error('Error processing plan change:', error);
-      openSnackbar({ open: true, message: error?.message || `Failed to ${pendingAction} subscription`, variant: 'alert', alert: { color: 'error' } });
-    } finally {
-      setCheckoutLoading(false);
-      setPendingPlan(null);
-      setPendingBillingCycle(null);
-      setPendingAction(null);
-      setConfirmMessage('');
-    }
-  };
-
-  const handleCreateCheckoutSession = async (plan, billingCycle) => {
-    try {
-      setCheckoutLoading(true);
-      const successUrl = `${window.location.origin}/landlord/settings?tab=subscription&success=true`;
-      const cancelUrl = `${window.location.origin}/landlord/settings?tab=subscription&canceled=true`;
-      const response = await subscriptionAPI.createCheckoutSession(plan.id, billingCycle, successUrl, cancelUrl);
-      if (response.success && response.data) {
-        window.location.href = response.data;
-      } else {
-        openSnackbar({ open: true, message: response.message || 'Failed to create checkout session', variant: 'alert', alert: { color: 'error' } });
-        setCheckoutLoading(false);
-      }
-    } catch (error) {
-      console.error('Error creating checkout session:', error);
-      openSnackbar({ open: true, message: 'Failed to start checkout process', variant: 'alert', alert: { color: 'error' } });
-      setCheckoutLoading(false);
-    }
-  };
-
-  const handleFixOrphanedSubscription = async () => {
-    if (!subscription || !subscription.plan) { setOrphanedModalOpen(false); return; }
-    const currentPlan = plans?.find((p) => p.id === subscription.plan.id);
-    const currentBillingCycle = subscription.billingCycle || 'Monthly';
-    if (!currentPlan) {
-      openSnackbar({ open: true, message: 'Could not find current subscription plan', variant: 'alert', alert: { color: 'error' } });
-      setOrphanedModalOpen(false);
-      return;
-    }
+  // Legacy paid plans are no longer available for self-service checkout. Support must
+  // verify the existing subscription and provider price before repairing billing.
+  const handleFixOrphanedSubscription = () => {
     setOrphanedModalOpen(false);
-    await handleCreateCheckoutSession(currentPlan, currentBillingCycle);
+    navigate('/landlord/support/ticket');
   };
 
   const handleManageSubscription = async () => {
@@ -240,7 +126,7 @@ export default function SubscriptionSettings() {
     setSwitchingOrg(false);
   };
 
-  const isLoading = subLoading || statusLoading || plansLoading;
+  const isLoading = subLoading || statusLoading;
 
   if (isLoading) {
     return (
@@ -251,12 +137,7 @@ export default function SubscriptionSettings() {
   }
 
   const atUnitLimit = status?.maxTotalUnits != null && status?.currentTotalUnits >= status?.maxTotalUnits;
-  const currentPlanId = subscription?.status === 'Trial' || subscription?.status === 'PaymentPending' || subscription?.status === 'Cancelled'
-    ? null
-    : subscription?.plan?.id;
-  const currentBillingCycle = subscription?.status === 'Trial' || subscription?.status === 'PaymentPending' || subscription?.status === 'Cancelled'
-    ? null
-    : subscription?.billingCycle;
+
 
   return (
     <Box>
@@ -266,7 +147,7 @@ export default function SubscriptionSettings() {
           p: { xs: 2.25, md: 3 },
           borderRadius: 3,
           color: '#fff',
-          bgcolor: '#061e35',
+          bgcolor: theme.palette.brand.forest,
           backgroundImage: 'radial-gradient(circle at 92% 0%, rgba(34, 197, 94, 0.18), transparent 36%)',
           overflow: 'hidden'
         }}
@@ -277,7 +158,7 @@ export default function SubscriptionSettings() {
               Plan &amp; billing
             </Typography>
             <Typography variant="h3" sx={{ color: '#fff', fontWeight: 800, mt: 0.25 }}>
-              {subscription?.status === 'Trial' ? 'Legacy trial' : subscription?.plan?.name || 'Choose your plan'}
+              {subscription?.status === 'Trial' ? 'Legacy trial' : subscription?.plan?.name || 'Free'}
             </Typography>
             <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.72)', mt: 0.75, maxWidth: 560 }}>
               Manage the plan for {currentOrganization?.name}, monitor portfolio usage, and keep billing details in one place.
@@ -343,10 +224,10 @@ export default function SubscriptionSettings() {
       {/* Two-column layout */}
       <Box sx={{ display: 'flex', gap: 2.5, alignItems: 'flex-start', flexDirection: { xs: 'column', md: 'row' } }}>
 
-        {/* Left: Plans comparison table */}
-        <Box sx={{ flex: 1, minWidth: 0, order: { xs: 2, md: 1 }, width: '100%' }} id="plans-section">
+        {/* Free plan details */}
+        <Box sx={{ flex: 1, minWidth: 0, order: { xs: 2, md: 1 }, width: '100%' }}>
           <MainCard contentSX={{ p: { xs: 1.75, sm: 2.5 } }}>
-            {/* Unit limit alert — inside the plans card */}
+            {/* Unit limit alert — keep existing limits visible without an unavailable upgrade path */}
             {atUnitLimit && (
               <Alert
                 severity="error"
@@ -357,45 +238,21 @@ export default function SubscriptionSettings() {
                   flexDirection: { xs: 'column', sm: 'row' },
                   '& .MuiAlert-action': { width: { xs: '100%', sm: 'auto' }, ml: { xs: 0, sm: 2 }, pt: { xs: 1.25, sm: 0 } }
                 }}
-                action={
-                  <Button
-                    variant="contained"
-                    color="error"
-                    size="small"
-                    sx={{
-                      textTransform: 'none',
-                      fontWeight: 600,
-                      whiteSpace: 'nowrap',
-                      borderRadius: 1.5,
-                      px: 3,
-                      width: { xs: '100%', sm: 'auto' }
-                    }}
-                    onClick={() => document.getElementById('plans-section')?.scrollIntoView({ behavior: 'smooth' })}
-                  >
-                    Upgrade now →
-                  </Button>
-                }
+
               >
                 <Typography variant="body2" fontWeight={600}>
                   You&apos;ve hit your unit limit ({status.currentTotalUnits} / {status.maxTotalUnits})
                 </Typography>
                 <Typography variant="caption" display="block">
-                  You won&apos;t be able to add new units until you upgrade.
+                  Contact support if you need help managing your units.
                 </Typography>
               </Alert>
             )}
 
-            {plansLoading ? (
-              <Box sx={{ py: 4, textAlign: 'center' }}><CircularProgress /></Box>
-            ) : (
-              <PlanComparisonTable
-                plans={plans}
-                currentPlanId={currentPlanId}
-                currentBillingCycle={currentBillingCycle}
-                onSelectPlan={handlePlanSelected}
-                loading={checkoutLoading}
-              />
-            )}
+            <Typography variant="h5" fontWeight={700}>Free plan</Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              All available Property Peace features are included at no subscription cost. Some features require setup or provider availability.
+            </Typography>
           </MainCard>
         </Box>
 
@@ -446,7 +303,7 @@ export default function SubscriptionSettings() {
                   <Box>
                     <Typography variant="body1" fontWeight={600}>Have questions?</Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-                      Talk to our team about which plan fits your portfolio.
+                      Talk to our team if you need help with your subscription or billing.
                     </Typography>
                     <Button
                       variant="outlined"
@@ -495,25 +352,9 @@ export default function SubscriptionSettings() {
         onClose={() => setOrphanedModalOpen(false)}
         onFix={handleFixOrphanedSubscription}
         subscription={subscription}
-        loading={checkoutLoading}
       />
 
-      <ConfirmationDialog
-        open={confirmDialogOpen}
-        onClose={() => {
-          setConfirmDialogOpen(false);
-          setPendingPlan(null);
-          setPendingBillingCycle(null);
-          setPendingAction(null);
-          setConfirmMessage('');
-        }}
-        onConfirm={handleConfirmPlanChange}
-        title={pendingAction === 'upgrade' ? 'Confirm Subscription Upgrade' : 'Confirm Subscription Change'}
-        message={confirmMessage}
-        confirmText={pendingAction === 'upgrade' ? 'Upgrade' : pendingAction === 'downgrade' ? 'Downgrade' : 'Confirm'}
-        cancelText="Cancel"
-        confirmColor={pendingAction === 'upgrade' ? 'success' : 'primary'}
-      />
+
     </Box>
   );
 }

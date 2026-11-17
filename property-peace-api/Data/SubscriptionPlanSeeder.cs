@@ -12,12 +12,12 @@ namespace brownstone_hub_api.Data
                 new SubscriptionPlan
                 {
                     Name = "Free",
-                    Description = "Start free with the essentials for a small portfolio.",
+                    Description = "Complete portfolio management with unlimited units and advanced workflows, free for everyone.",
                     MaxProperties = null,
-                    MaxTotalUnits = 5,
+                    MaxTotalUnits = null,
                     MonthlyPrice = 0,
                     AnnualPrice = 0,
-                    Features = "[\"Up to 5 units\", \"Hosted Property Peace listing page\", \"1 active external listing (coming soon)\", \"Lead management and showing scheduling\", \"Tenant portal\", \"Maintenance request tracking\", \"Lease management\", \"Basic rent tracking\", \"Expense tracking\", \"Document storage\", \"Digital rental applications\", \"Online rent payments (approval required)\"]",
+                    Features = "[\"Unlimited units\", \"Hosted Property Peace listing page\", \"Multiple active external listings (coming soon)\", \"Lead management and showing scheduling\", \"Tenant portal\", \"Maintenance request tracking\", \"Lease management\", \"Basic rent tracking\", \"Expense tracking\", \"Document storage\", \"Digital rental applications\", \"Online rent payments (approval required)\", \"Automated rent reminders\", \"Advanced accounting and Schedule E\", \"Reports and analytics\", \"Occupancy tracking\", \"Rent estimates\", \"LeaseShield\", \"Dedicated SMS number\", \"Percy Pilot workflows\"]",
                     IsActive = true,
                     IsTrial = false,
                 },

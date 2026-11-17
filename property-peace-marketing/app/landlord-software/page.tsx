@@ -132,7 +132,7 @@ export default function LandlordSoftwarePage() {
                 className="text-white/80"
                 style={{ fontFamily: '"Inter", sans-serif' }}
               >
-                Free for up to 5 units. No per-unit fees. Premium features like LeaseShield available on higher plans.
+                Free for unlimited units. No per-unit fees. Percy Pilot tools have limited availability.
               </p>
             </div>
             <div>
@@ -166,7 +166,7 @@ export default function LandlordSoftwarePage() {
             className="text-xl text-[var(--brand-border)] mb-8"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
-            Free for up to 5 units. Simple, flat pricing — no per-unit fees. Cancel anytime.
+            Free for unlimited units. No per-unit fees or subscription required.
           </p>
           <Link
             href="https://app.propertypeace.io/register"

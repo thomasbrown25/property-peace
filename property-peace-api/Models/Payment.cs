@@ -10,6 +10,7 @@ namespace brownstone_hub_api.Models
 
         [Required]
         public long LeaseId { get; set; }
+        public long? TenantId { get; set; } // Attributed payer; null for legacy or unassigned online payments
 
         [ForeignKey(nameof(LeaseId))]
         public Lease Lease { get; set; } = null!;

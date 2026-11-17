@@ -10,6 +10,30 @@ const charge = (dueDate, amount = 100, overrides = {}) => ({
   payments: [{ id: 12, amount, status: 'Completed', paymentDate: payment.paymentDate }], ...overrides
 });
 
+test('rent paid within the lease grace period is on time, but after the deadline is late', () => {
+  const property = { units: [{ lease: { id: 7, fees: [{ isLateFee: true, appliedAfterDays: 5 }] } }] };
+  assert.equal(getPaymentTiming({ ...payment, paymentDate: '2026-07-03' }, [
+    { ...charge('2026-07-01'), payments: [{ id: 12, amount: 100, status: 'Completed', paymentDate: '2026-07-03' }] }
+  ], property), 'On time');
+  assert.equal(getPaymentTiming({ ...payment, paymentDate: '2026-07-06' }, [
+    { ...charge('2026-07-01'), payments: [{ id: 12, amount: 100, status: 'Completed', paymentDate: '2026-07-06' }] }
+  ], property), 'On time');
+  assert.equal(getPaymentTiming({ ...payment, paymentDate: '2026-07-07' }, [
+    { ...charge('2026-07-01'), payments: [{ id: 12, amount: 100, status: 'Completed', paymentDate: '2026-07-07' }] }
+  ], property), 'Late');
+});
+
+test('rent grace uses the earliest configured late-fee deadline, including zero and month rollover', () => {
+  const property = { units: [{ leases: [{ id: 7, fees: [
+    { isLateFee: true, appliedAfterDays: 5 }, { isLateFee: true, startingAfterDays: 2 }
+  ] }] }] };
+  assert.equal(getPaymentTiming(payment, [charge('2026-02-28')], property), 'On time');
+  assert.equal(getPaymentTiming({ ...payment, paymentDate: '2026-03-03' }, [
+    { ...charge('2026-02-28'), payments: [{ id: 12, amount: 100, status: 'Completed', paymentDate: '2026-03-03' }] }
+  ], property), 'Late');
+  assert.equal(getPaymentTiming(payment, [charge('2026-03-01')], { units: [{ lease: { id: 7, fees: [{ isLateFee: true, appliedAfterDays: 0 }] } }] }), 'Late');
+});
+
 test('payments before or on their allocated due day are on time, later payments are late', () => {
   assert.equal(getPaymentTiming(payment, [charge('2026-03-03')]), 'On time');
   assert.equal(getPaymentTiming(payment, [charge('2026-03-02T00:00:00')]), 'On time');
@@ -52,6 +76,18 @@ test('fees and deposits use their own obligations and never unrelated receipt ID
   const receipt = charge('2026-03-01', 100, { type: 'Deposit', payments: [{ ...charge().payments[0], status: 'Received' }] });
   assert.equal(getPaymentTiming({ ...payment, depositId: 3 }, [receipt]), null);
   assert.equal(getPaymentTiming(payment, [charge('2026-03-01', 100, { type: 'Fee' })]), null);
+});
+
+test('loaded payment timings use the configured grace period from the property lease', async () => {
+  const july = { ...payment, paymentDate: '2026-07-03' };
+  const property = { units: [{ lease: { id: 7, fees: [{ isLateFee: true, appliedAfterDays: 5 }] } }] };
+  const result = await loadPaymentTimings([july], async () => [
+    { ...charge('2026-07-01'), payments: [{ id: 12, amount: 100, status: 'Completed', paymentDate: '2026-07-03' }] }
+  ], property);
+  assert.equal(result.payments[0].paymentTiming, 'On time');
+  assert.equal(getPaymentTiming(july, [charge('2026-07-01', 100, {
+    payments: [{ id: 12, amount: 100, status: 'Completed', paymentDate: '2026-07-03' }]
+  })], { units: [] }), null, 'missing lease configuration cannot imply a late payment');
 });
 
 test('fetches once per lease and isolates failures while retaining payment history', async () => {

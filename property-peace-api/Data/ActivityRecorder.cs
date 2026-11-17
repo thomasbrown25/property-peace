@@ -12,6 +12,10 @@ internal static class ActivityRecorder
     internal static int Save(DataContext db, ClaimsPrincipal? actor, bool accept, Func<int> save) =>
         SaveAsync(db, actor, accept, () => Task.FromResult(save()), default).GetAwaiter().GetResult();
 
+    // SQL Server limits savepoint identifiers to 32 characters. The 23 hex digits retain
+    // 92 random bits while leaving room for the activity_ prefix.
+    internal static string NewSavepointName() => "activity_" + Guid.NewGuid().ToString("N")[..23];
+
     internal static async Task<int> SaveAsync(DataContext db, ClaimsPrincipal? actor, bool accept,
         Func<Task<int>> save, CancellationToken ct)
     {
@@ -37,7 +41,7 @@ internal static class ActivityRecorder
             var events = new List<ActivityEvent>();
             IDbContextTransaction? owned = null;
             var transaction = db.Database.IsRelational() ? db.Database.CurrentTransaction : null;
-            var savepoint = "activity_" + Guid.NewGuid().ToString("N");
+            var savepoint = NewSavepointName();
             var autoDetect = db.ChangeTracker.AutoDetectChangesEnabled;
             try
             {

@@ -142,6 +142,29 @@ export default function RenterProfilePage() {
   const [removing, setRemoving] = useState(false);
   const [sendingInvite, setSendingInvite] = useState(false);
   const [uploadingInsurance, setUploadingInsurance] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+  const uploadPhoto = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 5 * 1024 * 1024 || file.size === 0) {
+      openSnackbar({ open: true, message: 'Choose a JPEG, PNG, or WebP image under 5 MB.', variant: 'alert', alert: { color: 'error' } });
+      return;
+    }
+    try {
+      setUploadingPhoto(true);
+      const form = new FormData();
+      form.append('file', file);
+      const response = await axiosServices.post(`/api/tenant/${numericRenterId}/photo`, form);
+      const imageUrl = response.data?.imageUrl ?? response.data?.ImageUrl;
+      if (!imageUrl) throw new Error('Unable to save renter photo.');
+      setRenter((current) => ({ ...current, profileImageUrl: imageUrl }));
+      openSnackbar({ open: true, message: 'Renter photo updated.', variant: 'alert', alert: { color: 'success' } });
+    } catch (error) {
+      openSnackbar({ open: true, message: error?.response?.data?.message || error?.message || 'Unable to upload renter photo.', variant: 'alert', alert: { color: 'error' } });
+    } finally { setUploadingPhoto(false); }
+  };
 
   const fetchRenter = useCallback(async () => {
     if (!Number.isSafeInteger(numericRenterId) || numericRenterId <= 0) {
@@ -485,7 +508,15 @@ export default function RenterProfilePage() {
         <Grid size={{ xs: 12, md: 3.25 }}>
           <Paper variant="outlined" sx={{ p: { xs: 2, md: 2.5 }, borderRadius: 3, position: { md: 'sticky' }, top: { md: 88 }, boxShadow: `0 12px 32px ${alpha(theme.palette.common.black, 0.05)}` }}>
             <Stack direction={{ xs: 'row', md: 'column' }} spacing={2} alignItems={{ xs: 'center', md: 'stretch' }}>
-              <Avatar src={read(linkedUser, 'profileImageUrl', 'ProfileImageUrl')} sx={{ width: { xs: 64, md: 82 }, height: { xs: 64, md: 82 }, alignSelf: { md: 'center' }, bgcolor: 'primary.main', fontSize: '1.4rem', fontWeight: 750 }}>{initials}</Avatar>
+              <Box sx={{ position: 'relative', width: { xs: 76, md: 100 }, height: { xs: 76, md: 100 }, alignSelf: { md: 'center' }, flexShrink: 0 }}>
+                <Avatar src={read(renter, 'profileImageUrl', 'ProfileImageUrl') || read(linkedUser, 'profileImageUrl', 'ProfileImageUrl')} sx={{ width: '100%', height: '100%', bgcolor: 'primary.main', fontSize: '1.6rem', fontWeight: 750 }}>{initials}</Avatar>
+                <Tooltip title="Upload renter photo">
+                  <IconButton component="label" aria-label="Upload renter photo" size="small" disabled={uploadingPhoto} sx={{ position: 'absolute', right: -4, top: -4, width: 32, height: 32, p: 0.75, bgcolor: 'transparent', color: 'common.white', border: 0, borderRadius: 0, boxShadow: 'none', '&:hover': { bgcolor: 'transparent', opacity: 0.8 }, '&:focus-visible': { outline: '2px solid', outlineColor: 'common.white', outlineOffset: 2 } }}>
+                    {uploadingPhoto ? <CircularProgress size={18} color="inherit" /> : <EditOutlined style={{ fontSize: 19, filter: 'drop-shadow(0 1px 2px rgba(0, 0, 0, 0.8))' }} />}
+                    <input hidden type="file" accept="image/png,image/jpeg,image/webp" onChange={uploadPhoto} disabled={uploadingPhoto} />
+                  </IconButton>
+                </Tooltip>
+              </Box>
               <Box sx={{ minWidth: 0, textAlign: { md: 'center' }, flex: { xs: 1, md: 'initial' } }}>
                 <Typography variant={isMobile ? 'h5' : 'h4'} fontWeight={750} sx={{ overflowWrap: 'anywhere' }}>{fullName}</Typography>
                 <Chip size="small" label={portalConnected ? 'Portal connected' : renterEmail ? 'Ready to invite' : 'Email needed'} color={portalConnected ? 'success' : renterEmail ? 'warning' : 'default'} variant="outlined" sx={{ mt: 0.75, fontWeight: 700 }} />
@@ -505,7 +536,7 @@ export default function RenterProfilePage() {
               <Box><Typography variant="overline" color="text.secondary" fontWeight={800}>Renter profile</Typography><Typography variant="h4" fontWeight={750}>Details &amp; activity</Typography></Box>
               <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                 <Button variant="outlined" startIcon={<MessageOutlined />} onClick={() => setMessageOpen(true)}>Message</Button>
-                <Button variant="contained" color="success" startIcon={<DollarOutlined />} disabled={!activeLeaseId} onClick={() => activeLeaseId && navigate(`/landlord/leases/${activeLeaseId}/charges`)}>Add charge</Button>
+                <Button variant="contained" startIcon={<DollarOutlined />} disabled={!activeLeaseId} onClick={() => activeLeaseId && navigate(`/landlord/leases/${activeLeaseId}/charges`)}>Add charge</Button>
                 <Tooltip title="Renter actions"><IconButton aria-label="Renter actions" onClick={(event) => setActionsAnchor(event.currentTarget)} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1.5 }}><MoreOutlined /></IconButton></Tooltip>
               </Stack>
             </Stack>

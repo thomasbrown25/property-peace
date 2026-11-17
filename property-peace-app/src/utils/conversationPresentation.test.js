@@ -16,6 +16,39 @@ describe('getConversationBubbleSx', () => {
     }
   });
 
+  it('uses distinct theme-backed sent and received colors in chat without changing support tickets', () => {
+    const theme = {
+      palette: {
+        primary: { 100: '#DDF0E3' },
+        background: { paper: '#FFFFFF' },
+        surface: { accentBorder: '#ABD3BD' },
+        divider: '#DBE3DA'
+      }
+    };
+    const sent = getConversationBubbleSx({ isOwn: true, brandedChat: true });
+    const received = getConversationBubbleSx({ isOwn: false, brandedChat: true });
+    assert.equal(sent.bgcolor(theme), '#DDF0E3');
+    assert.equal(received.bgcolor(theme), '#FFFFFF');
+    assert.equal(sent.border(theme), '1px solid #ABD3BD');
+    assert.equal(received.border(theme), '1px solid #DBE3DA');
+    assert.equal(sent['& .MuiTypography-root'].color, 'text.primary');
+    assert.equal(received['& .MuiTypography-root'].color, 'text.primary');
+    assert.equal(getConversationBubbleSx({ isOwn: true }).bgcolor, '#E7F3FB');
+  });
+
+  it('keeps contrast in dark chat using the dark palette', () => {
+    const theme = {
+      palette: {
+        primary: { 100: '#21483D' },
+        background: { paper: '#1A302D' },
+        surface: { accentBorder: '#5B947B' },
+        divider: '#3B5950'
+      }
+    };
+    assert.equal(getConversationBubbleSx({ isOwn: true, brandedChat: true }).bgcolor(theme), '#21483D');
+    assert.equal(getConversationBubbleSx({ isOwn: false, brandedChat: true }).bgcolor(theme), '#1A302D');
+  });
+
   it('preserves sender direction through the leading top corner', () => {
     const sent = getConversationBubbleSx({ isOwn: true });
     const received = getConversationBubbleSx({ isOwn: false });

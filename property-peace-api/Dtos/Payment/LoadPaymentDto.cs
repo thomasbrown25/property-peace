@@ -4,6 +4,7 @@ namespace brownstone_hub_api.Dtos.Payment
     {
         public long Id { get; set; }
         public long LeaseId { get; set; }
+        public long? TenantId { get; set; }
         public long PropertyId { get; set; }
         public decimal Amount { get; set; }
         public DateTime PaymentDate { get; set; }

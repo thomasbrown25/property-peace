@@ -30,11 +30,3 @@ export function canManagePaidBilling(subscription) {
     && subscription?.isOrphaned === false
     && ['Active', 'Paused'].includes(subscription?.status);
 }
-
-export function shouldStartCheckoutForPlanChange(subscription) {
-  const planName = subscription?.plan?.name?.trim().toLowerCase();
-  return !subscription
-    || subscription.status === 'Trial'
-    || subscription.status !== 'Active'
-    || (planName === 'free' && !subscription.cancelAtPeriodEnd);
-}

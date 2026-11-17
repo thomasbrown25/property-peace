@@ -14,7 +14,7 @@ export default function RentCollectionFaq({ live }: RentCollectionFaqProps) {
     },
     {
       question: "Is online rent collection included with Free?",
-      answer: "Yes. Rent payment access is included with the Free plan, but it starts off by default and requires organization approval and payment setup. SMS messaging remains a Premium feature and requires activation and configuration.",
+      answer: "Yes. Rent payment access is included for free, but it starts off by default and requires organization approval and payment setup. SMS messaging requires activation and configuration.",
     },
     {
       question: "Why does my organization need approval?",
@@ -30,7 +30,7 @@ export default function RentCollectionFaq({ live }: RentCollectionFaqProps) {
     },
     {
       question: "Does Property Peace support automatic reminders and custom late fees?",
-      answer: "Landlords can configure late-fee rules and schedule rent reminders. These are rule-based follow-ups—not autonomous decisions—and SMS delivery requires Premium plus messaging setup.",
+      answer: "Landlords can configure late-fee rules and schedule rent reminders. These are rule-based follow-ups—not autonomous decisions—and SMS delivery requires activation and messaging setup.",
     },
     {
       question: "Is it safe to collect rent online?",

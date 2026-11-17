@@ -6,7 +6,7 @@ import { useSelector } from 'react-redux';
 import useAuth from 'hooks/useAuth';
 import useFetchProperties from 'hooks/useFetchProperties';
 import useFetchAllTenants from 'hooks/useFetchAllTenants';
-import { useSubscription, useSubscriptionStatus } from 'hooks/useSubscription';
+import { useSubscriptionStatus } from 'hooks/useSubscription';
 import { selectTenants } from 'store/tenant/tenant.selector';
 import { selectCurrentUser } from 'store/user/user.selector';
 import axiosServices from 'utils/axios';
@@ -20,7 +20,7 @@ export default function useLandlordSetupSteps(onClose) {
   const { properties, isLoading: propertiesLoading } = useFetchProperties();
   const { isLoading: tenantsLoading } = useFetchAllTenants();
   const { status: subscriptionStatus } = useSubscriptionStatus();
-  const { subscription } = useSubscription();
+
   const tenants = useSelector(selectTenants);
   const [smsNumberStatus, setSmsNumberStatus] = useState(null);
   const [smsNumberStatusLoading, setSmsNumberStatusLoading] = useState(true);
@@ -149,27 +149,8 @@ export default function useLandlordSetupSteps(onClose) {
     [tenants]
   );
 
-  const hasPremiumOrLifetimeSubscription = useMemo(() => {
-    const primarySubscription = subscription || subscriptionStatus?.subscription || subscriptionStatus?.Subscription;
-    const planName = String(primarySubscription?.plan?.name || primarySubscription?.Plan?.Name || '').toLowerCase();
-    const billingCycle = String(primarySubscription?.billingCycle || primarySubscription?.BillingCycle || '').toLowerCase();
-
-    return (
-      planName === 'premium' ||
-      planName.includes('lifetime') ||
-      billingCycle === 'lifetime' ||
-      primarySubscription?.cancelAtPeriodEnd === true ||
-      primarySubscription?.CancelAtPeriodEnd === true
-    );
-  }, [subscription, subscriptionStatus]);
-
-  const effectiveSmsNumberStatus = useMemo(
-    () => ({
-      ...(smsNumberStatus || {}),
-      hasPremiumAccess: Boolean(smsNumberStatus?.hasPremiumAccess || hasPremiumOrLifetimeSubscription)
-    }),
-    [smsNumberStatus, hasPremiumOrLifetimeSubscription]
-  );
+  // SMS provisioning eligibility comes from the server; a subscription label is not authority.
+  const effectiveSmsNumberStatus = smsNumberStatus;
 
   const steps = useMemo(() => {
     const go = (path) => () => {
@@ -269,7 +250,7 @@ export default function useLandlordSetupSteps(onClose) {
           ? 'Active'
           : effectiveSmsNumberStatus?.hasPremiumAccess
             ? 'Recommended'
-            : 'Premium',
+            : 'Check availability',
         smsNumberStatus: effectiveSmsNumberStatus
       },
       {

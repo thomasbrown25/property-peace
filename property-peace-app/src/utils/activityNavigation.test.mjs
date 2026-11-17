@@ -40,8 +40,8 @@ test('legacy destinations and unknown categories are safe', () => {
 });
 test('IDs are encoded and deleted conversations never target a removed thread', () => {
   assert.equal(getActivityDestination({ activityType: 'Announcement', relatedId: 'a&b' }), '/landlord/announcements/details?id=a%26b');
-  assert.equal(getActivityDestination({ activityType: 'Message', conversationId: 'a&b' }), '/landlord/messages?conversationId=a%26b');
-  assert.equal(getActivityDestination({ activityType: 'Message', operation: 'Deleted', conversationId: 42 }), '/landlord/messages');
+  assert.equal(getActivityDestination({ activityType: 'Message', conversationId: 'a&b' }), '/landlord/chat?conversationId=a%26b');
+  assert.equal(getActivityDestination({ activityType: 'Message', operation: 'Deleted', conversationId: 42 }), '/landlord/chat');
 });
 test('event keys win; fallback separates source ID collisions and operations', () => {
   assert.equal(getActivityKey({ eventKey: 'durable:123' }), 'durable:123');

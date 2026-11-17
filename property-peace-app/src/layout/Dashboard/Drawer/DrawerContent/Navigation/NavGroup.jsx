@@ -365,7 +365,7 @@ export default function NavGroup({
                         py: 1.25,
                         boxShadow: theme.shadows[8],
                         backgroundImage: 'none',
-                        bgcolor: theme.palette.mode === 'dark' ? '#0b2a46' : 'background.paper',
+                        bgcolor: theme.palette.mode === 'dark' ? theme.palette.surface.raised : 'background.paper',
                         color: theme.palette.mode === 'dark' ? 'common.white' : 'text.primary'
                       })}
                     >

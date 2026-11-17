@@ -12,7 +12,7 @@ import {
   ListItemText,
   ListItemButton,
   Typography,
-  Button,
+
   useTheme
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
@@ -30,11 +30,11 @@ import {
   ToolOutlined,
   CloseOutlined
 } from '@ant-design/icons';
-import { StarOutlined, SettingOutlined } from '@ant-design/icons';
+import { SettingOutlined } from '@ant-design/icons';
 
 import { useSelector } from 'react-redux';
 import useAuth from 'hooks/useAuth';
-import { useSubscription } from 'hooks/useSubscription';
+
 import { useDrawer } from 'contexts/DrawerContext';
 import { selectConversations } from 'store/conversation/conversation.selector';
 import pages from 'menu-items/pages';
@@ -80,7 +80,7 @@ const mobileLandlordSections = (() => {
 const textColor = '#fff';
 const iconColor = 'rgba(255, 255, 255, 0.9)';
 const activeBg = 'rgba(255, 255, 255, 0.12)';
-const LIGHT_DRAWER_BACKGROUND = '#061e35';
+
 
 export default function BottomNavBar() {
   const theme = useTheme();
@@ -98,12 +98,7 @@ export default function BottomNavBar() {
   const shortTermOnly = useLandlordInventoryMenu(hasLandlordRole && !hasAdminRole && !normalizedRoles.includes('tenant'));
   const flattenedLandlordItems = flattenLandlordItems(landlordPagesForInventory(Array.isArray(pages) ? pages : [pages], shortTermOnly));
 
-  const { subscription, loading: subscriptionLoading } = useSubscription();
-  const planName = subscription?.plan?.name?.toLowerCase() ?? '';
-  const isPremium = planName === 'premium';
-  const isLifetime = planName.includes('lifetime');
-  const subscriptionUrl = '/landlord/settings?tab=subscription';
-  const showUpgrade = !subscriptionLoading && !isPremium && !isLifetime;
+
 
   const [moreOpen, setMoreOpen] = useState(false);
   const [plusMenuAnchor, setPlusMenuAnchor] = useState(null);
@@ -128,12 +123,12 @@ export default function BottomNavBar() {
 
   const barHeight = 80;
   const isDarkMode = theme.palette.mode === 'dark';
-  const bottomNavBg = isDarkMode ? theme.palette.background.default : LIGHT_DRAWER_BACKGROUND;
-  const bottomNavSolidBg = isDarkMode ? theme.palette.background.default : '#061e35';
+  const bottomNavBg = isDarkMode ? theme.palette.background.default : theme.palette.brand.forest;
+  const bottomNavSolidBg = isDarkMode ? theme.palette.background.default : theme.palette.brand.forest;
   const bottomNavBorder = isDarkMode ? theme.palette.divider : 'rgba(255, 255, 255, 0.08)';
   const quickActionRing = isDarkMode ? 'rgba(255, 255, 255, 0.42)' : 'transparent';
   const quickActionInnerBorder = isDarkMode ? alpha(theme.palette.common.white, 0.26) : 'rgba(59, 130, 246, 0.22)';
-  const quickActionGlow = isDarkMode ? 'rgba(24, 119, 242, 0.42)' : 'rgba(4, 34, 56, 0.36)';
+  const quickActionGlow = alpha(theme.palette.brand.teal, isDarkMode ? 0.42 : 0.36);
   // Use max() so when iOS Safari hides its UI and reports 0, we keep a minimum and the bar doesn't jump
   const safeBottom = 'max(env(safe-area-inset-bottom, 0px), 20px)';
 
@@ -256,10 +251,10 @@ export default function BottomNavBar() {
           </Fab>
         </Box>
 
-        {/* Messages */}
+        {/* Chat */}
         <ListItemButton
           component={Link}
-          to="/landlord/messages"
+          to="/landlord/chat"
           onClick={() => {
             setMoreOpen(false);
             setPlusMenuAnchor(null);
@@ -278,7 +273,7 @@ export default function BottomNavBar() {
             <MessageOutlined style={{ fontSize: 25, marginBottom: 2, color: '#fff' }} />
           </Badge>
           <Typography variant="caption" sx={{ fontSize: '0.75rem', lineHeight: 1, color: 'inherit' }}>
-            Messages
+            Chat
           </Typography>
         </ListItemButton>
 
@@ -400,29 +395,7 @@ export default function BottomNavBar() {
         }}
       >
         <Box sx={{ pt: 2, pb: 3, px: 2 }}>
-          {/* Upgrade - same condition as sidenav */}
-          {!hasAdminRole && showUpgrade && (
-            <>
-              <Button
-                component={Link}
-                to={subscriptionUrl}
-                variant="contained"
-                color="success"
-                size="small"
-                fullWidth
-                startIcon={<StarOutlined style={{ fontSize: '0.875rem' }} />}
-                onClick={() => setMoreOpen(false)}
-                sx={{
-                  textTransform: 'none',
-                  fontWeight: 600,
-                  py: 1,
-                  mb: 2
-                }}
-              >
-                Upgrade to Premium
-              </Button>
-            </>
-          )}
+
 
           <Grid container spacing={1.5}>
             {flattenedLandlordItems.map((item) => {

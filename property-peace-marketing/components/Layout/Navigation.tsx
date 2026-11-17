@@ -639,7 +639,7 @@ export default function Navigation() {
                     <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-[color-mix(in_srgb,var(--brand-mint)_12%,transparent)] text-brand-mint"><FiDollarSign className="h-4 w-4" /></span>
                     <span className="min-w-0">
                       <span className="block text-[15px] font-semibold">Pricing</span>
-                      <span className="block text-xs text-white/50">Start free, upgrade when ready</span>
+                      <span className="block text-xs text-white/50">Free for unlimited units</span>
                     </span>
                   </Link>
                   <Link

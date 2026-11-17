@@ -7,7 +7,8 @@ import {
   Box,
   Typography,
   CircularProgress,
-  alpha
+  alpha,
+  useTheme
 } from '@mui/material';
 import { CreditCardOutlined, CloseOutlined } from '@ant-design/icons';
 import { loadConnectAndInitialize } from '@stripe/connect-js';
@@ -17,6 +18,7 @@ import { openSnackbar } from 'api/snackbar';
 import useAuth from 'hooks/useAuth';
 
 export default function StripeConnectOnboardingDialog({ open, onClose, onComplete }) {
+  const theme = useTheme();
   const { user } = useAuth();
   const [stripeConnectInstance, setStripeConnectInstance] = useState(null);
   const [fetchingSession, setFetchingSession] = useState(false);
@@ -212,7 +214,7 @@ export default function StripeConnectOnboardingDialog({ open, onClose, onComplet
         appearance: {
           overlays: 'dialog',
           variables: {
-            colorPrimary: '#061e35',
+            colorPrimary: theme.palette.primary.main,
             colorBackground: 'transparent',
             colorText: 'inherit',
             colorDanger: '#f44336',
@@ -229,8 +231,8 @@ export default function StripeConnectOnboardingDialog({ open, onClose, onComplet
               padding: '8px 12px'
             },
             '.Input:focus': {
-              borderColor: '#061e35',
-              boxShadow: '0 0 0 2px rgba(6, 30, 53, 0.2)'
+              borderColor: theme.palette.primary.main,
+              boxShadow: `0 0 0 2px ${alpha(theme.palette.primary.main, 0.2)}`
             },
             '.Label': {
               color: 'inherit',
@@ -411,8 +413,8 @@ export default function StripeConnectOnboardingDialog({ open, onClose, onComplet
                 fontSize: '0.875rem !important',
                 borderRadius: '4px !important',
                 '&:focus': {
-                  borderColor: '#061e35 !important',
-                  boxShadow: '0 0 0 2px rgba(6, 30, 53, 0.2) !important',
+                  borderColor: `${theme.palette.primary.main} !important`,
+                  boxShadow: `0 0 0 2px ${alpha(theme.palette.primary.main, 0.2)} !important`,
                   outline: 'none !important'
                 }
               },
@@ -423,13 +425,13 @@ export default function StripeConnectOnboardingDialog({ open, onClose, onComplet
                 marginBottom: '8px !important'
               },
               '& button[type="submit"]': {
-                backgroundColor: '#061e35 !important',
+                backgroundColor: `${theme.palette.brand.forest} !important`,
                 color: '#fff !important',
                 borderRadius: '4px !important',
                 fontWeight: 600,
                 textTransform: 'none',
                 '&:hover': {
-                  backgroundColor: '#042238 !important'
+                  backgroundColor: `${theme.palette.primary.dark} !important`
                 }
               }
             }}

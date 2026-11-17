@@ -54,7 +54,7 @@ export default function CTA({ featured = false }: CTAProps) {
                 <span className="text-brand-mint">✓</span> No credit card required
               </li>
               <li className="flex items-center gap-2">
-                <span className="text-brand-mint">✓</span> Free forever plan
+                <span className="text-brand-mint">✓</span> Free for unlimited units
               </li>
               <li className="flex items-center gap-2">
                 <span className="text-brand-mint">✓</span> Built for landlords with 1–50 units
@@ -128,7 +128,7 @@ export default function CTA({ featured = false }: CTAProps) {
             <span className="text-brand-mint">✓</span> Start free — no credit card required
           </li>
           <li className="flex items-center gap-2">
-            <span className="text-brand-mint">✓</span> Cancel anytime
+            <span className="text-brand-mint">✓</span> No subscription required
           </li>
           <li className="flex items-center gap-2">
             <span className="text-brand-mint">✓</span> Built for landlords with 1–50 units

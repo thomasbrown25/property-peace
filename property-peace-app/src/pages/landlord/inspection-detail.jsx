@@ -388,7 +388,7 @@ function ItemPhotosModal({ open, onClose, item, checklistId, onUpdated }) {
                       sx={{
                         position: 'absolute',
                         inset: 0,
-                        bgcolor: 'rgba(6, 30, 53, 0.52)',
+                        bgcolor: alpha(theme.palette.brand.forest, 0.52),
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -1908,7 +1908,7 @@ function ConditionComparison({ moveIn, moveOut }) {
         const roomWorse = roomItems.filter((item) => item.result === 'worse').length;
         return (
           <MainCard key={room} content={false} sx={{ border: `1px solid ${theme.palette.divider}`, overflow: 'hidden' }}>
-            <Box sx={{ px: 2.25, py: 1.5, bgcolor: roomWorse ? alpha(theme.palette.error.main, 0.045) : alpha('#061e35', 0.025), borderBottom: `1px solid ${theme.palette.divider}` }}>
+            <Box sx={{ px: 2.25, py: 1.5, bgcolor: roomWorse ? alpha(theme.palette.error.main, 0.045) : alpha(theme.palette.brand.forest, 0.025), borderBottom: `1px solid ${theme.palette.divider}` }}>
               <Stack direction="row" justifyContent="space-between" alignItems="center">
                 <Typography variant="h5" fontWeight={800}>{room}</Typography>
                 <Typography variant="caption" color={roomWorse ? 'error.main' : 'text.secondary'} fontWeight={700}>{roomWorse ? `${roomWorse} worse` : 'No declines'}</Typography>

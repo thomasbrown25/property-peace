@@ -77,7 +77,7 @@ export default function TenantMaintenanceFormDrawer({ open, onClose, onRequestCr
 
   return <ThemeAdaptiveDrawer anchor="right" open={open} onClose={resetAndClose} PaperProps={{ sx: { width: { xs: '100%', sm: 620 }, bgcolor: 'background.paper', backgroundImage: 'none' } }}>
     <Stack sx={{ height: '100%' }}>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ px: { xs: 2, sm: 3 }, py: 2, bgcolor: '#061e35', color: '#fff' }}>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ px: { xs: 2, sm: 3 }, py: 2, bgcolor: 'brand.forest', color: '#fff' }}>
         <Box><Typography variant="h5" color="inherit" fontWeight={750}>Report a repair</Typography><Typography variant="caption" sx={{ color: alpha('#fff', .72) }}>Structured intake · emergency guidance does not depend on Percy</Typography></Box>
         <IconButton onClick={resetAndClose} sx={{ color: '#fff' }} aria-label="Close"><CloseOutlined /></IconButton>
       </Stack>
