@@ -46,18 +46,18 @@ export default function DrawerContent() {
             overflowX: 'hidden',
             overscrollBehavior: 'contain',
             scrollbarWidth: 'thin',
-            scrollbarColor: `${alpha('#061e35', 0.38)} ${alpha('#061e35', 0.06)}`,
+            scrollbarColor: `${alpha(theme.palette.brand.forest, 0.38)} ${alpha(theme.palette.brand.forest, 0.06)}`,
             '&::-webkit-scrollbar': { width: 8 },
             '&::-webkit-scrollbar-track': {
-              backgroundColor: alpha('#061e35', 0.06),
+              backgroundColor: alpha(theme.palette.brand.forest, 0.06),
               borderRadius: 999
             },
             '&::-webkit-scrollbar-thumb': {
-              backgroundColor: alpha('#061e35', 0.38),
+              backgroundColor: alpha(theme.palette.brand.forest, 0.38),
               border: `2px solid ${theme.palette.background.paper}`,
               borderRadius: 999
             },
-            '&::-webkit-scrollbar-thumb:hover': { backgroundColor: alpha('#061e35', 0.56) }
+            '&::-webkit-scrollbar-thumb:hover': { backgroundColor: alpha(theme.palette.brand.forest, 0.56) }
           })}
         >
           <Box>

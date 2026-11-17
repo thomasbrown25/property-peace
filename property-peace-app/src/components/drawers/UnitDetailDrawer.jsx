@@ -203,7 +203,7 @@ export default function UnitDetailDrawer({ open, unit, property, onClose }) {
                     size="small"
                     fullWidth
                     startIcon={<MessageOutlined />}
-                    onClick={() => navigate('/landlord/messages')}
+                    onClick={() => navigate('/landlord/chat')}
                     sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 1.5, fontSize: '0.78rem' }}
                   >
                     Message

@@ -5,7 +5,7 @@ import { Drawer } from '@mui/material';
 // project imports
 import { DRAWER_WIDTH } from 'config';
 
-const getDrawerBackground = (theme) => (theme.palette.mode === 'dark' ? '#061e35' : theme.palette.common.white);
+const getDrawerBackground = (theme) => (theme.palette.mode === 'dark' ? theme.palette.brand.forest : theme.palette.common.white);
 
 const getDrawerEdge = (theme) => ({
   borderRight: 'none',

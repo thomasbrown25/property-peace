@@ -188,7 +188,7 @@ export default function ESignDocumentPage() {
                   mb: 2
                 }}
               >
-                Upgrade to Premium now to save time and hassle with e-sign!
+                Sign documents without printing or meeting in person
               </Typography>
 
               <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>

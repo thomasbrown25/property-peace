@@ -56,6 +56,7 @@ import { getMessages } from 'store/message/message.action';
 import { selectMessages } from 'store/message/message.selector';
 import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
 import useFetchProperties from 'hooks/useFetchProperties';
+import { recordTabsSx } from 'sections/landlord/property/recordTabsStyle';
 
 export default function TenantPage() {
   const { tenantId } = useParams();
@@ -580,24 +581,8 @@ export default function TenantPage() {
         </Stack>
       </Stack>
 
-      <Box
-        sx={{
-          borderBottom: `1px solid ${theme.palette.divider}`,
-          mb: 0,
-          '& .MuiTabs-root': { minHeight: 42 },
-          '& .MuiTab-root': {
-            minHeight: 42,
-            px: 0,
-            mr: 3,
-            textTransform: 'none',
-            fontWeight: 600,
-            color: 'text.secondary',
-            '&.Mui-selected': { color: 'primary.main' }
-          },
-          '& .MuiTabs-indicator': { height: 2, borderRadius: 2 }
-        }}
-      >
-        <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)}>
+      <Box sx={recordTabsSx}>
+        <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)} variant="scrollable" scrollButtons="auto" aria-label="Tenant sections">
           <Tab label="Overview" id="tenant-tab-0" aria-controls="tenant-tabpanel-0" />
           <Tab label="Messages" id="tenant-tab-1" aria-controls="tenant-tabpanel-1" />
         </Tabs>

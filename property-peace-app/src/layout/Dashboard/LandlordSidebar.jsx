@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { Link, useLocation } from 'react-router-dom';
-import { DownOutlined, HomeOutlined, MoreOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
-import { Box, Collapse, Drawer, IconButton, InputAdornment, List, ListItemButton, ListItemText, TextField, Typography } from '@mui/material';
+import { DownOutlined, HomeOutlined, MoreOutlined, PlusOutlined, SearchOutlined, SettingOutlined } from '@ant-design/icons';
+import { Box, Collapse, Drawer, IconButton, List, ListItemButton, ListItemText, TextField, Typography, useMediaQuery } from '@mui/material';
 import Logo from 'components/logo';
 import { brand } from 'themes/brand';
 import placeholderImage from 'assets/images/placeholder-house.png';
@@ -13,6 +13,7 @@ import { useSubscriptionStatus } from 'hooks/useSubscription';
 import { activeLandlordPrimaryLink, landlordMoreLinks, landlordPrimaryLinks } from 'utils/landlordPrimaryNavigation';
 
 export const LANDLORD_SIDEBAR_WIDTH = 260;
+const sidebarBackground = brand.forest;
 
 // One visit-order snapshot per account/organization for this page load. A route
 // remount must not move a clicked property; a full reload creates fresh snapshots.
@@ -48,20 +49,20 @@ export default function LandlordSidebar({ mobileOpen, onMobileClose }) {
   const visibleProperties = propertyRows.filter((property) => `${property.name} ${property.address}`.toLocaleLowerCase().includes(searchTerm));
 
 
-  const renderPropertyNavigation = () => <PropertyNavigation properties={visibleProperties} total={propertyRows.length} search={propertySearch}
-    onSearch={setPropertySearch} pathname={pathname} disabled={trialExpired} user={user} onNavigate={onMobileClose}
+  const renderPropertyNavigation = (variant) => <PropertyNavigation properties={visibleProperties} total={propertyRows.length} search={propertySearch}
+    searchId={`property-sidebar-search-${variant}`} onSearch={setPropertySearch} pathname={pathname} disabled={trialExpired} user={user} onNavigate={onMobileClose}
     status={isLoading ? 'Loading properties…' : propertiesError ? 'Properties could not be loaded.' : propertyRows.length ? 'No matching properties.' : 'No properties yet.'} />;
 
   return <>
     <Drawer variant="permanent" open sx={{ display: { xs: 'none', lg: 'block' }, width: LANDLORD_SIDEBAR_WIDTH, flexShrink: 0,
-      '& .MuiDrawer-paper': { width: LANDLORD_SIDEBAR_WIDTH, boxSizing: 'border-box', height: '100dvh', bgcolor: brand.forest, borderRight: '1px solid', borderColor: 'rgba(255, 255, 255, 0.14)' } }}>
-      <Box sx={{ height: 60, flexShrink: 0, display: 'flex', alignItems: 'center', px: 3, bgcolor: brand.forest, borderBottom: '1px solid', borderColor: 'rgba(255, 255, 255, 0.14)' }}>
+      '& .MuiDrawer-paper': { width: LANDLORD_SIDEBAR_WIDTH, boxSizing: 'border-box', height: '100dvh', bgcolor: sidebarBackground, borderRight: '1px solid', borderColor: 'rgba(255, 255, 255, 0.14)' } }}>
+      <Box sx={{ height: 60, flexShrink: 0, display: 'flex', alignItems: 'center', px: 3, bgcolor: sidebarBackground, borderBottom: '1px solid', borderColor: 'rgba(255, 255, 255, 0.14)' }}>
         <Logo darkSurface disableTopPadding width={120} to="/landlord/dashboard" />
       </Box>
-      {renderPropertyNavigation()}
+      {renderPropertyNavigation('desktop')}
     </Drawer>
     <Drawer variant="temporary" open={mobileOpen} onClose={onMobileClose} ModalProps={{ keepMounted: true }}
-      sx={{ display: { xs: 'block', lg: 'none' }, '& .MuiDrawer-paper': { width: 300, maxWidth: '90vw', boxSizing: 'border-box', bgcolor: brand.forest } }}>
+      sx={{ display: { xs: 'block', lg: 'none' }, '& .MuiDrawer-paper': { width: 300, maxWidth: '90vw', boxSizing: 'border-box', bgcolor: sidebarBackground } }}>
       <Box sx={{ height: 60, flexShrink: 0, display: 'flex', alignItems: 'center', px: 3, borderBottom: '1px solid rgba(255, 255, 255, 0.14)' }}>
         <Logo darkSurface disableTopPadding width={120} to="/landlord/dashboard" />
       </Box>
@@ -80,9 +81,9 @@ export default function LandlordSidebar({ mobileOpen, onMobileClose }) {
             <DownOutlined style={{ fontSize: 11, transform: moreOpen ? 'rotate(180deg)' : undefined }} />
           </ListItemButton>
           <Collapse in={moreOpen} unmountOnExit>
-            {landlordMoreLinks.map(({ label, to }) => (
+            {landlordMoreLinks.filter(({ label }) => label !== 'Settings').map(({ label, to }) => (
               <ListItemButton key={label} component={Link} to={to} onClick={onMobileClose}
-                disabled={trialExpired && !['Settings', 'Help'].includes(label)}
+                disabled={trialExpired && label !== 'Help'}
                 sx={{ mx: 1.5, pl: 4, borderRadius: 1.5, color: '#FFFFFF' }}>
                 <ListItemText primary={label} primaryTypographyProps={{ fontSize: 13 }} />
               </ListItemButton>
@@ -90,13 +91,21 @@ export default function LandlordSidebar({ mobileOpen, onMobileClose }) {
           </Collapse>
         </List>
       </Box>
-      {renderPropertyNavigation()}
+      {renderPropertyNavigation('mobile')}
     </Drawer>
   </>;
 }
 
-function PropertyNavigation({ properties, total, search, onSearch, pathname, disabled, user, onNavigate, status }) {
+function PropertyNavigation({ properties, total, search, searchId, onSearch, pathname, disabled, user, onNavigate, status }) {
   const scrollRef = useRef(null);
+  const searchButtonRef = useRef(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
+  const closeSearch = () => {
+    setSearchOpen(false);
+    onSearch('');
+    searchButtonRef.current?.focus();
+  };
   const [hasMoreBelow, setHasMoreBelow] = useState(false);
   const updateOverflow = () => {
     const node = scrollRef.current;
@@ -115,7 +124,7 @@ function PropertyNavigation({ properties, total, search, onSearch, pathname, dis
     '&.Mui-selected': { bgcolor: 'rgba(185, 228, 203, 0.16)', '&:hover': { bgcolor: 'rgba(185, 228, 203, 0.22)' } },
     '&:focus-visible': { outline: '2px solid', outlineColor: brand.mint, outlineOffset: -2 }
   };
-  return <Box component="nav" aria-label="Property navigation" sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, bgcolor: brand.forest, color: '#FFFFFF' }}>
+  return <Box component="nav" aria-label="Property navigation" sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, bgcolor: sidebarBackground, color: '#FFFFFF' }}>
     <Box sx={{ px: 2.5, pt: 2.5, pb: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
       <Box component={Link} to="/landlord/properties" onClick={(event) => { if (disabled) event.preventDefault(); else onNavigate?.(); }}
         aria-disabled={disabled || undefined} tabIndex={disabled ? -1 : undefined}
@@ -127,14 +136,25 @@ function PropertyNavigation({ properties, total, search, onSearch, pathname, dis
         <Typography component="h2" variant="subtitle1" sx={{ fontWeight: 700, color: 'inherit' }}>Properties</Typography>
         <Typography component="span" variant="caption" sx={{ color: 'inherit', fontWeight: 600 }}>{total}</Typography>
       </Box>
-      <IconButton component={Link} to="/landlord/properties/add" aria-label="Add property" title="Add property"
-        disabled={disabled} onClick={onNavigate} size="small" sx={{ color: 'inherit' }}><PlusOutlined /></IconButton>
+      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+        <IconButton ref={searchButtonRef} aria-label="Search properties" title="Search properties"
+          aria-expanded={searchOpen} aria-controls={searchOpen ? searchId : undefined}
+          onClick={() => { if (searchOpen) closeSearch(); else setSearchOpen(true); }} size="small" sx={{ color: 'inherit' }}>
+          <SearchOutlined />
+        </IconButton>
+        <IconButton component={Link} to="/landlord/properties/add" aria-label="Add property" title="Add property"
+          disabled={disabled} onClick={onNavigate} size="small" sx={{ color: 'inherit' }}><PlusOutlined /></IconButton>
+      </Box>
     </Box>
-    <Box sx={{ px: 1.5, pt: 1, pb: 1, flexShrink: 0 }}>
-      <TextField size="small" fullWidth placeholder="Search properties" value={search} onChange={(event) => onSearch(event.target.value)}
-        slotProps={{ htmlInput: { 'aria-label': 'Search properties' }, input: { startAdornment: <InputAdornment position="start"><SearchOutlined /></InputAdornment> } }}
-        sx={{ '& .MuiOutlinedInput-root': { bgcolor: 'rgba(255,255,255,0.1)', color: '#FFFFFF', '& fieldset': { borderColor: 'rgba(255,255,255,0.25)' }, '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.5)' }, '&.Mui-focused fieldset': { borderColor: brand.mint } }, '& .MuiInputBase-input': { fontSize: 13, '&::placeholder': { color: 'rgba(255,255,255,0.8)', opacity: 1 } }, '& .MuiInputAdornment-root': { color: '#FFFFFF' } }} />
-    </Box>
+    <Collapse in={searchOpen} timeout={reducedMotion ? 0 : 240} unmountOnExit sx={{ flexShrink: 0 }}>
+      <Box id={searchId} sx={{ px: 1.5, pt: 1, pb: 1 }}>
+        <TextField size="small" fullWidth placeholder="Search properties" value={search} onChange={(event) => onSearch(event.target.value)}
+          inputRef={(node) => { if (node && searchOpen && document.activeElement === searchButtonRef.current) node.focus(); }}
+          onKeyDown={(event) => { if (event.key === 'Escape') { event.stopPropagation(); closeSearch(); } }}
+          slotProps={{ htmlInput: { 'aria-label': 'Search properties' } }}
+          sx={{ '& .MuiOutlinedInput-root': { bgcolor: 'rgba(255,255,255,0.1)', color: '#FFFFFF', '& fieldset': { borderColor: 'rgba(255,255,255,0.25)' }, '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.5)' }, '&.Mui-focused fieldset': { borderColor: brand.mint } }, '& .MuiInputBase-input': { fontSize: 13, '&::placeholder': { color: 'rgba(255,255,255,0.8)', opacity: 1 } } }} />
+      </Box>
+    </Collapse>
     <Box sx={{ position: 'relative', flex: 1, minHeight: 0 }}>
       <Box ref={scrollRef} onScroll={updateOverflow} sx={{ height: '100%', overflowY: 'auto', scrollbarWidth: 'thin',
         scrollbarColor: 'rgba(255,255,255,0.4) transparent',
@@ -157,7 +177,15 @@ function PropertyNavigation({ properties, total, search, onSearch, pathname, dis
         {!properties.length && <Typography role="status" sx={{ px: 3, py: 1, fontSize: 12, color: 'rgba(255,255,255,0.8)' }}>{status}</Typography>}
       </Box>
       {hasMoreBelow && <Box aria-hidden="true" sx={{ position: 'absolute', bottom: 0, left: 0, right: 6, height: 28, pointerEvents: 'none',
-        background: `linear-gradient(transparent, ${brand.forest})` }} />}
+        background: `linear-gradient(transparent, ${sidebarBackground})` }} />}
+    </Box>
+    <Box sx={{ borderTop: '1px solid rgba(255, 255, 255, 0.14)', flexShrink: 0, py: 1 }}>
+      <ListItemButton component={Link} to="/landlord/settings" onClick={onNavigate}
+        selected={pathname === '/landlord/settings' || pathname.startsWith('/landlord/settings/')}
+        sx={{ ...rowSx, gap: 1.5, px: 2, minHeight: 44 }}>
+        <SettingOutlined aria-hidden="true" />
+        <ListItemText primary="Settings" primaryTypographyProps={{ fontSize: 13, fontWeight: 600, sx: { color: '#FFFFFF' } }} />
+      </ListItemButton>
     </Box>
   </Box>;
 }
@@ -165,6 +193,6 @@ function PropertyNavigation({ properties, total, search, onSearch, pathname, dis
 LandlordSidebar.propTypes = { mobileOpen: PropTypes.bool, onMobileClose: PropTypes.func };
 PropertyNavigation.propTypes = {
   properties: PropTypes.array.isRequired, total: PropTypes.number.isRequired, search: PropTypes.string.isRequired,
-  onSearch: PropTypes.func.isRequired, pathname: PropTypes.string.isRequired, disabled: PropTypes.bool,
+  searchId: PropTypes.string.isRequired, onSearch: PropTypes.func.isRequired, pathname: PropTypes.string.isRequired, disabled: PropTypes.bool,
   user: PropTypes.object, onNavigate: PropTypes.func, status: PropTypes.string.isRequired
 };

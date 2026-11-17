@@ -73,12 +73,12 @@ export default function PropertyQuickActionsPanel({ property, propertyId, mobile
               justifyContent: 'flex-start',
               px: 2,
               borderRadius: 1.75,
-              borderColor: alpha('#061e35', 0.14),
-              bgcolor: '#ffffff',
-              color: '#061e35',
+              borderColor: alpha(theme.palette.brand.forest, 0.14),
+              bgcolor: 'background.paper',
+              color: theme.palette.brand.forest,
               fontWeight: 800,
               textTransform: 'none',
-              boxShadow: `0 10px 26px ${alpha('#061e35', 0.09)}`,
+              boxShadow: `0 10px 26px ${alpha(theme.palette.brand.forest, 0.09)}`,
               transition: 'border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease',
               '& .MuiButton-endIcon': {
                 ml: 'auto',
@@ -86,9 +86,9 @@ export default function PropertyQuickActionsPanel({ property, propertyId, mobile
                 transition: 'transform 280ms cubic-bezier(0.4, 0, 0.2, 1)'
               },
               '&:hover': {
-                borderColor: alpha('#061e35', 0.24),
-                bgcolor: '#ffffff',
-                boxShadow: `0 12px 30px ${alpha('#061e35', 0.12)}`
+                borderColor: alpha(theme.palette.brand.forest, 0.24),
+                bgcolor: 'background.paper',
+                boxShadow: `0 12px 30px ${alpha(theme.palette.brand.forest, 0.12)}`
               }
             }}
           >
@@ -105,8 +105,8 @@ export default function PropertyQuickActionsPanel({ property, propertyId, mobile
                 p: 0.75,
                 borderRadius: 2,
                 bgcolor: '#f8fafc',
-                border: `1px solid ${alpha('#061e35', 0.1)}`,
-                boxShadow: `0 14px 34px ${alpha('#061e35', 0.1)}`
+                border: `1px solid ${alpha(theme.palette.brand.forest, 0.1)}`,
+                boxShadow: `0 14px 34px ${alpha(theme.palette.brand.forest, 0.1)}`
               }}
             >
               <Stack spacing={0.75}>
@@ -126,13 +126,13 @@ export default function PropertyQuickActionsPanel({ property, propertyId, mobile
                       justifyContent: 'flex-start',
                       px: 1.5,
                       borderRadius: 1.5,
-                      borderColor: alpha('#061e35', 0.1),
-                      bgcolor: '#ffffff',
-                      color: '#061e35',
+                      borderColor: alpha(theme.palette.brand.forest, 0.1),
+                      bgcolor: 'background.paper',
+                      color: theme.palette.brand.forest,
                       fontWeight: 700,
                       textTransform: 'none',
-                      boxShadow: `0 4px 12px ${alpha('#061e35', 0.045)}`,
-                      '&:hover': { borderColor: alpha('#061e35', 0.22), bgcolor: '#ffffff' }
+                      boxShadow: `0 4px 12px ${alpha(theme.palette.brand.forest, 0.045)}`,
+                      '&:hover': { borderColor: alpha(theme.palette.brand.forest, 0.22), bgcolor: 'background.paper' }
                     }}
                   >
                     {action.label}

@@ -15,7 +15,7 @@ const steps = [
   },
   {
     label: 'Reminder sent',
-    caption: 'Send by email; Premium includes one SMS number, with activation and configuration required.',
+    caption: 'Send by email; an organization SMS number requires activation and configuration.',
     callout: 'Reminder ready',
   },
   {

@@ -2,15 +2,13 @@ import React from 'react';
 import { Box, ButtonBase, Paper, Stack, Typography, alpha } from '@mui/material';
 import { MAINTENANCE_STATUS_FLOW, normalizeWorkflowToken } from 'utils/maintenanceWorkflow';
 
-const NAVY = '#061e35';
-
 export default function MaintenanceStatusFlow({ currentStatus, onChange, disabled = false }) {
   return (
     <Paper
       component="section"
       variant="outlined"
       aria-labelledby="maintenance-status-heading"
-      sx={{ p: { xs: 2, md: 2.5 }, borderRadius: 2, boxShadow: `0 4px 18px ${alpha(NAVY, 0.045)}` }}
+      sx={{ p: { xs: 2, md: 2.5 }, borderRadius: 2, boxShadow: (t) => `0 4px 18px ${alpha(t.palette.brand.forest, 0.045)}` }}
     >
       <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={0.5} sx={{ mb: 2 }}>
         <Box>
@@ -39,8 +37,8 @@ export default function MaintenanceStatusFlow({ currentStatus, onChange, disable
                   sx={{
                     flexDirection: 'column', gap: 0.75, width: '100%', minHeight: 62, borderRadius: 1.5, p: 0.5,
                     color: isCurrent ? 'common.white' : isCancelled ? 'error.main' : 'text.primary',
-                    bgcolor: isCurrent ? NAVY : 'transparent',
-                    '&:hover': { bgcolor: isCurrent ? NAVY : alpha(NAVY, 0.055) },
+                    bgcolor: isCurrent ? 'brand.forest' : 'transparent',
+                    '&:hover': { bgcolor: isCurrent ? 'brand.forest' : (t) => alpha(t.palette.primary.main, 0.055) },
                     '&.Mui-focusVisible': { outline: '3px solid', outlineColor: 'primary.light', outlineOffset: 2 },
                     '&.Mui-disabled': { opacity: isCurrent ? 1 : 0.55, color: isCurrent ? 'common.white' : undefined }
                   }}
@@ -51,7 +49,7 @@ export default function MaintenanceStatusFlow({ currentStatus, onChange, disable
                       width: 28, height: 28, borderRadius: '50%', display: 'grid', placeItems: 'center', fontSize: 12, fontWeight: 800,
                       border: '1px solid', borderColor: isCurrent ? 'common.white' : isCancelled ? 'error.light' : isPast ? 'success.main' : 'divider',
                       bgcolor: isCurrent ? 'common.white' : isCancelled ? 'error.lighter' : isPast ? 'success.lighter' : 'background.paper',
-                      color: isCurrent ? NAVY : isCancelled ? 'error.main' : isPast ? 'success.dark' : 'text.secondary'
+                      color: isCurrent ? 'brand.forest' : isCancelled ? 'error.main' : isPast ? 'success.dark' : 'text.secondary'
                     }}
                   >
                     {index + 1}

@@ -635,7 +635,7 @@ export default function ApplicationAddDrawer() {
       slotProps={{
         backdrop: {
           sx: {
-            bgcolor: isDarkMode ? 'rgba(1, 11, 22, 0.62)' : 'rgba(6, 30, 53, 0.32)',
+            bgcolor: alpha(theme.palette.brand.forest, isDarkMode ? 0.62 : 0.32),
             backdropFilter: 'blur(2px)'
           }
         }
@@ -646,8 +646,8 @@ export default function ApplicationAddDrawer() {
           display: 'flex',
           flexDirection: 'column',
           color: isDarkMode ? '#FFFFFF' : 'text.primary',
-          bgcolor: isDarkMode ? '#061E35' : 'background.paper',
-          backgroundImage: isDarkMode ? 'linear-gradient(155deg, rgba(126, 227, 163, 0.08) 0%, rgba(6, 30, 53, 0) 34%)' : 'none',
+          bgcolor: isDarkMode ? theme.palette.brand.forest : 'background.paper',
+          backgroundImage: isDarkMode ? `linear-gradient(155deg, ${alpha(theme.palette.brand.mint, 0.08)} 0%, ${alpha(theme.palette.brand.forest, 0)} 34%)` : 'none',
           borderLeft: isDarkMode ? '1px solid rgba(126, 227, 163, 0.48)' : `1px solid ${theme.palette.divider}`,
           boxShadow: isDarkMode ? '-24px 0 64px rgba(0, 0, 0, 0.42)' : '-18px 0 48px rgba(6, 30, 53, 0.14)',
           '& .MuiDivider-root': { borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.16)' : 'divider' },

@@ -18,12 +18,12 @@ import { applyOttoSeo } from '@/lib/otto-seo';
 
 export const metadata: Metadata = applyOttoSeo('/comparison/turbotenant/', {
   title: 'Property Peace vs. TurboTenant: Pricing & Fees',
-  description: 'A dated, source-linked comparison of Property Peace and TurboTenant pricing, unit tiers, applicant and tenant fees, workflows, and current feature availability.',
+  description: 'A dated, source-linked comparison of Property Peace and TurboTenant pricing, unit limits, applicant and tenant fees, workflows, and current feature availability.',
   keywords: 'Property Peace vs TurboTenant, TurboTenant alternative, TurboTenant pricing, landlord software comparison, renter fees, property management software',
   alternates: { canonical: '/comparison/turbotenant' },
   openGraph: {
     title: 'Property Peace vs. TurboTenant: A Fair Cost and Workflow Comparison',
-    description: 'Compare landlord subscriptions, applicant and tenant costs, portfolio limits, and current workflow availability.',
+    description: 'Compare landlord costs, applicant and tenant costs, portfolio limits, and current workflow availability.',
     type: 'website',
   },
 });
@@ -38,8 +38,8 @@ const costRows = [
   {
     label: 'Landlord subscription',
     payer: 'Landlord',
-    cadence: 'Monthly or annual (Property Peace); annual (TurboTenant paid plans)',
-    propertyPeace: { cost: 'Free: $0 for up to 5 total units. Premium: $14.99/month for unlimited units; optional annual billing is $152.90/year.', readiness: 'Available. Premium is month-to-month unless the landlord chooses annual billing.' },
+    cadence: 'No subscription billing (Property Peace); annual (TurboTenant paid plans)',
+    propertyPeace: { cost: 'Free: $0 for unlimited units. No paid Property Peace plan.', readiness: 'Available without a credit card; unavailable provider-dependent workflows remain unavailable regardless of price.' },
     turboTenant: { cost: 'Free: $0. Essentials: starting at $12.42/month, billed annually at $149. Pro: starting at $16.58/month, billed annually at $199.', readiness: 'Published starting prices and annual totals on the live pricing page; confirm the current unit-tier quote for your portfolio before purchase.', sources: [{ label: 'Plans', href: turboPlansUrl }, { label: 'Pricing', href: turboPricingUrl }] },
   },
   {
@@ -67,14 +67,14 @@ const costRows = [
     label: 'Integrated e-signature',
     payer: 'Landlord',
     cadence: 'Included by plan or add-on',
-    propertyPeace: { cost: '$0 charged for an integration today', readiness: 'Not currently available. Plan entitlement does not mean a live workflow; provider readiness and configuration are required.' },
+    propertyPeace: { cost: '$0 charged for an integration today', readiness: 'Not currently available; provider readiness and configuration are required before launch.' },
     turboTenant: { cost: 'Paid plan required to finalize, print, download, or send a drafted lease; unlimited e-signatures are Pro.', readiness: 'Available with plan and document-scope limits. Confirm the plan needed for your document.', sources: [{ label: 'Lease guide', href: turboLeasesUrl }, { label: 'Plans', href: turboPlansUrl }] },
   },
   {
     label: 'SMS messaging',
     payer: 'Landlord',
-    cadence: 'Included entitlement; no separate public add-on price',
-    propertyPeace: { cost: 'One organization SMS number is included with Premium.', readiness: 'Operational only with an active configured number. Premium entitlement alone does not activate SMS.' },
+    cadence: 'No separate public add-on price',
+    propertyPeace: { cost: 'One organization SMS number is included for free.', readiness: 'Operational only with an active configured number; inclusion alone does not activate SMS.' },
     turboTenant: { cost: 'No separate SMS price verified in the cited pricing snapshot.', readiness: 'Messaging scope may vary by workflow; confirm directly with TurboTenant.', sources: [{ label: 'Plans', href: turboPlansUrl }] },
   },
   {
@@ -99,12 +99,12 @@ const workflowRows = [
   { workflow: 'External listing syndication', propertyPeace: 'Coming soon—not currently operational', turboTenant: 'Available according to TurboTenant' },
   { workflow: 'Lead records and showings', propertyPeace: 'Available', turboTenant: 'Available, including pre-screeners and reminders' },
   { workflow: 'Digital rental applications', propertyPeace: 'Available', turboTenant: 'Available' },
-  { workflow: 'Integrated tenant screening', propertyPeace: 'Not currently available; Premium entitlement remains provider-readiness and configuration dependent', turboTenant: 'Available with applicant-mediated screening' },
+  { workflow: 'Integrated tenant screening', propertyPeace: 'Not currently available; provider readiness and configuration required', turboTenant: 'Available with applicant-mediated screening' },
   { workflow: 'Lease records and documents', propertyPeace: 'Available', turboTenant: 'Available; finalization/signing requires a paid plan' },
-  { workflow: 'Integrated e-signature', propertyPeace: 'Not currently available; Premium entitlement remains provider-readiness and configuration dependent', turboTenant: 'Available on paid plans; scope differs by plan' },
-  { workflow: 'Rent records and reminders', propertyPeace: 'Manual rent records and landlord-triggered reminders are available; automated reminders are Premium', turboTenant: 'Available with in-platform payment collection' },
+  { workflow: 'Integrated e-signature', propertyPeace: 'Not currently available; provider readiness and configuration required', turboTenant: 'Available on paid plans; scope differs by plan' },
+  { workflow: 'Rent records and reminders', propertyPeace: 'Manual rent records, landlord-triggered reminders, and automated reminders are included for free', turboTenant: 'Available with in-platform payment collection' },
   { workflow: 'Online rent processing', propertyPeace: 'Suspended/not currently available', turboTenant: 'Available with payment-method fees described above' },
-  { workflow: 'Expenses and accounting', propertyPeace: 'Basic tracking on Free; advanced accounting/reporting on Premium', turboTenant: 'Basic/manual capabilities vary; advanced accounting is Pro' },
+  { workflow: 'Expenses and accounting', propertyPeace: 'Expense tracking and advanced accounting/reporting included for free', turboTenant: 'Basic/manual capabilities vary; advanced accounting is Pro' },
   { workflow: 'Maintenance requests', propertyPeace: 'Available and organized by property', turboTenant: 'Available' },
   { workflow: 'Tenant portal', propertyPeace: 'Available', turboTenant: 'Available' },
   { workflow: 'Team access', propertyPeace: 'Organization and team-member access available', turboTenant: 'User roles and permissions are Pro' },
@@ -125,7 +125,7 @@ const pageSchema = {
   '@context': 'https://schema.org',
   '@type': 'WebPage',
   name: 'Property Peace vs. TurboTenant: Pricing and Fees',
-  description: 'A dated comparison of landlord subscriptions, applicant and tenant costs, portfolio limits, and workflow availability.',
+  description: 'A dated comparison of landlord costs, applicant and tenant costs, portfolio limits, and workflow availability.',
   url: 'https://propertypeace.io/comparison/turbotenant/',
   dateModified: '2026-08-11',
   breadcrumb: {
@@ -161,7 +161,7 @@ export default function TurboTenantComparisonPage() {
             <div>
               <div className="mb-5 inline-flex items-center gap-2 border border-[var(--brand-border)] bg-brand-surface px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-brand-teal"><FiInfo className="h-4 w-4" /> Information checked {checkedOn}</div>
               <h1 className="max-w-4xl text-4xl font-extrabold leading-tight text-white sm:text-5xl md:text-6xl" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>Property Peace vs. TurboTenant—without hiding who pays.</h1>
-              <p className="mt-6 max-w-3xl text-lg leading-8 text-white/80 md:text-xl">Both products offer a free landlord starting point. The meaningful differences are billing cadence, portfolio pricing, renter and applicant costs, property-first organization, and which workflows are actually available today.</p>
+              <p className="mt-6 max-w-3xl text-lg leading-8 text-white/80 md:text-xl">Both products offer free landlord access. Property Peace is free for unlimited units; TurboTenant also offers paid plans. Compare renter and applicant costs, property-first organization, and which workflows are actually available today.</p>
             </div>
             <div className="border border-[var(--brand-border)] bg-brand-surface p-6 shadow-[0_24px_60px_rgba(16,44,41,0.10)] md:p-8">
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-brand-teal">Our comparison standard</p>
@@ -182,10 +182,10 @@ export default function TurboTenantComparisonPage() {
           <div className="mt-9 grid gap-5 md:grid-cols-2">
             <article className="border-2 border-brand-teal bg-brand-surface p-7 md:p-8">
               <div className="flex items-center gap-3"><FiHome className="h-6 w-6 text-brand-teal" /><h3 className="text-2xl font-extrabold text-primary-main">Property Peace</h3></div>
-              <p className="mt-4 leading-7 text-brand-slate">Best fit for independent landlords who want a property-and-unit-centered workspace, a five-unit free plan, and monthly Premium billing without per-unit pricing.</p>
+              <p className="mt-4 leading-7 text-brand-slate">Best fit for independent landlords who want a property-and-unit-centered workspace with unlimited units at no subscription cost.</p>
               <ul className="mt-5 space-y-3 text-sm leading-6 text-brand-slate">
-                <li className="flex gap-2"><FiCheck className="mt-1 h-4 w-4 text-brand-teal" />Free up to 5 units; no credit card required</li>
-                <li className="flex gap-2"><FiCheck className="mt-1 h-4 w-4 text-brand-teal" />Premium is $14.99/month for unlimited units</li>
+                <li className="flex gap-2"><FiCheck className="mt-1 h-4 w-4 text-brand-teal" />Free for unlimited units; no credit card required</li>
+                <li className="flex gap-2"><FiCheck className="mt-1 h-4 w-4 text-brand-teal" />No paid Property Peace plan or per-unit subscription fee</li>
                 <li className="flex gap-2"><FiAlertCircle className="mt-1 h-4 w-4 text-amber-600" />Online payments, external syndication, screening, and integrated e-signature are not currently operational</li>
               </ul>
             </article>
@@ -204,7 +204,7 @@ export default function TurboTenantComparisonPage() {
 
       <section className="bg-brand-forest px-4 py-16 sm:px-6 md:py-20 lg:px-8">
         <div className="mx-auto max-w-6xl">
-          <div className="max-w-3xl"><p className="mb-3 text-sm font-bold uppercase tracking-[0.2em] text-brand-mint">Total stakeholder cost</p><h2 className="text-3xl font-extrabold text-white md:text-4xl" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>What can the rental actually cost?</h2><p className="mt-4 text-lg leading-8 text-white/80">Subscription price is only one line. This table separates what the landlord pays from costs that may be paid by an applicant or tenant.</p></div>
+          <div className="max-w-3xl"><p className="mb-3 text-sm font-bold uppercase tracking-[0.2em] text-brand-mint">Total stakeholder cost</p><h2 className="text-3xl font-extrabold text-white md:text-4xl" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>What can the rental actually cost?</h2><p className="mt-4 text-lg leading-8 text-white/80">Subscription price is only one line for products that charge one. This table separates what the landlord pays from costs that may be paid by an applicant or tenant.</p></div>
           <div className="mt-9 space-y-4">
             <div className="hidden grid-cols-[1.05fr_0.8fr_1fr_1.55fr_1.55fr] gap-px overflow-hidden border border-[var(--brand-border)] bg-brand-ivory text-xs font-bold uppercase tracking-[0.12em] text-white lg:grid">
               {['Cost area', 'Who pays', 'Billing cadence', 'Property Peace', 'TurboTenant'].map((heading) => <div key={heading} className="bg-brand-forest p-4">{heading}</div>)}
@@ -236,7 +236,7 @@ export default function TurboTenantComparisonPage() {
 
       <section className="bg-brand-forest px-4 py-16 sm:px-6 md:py-20 lg:px-8">
         <div className="mx-auto max-w-6xl">
-          <div className="max-w-3xl"><p className="mb-3 text-sm font-bold uppercase tracking-[0.2em] text-brand-mint">Workflow availability</p><h2 className="text-3xl font-extrabold text-white md:text-4xl" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>Available now is different from listed in a plan</h2><p className="mt-4 text-lg leading-8 text-white/80">Property Peace labels globally gated and provider-dependent capabilities instead of counting source code or plan entitlement as a finished customer workflow.</p></div>
+          <div className="max-w-3xl"><p className="mb-3 text-sm font-bold uppercase tracking-[0.2em] text-brand-mint">Workflow availability</p><h2 className="text-3xl font-extrabold text-white md:text-4xl" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>Included does not always mean available now</h2><p className="mt-4 text-lg leading-8 text-white/80">Property Peace labels globally gated and provider-dependent capabilities instead of counting inclusion or source code as a finished customer workflow.</p></div>
           <div className="mt-9 overflow-x-auto border border-[var(--brand-border)] bg-brand-surface">
             <table className="min-w-[860px] w-full border-collapse text-left">
               <thead className="bg-brand-surface"><tr><th className="p-4 text-sm font-bold text-primary-main">Workflow</th><th className="p-4 text-sm font-bold text-brand-teal">Property Peace</th><th className="p-4 text-sm font-bold text-primary-main">TurboTenant</th></tr></thead>
@@ -248,7 +248,7 @@ export default function TurboTenantComparisonPage() {
 
       <section className="bg-brand-forest px-4 py-16 sm:px-6 lg:px-8">
         <div className="mx-auto grid max-w-6xl gap-6 md:grid-cols-2">
-          <div className="border border-[var(--brand-border)] bg-brand-surface p-7 md:p-8"><FiHome className="h-7 w-7 text-brand-teal" /><h2 className="mt-5 text-2xl font-extrabold text-primary-main">Choose Property Peace if…</h2><ul className="mt-5 space-y-4 text-sm leading-6 text-brand-slate">{['You manage 1–50 units and want the property to remain the anchor for leases, people, money, maintenance, and documents.', 'You want a true monthly Premium option rather than an annual commitment.', 'You prefer transparent software pricing and can use external processes for capabilities that are not yet operational.', 'You value deeper property-level records over a broad partner-service catalog.'].map((item) => <li key={item} className="flex gap-3"><FiCheck className="mt-1 h-4 w-4 flex-shrink-0 text-brand-teal" />{item}</li>)}</ul></div>
+          <div className="border border-[var(--brand-border)] bg-brand-surface p-7 md:p-8"><FiHome className="h-7 w-7 text-brand-teal" /><h2 className="mt-5 text-2xl font-extrabold text-primary-main">Choose Property Peace if…</h2><ul className="mt-5 space-y-4 text-sm leading-6 text-brand-slate">{['You manage 1–50 units and want the property to remain the anchor for leases, people, money, maintenance, and documents.', 'You want unlimited units for free without a paid subscription or annual commitment.', 'You prefer transparent software pricing and can use external processes for capabilities that are not yet operational.', 'You value deeper property-level records over a broad partner-service catalog.'].map((item) => <li key={item} className="flex gap-3"><FiCheck className="mt-1 h-4 w-4 flex-shrink-0 text-brand-teal" />{item}</li>)}</ul></div>
           <div className="border border-[var(--brand-border)] bg-brand-surface p-7 md:p-8"><FiUsers className="h-7 w-7 text-brand-teal" /><h2 className="mt-5 text-2xl font-extrabold text-primary-main">Choose TurboTenant if…</h2><ul className="mt-5 space-y-4 text-sm leading-6 text-brand-slate">{['Integrated applicant screening and online rent processing are must-have workflows today.', 'You want broad listing, pre-screening, showing, application, lease, payment, and maintenance tools in one established funnel.', 'Annual billing and unit-tiered paid pricing fit your portfolio.', 'You understand and accept the applicant/tenant costs associated with the payment methods and optional products you use.'].map((item) => <li key={item} className="flex gap-3"><FiCheck className="mt-1 h-4 w-4 flex-shrink-0 text-brand-teal" />{item}</li>)}</ul></div>
         </div>
       </section>
@@ -260,7 +260,7 @@ export default function TurboTenantComparisonPage() {
         </div>
       </section>
 
-      <section className="bg-brand-forest px-4 py-16 sm:px-6 lg:px-8"><div className="mx-auto max-w-6xl bg-brand-forest p-8 text-white md:flex md:items-center md:justify-between md:gap-10 md:p-12"><div className="max-w-2xl"><p className="text-xs font-bold uppercase tracking-[0.2em] text-brand-mint">Start with the property</p><h2 className="mt-4 text-3xl font-extrabold text-white md:text-4xl" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>Try Property Peace free for up to five units.</h2><p className="mt-4 text-lg leading-8 text-white/70">No credit card required. See the actual current pricing and availability disclosures before you choose.</p></div><div className="mt-7 flex flex-col gap-3 sm:flex-row md:mt-0 md:flex-col"><Link href="https://app.propertypeace.io/register" className="inline-flex min-h-[52px] items-center justify-center gap-2 bg-brand-teal-hover px-7 py-3.5 font-bold text-white transition hover:bg-brand-teal">Start free <FiArrowRight className="h-4 w-4" /></Link><Link href="/pricing" className="inline-flex min-h-[52px] items-center justify-center border border-white/25 px-7 py-3.5 font-bold text-white transition hover:bg-white/10">Review Property Peace pricing</Link></div></div></section>
+      <section className="bg-brand-forest px-4 py-16 sm:px-6 lg:px-8"><div className="mx-auto max-w-6xl bg-brand-forest p-8 text-white md:flex md:items-center md:justify-between md:gap-10 md:p-12"><div className="max-w-2xl"><p className="text-xs font-bold uppercase tracking-[0.2em] text-brand-mint">Start with the property</p><h2 className="mt-4 text-3xl font-extrabold text-white md:text-4xl" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>Try Property Peace free for unlimited units.</h2><p className="mt-4 text-lg leading-8 text-white/70">No credit card required. See the actual current pricing and availability disclosures before you choose.</p></div><div className="mt-7 flex flex-col gap-3 sm:flex-row md:mt-0 md:flex-col"><Link href="https://app.propertypeace.io/register" className="inline-flex min-h-[52px] items-center justify-center gap-2 bg-brand-teal-hover px-7 py-3.5 font-bold text-white transition hover:bg-brand-teal">Start free <FiArrowRight className="h-4 w-4" /></Link><Link href="/pricing" className="inline-flex min-h-[52px] items-center justify-center border border-white/25 px-7 py-3.5 font-bold text-white transition hover:bg-white/10">Review Property Peace pricing</Link></div></div></section>
     </main>
   );
 }

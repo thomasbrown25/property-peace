@@ -10,6 +10,7 @@ namespace brownstone_hub_api.Dtos.Tenant
         public string Lastname { get; set; }
         public string? Email { get; set; }
         public string? PhoneNumber { get; set; }
+        public string? ProfileImageUrl { get; set; }
         public long? UserId { get; set; }
         public DateTime CreatedAt { get; set; }
         public bool IsActive { get; set; }
@@ -23,6 +24,7 @@ namespace brownstone_hub_api.Dtos.Tenant
 
         // Lease info
         public long? LeaseId { get; set; }
+        public long? ActiveLeaseId { get; set; }
         public DateTime? LeaseStartDate { get; set; }
         public DateTime? LeaseEndDate { get; set; }
 

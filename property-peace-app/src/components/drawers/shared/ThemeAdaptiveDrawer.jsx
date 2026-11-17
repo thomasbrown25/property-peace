@@ -1,12 +1,12 @@
 import PropTypes from 'prop-types';
 import { Drawer, alpha, useTheme } from '@mui/material';
 
-const DARK_SURFACE = '#061E35';
 const DARK_ACCENT = '#7EE3A3';
 const DARK_ACCENT_HOVER = '#96E9B4';
 
 export const getThemeAdaptiveDrawerStyles = (theme) => {
   const isDarkMode = theme.palette.mode === 'dark';
+  const darkSurface = theme.palette.brand.forest;
   const accent = isDarkMode ? DARK_ACCENT : theme.palette.primary.main;
   const primaryText = isDarkMode ? '#FFFFFF' : theme.palette.text.primary;
   const secondaryText = isDarkMode ? 'rgba(255, 255, 255, 0.68)' : theme.palette.text.secondary;
@@ -19,16 +19,16 @@ export const getThemeAdaptiveDrawerStyles = (theme) => {
     secondaryText,
     divider,
     backdrop: {
-      bgcolor: isDarkMode ? 'rgba(1, 11, 22, 0.62)' : 'rgba(6, 30, 53, 0.32)',
+      bgcolor: isDarkMode ? alpha(darkSurface, 0.62) : alpha(darkSurface, 0.32),
       backdropFilter: 'blur(2px)'
     },
     paper: {
       display: 'flex',
       flexDirection: 'column',
       color: primaryText,
-      bgcolor: isDarkMode ? DARK_SURFACE : theme.palette.background.paper,
+      bgcolor: isDarkMode ? darkSurface : theme.palette.background.paper,
       backgroundImage: isDarkMode
-        ? 'linear-gradient(155deg, rgba(126, 227, 163, 0.08) 0%, rgba(6, 30, 53, 0) 34%)'
+        ? `linear-gradient(155deg, ${alpha(theme.palette.brand.mint, 0.08)} 0%, ${alpha(darkSurface, 0)} 34%)`
         : 'none',
       borderLeft: isDarkMode ? '1px solid rgba(126, 227, 163, 0.48)' : `1px solid ${theme.palette.divider}`,
       boxShadow: isDarkMode ? '-24px 0 64px rgba(0, 0, 0, 0.42)' : '-18px 0 48px rgba(6, 30, 53, 0.14)',
@@ -85,7 +85,7 @@ export const getThemeAdaptiveDrawerStyles = (theme) => {
         borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.16)' : theme.palette.divider
       },
       '& .MuiButton-containedPrimary': {
-        color: isDarkMode ? DARK_SURFACE : theme.palette.primary.contrastText,
+        color: isDarkMode ? darkSurface : theme.palette.primary.contrastText,
         bgcolor: isDarkMode ? DARK_ACCENT : theme.palette.primary.main,
         fontWeight: 700,
         textTransform: 'none',
@@ -158,7 +158,7 @@ export const getThemeAdaptiveDrawerStyles = (theme) => {
           lineHeight: 1
         },
         '&.Mui-active::after, &.Mui-completed::after': {
-          color: '#FFFFFF',
+          color: isDarkMode ? darkSurface : '#FFFFFF',
           bgcolor: accent
         }
       },

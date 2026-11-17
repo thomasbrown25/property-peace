@@ -50,7 +50,7 @@ function isCacheExpired(cachedAt) {
 
 /**
  * Rent estimate widget shown inside the listing setup property details step.
- * Auto-loads on mount for Premium users, showing cached results immediately.
+ * Auto-loads when the server grants access, showing cached results immediately.
  * Cached backend values are reused for 3 months; manual refresh bypasses cache.
  */
 export default function RentEstimateCard({ propertyId, unitId = null, onUseAmount }) {
@@ -93,7 +93,7 @@ export default function RentEstimateCard({ propertyId, unitId = null, onUseAmoun
   if (!canInvoke) {
     const entitlementCopy = {
       'loading': ['Checking rent estimate access…', 'Please wait while access is verified.'],
-      'upgrade': ['Rent Estimate requires an upgrade', 'Upgrade to see data-driven estimates based on nearby listings.'],
+      'upgrade': ['Rent Estimate is unavailable', 'Contact support if access to rent estimates is unexpectedly unavailable.'],
       'setup': ['Finish organization setup', 'Complete setup before requesting a rent estimate.'],
       'unauthorized': ['Rent Estimate is not authorized', 'Ask an organization owner or manager to review your access.'],
       'unavailable': ['Rent Estimate is unavailable', 'Access could not be confirmed, so this feature remains locked.']

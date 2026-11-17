@@ -89,7 +89,7 @@ export default function OnboardingWizard({ open, onClose, onStartSetupTasks, ste
           pt: { xs: 3.5, sm: 4 },
           pb: 3,
           color: '#fff',
-          bgcolor: '#061e35'
+          bgcolor: 'brand.forest'
         }}
       >
         <IconButton
@@ -213,7 +213,7 @@ export default function OnboardingWizard({ open, onClose, onStartSetupTasks, ste
               size="large"
               onClick={handleClose}
               disabled={loading}
-              sx={{ textTransform: 'none', fontWeight: 750, color: '#061e35' }}
+              sx={{ textTransform: 'none', fontWeight: 750, color: 'text.primary' }}
             >
               Explore dashboard
             </Button>

@@ -60,7 +60,7 @@ const PopperStyled = styled(Popper)(({ theme }) => ({
       ...(theme.direction === 'rtl' && { right: -5 }),
       width: 10,
       height: 10,
-      background: theme.palette.mode === 'dark' ? '#0b2a46' : theme.palette.background.paper,
+      background: theme.palette.mode === 'dark' ? theme.palette.surface.raised : theme.palette.background.paper,
       transform: 'translateY(-50%) rotate(45deg)',
       zIndex: 120,
       borderLeft: '2px solid',
@@ -354,7 +354,7 @@ export default function NavCollapse({ menu, level, parentId, setSelectedItems, s
                         backgroundImage: 'none',
                         border: '1px solid',
                         borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.12)' : 'divider',
-                        bgcolor: theme.palette.mode === 'dark' ? '#0b2a46' : 'background.paper',
+                        bgcolor: theme.palette.mode === 'dark' ? theme.palette.surface.raised : 'background.paper',
                         color: theme.palette.mode === 'dark' ? 'common.white' : 'text.primary'
                       })}
                     >
@@ -389,7 +389,7 @@ export default function NavCollapse({ menu, level, parentId, setSelectedItems, s
               sx={(theme) => ({
                 '& .MuiPaper-root': {
                   boxShadow: theme.shadows[2],
-                  bgcolor: theme.palette.mode === 'dark' ? '#0b2a46' : 'background.paper',
+                  bgcolor: theme.palette.mode === 'dark' ? theme.palette.surface.raised : 'background.paper',
                   color: theme.palette.mode === 'dark' ? 'common.white' : 'text.primary'
                 },
                 '& .MuiListItemButton-root': { pl: 2 }
@@ -443,7 +443,7 @@ export default function NavCollapse({ menu, level, parentId, setSelectedItems, s
                       py: 0.5,
                       boxShadow: theme.shadows[8],
                       backgroundImage: 'none',
-                      bgcolor: theme.palette.mode === 'dark' ? '#0b2a46' : 'background.paper',
+                      bgcolor: theme.palette.mode === 'dark' ? theme.palette.surface.raised : 'background.paper',
                       color: theme.palette.mode === 'dark' ? 'common.white' : 'text.primary'
                     })}
                   >

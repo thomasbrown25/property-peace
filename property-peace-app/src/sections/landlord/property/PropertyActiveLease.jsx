@@ -41,11 +41,11 @@ export default function PropertyActiveLease({ property }) {
               textTransform: 'none',
               fontWeight: 600,
               borderRadius: 1.5,
-              bgcolor: '#061E35',
+              bgcolor: 'brand.forest',
               color: '#fff',
               whiteSpace: 'nowrap',
               alignSelf: { xs: 'flex-start', sm: 'center' },
-              '&:hover': { bgcolor: '#0B3355' }
+              '&:hover': { bgcolor: 'primary.dark' }
             }}
           >
             Create a lease

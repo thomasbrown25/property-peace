@@ -436,7 +436,7 @@ export default function PropertyCard({ property, rentRecords = [] }) {
       {/* Action bar */}
       <Divider sx={{ borderColor: 'rgba(0,0,0,0.07)' }} />
       <Stack direction="row" divider={<Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(0,0,0,0.07)' }} />}>
-        <ActionBtn icon={<MessageOutlined />} label="Message" onClick={() => navigate('/landlord/messages')} />
+        <ActionBtn icon={<MessageOutlined />} label="Message" onClick={() => navigate('/landlord/chat')} />
         <ActionBtn icon={<DollarOutlined />} label="Expense" onClick={handleViewExpenses} />
         <ActionBtn icon={<FileTextOutlined />} label="Lease" onClick={() => { dispatch(setProperty(property)); drawer.openLeaseAddDrawer(); }} />
         <ActionBtn icon={<ToolOutlined />} label="Ticket" onClick={() => navigate(`/landlord/maintenances/add?propertyId=${propertyId}`)} />

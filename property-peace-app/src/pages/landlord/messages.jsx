@@ -29,9 +29,7 @@ import {
   MenuItem,
   Chip,
   alpha,
-  Container,
-  Tab,
-  Tabs
+  Container
 } from '@mui/material';
 
 // Icons
@@ -60,7 +58,6 @@ import useAuth from 'hooks/useAuth';
 import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
 import Avatar from 'components/@extended/Avatar';
 import TenantAddDrawer from 'components/drawers/TenantAddDrawer';
-import TenantEditDrawer from 'components/drawers/TenantEditDrawer';
 import ConfirmationDialog from 'components/dialogs/ConfirmationDialog';
 import { useDrawer } from 'contexts/DrawerContext';
 import LandlordMaintenanceDrawer from 'components/drawers/LandlordMaintenanceDrawer';
@@ -86,17 +83,18 @@ import { conversationAPI } from 'api';
 import { getSuppressedMessageIds, analyzeConversation } from 'api/conversation';
 import { Button, useTheme, useMediaQuery } from '@mui/material';
 import { motion, AnimatePresence } from 'framer-motion';
-import ConversationTimelinePanel from 'components/conversation/ConversationTimelinePanel';
 import ConversationQuickReplies from 'components/conversation/ConversationQuickReplies';
 import GroupConversationManager from 'components/conversation/GroupConversationManager';
 import { useOrganization } from 'contexts/OrganizationContext';
 import { getSendAttempt } from 'utils/clientRequestId';
+import axiosServices from 'utils/axios';
+import { getMessageRentStatus } from './messageRentStatus.mjs';
 import { canManageGroupConversation, getConversationBubbleSx } from 'utils/conversationPresentation';
+import { latestConfirmedSentMessageId } from 'utils/latestSentMessage.mjs';
 
 // ==============================|| MESSAGES PAGE ||============================== //
 
 const AGENT_PURPLE = '#7c3aed';
-const SENT_MESSAGE_BLUE = '#1877F2';
 const MAX_MESSAGE_LENGTH = 2000;
 
 function formatConversationTimestamp(dateStr) {
@@ -200,21 +198,26 @@ export default function Messages() {
   // Local state
   const [sendingMessage, setSendingMessage] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showMessageSearch, setShowMessageSearch] = useState(false);
+  const messageSearchRef = useRef(null);
   const [messageDrafts, setMessageDrafts] = useState({});
   const [isNewConversation, setIsNewConversation] = useState(false);
   const [tenantSearchQuery, setTenantSearchQuery] = useState('');
+  const [recipientOpen, setRecipientOpen] = useState(true);
+  const [draftTenant, setDraftTenant] = useState(null);
+  const [newMessageDraft, setNewMessageDraft] = useState('');
+  const [startingConversation, setStartingConversation] = useState(false);
   const [actionMenuAnchor, setActionMenuAnchor] = useState(null);
+  const [rowActionAnchor, setRowActionAnchor] = useState(null);
+  const [rowActionConversation, setRowActionConversation] = useState(null);
   const [hoveredMessageId, setHoveredMessageId] = useState(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [suppressedMessageIds, setSuppressedMessageIds] = useState(new Set());
   const [switchingConvo, setSwitchingConvo] = useState(false);
   const [optimisticMessages, setOptimisticMessages] = useState([]);
+  const [newConversationSentMessageId, setNewConversationSentMessageId] = useState(null);
   const [activeTab, setActiveTab] = useState('all');
   const [suggestedReplyDismissed, setSuggestedReplyDismissed] = useState(false);
-  const [tenantMenuAnchor, setTenantMenuAnchor] = useState(null);
-  const [tenantMenuTenant, setTenantMenuTenant] = useState(null);
-  const [tenantEditOpen, setTenantEditOpen] = useState(false);
-  const [tenantToEdit, setTenantToEdit] = useState(null);
   const [archiveConfirmOpen, setArchiveConfirmOpen] = useState(false);
   const activeLoadConvoId = useRef(null);
   const initialLoadDone = useRef(false);
@@ -250,7 +253,7 @@ export default function Messages() {
   }, [selectedConversation?.id]);
 
   // Fetch tenants
-  const { tenants, refetch: refetchTenants, isLoading: loadingTenants } = useFetchTenants();
+  const { tenants, isLoading: loadingTenants } = useFetchTenants();
 
   // Fetch properties
   const { properties, isLoading: loadingProperties } = useFetchProperties();
@@ -418,6 +421,7 @@ export default function Messages() {
     (conversation) => {
       const conversationId = typeof conversation === 'object' && conversation !== null ? conversation.id : conversation;
       if (!conversationId) return;
+      setNewConversationSentMessageId(null);
       dispatch(setSelectedConversation(conversationId));
       setOptimisticMessages([]);
       setTimeout(() => {
@@ -428,17 +432,59 @@ export default function Messages() {
     [dispatch, loadMessages, isConnected, joinConversation]
   );
 
-  const handleTabChange = useCallback(
-    (_, newTab) => {
-      setActiveTab(newTab);
-      activeTabRef.current = newTab;
+  const handleFilterChange = useCallback(
+    (filter) => {
+      const nextFilter = activeTab === filter ? 'all' : filter;
+      setActiveTab(nextFilter);
+      activeTabRef.current = nextFilter;
       dispatch(setSelectedConversation(null));
       setIsNewConversation(false);
       setSearchQuery('');
-      dispatch(getConversations(newTab === 'archived'));
+      dispatch(getConversations(nextFilter === 'archived'));
     },
-    [dispatch]
+    [activeTab, dispatch]
   );
+
+  const closeRowActionMenu = () => {
+    setRowActionAnchor(null);
+    setRowActionConversation(null);
+  };
+
+  const handleRowMarkUnread = async () => {
+    const conversationId = rowActionConversation?.id;
+    closeRowActionMenu();
+    if (!conversationId) return;
+    try {
+      await axiosServices.post(`/api/Message/conversation/${conversationId}/unread`);
+      if (String(selectedConversation?.id) === String(conversationId)) {
+        dispatch(setSelectedConversation(null));
+      }
+      loadConversations();
+      openSnackbar({ open: true, message: 'Conversation marked as unread.', variant: 'alert', alert: { color: 'success' } });
+    } catch (error) {
+      openSnackbar({
+        open: true,
+        message: error?.response?.data?.message || 'Failed to mark conversation as unread.',
+        variant: 'alert',
+        alert: { color: 'error' }
+      });
+    }
+  };
+
+  const handleRowArchive = async () => {
+    const conversationId = rowActionConversation?.id;
+    closeRowActionMenu();
+    if (!conversationId) return;
+    try {
+      const result = await dispatch(archiveConversation(conversationId, true));
+      if (!result.success) throw new Error(result.message || 'Failed to archive conversation.');
+      if (String(selectedConversation?.id) === String(conversationId)) dispatch(setSelectedConversation(null));
+      loadConversations();
+      openSnackbar({ open: true, message: 'Conversation archived.', variant: 'alert', alert: { color: 'success' } });
+    } catch (error) {
+      openSnackbar({ open: true, message: error?.message || 'Failed to archive conversation.', variant: 'alert', alert: { color: 'error' } });
+    }
+  };
 
   const handleOpenArchiveConfirm = useCallback(() => {
     if (!selectedConversation?.id || selectedConversation.isArchived) return;
@@ -521,10 +567,6 @@ export default function Messages() {
     );
   }, [conversations, searchQuery, activeTab]);
 
-  const totalActiveCount = useMemo(
-    () => conversations.filter((c) => !c.isArchived && (c.lastMessagePreview || c.lastMessageAt)).length,
-    [conversations]
-  );
   const unreadTabCount = useMemo(() => conversations.filter((c) => !c.isArchived && c.unreadCount > 0).length, [conversations]);
   const archivedTabCount = useMemo(() => conversations.filter((c) => c.isArchived).length, [conversations]);
   const showConversationListSpinner = loadingConversations && !initialLoadDone.current && filteredConversations.length === 0;
@@ -606,6 +648,40 @@ export default function Messages() {
     activeLeaseFromProperty?.id ||
     activeLeaseFromProperty?.Id ||
     null;
+  const rentScopeKey = isActiveLeaseStatus && activeLeaseId && quickReplyOrganizationId
+    ? `${quickReplyOrganizationId}:${activeLeaseId}`
+    : null;
+  const [snapshotRent, setSnapshotRent] = useState(null);
+  useEffect(() => {
+    if (!rentScopeKey) return undefined;
+    const controller = new AbortController();
+    let requestVersion = 0;
+    const refresh = async () => {
+      const version = ++requestVersion;
+      setSnapshotRent(null);
+      try {
+        const response = await axiosServices.get('/api/rent-collection', {
+          params: { leaseId: activeLeaseId, lifetime: false },
+          signal: controller.signal
+        });
+        if (!controller.signal.aborted && version === requestVersion) {
+          setSnapshotRent({ key: rentScopeKey, records: response.data?.data?.rentRecords });
+        }
+      } catch {
+        if (!controller.signal.aborted && version === requestVersion) setSnapshotRent({ key: rentScopeKey, records: null });
+      }
+    };
+    refresh();
+    window.addEventListener('focus', refresh);
+    return () => {
+      controller.abort();
+      window.removeEventListener('focus', refresh);
+    };
+  }, [rentScopeKey, activeLeaseId]);
+  const activeRentStatus = snapshotRent?.key === rentScopeKey
+    ? getMessageRentStatus(snapshotRent.records, activeLeaseId)
+    : { label: 'Loading…', color: 'text.secondary' };
+
   const activeUnitName = activeTenant?.unitName || activeTenant?.UnitName || activeUnitFromProperty?.name || activeUnitFromProperty?.Name;
   const activePropertyLine = [
     activeProperty?.name?.trim() || activeProperty?.streetAddress?.trim() || activeTenant?.propertyName || activeConversation?.propertyName,
@@ -618,6 +694,8 @@ export default function Messages() {
     () => [...messages, ...optimisticMessages.filter((message) => String(message.conversationId) === String(activeConversation?.id))],
     [messages, optimisticMessages, activeConversation?.id]
   );
+  const userId = user?.Id || user?.id;
+  const latestSentMessageId = latestConfirmedSentMessageId(visibleMessages, userId);
 
   const filteredTenants = useMemo(() => {
     if (!tenants || !Array.isArray(tenants)) return [];
@@ -628,119 +706,94 @@ export default function Messages() {
       const email = (tenant.email || '').toLowerCase();
       const propertyName = (tenant.propertyName || '').toLowerCase();
       const unitName = (tenant.unitName || '').toLowerCase();
-      return fullName.includes(query) || email.includes(query) || propertyName.includes(query) || unitName.includes(query);
+      return fullName.includes(query) || email.includes(query) || propertyName.includes(query) || unitName.includes(query) ||
+        String(tenant.activeLeaseId || '').includes(query);
     });
   }, [tenants, tenantSearchQuery]);
 
-  const handleOpenTenantMenu = useCallback((event, tenant) => {
-    event.preventDefault();
-    event.stopPropagation();
-    setTenantMenuAnchor(event.currentTarget);
-    setTenantMenuTenant(tenant);
-  }, []);
-
-  const handleCloseTenantMenu = useCallback(() => {
-    setTenantMenuAnchor(null);
-    setTenantMenuTenant(null);
-  }, []);
-
-  const handleEditTenantFromMenu = useCallback(() => {
-    if (!tenantMenuTenant) return;
-    setTenantToEdit(tenantMenuTenant);
-    setTenantEditOpen(true);
-    handleCloseTenantMenu();
-  }, [handleCloseTenantMenu, tenantMenuTenant]);
-
-  const handleCloseTenantEdit = useCallback(() => {
-    setTenantEditOpen(false);
-    setTenantToEdit(null);
-  }, []);
-
-  const handleTenantEditSuccess = useCallback(async () => {
-    await refetchTenants?.();
-  }, [refetchTenants]);
-
   const handleSelectTenant = useCallback(
     async (tenant) => {
-      if (!tenant) return;
-      const tenantUserId = tenant.userId || tenant.UserId || null;
-      const tenantEmail = tenant.email?.trim();
-      if (!tenantUserId && !tenantEmail) {
-        openSnackbar({
-          open: true,
-          message: 'Add an email address before messaging this tenant.',
-          variant: 'alert',
-          alert: { color: 'warning' }
-        });
+      if (!tenant || startingConversation) return;
+      const tenantUserId = tenant.userId || tenant.UserId;
+      if (!tenantUserId && !tenant.email?.trim()) {
+        openSnackbar({ open: true, message: 'Add an email address before messaging this tenant.', variant: 'alert', alert: { color: 'warning' } });
         return;
       }
+      setStartingConversation(true);
       try {
-        const existingConversation = conversations.find((conv) => {
-          if (conv.isArchived) return false;
-          if (String(conv.tenantId) === String(tenant.id)) return true;
-          if (tenantUserId && conv.participants?.some((p) => String(p.userId) === String(tenantUserId))) return true;
-          return tenantEmail && conv.tenantEmail?.trim()?.toLowerCase() === tenantEmail.toLowerCase();
-        });
-        if (existingConversation) {
+        // The archived filter loads another list; check active threads regardless of the selected filter.
+        const response = await axiosServices.get('/api/Conversation?includeArchived=false');
+        if (!response.data?.success) throw new Error('Could not check existing conversations.');
+        const existing = (response.data.data || []).find((conv) =>
+          !conv.isArchived && !conv.isGroupChat && (
+            String(conv.tenantId) === String(tenant.id) ||
+            (tenantUserId && conv.participants?.some((p) => String(p.userId) === String(tenantUserId)))
+          )
+        );
+        if (existing) {
+          activeTabRef.current = 'all';
+          setActiveTab('all');
+          dispatch({ type: CONVERSATION_ACTION_TYPES.GET_CONVERSATIONS_SUCCESS, payload: response.data.data });
           setIsNewConversation(false);
+          setDraftTenant(null);
           setTenantSearchQuery('');
-          handleSelectConversation(existingConversation);
+          handleSelectConversation(existing);
           return;
         }
-        const property = properties?.find((p) => p.id === tenant.propertyId);
-        const propertyName = property?.name?.trim() || property?.streetAddress?.trim() || tenant.propertyName || 'Property';
-        const isMultiUnit = !isDetachedSingleUnitType(tenant.propertyType);
-        const conversationTitle = isMultiUnit && tenant.unitName ? `${propertyName} - ${tenant.unitName}` : propertyName;
-        const conversationData = {
-          Title: conversationTitle,
-          TenantId: tenant.id,
-          PropertyId: tenant.propertyId || null,
-          LeaseId: tenant.leaseId || null,
-          ParticipantUserIds: tenantUserId ? [tenantUserId] : [],
-          IsGroupChat: false
-        };
-        const result = await dispatch(addConversation(conversationData));
-        if (result.success && result.data) {
-          const newConversation = result.data;
-          if (newConversation?.id) {
-            setIsNewConversation(false);
-            setTenantSearchQuery('');
-            setTimeout(() => {
-              handleSelectConversation(newConversation.id);
-              dispatch(getConversations(false));
-            }, 50);
-          } else {
-            setIsNewConversation(false);
-            setTenantSearchQuery('');
-            openSnackbar({
-              open: true,
-              message: 'Conversation created but could not be opened. Please refresh.',
-              variant: 'alert',
-              alert: { color: 'warning' }
-            });
-          }
-        } else {
-          setIsNewConversation(false);
-          setTenantSearchQuery('');
-          openSnackbar({
-            open: true,
-            message: `Failed to create conversation: ${result.message || 'Unknown error'}`,
-            variant: 'alert',
-            alert: { color: 'error' }
-          });
-        }
-      } catch (err) {
-        console.error('Error creating conversation:', err);
-        openSnackbar({
-          open: true,
-          message: `Error creating conversation: ${err.message || 'Unknown error'}`,
-          variant: 'alert',
-          alert: { color: 'error' }
-        });
+        setDraftTenant(tenant);
+        setRecipientOpen(false);
+        setTenantSearchQuery('');
+      } catch (error) {
+        openSnackbar({ open: true, message: error?.message || 'Could not check conversations. Please try again.', variant: 'alert', alert: { color: 'error' } });
+      } finally {
+        setStartingConversation(false);
       }
     },
-    [dispatch, conversations, handleSelectConversation, properties]
+    [dispatch, handleSelectConversation, startingConversation]
   );
+
+  const handleSendNewMessage = async () => {
+    const tenant = draftTenant;
+    const content = newMessageDraft.trim();
+    if (!tenant || !content || startingConversation) return;
+    setStartingConversation(true);
+    try {
+      const property = properties?.find((p) => String(p.id) === String(tenant.propertyId));
+      const propertyName = property?.name?.trim() || property?.streetAddress?.trim() || tenant.propertyName || 'Property';
+      const title = !isDetachedSingleUnitType(tenant.propertyType) && tenant.unitName
+        ? `${propertyName} - ${tenant.unitName}` : propertyName;
+      const result = await dispatch(addConversation({
+        Title: title,
+        TenantId: tenant.id,
+        PropertyId: tenant.propertyId || null,
+        LeaseId: tenant.activeLeaseId || null,
+        ParticipantUserIds: tenant.userId || tenant.UserId ? [tenant.userId || tenant.UserId] : [],
+        IsGroupChat: false,
+        // The API otherwise revives archived direct threads.
+        ForceNewConversation: true
+      }));
+      if (!result?.success || !result.data?.id) throw new Error(result?.message || 'Could not start the conversation.');
+      const conversationId = result.data.id;
+      const attempt = getSendAttempt(null, conversationId, content);
+      const sent = await dispatch(addMessage({ conversationId, content, clientRequestId: attempt.clientRequestId }));
+      activeTabRef.current = 'all';
+      setActiveTab('all');
+      setIsNewConversation(false);
+      setDraftTenant(null);
+      setNewMessageDraft('');
+      dispatch(getConversations(false));
+      handleSelectConversation(result.data);
+      if (sent?.success && sent.data?.id) setNewConversationSentMessageId(sent.data.id);
+      if (!sent?.success) {
+        setConversationDraft(conversationId, content);
+        openSnackbar({ open: true, message: sent?.message || 'Conversation created, but the message was not sent. Your draft is ready to retry.', variant: 'alert', alert: { color: 'error' } });
+      }
+    } catch (error) {
+      openSnackbar({ open: true, message: error?.message || 'Could not start the conversation. Please try again.', variant: 'alert', alert: { color: 'error' } });
+    } finally {
+      setStartingConversation(false);
+    }
+  };
 
   const [searchParams] = useSearchParams();
   const conversationIdParam = searchParams.get('conversationId');
@@ -757,7 +810,7 @@ export default function Messages() {
         const conversation = conversations.find((c) => c.id === conversationId);
         if (conversation) {
           handleSelectConversation(conversationId);
-          navigate('/landlord/messages', { replace: true });
+          navigate('/landlord/chat', { replace: true });
         }
       }
     }
@@ -913,12 +966,24 @@ export default function Messages() {
   const messagesDashedBorder = isDarkMode ? alpha(theme.palette.primary.main, 0.24) : alpha(theme.palette.divider, 0.85);
   const messagesPanelShadow = isDarkMode ? `0 18px 42px ${alpha('#020617', 0.36)}` : 'none';
   const messagesCardShadow = isDarkMode ? `0 10px 26px ${alpha('#020617', 0.26)}` : 'none';
-  const messagesTabHoverBg = isDarkMode ? alpha(theme.palette.primary.main, 0.14) : alpha(theme.palette.primary.main, 0.06);
-  const messagesTabHoverColor = isDarkMode ? theme.palette.primary.light : theme.palette.primary.main;
-  const messagesTabSelectedBg = isDarkMode ? alpha(theme.palette.primary.main, 0.18) : alpha(theme.palette.primary.main, 0.08);
-  const messagesTabSelectedShadow = isDarkMode
-    ? `inset 0 0 0 1px ${alpha(theme.palette.primary.main, 0.22)}, 0 8px 20px ${alpha('#020617', 0.18)}`
-    : 'none';
+  const messageFilterSx = {
+    minHeight: 30,
+    minWidth: 0,
+    borderRadius: 999,
+    px: 1,
+    textTransform: 'none',
+    whiteSpace: 'nowrap',
+    fontSize: '0.75rem',
+    fontWeight: 600,
+    borderColor: messagesDivider,
+    color: 'text.primary',
+    '&:hover': { borderColor: 'primary.main', bgcolor: alpha(theme.palette.primary.main, 0.08) },
+    '&[aria-pressed="true"]': {
+      bgcolor: alpha(theme.palette.primary.main, isDarkMode ? 0.22 : 0.1),
+      borderColor: 'primary.main',
+      color: isDarkMode ? theme.palette.primary.light : theme.palette.primary.main
+    }
+  };
 
   if (isLoading && !initialLoadDone.current) {
     return (
@@ -937,14 +1002,6 @@ export default function Messages() {
     const tenantName = tenant ? getTenantName(tenant) : conversation.tenantName || conversation.title || 'Unknown';
     const initials = tenant ? getTenantInitials(tenant) : tenantName.charAt(0).toUpperCase();
     const avatarColor = getAvatarColor(tenantName);
-    const propertyId = conversation?.propertyId || tenant?.propertyId;
-    const property = propertyId
-      ? properties?.find((p) => p.id === propertyId || p.id === Number(propertyId) || String(p.id) === String(propertyId))
-      : null;
-    const propertyDisplay =
-      property?.name?.trim() || property?.streetAddress?.trim() || tenant?.propertyName || conversation?.propertyName || '';
-    const unitDisplay = formatUnitLabel(tenant?.unitName);
-    const locationLine = [propertyDisplay, unitDisplay].filter(Boolean).join(' · ');
     const isSelected = selectedConversation?.id === conversation.id;
     const hasUnread = conversation.unreadCount > 0;
 
@@ -960,6 +1017,9 @@ export default function Messages() {
           borderLeftColor: hasUnread || isSelected ? 'primary.main' : 'transparent',
           transition: 'background-color 0.15s ease',
           '& .MuiListItemButton-root:hover': { bgcolor: 'transparent' },
+          '& .chat-row-actions': { opacity: 0, pointerEvents: 'none' },
+          '&:hover .chat-row-actions, &:focus-within .chat-row-actions': { opacity: 1, pointerEvents: 'auto' },
+          '@media (hover: none)': { '& .chat-row-actions': { opacity: 1, pointerEvents: 'auto' } },
           '&:hover': { bgcolor: isSelected ? alpha(t.palette.primary.main, 0.07) : alpha(t.palette.primary.main, 0.035) },
           '&:last-of-type': { borderBottom: 0 }
         })}
@@ -969,48 +1029,38 @@ export default function Messages() {
             setIsNewConversation(false);
             handleSelectConversation(conversation);
           }}
-          sx={{ py: 1.35, px: 2, alignItems: 'flex-start', borderRadius: 0 }}
+          sx={{ py: 0.7, pl: 1.5, pr: 0.5, minWidth: 0, flex: 1, alignItems: 'center', borderRadius: 0 }}
         >
-          <ListItemAvatar sx={{ mt: 0.5, minWidth: 48 }}>
+          <ListItemAvatar sx={{ minWidth: 40 }}>
             <Badge badgeContent={hasUnread ? conversation.unreadCount : 0} color="error" max={99} showZero={false}>
-              <Avatar sx={{ width: 38, height: 38, bgcolor: avatarColor, color: '#fff', fontSize: '0.85rem', fontWeight: 600 }}>
+              <Avatar
+                src={tenant?.profileImageUrl || tenant?.ProfileImageUrl || conversation?.tenantProfileImageUrl}
+                alt={tenantName}
+                sx={{ width: 30, height: 30, bgcolor: avatarColor, color: '#fff', fontSize: '0.72rem', fontWeight: 600 }}
+              >
                 {initials}
               </Avatar>
             </Badge>
           </ListItemAvatar>
-          <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
-              <Typography variant="subtitle2" noWrap fontWeight={hasUnread ? 700 : 500} sx={{ flex: 1 }}>
-                {tenantName}
-              </Typography>
-              <Typography
-                variant="caption"
-                color={hasUnread ? 'primary.main' : 'text.secondary'}
-                fontWeight={hasUnread ? 600 : 400}
-                sx={{ flexShrink: 0, fontSize: '0.7rem' }}
-              >
-                {formatConversationTimestamp(conversation.lastMessageAt)}
-              </Typography>
-            </Stack>
-            {locationLine && (
-              <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block', lineHeight: 1.4 }}>
-                {locationLine}
-              </Typography>
-            )}
-            <Typography
-              variant="body2"
-              noWrap
-              color={hasUnread ? 'text.primary' : 'text.secondary'}
-              fontWeight={hasUnread ? 500 : 400}
-              sx={{ fontSize: '0.8rem', mt: 0.25, lineHeight: 1.4 }}
-            >
-              {conversation.lastMessagePreview || 'No messages yet'}
-            </Typography>
-            {conversation.hasUrgentItems && (
-              <Chip label="Urgent" color="error" size="small" sx={{ mt: 0.5, height: 18, fontSize: '0.65rem', fontWeight: 700 }} />
-            )}
-          </Box>
+          <Typography variant="subtitle2" noWrap fontWeight={hasUnread ? 700 : 500} sx={{ flex: 1, minWidth: 0 }}>
+            {tenantName}
+          </Typography>
         </ListItemButton>
+        <IconButton
+          className="chat-row-actions"
+          size="small"
+          aria-label={`Actions for ${tenantName}`}
+          aria-haspopup="menu"
+          aria-expanded={rowActionConversation?.id === conversation.id && Boolean(rowActionAnchor)}
+          onClick={(event) => {
+            event.stopPropagation();
+            setRowActionConversation(conversation);
+            setRowActionAnchor(event.currentTarget);
+          }}
+          sx={{ mx: 0.75, width: 30, height: 30, flexShrink: 0, '&:focus-visible': { outline: `2px solid ${theme.palette.primary.main}` } }}
+        >
+          <MoreOutlined />
+        </IconButton>
       </ListItem>
     );
   };
@@ -1122,12 +1172,12 @@ export default function Messages() {
   return (
     <Box>
       <Box sx={{ mb: { xs: 1.5, md: 2 } }}>
-        <PageBreadcrumbs items={[{ label: 'Dashboard', path: '/landlord/dashboard' }, { label: 'Messages' }]} />
+        <PageBreadcrumbs items={[{ label: 'Dashboard', path: '/landlord/dashboard' }, { label: 'Chat' }]} />
         <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1.5} sx={{ mb: 1 }}>
           <Box sx={{ minWidth: 0 }}>
             <Stack direction="row" spacing={1} alignItems="center">
               <Typography variant="h3" fontWeight={750}>
-                Messages
+                Chat
               </Typography>
               {unreadTabCount > 0 && (
                 <Chip size="small" color="primary" label={`${unreadTabCount} unread`} sx={{ height: 24, fontWeight: 700 }} />
@@ -1153,35 +1203,6 @@ export default function Messages() {
                 }}
               />
             )}
-            <Button
-              variant="contained"
-              size="small"
-              startIcon={<PlusOutlined />}
-              onClick={() => {
-                setIsNewConversation(true);
-                setTenantSearchQuery('');
-                dispatch(setSelectedConversation(null));
-              }}
-              sx={{
-                textTransform: 'none',
-                borderRadius: 2,
-                flexShrink: 0,
-                boxShadow: 'none',
-                minHeight: 34,
-                px: { xs: 1.25, sm: 1.5 },
-                bgcolor: '#061e35',
-                color: '#fff',
-                '&:hover': { bgcolor: '#0b2f4f' },
-                fontSize: '0.8rem'
-              }}
-            >
-              <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
-                New message
-              </Box>
-              <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>
-                New
-              </Box>
-            </Button>
           </Stack>
         </Stack>
       </Box>
@@ -1218,168 +1239,108 @@ export default function Messages() {
               bgcolor: 'background.paper'
             }}
           >
-            <Box sx={{ px: 2, pt: 1.75, pb: 1.25 }}>
-              <Stack direction="row" justifyContent="space-between" alignItems="center">
-                <Box>
-                  <Typography variant="subtitle1" fontWeight={750}>
-                    Inbox
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {isConnected ? 'Live updates on' : 'Connecting…'}
-                  </Typography>
-                </Box>
-                <Box
-                  sx={{
-                    width: 9,
-                    height: 9,
-                    borderRadius: '50%',
-                    bgcolor: isConnected ? 'success.main' : 'warning.main',
-                    boxShadow: `0 0 0 4px ${alpha(isConnected ? theme.palette.success.main : theme.palette.warning.main, 0.12)}`
-                  }}
-                />
+            <Box sx={{ px: 2, py: 1.25, borderBottom: `1px solid ${messagesDivider}` }}>
+              <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={0.5}>
+                {/* Neither filter selected means all active conversations. */}
+                <Stack direction="row" alignItems="center" spacing={0.5} sx={{ minWidth: 0 }}>
+                  <Button variant="outlined" size="small" aria-pressed={activeTab === 'unread'} onClick={() => handleFilterChange('unread')} sx={messageFilterSx}>
+                    Unread{unreadTabCount > 0 ? ` ${unreadTabCount}` : ''}
+                  </Button>
+                  <Button variant="outlined" size="small" aria-pressed={activeTab === 'archived'} onClick={() => handleFilterChange('archived')} sx={messageFilterSx}>
+                    Archived{archivedTabCount > 0 ? ` ${archivedTabCount}` : ''}
+                  </Button>
+                </Stack>
+                <Stack direction="row" alignItems="center" spacing={0.25} sx={{ flexShrink: 0 }}>
+                  <Tooltip title="Search messages">
+                    <IconButton
+                      aria-label="Search messages"
+                      aria-expanded={showMessageSearch}
+                      aria-controls="message-search"
+                      size="small"
+                      onClick={() => {
+                        setShowMessageSearch(true);
+                        if (showMessageSearch) messageSearchRef.current?.focus();
+                      }}
+                      sx={{ color: 'text.secondary', width: 36, height: 36 }}
+                    >
+                      <SearchOutlined style={{ fontSize: 18 }} />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="New message">
+                    <IconButton
+                      aria-label="New message"
+                      size="small"
+                      onClick={() => {
+                        setIsNewConversation(true);
+                        setDraftTenant(null);
+                        setNewMessageDraft('');
+                        setRecipientOpen(true);
+                        setTenantSearchQuery('');
+                        dispatch(setSelectedConversation(null));
+                      }}
+                      sx={{ color: 'text.secondary', width: 36, height: 36 }}
+                    >
+                      <Box component="svg" viewBox="0 0 24 24" sx={{ width: 19, height: 19, fill: 'none', stroke: 'currentColor', strokeWidth: 1.7, strokeLinecap: 'round', strokeLinejoin: 'round' }} aria-hidden="true">
+                        <path d="M19 13v6H5V5h6" />
+                        <path d="M13 5h6v6" />
+                        <path d="M19 5 10 14" />
+                      </Box>
+                    </IconButton>
+                  </Tooltip>
+                </Stack>
               </Stack>
             </Box>
 
-            {/* Tab strip */}
-            <Box sx={{ borderBottom: `1px solid ${messagesDivider}`, px: 1 }}>
-              <Tabs
-                value={activeTab}
-                onChange={handleTabChange}
-                variant="fullWidth"
-                sx={{
-                  minHeight: 44,
-                  px: 0.25,
-                  '& .MuiTab-root': {
-                    minHeight: 44,
-                    mx: 0.25,
-                    my: 0.5,
-                    py: 0,
-                    minWidth: 0,
-                    borderRadius: 1,
-                    textTransform: 'none',
-                    fontSize: '0.8rem',
-                    fontWeight: 500,
-                    color: isDarkMode ? 'text.secondary' : 'text.primary',
-                    transition: 'background-color 160ms ease, color 160ms ease, box-shadow 160ms ease',
-                    '&:hover': {
-                      bgcolor: messagesTabHoverBg,
-                      color: messagesTabHoverColor,
-                      boxShadow: isDarkMode ? `inset 0 0 0 1px ${alpha(theme.palette.primary.main, 0.18)}` : 'none'
-                    },
-                    '&.Mui-selected': {
-                      bgcolor: messagesTabSelectedBg,
-                      color: isDarkMode ? theme.palette.primary.light : theme.palette.primary.main,
-                      fontWeight: 700,
-                      boxShadow: messagesTabSelectedShadow
-                    },
-                    '&.Mui-focusVisible': {
-                      bgcolor: messagesTabHoverBg,
-                      boxShadow: `inset 0 0 0 2px ${alpha(theme.palette.primary.main, isDarkMode ? 0.34 : 0.22)}`
+            {/* Search, revealed from the conversation toolbar */}
+            {showMessageSearch && (
+              <Box id="message-search" sx={{ p: 1.25, borderBottom: `1px solid ${messagesDivider}` }}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  autoFocus
+                  inputRef={messageSearchRef}
+                  inputProps={{ 'aria-label': 'Search messages' }}
+                  placeholder="Search messages..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') {
+                      setSearchQuery('');
+                      setShowMessageSearch(false);
                     }
-                  },
-                  '& .MuiTabs-indicator': { height: 2, borderRadius: 2 }
-                }}
-              >
-                <Tab
-                  value="all"
-                  label={
-                    <Stack direction="row" spacing={0.75} alignItems="center">
-                      <span>All</span>
-                      {totalActiveCount > 0 && (
-                        <Box component="span" sx={{ color: 'inherit', fontSize: '0.8rem', fontWeight: 700, lineHeight: 1 }}>
-                          {totalActiveCount}
-                        </Box>
-                      )}
-                    </Stack>
-                  }
-                />
-                <Tab
-                  value="unread"
-                  label={
-                    <Stack direction="row" spacing={0.75} alignItems="center">
-                      <span>Unread</span>
-                      {unreadTabCount > 0 && (
-                        <Box
-                          sx={{
-                            bgcolor: activeTab === 'unread' ? 'primary.main' : 'error.main',
-                            color: '#fff',
-                            borderRadius: 10,
-                            px: 0.75,
-                            fontSize: '0.65rem',
-                            fontWeight: 700,
-                            lineHeight: '18px',
-                            minWidth: 18,
-                            textAlign: 'center'
+                  }}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchOutlined style={{ fontSize: 14, opacity: 0.55 }} />
+                      </InputAdornment>
+                    ),
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          size="small"
+                          aria-label="Close message search"
+                          onClick={() => {
+                            setSearchQuery('');
+                            setShowMessageSearch(false);
                           }}
                         >
-                          {unreadTabCount}
-                        </Box>
-                      )}
-                    </Stack>
-                  }
+                          <CloseOutlined style={{ fontSize: 14 }} />
+                        </IconButton>
+                      </InputAdornment>
+                    )
+                  }}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      height: 34,
+                      fontSize: '0.8rem',
+                      borderRadius: 1,
+                      bgcolor: 'background.paper'
+                    }
+                  }}
                 />
-                <Tab
-                  value="archived"
-                  label={
-                    <Stack direction="row" spacing={0.75} alignItems="center">
-                      <span>Archived</span>
-                      {archivedTabCount > 0 && (
-                        <Box
-                          sx={{
-                            bgcolor: activeTab === 'archived' ? 'primary.main' : 'action.selected',
-                            color: activeTab === 'archived' ? '#fff' : 'text.secondary',
-                            borderRadius: 10,
-                            px: 0.75,
-                            fontSize: '0.65rem',
-                            fontWeight: 700,
-                            lineHeight: '18px',
-                            minWidth: 18,
-                            textAlign: 'center'
-                          }}
-                        >
-                          {archivedTabCount}
-                        </Box>
-                      )}
-                    </Stack>
-                  }
-                />
-              </Tabs>
-            </Box>
-
-            {/* Search */}
-            <Box sx={{ p: 1.25, borderBottom: `1px solid ${messagesDivider}` }}>
-              <TextField
-                fullWidth
-                size="small"
-                placeholder="Search messages..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchOutlined style={{ fontSize: 14, opacity: 0.55 }} />
-                    </InputAdornment>
-                  )
-                }}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    height: 34,
-                    fontSize: '0.8rem',
-                    borderRadius: 1,
-                    bgcolor: 'background.paper'
-                  }
-                }}
-              />
-            </Box>
-
-            {/* Count line */}
-            <Box sx={{ px: 2, py: 0.75 }}>
-              <Typography variant="caption" color="text.secondary">
-                {activeTab === 'archived'
-                  ? `${archivedTabCount} archived · kept for history`
-                  : `${totalActiveCount} conversation${totalActiveCount !== 1 ? 's' : ''}${unreadTabCount > 0 ? ` · ${unreadTabCount} unread` : ''}`}
-              </Typography>
-            </Box>
+              </Box>
+            )}
 
             {/* Conversation List */}
             <Box sx={{ flex: 1, overflow: 'auto' }}>
@@ -1469,7 +1430,7 @@ export default function Messages() {
                       <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 360 }}>
                         Add your first tenant to start secure conversations and keep property context together.
                       </Typography>
-                      <Button variant="contained" onClick={() => drawer.openTenantAddDrawer()} sx={{ bgcolor: '#061e35', color: '#fff', '&:hover': { bgcolor: '#0b2f4f' } }}>
+                      <Button variant="contained" onClick={() => drawer.openTenantAddDrawer()} sx={{ bgcolor: theme.palette.brand.forest, color: '#fff', '&:hover': { bgcolor: theme.palette.primary.dark } }}>
                         Add tenant
                       </Button>
                     </Stack>
@@ -1488,10 +1449,13 @@ export default function Messages() {
                         startIcon={<PlusOutlined />}
                         onClick={() => {
                           setIsNewConversation(true);
+                          setDraftTenant(null);
+                          setNewMessageDraft('');
+                          setRecipientOpen(true);
                           setTenantSearchQuery('');
                           dispatch(setSelectedConversation(null));
                         }}
-                        sx={{ textTransform: 'none', bgcolor: '#061e35', color: '#fff', '&:hover': { bgcolor: '#0b2f4f' } }}
+                        sx={{ textTransform: 'none' }}
                       >
                         Start a message
                       </Button>
@@ -1502,6 +1466,23 @@ export default function Messages() {
                 <List sx={{ p: 0 }}>{filteredConversations.map((conversation) => renderConversationItem(conversation))}</List>
               )}
             </Box>
+            <Menu
+              anchorEl={rowActionAnchor}
+              open={Boolean(rowActionAnchor)}
+              onClose={closeRowActionMenu}
+              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+              transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+              slotProps={{ paper: { sx: { minWidth: 176, borderRadius: 1.5, border: `1px solid ${messagesSoftDivider}`, outline: 'none', boxShadow: theme.shadows[8] } } }}
+            >
+              <MenuItem onClick={handleRowMarkUnread} sx={{ gap: 1.25, fontSize: '0.85rem' }}>
+                <MessageOutlined style={{ fontSize: 16 }} /> Mark as unread
+              </MenuItem>
+              {!rowActionConversation?.isArchived && (
+                <MenuItem onClick={handleRowArchive} sx={{ gap: 1.25, fontSize: '0.85rem' }}>
+                  <InboxOutlined style={{ fontSize: 16 }} /> Archive
+                </MenuItem>
+              )}
+            </Menu>
           </Grid>
 
           {/* ── Chat Area ── */}
@@ -1522,22 +1503,14 @@ export default function Messages() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -24 }}
                 transition={{ duration: 0.2, ease: 'easeInOut' }}
-                style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}
+                style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, position: 'relative' }}
               >
                 {/* ── New Conversation Panel ── */}
                 {isNewConversation ? (
                   <>
-                    <Box sx={{ p: 2.25, borderBottom: `1px solid ${messagesDivider}`, bgcolor: 'background.paper' }}>
-                      <Stack direction="row" spacing={1.5} alignItems="flex-start" justifyContent="space-between">
-                        <Box>
-                          <Typography variant="h6" fontWeight={700}>
-                            New message
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
-                            Choose a tenant to start a conversation. Tenants with email can receive replies by email even before they create
-                            an account.
-                          </Typography>
-                        </Box>
+                    <Box sx={{ px: 2.25, py: 1.5, borderBottom: `1px solid ${messagesDivider}`, bgcolor: 'background.paper' }}>
+                      <Stack direction="row" spacing={1.5} alignItems="center" justifyContent="space-between">
+                        <Typography variant="h6" fontWeight={700}>New message</Typography>
                         <IconButton
                           size="small"
                           onClick={() => {
@@ -1550,64 +1523,39 @@ export default function Messages() {
                         </IconButton>
                       </Stack>
                     </Box>
-                    <Box
-                      sx={{
-                        px: 2.25,
-                        py: 1.75,
-                        borderBottom: `1px solid ${messagesDivider}`,
-                        bgcolor: alpha(theme.palette.background.default, 0.55)
-                      }}
-                    >
-                      <TextField
+                    <Box sx={{ px: 2.25, py: 1.5, position: 'relative', zIndex: 2, borderBottom: `1px solid ${messagesDivider}`, bgcolor: 'background.paper' }}>
+                      <Stack direction="row" spacing={1.5} alignItems="center">
+                        <Typography variant="body2" fontWeight={700}>To:</Typography>
+                        {draftTenant ? (
+                          <Chip
+                            avatar={<Avatar src={draftTenant.profileImageUrl || undefined}>{getTenantInitials(draftTenant)}</Avatar>}
+                            label={getTenantName(draftTenant)}
+                            onDelete={() => { setDraftTenant(null); setRecipientOpen(true); }}
+                            sx={{ maxWidth: '85%' }}
+                          />
+                        ) : (
+                          <TextField
                         fullWidth
                         size="small"
-                        placeholder="Search by name, email, property, or unit..."
+                        placeholder="Enter tenant name, email or lease"
+                        inputProps={{ 'aria-label': 'Enter tenant name, email or lease', role: 'combobox', 'aria-expanded': recipientOpen, 'aria-controls': 'tenant-recipient-options' }}
                         value={tenantSearchQuery}
-                        onChange={(e) => setTenantSearchQuery(e.target.value)}
+                        onFocus={() => setRecipientOpen(true)}
+                        onChange={(e) => { setTenantSearchQuery(e.target.value); setRecipientOpen(true); }}
+                        onKeyDown={(e) => { if (e.key === 'Escape') setRecipientOpen(false); }}
                         autoFocus
-                        InputProps={{
-                          startAdornment: (
-                            <InputAdornment position="start">
-                              <SearchOutlined style={{ fontSize: 16, opacity: 0.65 }} />
-                            </InputAdornment>
-                          )
-                        }}
-                        sx={{
-                          '& .MuiOutlinedInput-root': {
-                            bgcolor: 'background.paper',
-                            height: 38,
-                            fontSize: '0.85rem',
-                            borderRadius: 1.5
-                          }
-                        }}
+                        sx={{ '& .MuiOutlinedInput-root': { height: 38, fontSize: '0.85rem', borderRadius: 1.5 } }}
                       />
-                      <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1.25, flexWrap: 'wrap', rowGap: 0.75 }}>
-                        <Chip
-                          size="small"
-                          label={`${filteredTenants.length} tenant${filteredTenants.length === 1 ? '' : 's'}`}
-                          sx={{
-                            height: 22,
-                            fontSize: '0.7rem',
-                            bgcolor: alpha(theme.palette.primary.main, 0.08),
-                            color: 'primary.main',
-                            fontWeight: 700
-                          }}
-                        />
-                        <Chip
-                          size="small"
-                          variant="outlined"
-                          label={`${filteredTenants.filter((tenant) => tenant.userId).length} in-app`}
-                          sx={{ height: 22, fontSize: '0.7rem', bgcolor: 'background.paper' }}
-                        />
-                        <Chip
-                          size="small"
-                          variant="outlined"
-                          label={`${filteredTenants.filter((tenant) => !tenant.userId && tenant.email).length} email only`}
-                          sx={{ height: 22, fontSize: '0.7rem', bgcolor: 'background.paper' }}
-                        />
+                        )}
                       </Stack>
                     </Box>
-                    <Box sx={{ flex: 1, overflow: 'auto', p: 2.25, bgcolor: alpha(theme.palette.background.default, 0.35) }}>
+                    {recipientOpen && !draftTenant && (
+                    <Box
+                      id="tenant-recipient-options"
+                      role="listbox"
+                      aria-label="Tenant recipients"
+                      sx={{ position: 'absolute', zIndex: 5, top: 116, left: { xs: 8, sm: 18 }, right: { xs: 8, sm: 18 }, maxHeight: 280, overflowY: 'auto', border: `1px solid ${messagesDivider}`, borderRadius: 1.5, bgcolor: 'background.paper', boxShadow: theme.shadows[8], scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' } }}
+                    >
                       {loadingTenants ? (
                         <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
                           <CircularProgress size={24} />
@@ -1634,127 +1582,71 @@ export default function Messages() {
                           </Typography>
                         </Box>
                       ) : (
-                        <Stack spacing={1.25}>
+                        <Stack spacing={0}>
                           {filteredTenants.map((tenant) => {
                             const name = getTenantName(tenant);
                             const avatarColor = getAvatarColor(name);
                             const hasAccount = Boolean(tenant.userId || tenant.UserId);
                             const hasEmail = Boolean(tenant.email);
-                            const contactLabel = hasAccount ? 'In-app' : hasEmail ? 'Email only' : 'No email';
-                            const contactColor = hasAccount ? 'success' : hasEmail ? 'warning' : 'default';
-                            const propertyLine = [tenant.propertyName, formatUnitLabel(tenant.unitName)].filter(Boolean).join(' · ');
+                            const property = properties?.find((p) => String(p.id) === String(tenant.propertyId));
+                            const propertyName = tenant.propertyName?.trim() || property?.name?.trim() || property?.streetAddress?.trim() || 'Property';
+                            const propertyLine = tenant.activeLeaseId
+                              ? [propertyName, formatUnitLabel(tenant.unitName)].filter(Boolean).join(' · ')
+                              : 'No active lease';
                             return (
                               <Box
                                 key={tenant.id}
                                 component="div"
-                                role={hasAccount || hasEmail ? 'button' : undefined}
+                                role="option"
+                                aria-selected={false}
+                                aria-disabled={!hasAccount && !hasEmail}
                                 tabIndex={hasAccount || hasEmail ? 0 : -1}
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  if (hasAccount || hasEmail) handleSelectTenant(tenant);
-                                }}
+                                onClick={() => { if (hasAccount || hasEmail) handleSelectTenant(tenant); }}
                                 onKeyDown={(e) => {
                                   if ((e.key === 'Enter' || e.key === ' ') && (hasAccount || hasEmail)) {
                                     e.preventDefault();
                                     handleSelectTenant(tenant);
                                   }
                                 }}
-                                sx={{
-                                  width: '100%',
-                                  textAlign: 'left',
-                                  p: 1.5,
-                                  border: `1px solid ${messagesCardBorder}`,
-                                  borderRadius: 2,
-                                  bgcolor: 'background.paper',
-                                  boxShadow: messagesCardShadow,
-                                  cursor: hasAccount || hasEmail ? 'pointer' : 'default',
-                                  opacity: !hasAccount && !hasEmail ? 0.72 : 1,
-                                  transition: 'border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease',
-                                  '&:hover': {
-                                    borderColor: hasAccount || hasEmail ? 'primary.main' : messagesCardBorder,
-                                    boxShadow:
-                                      hasAccount || hasEmail
-                                        ? `0 10px 24px ${alpha(theme.palette.primary.main, isDarkMode ? 0.16 : 0.08)}`
-                                        : messagesCardShadow,
-                                    transform: hasAccount || hasEmail ? 'translateY(-1px)' : 'none'
-                                  },
-                                  '&:focus-visible': {
-                                    outline: `2px solid ${alpha(theme.palette.primary.main, 0.35)}`,
-                                    outlineOffset: 2
-                                  }
-                                }}
+                                sx={{ px: 1.5, py: 1, cursor: hasAccount || hasEmail ? 'pointer' : 'default', opacity: !hasAccount && !hasEmail ? 0.6 : 1, borderBottom: `1px solid ${messagesDivider}`, '&:hover': { bgcolor: 'action.hover' }, '&:focus-visible': { outline: `2px solid ${theme.palette.primary.main}`, outlineOffset: -2 } }}
                               >
                                 <Stack direction="row" spacing={1.5} alignItems="center">
-                                  <Avatar
-                                    sx={{
-                                      bgcolor: avatarColor,
-                                      color: '#fff',
-                                      width: 42,
-                                      height: 42,
-                                      fontSize: '0.85rem',
-                                      fontWeight: 700,
-                                      flexShrink: 0
-                                    }}
-                                  >
+                                  <Avatar src={tenant.profileImageUrl || tenant.ProfileImageUrl || undefined} alt={name} sx={{ bgcolor: avatarColor, color: '#fff', width: 40, height: 40, fontSize: '0.85rem', fontWeight: 700, flexShrink: 0 }}>
                                     {getTenantInitials(tenant)}
                                   </Avatar>
-                                  <Box sx={{ minWidth: 0, flex: 1 }}>
-                                    <Stack direction="row" alignItems="center" spacing={1} sx={{ minWidth: 0, mb: 0.25 }}>
-                                      <Typography variant="body2" fontWeight={700} noWrap sx={{ minWidth: 0 }}>
-                                        {name || 'Unnamed Tenant'}
-                                      </Typography>
-                                      <Chip
-                                        size="small"
-                                        color={contactColor}
-                                        variant={hasAccount ? 'filled' : 'outlined'}
-                                        label={contactLabel}
-                                        sx={{ height: 20, fontSize: '0.65rem', fontWeight: 700, flexShrink: 0 }}
-                                      />
-                                    </Stack>
-                                    <Typography
-                                      variant="caption"
-                                      color={hasEmail ? 'text.secondary' : 'error.main'}
-                                      noWrap
-                                      sx={{ display: 'block' }}
-                                    >
-                                      {tenant.email || 'Missing email address'}
-                                    </Typography>
-                                    {propertyLine && (
-                                      <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block', mt: 0.25 }}>
-                                        {propertyLine}
-                                      </Typography>
-                                    )}
+                                  <Box sx={{ minWidth: 0 }}>
+                                    <Typography variant="body2" fontWeight={600} noWrap>{name}</Typography>
+                                    <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>{propertyLine}</Typography>
                                   </Box>
-                                  <Tooltip title="Tenant actions">
-                                    <IconButton
-                                      size="small"
-                                      onClick={(e) => handleOpenTenantMenu(e, tenant)}
-                                      sx={{ flexShrink: 0, color: 'text.secondary' }}
-                                    >
-                                      <MoreOutlined style={{ fontSize: 18 }} />
-                                    </IconButton>
-                                  </Tooltip>
                                 </Stack>
                               </Box>
                             );
                           })}
                         </Stack>
                       )}
-                      <Menu
-                        anchorEl={tenantMenuAnchor}
-                        open={Boolean(tenantMenuAnchor)}
-                        onClose={handleCloseTenantMenu}
-                        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-                        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-                      >
-                        <MenuItem onClick={handleEditTenantFromMenu}>
-                          <Stack direction="row" spacing={1} alignItems="center">
-                            <EditOutlined style={{ fontSize: 15 }} />
-                            <Typography variant="body2">Edit tenant</Typography>
-                          </Stack>
-                        </MenuItem>
-                      </Menu>
+                    </Box>
+                    )}
+                    <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', px: 2, bgcolor: 'background.paper' }}>
+                      <Box sx={{ width: 82, height: 82, borderRadius: 3, bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main', display: 'grid', placeItems: 'center', mb: 2 }}>
+                        <MessageOutlined style={{ fontSize: 38 }} />
+                      </Box>
+                      <Typography variant="h5" fontWeight={700}>You’re starting a new conversation</Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>Type your first message below.</Typography>
+                    </Box>
+                    <Box sx={{ px: 2, py: 1.25, borderTop: `1px solid ${messagesDivider}`, bgcolor: 'background.paper' }}>
+                      <Stack direction="row" spacing={1} alignItems="flex-end">
+                        <TextField
+                          fullWidth multiline maxRows={4} size="small"
+                          aria-label="First message" placeholder={draftTenant ? 'Type your first message…' : 'Choose a tenant to start messaging'}
+                          value={newMessageDraft} disabled={!draftTenant || startingConversation}
+                          onChange={(e) => setNewMessageDraft(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendNewMessage(); } }}
+                          inputProps={{ maxLength: MAX_MESSAGE_LENGTH }}
+                        />
+                        <IconButton aria-label="Send first message" color="primary" disabled={!draftTenant || !newMessageDraft.trim() || startingConversation} onClick={handleSendNewMessage}>
+                          {startingConversation ? <CircularProgress size={20} /> : <SendOutlined />}
+                        </IconButton>
+                      </Stack>
                     </Box>
                   </>
                 ) : selectedConversation ? (
@@ -1911,12 +1803,6 @@ export default function Messages() {
                       })()}
                     </Box>
 
-                    <ConversationTimelinePanel
-                      conversationId={selectedConversation.id}
-                      organizationId={quickReplyOrganizationId}
-                      currentUserId={quickReplyUserId}
-                    />
-
                     {/* ── Messages ── */}
                     <Box
                       ref={messagesContainerRef}
@@ -1927,7 +1813,7 @@ export default function Messages() {
                         overflowX: 'hidden',
                         px: { xs: 1, sm: 2.5 },
                         py: { xs: 1.5, sm: 2.5 },
-                        bgcolor: isDarkMode ? alpha(theme.palette.background.default, 0.25) : '#f7f9fc',
+                        bgcolor: isDarkMode ? theme.palette.background.default : theme.palette.surface.nested,
                         position: 'relative',
                         zIndex: 0,
                         '&::-webkit-scrollbar': { width: '8px' },
@@ -1957,7 +1843,6 @@ export default function Messages() {
                       ) : (
                         <Stack spacing={0} sx={{ overflow: 'visible', position: 'relative' }}>
                           {visibleMessages.map((message, index) => {
-                            const userId = user?.Id || user?.id;
                             const isOwnMessage = String(message.senderId) === String(userId);
                             const isAgentMessage = !isOwnMessage && message.senderName?.toLowerCase().includes('agent');
                             const isHovered = hoveredMessageId === message.id;
@@ -1994,6 +1879,11 @@ export default function Messages() {
                                 <Box
                                   onMouseEnter={() => setHoveredMessageId(message.id)}
                                   onMouseLeave={() => setHoveredMessageId(null)}
+                                  onAnimationEnd={() => {
+                                    if (newConversationSentMessageId != null && String(message.id) === String(newConversationSentMessageId)) {
+                                      setNewConversationSentMessageId(null);
+                                    }
+                                  }}
                                   sx={{
                                     position: 'relative',
                                     display: 'flex',
@@ -2003,7 +1893,16 @@ export default function Messages() {
                                     mt: isConsecutive ? 0.25 : 1.5,
                                     px: 1,
                                     opacity: message._optimistic ? 0.6 : 1,
-                                    transition: 'opacity 0.2s ease'
+                                    '--outgoing-opacity': message._optimistic ? 0.6 : 1,
+                                    transition: 'opacity 0.2s ease',
+                                    animation: message._optimistic || (newConversationSentMessageId != null && String(message.id) === String(newConversationSentMessageId))
+                                      ? 'outgoingMessageRise 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both'
+                                      : 'none',
+                                    '@keyframes outgoingMessageRise': {
+                                      from: { transform: 'translateY(28px)', opacity: 0 },
+                                      to: { transform: 'translateY(0)', opacity: 'var(--outgoing-opacity)' }
+                                    },
+                                    '@media (prefers-reduced-motion: reduce)': { animation: 'none' }
                                   }}
                                 >
                                   {!isOwnMessage && (
@@ -2178,23 +2077,32 @@ export default function Messages() {
                                         </Box>
                                       </Box>
                                     ) : (
-                                      <Paper
-                                        elevation={0}
-                                        sx={{
-                                          p: 1.25,
-                                          px: 1.5,
-                                          width: 'fit-content',
-                                          maxWidth: '100%',
-                                          ...getConversationBubbleSx({ isOwn: isOwnMessage, isConsecutive })
-                                        }}
-                                      >
-                                        <Typography
-                                          variant="body2"
-                                          sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.5, color: '#000000' }}
+                                      <Stack direction="row" spacing={0.75} alignItems="flex-end" sx={{ maxWidth: '100%' }}>
+                                        <Paper
+                                          elevation={0}
+                                          sx={{
+                                            p: 1.25,
+                                            px: 1.5,
+                                            width: 'fit-content',
+                                            minWidth: 0,
+                                            maxWidth: '100%',
+                                            ...getConversationBubbleSx({ isOwn: isOwnMessage, isConsecutive, brandedChat: true })
+                                          }}
                                         >
-                                          {message.content}
-                                        </Typography>
-                                      </Paper>
+                                          <Typography
+                                            variant="body2"
+                                            sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.5, color: 'text.primary' }}
+                                          >
+                                            {message.content}
+                                          </Typography>
+                                        </Paper>
+                                        {isOwnMessage && message._optimistic && (
+                                          <CircularProgress size={12} sx={{ color: 'primary.main', mb: 0.25, flexShrink: 0 }} />
+                                        )}
+                                        {isOwnMessage && !message._optimistic && latestSentMessageId != null && String(message.id) === String(latestSentMessageId) && (
+                                          <CheckCircleOutlined aria-label="Message sent" style={{ fontSize: 15, color: theme.palette.success.main, marginBottom: 2, flexShrink: 0 }} />
+                                        )}
+                                      </Stack>
                                     )}
                                   </Box>
                                 </Box>
@@ -2233,21 +2141,14 @@ export default function Messages() {
                                   sx={{
                                     p: 1.25,
                                     px: 1.5,
-                                    bgcolor: (t) => (t.palette.mode === 'dark' ? SENT_MESSAGE_BLUE : t.palette.primary.main),
-                                    borderRadius: 3,
-                                    borderTopRightRadius: 0,
+                                    ...getConversationBubbleSx({ isOwn: true, brandedChat: true }),
                                     maxWidth: '85%',
-                                    ml: 'auto',
-                                    boxShadow: (t) => (t.palette.mode === 'dark' ? `0 8px 18px ${alpha(SENT_MESSAGE_BLUE, 0.2)}` : 'none'),
-                                    border: (t) =>
-                                      t.palette.mode === 'dark'
-                                        ? `1px solid ${alpha(t.palette.primary.light || t.palette.primary.main, 0.22)}`
-                                        : 'none'
+                                    ml: 'auto'
                                   }}
                                 >
                                   <Typography
                                     variant="body2"
-                                    sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.5, color: '#fff' }}
+                                    sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.5, color: 'text.primary' }}
                                   >
                                     {selectedConversation.suggestedReply}
                                   </Typography>
@@ -2292,8 +2193,8 @@ export default function Messages() {
                     <Box
                       sx={{
                         px: { xs: 1.25, sm: 2 },
-                        pt: 1.25,
-                        pb: { xs: 'max(12px, env(safe-area-inset-bottom))', sm: 1.5 },
+                        pt: 1,
+                        pb: { xs: 'max(10px, env(safe-area-inset-bottom))', sm: 1 },
                         borderTop: `1px solid ${messagesDivider}`,
                         bgcolor: 'background.paper',
                         flexShrink: 0
@@ -2329,14 +2230,14 @@ export default function Messages() {
                             elevation={0}
                             sx={{
                               display: 'flex',
-                              alignItems: 'flex-end',
+                              alignItems: 'center',
                               borderRadius: 2.5,
                               border: `1px solid ${messagesCardBorder}`,
                               bgcolor: 'background.paper',
                               boxShadow: messagesCardShadow,
                               pl: 1.5,
                               pr: 0.75,
-                              py: 0.6,
+                              py: 0.25,
                               transition: 'border-color 150ms ease, box-shadow 150ms ease',
                               '&:focus-within': {
                                 borderColor: 'primary.main',
@@ -2363,12 +2264,12 @@ export default function Messages() {
                               inputProps={{ maxLength: MAX_MESSAGE_LENGTH, 'aria-label': 'Message' }}
                               InputProps={{
                                 disableUnderline: true,
-                                sx: { fontSize: '0.9375rem', py: 0.55, '& .MuiInputBase-input': { py: 0.35, lineHeight: 1.5 } }
+                                sx: { fontSize: '0.9375rem', py: 0.3, '& .MuiInputBase-input': { py: 0.2, lineHeight: 1.5 } }
                               }}
                               sx={{ flex: 1, '& .MuiInputBase-root': { border: 'none' } }}
                             />
                             <Tooltip title="Send message">
-                              <span>
+                              <span style={{ alignSelf: 'flex-end' }}>
                                 <IconButton
                                   onClick={handleSendMessage}
                                   disabled={!messageInput.trim() || sendingMessage}
@@ -2435,9 +2336,12 @@ export default function Messages() {
                         startIcon={<PlusOutlined />}
                         onClick={() => {
                           setIsNewConversation(true);
+                          setDraftTenant(null);
+                          setNewMessageDraft('');
+                          setRecipientOpen(true);
                           setTenantSearchQuery('');
                         }}
-                        sx={{ mt: 0.5, textTransform: 'none', bgcolor: '#061e35', color: '#fff', '&:hover': { bgcolor: '#0b2f4f' } }}
+                        sx={{ mt: 0.5, textTransform: 'none' }}
                       >
                         New message
                       </Button>
@@ -2461,9 +2365,6 @@ export default function Messages() {
             <Box sx={{ p: 2, borderBottom: `1px solid ${messagesDivider}`, bgcolor: 'background.paper' }}>
               <Typography variant="subtitle2" fontWeight={700}>
                 Tenant snapshot
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                Updates as you select conversations
               </Typography>
             </Box>
 
@@ -2571,6 +2472,14 @@ export default function Messages() {
                           {activeMonthlyRent ? `${formatCurrency(activeMonthlyRent)}/mo` : '—'}
                         </Typography>
                       </Stack>
+                      {isActiveLeaseStatus && (
+                        <Stack direction="row" justifyContent="space-between" spacing={1}>
+                          <Typography variant="caption" color="text.secondary">Rent status</Typography>
+                          <Typography variant="caption" fontWeight={700} color={rentScopeKey ? activeRentStatus.color : 'text.secondary'}>
+                            {rentScopeKey ? activeRentStatus.label : 'Unavailable'}
+                          </Typography>
+                        </Stack>
+                      )}
                       <Stack direction="row" justifyContent="space-between" spacing={1}>
                         <Typography variant="caption" color="text.secondary">
                           Lease dates
@@ -2649,13 +2558,6 @@ export default function Messages() {
           confirmColor="primary"
         />
 
-        <TenantEditDrawer
-          tenant={tenantToEdit}
-          open={tenantEditOpen}
-          onClose={handleCloseTenantEdit}
-          onUpdateSuccess={handleTenantEditSuccess}
-        />
-
         <TenantAddDrawer />
 
         <LandlordMaintenanceDrawer />
@@ -2686,9 +2588,6 @@ export default function Messages() {
             <Box>
               <Typography variant="subtitle2" fontWeight={700}>
                 Tenant snapshot
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                Context for the selected conversation
               </Typography>
             </Box>
             {activeConversation ? (
@@ -2792,6 +2691,14 @@ export default function Messages() {
                         {activeMonthlyRent ? `${formatCurrency(activeMonthlyRent)}/mo` : '—'}
                       </Typography>
                     </Stack>
+                    {isActiveLeaseStatus && (
+                      <Stack direction="row" justifyContent="space-between" spacing={1}>
+                        <Typography variant="caption" color="text.secondary">Rent status</Typography>
+                        <Typography variant="caption" fontWeight={700} color={rentScopeKey ? activeRentStatus.color : 'text.secondary'}>
+                          {rentScopeKey ? activeRentStatus.label : 'Unavailable'}
+                        </Typography>
+                      </Stack>
+                    )}
                     <Stack direction="row" justifyContent="space-between" spacing={1}>
                       <Typography variant="caption" color="text.secondary">
                         Lease dates

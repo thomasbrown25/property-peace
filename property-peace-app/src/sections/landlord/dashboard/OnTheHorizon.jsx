@@ -9,7 +9,7 @@ import { selectProperties } from 'store/property/property.selector';
 import { selectDashboardSummary } from 'store/dashboard/dashboard.selector';
 import { selectTasks } from 'store/task/task.selector';
 
-const NAVY_BLUE = '#061e35';
+
 
 const CATEGORY_COLORS = {
   RentPayment: '#1877F2',
@@ -228,13 +228,13 @@ export default function OnTheHorizon() {
             sx={{
               flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
               py: 0.75, borderRadius: 1.5,
-              bgcolor: d.isToday || d.isSelected ? NAVY_BLUE : theme.palette.grey[200],
+              bgcolor: d.isToday || d.isSelected ? theme.palette.brand.forest : theme.palette.grey[200],
               outline: 'none',
               position: 'relative',
               cursor: 'pointer',
               transition: 'all 0.15s ease',
               '&:hover': {
-                bgcolor: d.isToday || d.isSelected ? NAVY_BLUE : alpha(theme.palette.primary.main, 0.12),
+                bgcolor: d.isToday || d.isSelected ? theme.palette.brand.forest : alpha(theme.palette.primary.main, 0.12),
               }
             }}
           >
@@ -259,7 +259,7 @@ export default function OnTheHorizon() {
             const isEvToday = isToday(ev.date);
             const month = format(ev.date, 'MMM').toUpperCase();
             const day   = format(ev.date, 'd');
-            const dotColor = NAVY_BLUE;
+            const dotColor = theme.palette.primary.main;
 
             return (
               <Stack key={idx} direction="row" spacing={1.5} sx={{ py: 1.25, alignItems: 'flex-start' }}>

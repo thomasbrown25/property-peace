@@ -555,7 +555,7 @@ export default function AdminSupportWorkspace({ onCountChange }) {
           p: { xs: 2.5, md: 3 },
           borderRadius: 2,
           color: '#fff',
-          background: 'linear-gradient(125deg, #061e35 0%, #0b3f50 100%)',
+          background: `linear-gradient(125deg, ${currentTheme.palette.primary.dark} 0%, ${currentTheme.palette.primary.main} 100%)`,
           position: 'relative',
           overflow: 'hidden',
           '&::after': {

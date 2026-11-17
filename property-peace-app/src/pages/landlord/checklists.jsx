@@ -396,7 +396,7 @@ export default function ChecklistsPage() {
           variant="contained"
           startIcon={<PlusOutlined />}
           onClick={() => setPickerOpen(true)}
-          sx={{ alignSelf: { xs: 'flex-start', sm: 'center' }, bgcolor: '#061e35', color: '#fff', '&:hover': { bgcolor: '#0b2f4f' }, textTransform: 'none', fontWeight: 700, boxShadow: 'none' }}
+          sx={{ alignSelf: { xs: 'flex-start', sm: 'center' }, bgcolor: theme.palette.brand.forest, color: '#fff', '&:hover': { bgcolor: theme.palette.primary.dark }, textTransform: 'none', fontWeight: 700, boxShadow: 'none' }}
         >
           Create checklist
         </Button>
@@ -582,7 +582,7 @@ export default function ChecklistsPage() {
                 <Button
                   variant="contained"
                   onClick={() => setPickerOpen(true)}
-                  sx={{ bgcolor: '#061e35', color: '#fff', '&:hover': { bgcolor: '#0b2f4f' }, textTransform: 'none', fontWeight: 700 }}
+                  sx={{ bgcolor: theme.palette.brand.forest, color: '#fff', '&:hover': { bgcolor: theme.palette.primary.dark }, textTransform: 'none', fontWeight: 700 }}
                 >
                   Create checklist
                 </Button>
@@ -677,7 +677,7 @@ export default function ChecklistsPage() {
                         height: 6,
                         borderRadius: 8,
                         bgcolor: alpha(theme.palette.divider, 0.15),
-                        '& .MuiLinearProgress-bar': { borderRadius: 8, bgcolor: '#061E35' }
+                        '& .MuiLinearProgress-bar': { borderRadius: 8, bgcolor: theme.palette.brand.forest }
                       }}
                     />
                   </Box>

@@ -3,8 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { describe, it } from 'node:test';
 import {
   canManagePaidBilling,
-  getPlanPricePresentation,
-  shouldStartCheckoutForPlanChange
+  getPlanPricePresentation
 } from './subscriptionPresentation.js';
 
 describe('subscription packaging presentation', () => {
@@ -47,10 +46,4 @@ describe('subscription packaging presentation', () => {
     assert.equal(canManagePaidBilling({ status: 'Trial', plan: { name: 'Premium' } }), false);
   });
 
-  it('routes a paymentless Free upgrade through checkout', () => {
-    assert.equal(shouldStartCheckoutForPlanChange({ status: 'Active', cancelAtPeriodEnd: false, plan: { name: 'Free' } }), true);
-    assert.equal(shouldStartCheckoutForPlanChange({ status: 'Trial', plan: { name: 'Premium' } }), true);
-    assert.equal(shouldStartCheckoutForPlanChange({ status: 'Active', cancelAtPeriodEnd: false, plan: { name: 'Premium' } }), false);
-    assert.equal(shouldStartCheckoutForPlanChange({ status: 'Active', cancelAtPeriodEnd: true, plan: { name: 'Free' } }), false);
-  });
 });

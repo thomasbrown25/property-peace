@@ -40,11 +40,10 @@ export default function Message() {
   const normalizedRoles = userRoles.map((r) => String(r).toLowerCase().trim());
   const isTenant = normalizedRoles.includes('tenant');
   
-  // Determine base path based on user role
-  const basePath = isAdmin ? '/admin' : isTenant ? '/tenant' : '/landlord';
+  // Route the header button to the appropriate role's inbox.
 
   const handleClick = () => {
-    navigate(`${basePath}/messages`);
+    navigate(isAdmin ? '/admin/messages' : isTenant ? '/tenant/messages' : '/landlord/chat');
   };
 
   // Load conversations function
@@ -151,7 +150,7 @@ export default function Message() {
 
   return (
     <Box sx={{ flexShrink: 0, ml: 0.75 }}>
-      <Tooltip title={isAdmin ? "Support" : "Messages"}>
+      <Tooltip title={isAdmin ? "Support" : isTenant ? "Messages" : "Chat"}>
         <IconButton
           color="secondary"
           sx={(theme) => ({
@@ -165,7 +164,7 @@ export default function Message() {
             },
             ...theme.applyStyles('dark', { '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.1)' } })
           })}
-          aria-label={isAdmin ? "open support" : "open messages"}
+          aria-label={isAdmin ? "open support" : isTenant ? "open messages" : "open chat"}
           onClick={handleClick}
         >
           <Badge badgeContent={unreadCount > 0 ? unreadCount : 0} color="primary" max={99} showZero={false}>

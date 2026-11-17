@@ -9,12 +9,22 @@ export function propertyHeaderMetrics(records = [], propertyId) {
     (sum, record) => sum + Math.min(amount(read(record, 'currentMonthExpected')), amount(read(record, 'currentMonthCollected'))),
     0
   );
+  const remaining = Math.max(0, expected - collected);
+  // Total unpaid rent for the current month plus prior-period arrears. OverdueAmount
+  // can already include current-month rent after its grace deadline, so don't add it twice.
+  const priorOverdue = scoped.reduce((sum, record) => sum + amount(read(record, 'priorPeriodOverdueRent')), 0);
+  const scheduledRent = scoped.reduce((sum, record) => sum + amount(read(record, 'rentAmount')), 0);
+  const pastDue = scoped.reduce((sum, record) => sum + amount(read(record, 'overdueAmount')), 0);
+  // Compare overdue rent with the normal monthly amount; keep the collection percentage separate.
+  const normalDue = expected || scheduledRent;
   return {
     expected,
     collected,
-    remaining: Math.max(0, expected - collected),
+    remaining,
+    dueAmount: priorOverdue + remaining,
     percent: expected > 0 ? Math.min(100, (collected / expected) * 100) : 0,
-    scheduledRent: scoped.reduce((sum, record) => sum + amount(read(record, 'rentAmount')), 0),
-    pastDue: scoped.reduce((sum, record) => sum + amount(read(record, 'overdueAmount')), 0)
+    overduePercent: pastDue > 0 && normalDue > 0 ? -Math.min(100, (pastDue / normalDue) * 100) : 0,
+    scheduledRent,
+    pastDue
   };
 }

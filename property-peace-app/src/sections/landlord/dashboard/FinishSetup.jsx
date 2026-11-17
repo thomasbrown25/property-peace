@@ -41,7 +41,7 @@ import { useNavigate } from 'react-router-dom';
 import { organizationSmsNumberAPI } from 'api/organizationSmsNumber';
 
 const SETUP_GREEN = '#41a541';
-const SETUP_NAVY = '#061e35';
+
 const SETUP_ACCENT_GREEN = '#41a541';
 
 const US_STATES = [
@@ -214,20 +214,19 @@ function SmsNumberSetupPanel({ step, onBack }) {
           >
             <CardContent>
               <Stack spacing={1.5}>
-                <Chip icon={<CrownOutlined />} label="Premium feature" color="primary" sx={{ alignSelf: 'flex-start', fontWeight: 800 }} />
+                <Chip label="Setup unavailable" color="primary" sx={{ alignSelf: 'flex-start', fontWeight: 800 }} />
                 <Typography variant="h6" fontWeight={800}>
-                  Included with Premium
+                  SMS number setup
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Upgrade to Premium to choose a Property Peace texting number for tenant communication. Tenants text normally, and replies
-                  stay grouped in your app inbox.
+                  A dedicated SMS number requires organization eligibility and provider setup. Contact support if you need help.
                 </Typography>
                 <Button
                   variant="contained"
-                  onClick={() => navigate('/landlord/settings?tab=subscription')}
+                  onClick={() => navigate('/landlord/support/ticket')}
                   sx={{ textTransform: 'none', alignSelf: 'flex-start' }}
                 >
-                  Upgrade to Premium
+                  Contact support
                 </Button>
               </Stack>
             </CardContent>
@@ -249,8 +248,7 @@ function SmsNumberSetupPanel({ step, onBack }) {
                     Choose your number
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Pick a state, select an area code, then choose from live Twilio inventory. Your Premium plan includes one dedicated
-                    number.
+                    Pick a state, select an area code, then choose from live Twilio inventory. Your organization can activate one dedicated number.
                   </Typography>
                 </Box>
                 {error && <Alert severity="error">{error}</Alert>}
@@ -424,8 +422,8 @@ export default function FinishSetup({ open, onOpen, onClose, onDismiss, isDismis
             top: 10,
             right: 10,
             zIndex: 1,
-            color: SETUP_NAVY,
-            '&:hover': { bgcolor: alpha(SETUP_NAVY, 0.08) }
+            color: 'text.primary',
+            '&:hover': { bgcolor: (t) => alpha(t.palette.primary.main, 0.08) }
           }}
         >
           <CloseOutlined />
@@ -510,7 +508,7 @@ export default function FinishSetup({ open, onOpen, onClose, onDismiss, isDismis
               sx={(t) => ({
                 p: 2.5,
                 color: t.palette.common.white,
-                bgcolor: SETUP_NAVY,
+                bgcolor: 'brand.forest',
                 '& .MuiTypography-root': { color: t.palette.common.white }
               })}
             >

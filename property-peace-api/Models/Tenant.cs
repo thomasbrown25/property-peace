@@ -8,6 +8,7 @@ namespace brownstone_hub_api.Models
         public string Lastname { get; set; }
         public string? Email { get; set; }
         public string? PhoneNumber { get; set; }
+        public string? ProfileImageUrl { get; set; }
         public bool IsDeleted { get; set; } = false;
         public DateTime? DeletedAt { get; set; }
         public long? UnitId { get; set; }

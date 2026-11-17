@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
+import { useTheme } from '@mui/material/styles';
 import TurnstileCheckbox from 'components/auth/TurnstileCheckbox';
 
 // Public, intentionally separate from AuthLayout. Tokens only cross the WebView bridge,
 // never a URL, storage, network request from this page, or a console statement.
 export default function MobileSignupChallenge() {
+  const theme = useTheme();
   const [error, setError] = useState('');
   const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY?.trim();
   const send = (type, token) => {
@@ -19,7 +21,7 @@ export default function MobileSignupChallenge() {
   }, [siteKey]);
 
   return (
-    <main style={{ minHeight: '100vh', background: '#061e35', color: '#fff', display: 'grid', placeContent: 'center', padding: 16, textAlign: 'center' }}>
+    <main style={{ minHeight: '100vh', background: theme.palette.primary.dark, color: theme.palette.primary.contrastText, display: 'grid', placeContent: 'center', padding: 16, textAlign: 'center' }}>
       <h1 style={{ fontSize: 20 }}>Human verification</h1>
       {!siteKey ? (
         <p role="alert">Security check is not configured. Set VITE_TURNSTILE_SITE_KEY on the web app deployment.</p>

@@ -92,11 +92,13 @@ test('lease checklist shows only the requested steps and no setup chip', () => {
   assert.match(overview, /checklists=\{leaseChecklists\}/);
 });
 
-test('lease header keeps the property title compact and omits tenant names from the subtitle', () => {
-  const header = between('{/* ── Lease header', '{isDraftLease && (');
-  assert.match(header, /fontSize: \{ xs: '1\.75rem', sm: '2\.25rem' \}/);
+test('lease header pairs the named agreement and home photo with a compact term snapshot', () => {
+  const header = between('{/* The home gives this lease', '{isDraftLease && (');
+  assert.match(header, /leaseDetailTitle\(lease, propertyDisplay, leaseId\)/);
+  assert.match(header, /src=\{headerPhoto\}/);
   assert.match(header, /modeLabel\(lease\?\.unit \?\? lease\?\.Unit\)/);
-  assert.doesNotMatch(header, /tenantFullName \? `\$\{tenantFullName\}/);
+  assert.match(header, /Lease term/);
+  assert.match(header, /Amount due/);
 });
 
 test('lease header keeps upload in actions without a renew shortcut', () => {

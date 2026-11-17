@@ -173,7 +173,7 @@ export function RentCollectionProgress({ summary = {} }) {
   const theme = useTheme();
   const { collectionPct, income, expectedRent } = normalizeRentCollectionMetrics(summary);
   const incomeColor = theme.palette.success.main;
-  const textColor = theme.palette.mode === 'dark' ? theme.palette.common.white : '#061e35';
+  const textColor = theme.palette.text.primary;
 
   return (
     <CollectionProgressCard
@@ -210,8 +210,8 @@ export default function MoneySummary({
   const expenses = Number(totalExpenses || 0);
   const incomeColor = theme.palette.success.main;
   const expenseColor = theme.palette.error.main;
-  const navy = theme.palette.mode === 'dark' ? theme.palette.primary.light : '#061e35';
-  const summaryTextColor = theme.palette.mode === 'dark' ? theme.palette.common.white : '#061e35';
+  const chartAccent = theme.palette.mode === 'dark' ? theme.palette.primary.light : theme.palette.brand.forest;
+  const summaryTextColor = theme.palette.text.primary;
   const dailyChartData = useMemo(
     () => buildCurrentMonthMoneySeries({ payments: allPayments, expenses: expenseItems }),
     [allPayments, expenseItems]
@@ -307,8 +307,8 @@ export default function MoneySummary({
             <BarChart data={chartData} margin={{ top: 6, right: 6, left: -8, bottom: isAllTime ? 0 : 2 }} barGap={1} barCategoryGap="24%">
               <XAxis
                 dataKey="label"
-                axisLine={{ stroke: alpha(navy, 0.72) }}
-                tickLine={{ stroke: alpha(navy, 0.72) }}
+                axisLine={{ stroke: alpha(chartAccent, 0.72) }}
+                tickLine={{ stroke: alpha(chartAccent, 0.72) }}
                 interval={isAllTime ? 0 : 3}
                 angle={isAllTime ? 0 : 90}
                 textAnchor={isAllTime ? 'middle' : 'start'}
@@ -317,13 +317,13 @@ export default function MoneySummary({
                 tick={{ fill: theme.palette.text.secondary, fontSize: 9 }}
               />
               <YAxis
-                axisLine={{ stroke: alpha(navy, 0.72) }}
-                tickLine={{ stroke: alpha(navy, 0.72) }}
+                axisLine={{ stroke: alpha(chartAccent, 0.72) }}
+                tickLine={{ stroke: alpha(chartAccent, 0.72) }}
                 width={48}
                 tick={{ fill: theme.palette.text.secondary, fontSize: 10 }}
                 tickFormatter={(value) => (value >= 1000 ? `$${(value / 1000).toFixed(value % 1000 === 0 ? 0 : 1)}k` : `$${value}`)}
               />
-              <Tooltip content={<MoneyChartTooltip />} cursor={{ fill: alpha(navy, 0.035) }} />
+              <Tooltip content={<MoneyChartTooltip />} cursor={{ fill: alpha(chartAccent, 0.035) }} />
               <Bar dataKey="income" name="Income" fill={incomeColor} maxBarSize={isAllTime ? 38 : 7} />
               <Bar dataKey="expenses" name="Expenses" fill={expenseColor} maxBarSize={isAllTime ? 38 : 7} />
             </BarChart>

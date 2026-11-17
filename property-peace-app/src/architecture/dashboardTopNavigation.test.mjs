@@ -22,7 +22,10 @@ test('landlord shell reserves one green property rail rather than two sidebars',
   assert.match(sidebar, /LANDLORD_SIDEBAR_WIDTH = 260/);
   for (const text of [layout, header]) assert.match(text, /lg: `calc\(100% - \$\{LANDLORD_SIDEBAR_WIDTH\}px\)`/);
   assert.doesNotMatch(sidebar, /LANDLORD_PROPERTY_SIDEBAR_WIDTH|LANDLORD_PRIMARY_SIDEBAR_WIDTH|aria-label="Property sidebar"|\{navigation\}/);
-  assert.match(sidebar, /bgcolor: brand\.forest/);
+  assert.match(sidebar, /const sidebarBackground = brand\.forest/);
+  assert.match(source('../themes/brand.js'), /forest: '#102C29'/);
+  assert.equal((sidebar.match(/bgcolor: sidebarBackground/g) || []).length, 4);
+  assert.match(sidebar, /linear-gradient\(transparent, \$\{sidebarBackground\}\)/);
   assert.match(sidebar, /<Logo darkSurface[\s\S]*?to="\/landlord\/dashboard"/);
 });
 
@@ -66,7 +69,14 @@ test('properties are searchable, accessible, and scroll in the single green rail
   assert.match(sidebar, /variant="temporary" open=\{mobileOpen\} onClose=\{onMobileClose\}/);
   assert.match(sidebar, /aria-label="Landlord pages"/);
   assert.match(sidebar, /landlordPrimaryLinks\.map/);
-  assert.match(sidebar, /landlordMoreLinks\.map/);
-  assert.match(sidebar, /renderPropertyNavigation\(\)/);
+  assert.match(sidebar, /landlordMoreLinks\.filter\(\(\{ label \}\) => label !== 'Settings'\)\.map/);
+  assert.match(sidebar, /renderPropertyNavigation\('desktop'\)/);
+  assert.match(sidebar, /renderPropertyNavigation\('mobile'\)/);
+  assert.match(sidebar, /aria-label="Search properties" title="Search properties"[\s\S]*?<SearchOutlined \/>[\s\S]*?aria-label="Add property"/);
+  assert.match(sidebar, /<Collapse in=\{searchOpen\} timeout=\{reducedMotion \? 0 : 240\} unmountOnExit/);
+  assert.match(sidebar, /onKeyDown=\{\(event\) => \{ if \(event\.key === 'Escape'\)/);
   assert.match(sidebar, /disabled=\{trialExpired\}/);
+  assert.match(sidebar, /borderBottom: '1px solid', borderColor: 'rgba\(255, 255, 255, 0\.14\)'/);
+  assert.match(sidebar, /borderTop: '1px solid rgba\(255, 255, 255, 0\.14\)'[\s\S]*?to="\/landlord\/settings"[\s\S]*?primary="Settings"/);
+  assert.match(sidebar, /<SettingOutlined aria-hidden="true" \/>/);
 });

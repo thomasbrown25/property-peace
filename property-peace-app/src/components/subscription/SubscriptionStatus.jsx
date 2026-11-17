@@ -94,7 +94,7 @@ export default function SubscriptionStatus({ status }) {
                   </Typography>
                 )}
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                  Choose the permanent Free plan or Premium before this legacy trial ends
+                  Your account will move to the Free plan when this legacy trial ends.
                 </Typography>
               </Box>
             ) : subscription.status === 'PaymentPending' ? (

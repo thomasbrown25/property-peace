@@ -56,8 +56,7 @@ import useFetchTasks from 'hooks/useFetchTasks';
 import useLandlordSetupSteps from 'hooks/useLandlordSetupSteps';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { expenseAPI } from 'api';
-import { useSubscription, useSubscriptionPlans, useSubscriptionStatus } from 'hooks/useSubscription';
-import { subscriptionAPI } from 'api';
+import { useSubscription, useSubscriptionStatus } from 'hooks/useSubscription';
 import { openSnackbar } from 'api/snackbar';
 import axiosServices from 'utils/axios';
 import { alpha, useTheme, Button, useMediaQuery } from '@mui/material';
@@ -118,7 +117,6 @@ export default function DashboardOverview({ embedded = false }) {
   const allPayments = useSelector(selectAllPayments);
   const tasks = useSelector(selectTasks);
   const { subscription, loading: subLoading } = useSubscription();
-  const { plans } = useSubscriptionPlans();
   const { status: subscriptionStatus } = useSubscriptionStatus();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -244,7 +242,6 @@ export default function DashboardOverview({ embedded = false }) {
 
   // Orphaned subscription modal state
   const [orphanedModalOpen, setOrphanedModalOpen] = useState(false);
-  const [checkoutLoading, setCheckoutLoading] = useState(false);
 
   // Fade-in animation state
   const [fadeIn, setFadeIn] = useState(false);
@@ -335,65 +332,10 @@ export default function DashboardOverview({ embedded = false }) {
     navigate('/landlord/property-portfolio');
   };
 
-  const handleCreateCheckoutSession = async (plan, billingCycle) => {
-    try {
-      setCheckoutLoading(true);
-
-      const successUrl = `${window.location.origin}/landlord/settings?tab=subscription&success=true`;
-      const cancelUrl = `${window.location.origin}/landlord/dashboard?canceled=true`;
-
-      const response = await subscriptionAPI.createCheckoutSession(plan.id, billingCycle, successUrl, cancelUrl);
-
-      if (response.success && response.data) {
-        // Redirect to Stripe Checkout
-        window.location.href = response.data;
-      } else {
-        openSnackbar({
-          open: true,
-          message: response.message || 'Failed to create checkout session',
-          variant: 'alert',
-          alert: { color: 'error' }
-        });
-        setCheckoutLoading(false);
-      }
-    } catch (error) {
-      console.error('Error creating checkout session:', error);
-      openSnackbar({
-        open: true,
-        message: 'Failed to start checkout process',
-        variant: 'alert',
-        alert: { color: 'error' }
-      });
-      setCheckoutLoading(false);
-    }
-  };
-
-  const handleFixOrphanedSubscription = async () => {
-    if (!subscription || !subscription.plan) {
-      setOrphanedModalOpen(false);
-      return;
-    }
-
-    // Get the current plan and billing cycle from the subscription
-    const currentPlan = plans?.find((p) => p.id === subscription.plan.id);
-    const currentBillingCycle = subscription.billingCycle || 'Monthly';
-
-    if (!currentPlan) {
-      openSnackbar({
-        open: true,
-        message: 'Could not find current subscription plan',
-        variant: 'alert',
-        alert: { color: 'error' }
-      });
-      setOrphanedModalOpen(false);
-      return;
-    }
-
-    // Close modal before redirect (if successful, redirect will happen; if error, modal already closed)
+  // Legacy paid billing cannot be repaired through public checkout.
+  const handleFixOrphanedSubscription = () => {
     setOrphanedModalOpen(false);
-
-    // Trigger the checkout flow for the current plan (same as selecting it)
-    await handleCreateCheckoutSession(currentPlan, currentBillingCycle);
+    navigate('/landlord/support/ticket');
   };
 
   const quickActions = [
@@ -705,7 +647,7 @@ export default function DashboardOverview({ embedded = false }) {
                                     alignItems: 'center',
                                     justifyContent: 'center',
                                     color: theme.palette.mode === 'dark' ? theme.palette.text.primary : '#061e35',
-                                    bgcolor: alpha(theme.palette.mode === 'dark' ? theme.palette.primary.light : '#061e35', theme.palette.mode === 'dark' ? 0.14 : 0.08)
+                                    bgcolor: alpha(theme.palette.mode === 'dark' ? theme.palette.primary.light : theme.palette.brand.forest, theme.palette.mode === 'dark' ? 0.14 : 0.08)
                                   })}
                                 >
                                   {action.icon}
@@ -806,7 +748,6 @@ export default function DashboardOverview({ embedded = false }) {
         onClose={() => setOrphanedModalOpen(false)}
         onFix={handleFixOrphanedSubscription}
         subscription={subscription}
-        loading={checkoutLoading}
       />
       {/* Add Expense Drawer */}
       <ExpenseAddDrawer

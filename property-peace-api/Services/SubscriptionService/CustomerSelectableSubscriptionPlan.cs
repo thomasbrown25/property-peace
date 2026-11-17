@@ -16,7 +16,6 @@ public static class CustomerSelectableSubscriptionPlan
         }
 
         var normalizedName = plan.Name?.Trim();
-        return string.Equals(normalizedName, "Free", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(normalizedName, "Premium", StringComparison.OrdinalIgnoreCase);
+        return string.Equals(normalizedName, "Free", StringComparison.OrdinalIgnoreCase);
     }
 }

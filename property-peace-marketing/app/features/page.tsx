@@ -96,7 +96,7 @@ const featureCategories = [
         slug: 'tenant-communication',
         icon: FiBell,
         title: 'Multi-Channel Notifications',
-        description: 'Never miss a due date or request with in-app and email notifications. Premium includes one dedicated organization SMS number; activation and configuration are required.'
+        description: 'Never miss a due date or request with in-app and email notifications. SMS requires activation and configuration of an organization number.'
       },
       {
         slug: 'property-management',
@@ -175,7 +175,7 @@ export default function FeaturesPage() {
     operatingSystem: "Web",
     url: "https://propertypeace.io/features",
     description: "Property management software features for independent landlords: rent, maintenance, leases, accounting, documents, messaging, and Percy Pilot tools.",
-    offers: { "@type": "Offer", price: "0", priceCurrency: "USD", description: "Built for hands-on landlords with 1–50 units. Start free; premium plans available." },
+    offers: { "@type": "Offer", price: "0", priceCurrency: "USD", description: "Free property management software for unlimited units. Provider-backed features may require activation or approval." },
   };
 
   const breadcrumbSchema = {
@@ -235,7 +235,7 @@ export default function FeaturesPage() {
                 </Link>
               </div>
               <div className="mt-8 flex flex-wrap gap-3 text-sm font-medium text-brand-slate" style={{ fontFamily: '"Inter", sans-serif' }}>
-                {['No credit card required', 'Free forever plan', 'Built for 1–50 units'].map((item) => (
+                {['No credit card required', 'Free for unlimited units', 'Built for 1–50 units'].map((item) => (
                   <span key={item} className="inline-flex items-center gap-2 rounded-full border border-[var(--brand-border)] bg-brand-surface px-3 py-1.5 shadow-sm">
                     <FiCheck className="h-4 w-4 text-brand-teal" />
                     {item}
@@ -368,7 +368,7 @@ export default function FeaturesPage() {
             </p>
             <ul className="mt-7 flex flex-wrap justify-center gap-x-8 gap-y-3 font-medium text-white/85" style={{ fontFamily: '"Inter", sans-serif' }}>
               <li className="flex items-center gap-2"><FiCheck className="text-brand-mint" /> No credit card required</li>
-              <li className="flex items-center gap-2"><FiCheck className="text-brand-mint" /> Free forever plan</li>
+              <li className="flex items-center gap-2"><FiCheck className="text-brand-mint" /> Free for unlimited units</li>
               <li className="flex items-center gap-2"><FiCheck className="text-brand-mint" /> Built for landlords with 1–50 units</li>
             </ul>
             <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">

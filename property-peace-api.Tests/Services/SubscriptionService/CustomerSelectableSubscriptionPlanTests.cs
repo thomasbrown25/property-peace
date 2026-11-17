@@ -23,7 +23,7 @@ public sealed class CustomerSelectableSubscriptionPlanTests
     [Theory]
     [InlineData("Free", true)]
     [InlineData(" free ", true)]
-    [InlineData("PREMIUM", true)]
+    [InlineData("PREMIUM", false)]
     [InlineData("Lifetime Plan", false)]
     [InlineData("lIfEtImE pLaN", false)]
     [InlineData("Lifetime", false)]
@@ -55,7 +55,7 @@ public sealed class CustomerSelectableSubscriptionPlanTests
     }
 
     [Fact]
-    public async Task GetAvailablePlansAsync_ExposesOnlyFreeAndPremium()
+    public async Task GetAvailablePlansAsync_ExposesOnlyFree()
     {
         var fixture = new Fixture();
 
@@ -63,7 +63,7 @@ public sealed class CustomerSelectableSubscriptionPlanTests
 
         result.Success.Should().BeTrue();
         result.Data.Should().NotBeNull();
-        result.Data!.Select(plan => plan.Name).Should().Equal("Free", "Premium");
+        result.Data!.Select(plan => plan.Name).Should().Equal("Free");
     }
 
     [Fact]
@@ -116,7 +116,7 @@ public sealed class CustomerSelectableSubscriptionPlanTests
     public static TheoryData<string, bool> NonSelectablePublicPlans => new()
     {
         { "Free", false },
-        { "Premium", false },
+        { "Premium", true },
         { "Future Internal", true },
     };
 

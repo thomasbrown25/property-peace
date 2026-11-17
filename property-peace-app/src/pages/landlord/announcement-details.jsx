@@ -399,7 +399,7 @@ export default function AnnouncementDetailsPage() {
             overflow: 'hidden',
             position: 'relative',
             color: '#fff',
-            bgcolor: '#061e35',
+            bgcolor: theme.palette.brand.forest,
             backgroundImage: `radial-gradient(circle at 88% 15%, ${alpha('#41a541', 0.22)}, transparent 32%)`,
             boxShadow: `0 16px 38px ${alpha('#061e35', 0.18)}`
           }}

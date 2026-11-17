@@ -17,10 +17,10 @@ namespace brownstone_hub_api.Tests.Entitlements;
 public sealed class RentEstimateAndLeaseShieldEntitlementTests
 {
     [Theory]
-    [InlineData("Free", false, "upgrade-required")]
+    [InlineData("Free", true, "allowed")]
     [InlineData("Premium", true, "allowed")]
     [InlineData("Lifetime Plan", true, "allowed")]
-    public void Catalog_packages_both_features_as_premium_or_lifetime_only(
+    public void Catalog_includes_both_features_on_all_plans(
         string persistedPlan, bool allowed, string reason)
     {
         Assert.True(PlanKeyMapping.TryFromPersistedName(persistedPlan, out var plan));

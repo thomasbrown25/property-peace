@@ -11,7 +11,7 @@ import { isHighPriorityMaintenanceRequest, isOpenMaintenanceRequest } from 'util
 export default function TodaysPriorities({ properties = [], summary = {}, allPayments = [] }) {
   const theme = useTheme();
   const navigate = useNavigate();
-  const navyBlue = '#061e35';
+  const brandForest = theme.palette.brand.forest;
   const actionGreen = theme.palette.success.main;
   const dashboardSummary = useSelector(selectDashboardSummary);
   const allRequests = dashboardSummary?.maintenanceRequests?.maintenanceRequests || [];
@@ -164,8 +164,8 @@ export default function TodaysPriorities({ properties = [], summary = {}, allPay
         icon: <MessageOutlined style={{ fontSize: 16 }} />,
         title: `${unreadMessageNotifs.length} unread tenant message${unreadMessageNotifs.length !== 1 ? 's' : ''}`,
         description: 'Respond to keep tenants informed',
-        actionLabel: 'View messages',
-        onAction: () => navigate('/landlord/messages')
+        actionLabel: 'View chat',
+        onAction: () => navigate('/landlord/chat')
       });
     }
 
@@ -257,9 +257,9 @@ export default function TodaysPriorities({ properties = [], summary = {}, allPay
                 {/* Icon */}
                 <Box sx={{
                   width: 36, height: 36, borderRadius: 1.5, flexShrink: 0,
-                  bgcolor: alpha(navyBlue, 0.1),
+                  bgcolor: alpha(brandForest, 0.1),
                   display: { xs: 'none', sm: 'flex' }, alignItems: 'center', justifyContent: 'center',
-                  color: navyBlue
+                  color: brandForest
                 }}>
                   {item.icon}
                 </Box>
@@ -272,7 +272,7 @@ export default function TodaysPriorities({ properties = [], summary = {}, allPay
                     </Typography>
                     <Chip label={item.type} size="small"
                       sx={{ height: 18, fontSize: '0.6rem', fontWeight: 700, letterSpacing: 0.4, flexShrink: 0,
-                        bgcolor: alpha(navyBlue, 0.1), color: navyBlue, '& .MuiChip-label': { px: 0.6 } }} />
+                        bgcolor: alpha(brandForest, 0.1), color: brandForest, '& .MuiChip-label': { px: 0.6 } }} />
                   </Stack>
                   {item.description && (
                     <Typography variant="caption" color="text.secondary" noWrap sx={{ fontSize: '0.78rem' }}>

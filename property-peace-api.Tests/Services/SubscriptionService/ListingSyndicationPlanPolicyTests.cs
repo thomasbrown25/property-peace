@@ -9,13 +9,13 @@ public sealed class ListingSyndicationPlanPolicyTests
     [Theory]
     [InlineData("Free", "Monthly")]
     [InlineData("Free", "Annual")]
-    public void Resolve_GivesFreePlanOneCoreExternalListing(string planName, string billingCycle)
+    public void Resolve_GivesFreePlanMultipleExternalListings(string planName, string billingCycle)
     {
         var entitlement = ListingSyndicationPlanPolicy.Resolve(planName, billingCycle, isActive: true);
 
         entitlement.CanUseCoreDestinations.Should().BeTrue();
-        entitlement.CanUseExtendedDestinations.Should().BeFalse();
-        entitlement.MaxActiveExternalListings.Should().Be(1);
+        entitlement.CanUseExtendedDestinations.Should().BeTrue();
+        entitlement.MaxActiveExternalListings.Should().BeNull();
     }
 
     [Theory]
@@ -48,9 +48,18 @@ public sealed class ListingSyndicationPlanPolicyTests
     public void Resolve_DeniesUnknownPlans()
     {
         var entitlement = ListingSyndicationPlanPolicy.Resolve("Unknown", "Monthly", isActive: true);
-
         entitlement.CanUseCoreDestinations.Should().BeFalse();
         entitlement.CanUseExtendedDestinations.Should().BeFalse();
         entitlement.MaxActiveExternalListings.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData("Unknown", "Lifetime")]
+    [InlineData("Not Premium", "Monthly")]
+    [InlineData("Lifetime", "Lifetime")]
+    public void Resolve_DoesNotTreatBillingCycleOrPartialNameAsPlanAuthority(string name, string cycle)
+    {
+        ListingSyndicationPlanPolicy.Resolve(name, cycle, isActive: true)
+            .Should().Be(ListingSyndicationEntitlement.None);
     }
 }

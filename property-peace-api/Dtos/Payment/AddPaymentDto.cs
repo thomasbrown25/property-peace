@@ -1,9 +1,9 @@
-
 namespace brownstone_hub_api.Dtos.Payment
 {
     public class AddPaymentDto
     {
         public long LeaseId { get; set; }
+        public long? TenantId { get; set; } // Payer on this lease for a manual entry
         public DateTime PaymentDate { get; set; }
         public string Reference { get; set; } = "";
         public decimal Amount { get; set; }

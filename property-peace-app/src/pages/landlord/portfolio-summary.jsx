@@ -223,7 +223,7 @@ function extractSuggestedActions(data) {
     const shortName = nameWords.length > 2 ? nameWords.slice(0, 2).join(' ') : first.tenantName;
     suggested.push({
       action: 'navigateToPage',
-      params: { route: `/landlord/messages?conversation=${first.conversationId}` },
+      params: { route: `/landlord/chat?conversation=${first.conversationId}` },
       label: first.tenantName ? `View message from ${shortName}` : 'View urgent message',
       tooltip: `View urgent message${first.tenantName ? ` from ${first.tenantName}` : ''}`
     });
@@ -336,7 +336,7 @@ function getDetailModalData(item, summaryData) {
     }
 
     // Messages
-    if (route?.includes('/landlord/messages')) {
+    if (route?.includes('/landlord/chat')) {
       const convIdMatch = route.match(/conversation=(\d+)/);
       const convId = convIdMatch ? parseInt(convIdMatch[1]) : null;
       const msg = convId ? summaryData.urgentMessages?.find((m) => m.conversationId === convId) : summaryData.urgentMessages?.[0];

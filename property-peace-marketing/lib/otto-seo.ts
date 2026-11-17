@@ -14,7 +14,7 @@ type OttoSeoOverride = {
 const ottoSeoOverrides: Record<string, OttoSeoOverride> = {
   '/': {
     title: 'Property Peace | Property Management Software',
-    description: 'Free rental management software for independent landlords with up to 5 units. Manage rent, tenants, leases, maintenance, and expenses in one calm dashboard. No credit card required.',
+    description: 'Free rental management software for independent landlords with unlimited units. Manage rent, tenants, leases, maintenance, and expenses in one calm dashboard. No credit card required.',
     canonical: 'https://propertypeace.io/',
     openGraphTitle: 'Property Peace | Property Management Software',
     twitterTitle: 'Property Peace | Property Management Software',
@@ -46,7 +46,7 @@ const ottoSeoOverrides: Record<string, OttoSeoOverride> = {
     title: 'Property Management Software Features: Streamline Your Landlord Tasks | Property Peace',
     description: 'Explore Property Peace tools for rent tracking, maintenance, leases, applications, and accounting, plus portfolio summaries in the limited Percy Pilot.',
     canonical: 'https://propertypeace.io/features',
-    twitterTitle: 'Property Peace: Simplify Landlord Life. Free Plan! #PropTech',
+    twitterTitle: 'Property Peace: Simplify Landlord Life. Free Software! #PropTech',
     twitterDescription: 'Simplify rent, leases, maintenance & expenses. Property Peace: your calm dashboard for 1-50 units. Start free! #LandlordLife',
   },
   '/features/ai-summaries/': {
@@ -122,10 +122,10 @@ const ottoSeoOverrides: Record<string, OttoSeoOverride> = {
   },
   '/free-landlord-software/': {
     title: 'Free Rental Management Software | Property Peace',
-    description: 'Free rental management software for small landlords with up to 5 units. Manage rent, tenants, leases, maintenance, and expenses with no credit card required.',
+    description: 'Free rental management software for small landlords with unlimited units. Manage rent, tenants, leases, maintenance, and expenses with no credit card required.',
     openGraphTitle: 'Free Rental Management Software | Property Peace',
     twitterTitle: 'Free Rental Management Software | Property Peace',
-    twitterDescription: 'Manage rent, tenants, leases, maintenance, and expenses with free rental management software for small landlords with up to 5 units.',
+    twitterDescription: 'Manage rent, tenants, leases, maintenance, and expenses with free rental management software for unlimited units.',
   },
   '/help-center/': {
     title: 'Property Peace Help Center: Support & FAQs for Landlords',
@@ -162,11 +162,11 @@ const ottoSeoOverrides: Record<string, OttoSeoOverride> = {
     twitterDescription: 'Organize tenant maintenance, photos, and history in one dashboard. Built for small landlords. Start free! #PropertyManagement',
   },
   '/pricing/': {
-    title: 'Property Peace Pricing: Free Plan & Premium Features',
-    description: 'Start free with landlord software for up to 5 units. Upgrade for unlimited units, LeaseShield, rent workflows, financial reports, and limited Percy Pilot tools.',
+    title: 'Free Property Management Software | Property Peace',
+    description: 'Manage unlimited units with Property Peace for free. Rent tracking, leases, maintenance, accounting, and more. No credit card required.',
     canonical: 'https://propertypeace.io/pricing',
-    openGraphTitle: 'Property Peace Pricing: Free Plan & Premium Features',
-    twitterTitle: 'Property Peace: Manage 1-50 Units FREE! #LandlordLife',
+    openGraphTitle: 'Free Property Management Software | Property Peace',
+    twitterTitle: 'Free Property Management Software | Property Peace',
   },
   '/privacy/': {
     canonical: 'https://propertypeace.io/privacy/',
@@ -178,7 +178,7 @@ const ottoSeoOverrides: Record<string, OttoSeoOverride> = {
   },
   '/property-management-software-for-small-landlords/': {
     title: 'Property Management Software for Small Landlords | Property Peace',
-    description: 'Property Peace software for small landlords (1-50 units). Organize rent, tenants, leases, maintenance & expenses. Try our free plan today!',
+    description: 'Property Peace software for small landlords (1-50 units). Organize rent, tenants, leases, maintenance & expenses. Manage unlimited units for free!',
     openGraphTitle: 'Organize Your Rentals: Simple Software for Small Landlords',
   },
   '/rent-collection-software-for-landlords/': {

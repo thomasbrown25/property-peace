@@ -1,20 +1,10 @@
 import { useState, useEffect } from 'react';
-import {
-  Box,
-  Typography,
-  Stack,
-  Tabs,
-  Tab,
-  Fade,
-  Slide,
-  alpha,
-  useTheme
-} from '@mui/material';
+import { Box, Typography, Tabs, Tab, Fade, Slide } from '@mui/material';
+import { recordTabsSx } from 'sections/landlord/property/recordTabsStyle';
 import {
   CheckSquareOutlined,
   FileTextOutlined
 } from '@ant-design/icons';
-import MainCard from 'components/MainCard';
 import AnimateIn from 'components/AnimateIn';
 import ChecklistTab from './tools/ChecklistTab';
 import DocumentsTab from './tools/DocumentsTab';
@@ -40,7 +30,6 @@ function TabPanel({ children, value, index, slideDirection, ...other }) {
 }
 
 export default function ToolsTabs() {
-  const theme = useTheme();
   const [tabValue, setTabValue] = useState(0);
   const [slideDirection, setSlideDirection] = useState('left');
   const [fadeIn, setFadeIn] = useState(false);
@@ -79,59 +68,18 @@ export default function ToolsTabs() {
 
         {/* Modern Tabs */}
         <AnimateIn direction="bottom" delay={200} distance={120}>
-          <MainCard
-            sx={{
-              mb: 0,
-              bgcolor: (t) => alpha(t.palette.background.paper, 0.8),
-              boxShadow: (t) => `0 4px 20px ${alpha(t.palette.primary.main, 0.15)}`,
-              border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-              borderRadius: 2,
-              overflow: 'hidden',
-              '& .MuiTabs-root': {
-                minHeight: 48
-              },
-              '& .MuiTab-root': {
-                minHeight: 48,
-                textTransform: 'none',
-                fontSize: '0.9375rem',
-                fontWeight: 600,
-                fontFamily: "'Poppins', sans-serif",
-                color: theme.palette.text.secondary,
-                px: 3,
-                '&:hover': {
-                  color: theme.palette.primary.main,
-                  bgcolor: alpha(theme.palette.primary.main, 0.04)
-                },
-                '&.Mui-selected': {
-                  color: theme.palette.primary.main,
-                  fontWeight: 700
-                }
-              },
-              '& .MuiTabs-indicator': {
-                height: 3,
-                borderRadius: '3px 3px 0 0',
-                backgroundColor: theme.palette.primary.main
-              }
-            }}
-          >
+          <Box sx={recordTabsSx}>
             <Tabs
               value={tabValue}
               onChange={handleTabChange}
               variant="scrollable"
               scrollButtons="auto"
-              sx={{
-                borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-                '& .MuiTabs-scrollButtons': {
-                  '&.Mui-disabled': {
-                    opacity: 0.3
-                  }
-                }
-              }}
+              aria-label="Tools sections"
             >
               <Tab icon={<CheckSquareOutlined />} label="Checklist" iconPosition="start" />
               <Tab icon={<FileTextOutlined />} label="Documents" iconPosition="start" />
             </Tabs>
-          </MainCard>
+          </Box>
         </AnimateIn>
 
         {/* Tab Content */}

@@ -173,7 +173,7 @@ public sealed class EntitlementDecisionServiceTests
     }
 
     [Theory]
-    [InlineData("Free", "free", false, "upgrade-required")]
+    [InlineData("Free", "free", true, "allowed")]
     [InlineData("Premium", "premium", true, "allowed")]
     [InlineData("Lifetime Plan", "lifetime", true, "allowed")]
     public async Task Free_premium_and_lifetime_use_the_catalog(string persistedPlan, string effectivePlan, bool allowed, string reason)
@@ -190,7 +190,7 @@ public sealed class EntitlementDecisionServiceTests
     }
 
     [Fact]
-    public async Task Quota_applies_current_usage_and_requested_quantity()
+    public async Task Free_has_no_quota_for_current_usage_or_requested_quantity()
     {
         var below = StandardFacts(plan: "Free") with { CurrentUsage = 4 };
         var atLimit = StandardFacts(plan: "Free") with { CurrentUsage = 5 };
@@ -200,9 +200,9 @@ public sealed class EntitlementDecisionServiceTests
         var deniedByUsage = await Service(new FakeFactsProvider(atLimit)).DecideAsync(Request(requestedQuantity: 1));
 
         Assert.True(allowed.IsAllowed);
-        Assert.Equal(EntitlementReasonCodes.Quota, deniedByRequest.Reason);
-        Assert.Equal(EntitlementReasonCodes.Quota, deniedByUsage.Reason);
-        Assert.Equal(new EntitlementQuota("units", 5), deniedByRequest.Quota);
+        Assert.True(deniedByRequest.IsAllowed);
+        Assert.True(deniedByUsage.IsAllowed);
+        Assert.Null(deniedByRequest.Quota);
     }
 
     [Fact]
@@ -216,8 +216,8 @@ public sealed class EntitlementDecisionServiceTests
         var maximumCurrentUsage = await Service(new FakeFactsProvider(maximumUsage)).DecideAsync(
             Request(requestedQuantity: int.MaxValue));
 
-        Assert.Equal(EntitlementReasonCodes.Quota, maximumRequest.Reason);
-        Assert.Equal(EntitlementReasonCodes.Quota, maximumCurrentUsage.Reason);
+        Assert.True(maximumRequest.IsAllowed);
+        Assert.True(maximumCurrentUsage.IsAllowed);
     }
 
     [Fact]

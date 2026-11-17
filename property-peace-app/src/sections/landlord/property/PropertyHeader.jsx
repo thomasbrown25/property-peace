@@ -5,6 +5,7 @@ import { Box, Button, Chip, Divider, Grid, LinearProgress, Stack, Typography } f
 import { alpha } from '@mui/material/styles';
 import { HomeOutlined, EnvironmentOutlined, DollarOutlined } from '@ant-design/icons';
 import { getPropertyTypeLabel, formatCurrency } from 'utils/formatters';
+import { calculateNextPaymentDate, getNextDueDate } from 'utils/helper-methods';
 import { useDrawer } from 'contexts/DrawerContext';
 import { propertyHeaderMetrics } from './propertyHeaderMetrics.mjs';
 
@@ -16,6 +17,29 @@ const photoChipSx = {
 };
 const dateLabel = (value) =>
   value ? new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'No active lease';
+
+// Show the earliest upcoming rent date across the property's long-term leases.
+const nextRentDueDate = (units) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const dates = units.flatMap((unit) => {
+    const lease = unit.lease ?? unit.Lease;
+    if (!lease || lease.isActive === false || lease.IsActive === false) return [];
+    const start = lease.startDate ?? lease.StartDate;
+    if (!start) return [];
+    const frequency = lease.rentFrequency ?? lease.RentFrequency ?? 'Monthly';
+    const dueDay = lease.rentDueDay ?? lease.RentDueDay ?? 1;
+    const next = String(frequency).toLowerCase() === 'monthly'
+      ? calculateNextPaymentDate(start, dueDay, lease.endDate ?? lease.EndDate)
+      : getNextDueDate(start, frequency, dueDay);
+    if (!next) return [];
+    const date = typeof next === 'string' ? new Date(`${next}T12:00:00`) : next;
+    const end = lease.endDate ?? lease.EndDate;
+    if (Number.isNaN(date.getTime()) || date < today || (end && date > new Date(`${String(end).slice(0, 10)}T23:59:59`))) return [];
+    return [date];
+  });
+  return dates.length ? new Date(Math.min(...dates.map((date) => date.getTime()))) : null;
+};
 
 function SummaryFact({ label, value }) {
   return (
@@ -48,6 +72,7 @@ export default function PropertyHeader({ property, rentRecords = [], rentLoading
 
   const units = property?.units ?? property?.Units ?? [];
   const longTermUnits = units.filter((unit) => rentalMode(unit) !== 'shortTerm');
+  const nextDue = nextRentDueDate(longTermUnits);
   const hasLongTermUnits = longTermUnits.length > 0;
   const firstUnit = units[0];
   const firstLease = firstUnit?.lease ?? firstUnit?.Lease;
@@ -57,8 +82,10 @@ export default function PropertyHeader({ property, rentRecords = [], rentLoading
     ? `${primaryTenant.firstname || primaryTenant.Firstname || ''} ${primaryTenant.lastname || primaryTenant.Lastname || ''}`.trim()
     : null;
   const { occupiedUnits } = getPropertyOccupancy(property);
-  const { expected, collected, remaining, percent, scheduledRent, pastDue } = propertyHeaderMetrics(rentRecords, propertyId);
+  const { expected, collected, remaining, dueAmount, percent, overduePercent, scheduledRent, pastDue } = propertyHeaderMetrics(rentRecords, propertyId);
   const collectionAvailable = !rentLoading && !rentError && propertyId != null;
+  const showingOverdue = collectionAvailable && overduePercent < 0;
+  const progressPercent = showingOverdue ? overduePercent : percent;
   const collectionValue = (value) => (collectionAvailable ? formatCurrency(value) : '—');
   const monthlyRent =
     scheduledRent ||
@@ -192,10 +219,10 @@ export default function PropertyHeader({ property, rentRecords = [], rentLoading
                   </Stack>
                   <Divider />
                   <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 1.5 }}>
-                    <SummaryFact label="Expected this month" value={collectionValue(expected)} />
-                    <SummaryFact label="Collected this month" value={collectionValue(collected)} />
                     <SummaryFact label="Remaining this month" value={collectionValue(remaining)} />
-                    <SummaryFact label="Past-due rent" value={collectionValue(pastDue)} />
+                    <SummaryFact label="Collected this month" value={collectionValue(collected)} />
+                    <SummaryFact label="Next due date" value={nextDue ? dateLabel(nextDue) : '—'} />
+                    <SummaryFact label="Due amount" value={collectionValue(dueAmount)} />
                     <SummaryFact
                       label={isSingle ? 'Lease start' : 'Units'}
                       value={isSingle ? dateLabel(firstLease?.startDate ?? firstLease?.StartDate) : String(units.length)}
@@ -210,19 +237,19 @@ export default function PropertyHeader({ property, rentRecords = [], rentLoading
                       <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                         Rent collection · {monthLabel}
                       </Typography>
-                      <Typography variant="caption" fontWeight={800} sx={{ color: 'text.primary' }}>
-                        {collectionAvailable && expected > 0 ? `${Math.round(percent)}%` : '—'}
+                      <Typography variant="caption" fontWeight={800} sx={{ color: showingOverdue ? 'error.main' : 'text.primary' }}>
+                        {collectionAvailable && (expected > 0 || showingOverdue) ? `${Math.round(progressPercent)}%` : '—'}
                       </Typography>
                     </Stack>
                     <LinearProgress
                       aria-label={`Rent collection for ${monthLabel}`}
                       variant={rentLoading ? 'indeterminate' : 'determinate'}
-                      value={collectionAvailable ? percent : 0}
+                      value={collectionAvailable ? Math.abs(progressPercent) : 0}
                       sx={{
                         height: 8,
                         borderRadius: 999,
-                        bgcolor: 'brand.mint',
-                        '& .MuiLinearProgress-bar': { borderRadius: 999, bgcolor: 'brand.teal' }
+                        bgcolor: showingOverdue ? (theme) => alpha(theme.palette.error.main, 0.16) : 'brand.mint',
+                        '& .MuiLinearProgress-bar': { borderRadius: 999, bgcolor: showingOverdue ? 'error.main' : 'brand.teal' }
                       }}
                     />
                     <Typography variant="caption" sx={{ display: 'block', mt: 1, color: 'text.secondary' }}>
@@ -230,9 +257,11 @@ export default function PropertyHeader({ property, rentRecords = [], rentLoading
                         ? 'Loading rent collection…'
                         : rentError || propertyId == null
                           ? 'Rent collection is unavailable.'
-                          : expected > 0
-                            ? `${formatCurrency(collected)} of ${formatCurrency(expected)} collected`
-                            : 'No rent scheduled for this month.'}
+                          : showingOverdue
+                            ? `${formatCurrency(pastDue)} overdue · ${formatCurrency(collected)} of ${formatCurrency(expected)} collected this month`
+                            : expected > 0
+                              ? `${formatCurrency(collected)} of ${formatCurrency(expected)} collected`
+                              : 'No rent scheduled for this month.'}
                     </Typography>
                   </Box>
                   {hasLongTermUnits && (

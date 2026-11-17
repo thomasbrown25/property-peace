@@ -137,7 +137,7 @@ export default function Portfolio({ properties = [], isLoading = false }) {
   const theme = useTheme();
   const navigate = useNavigate();
   const metrics = useMemo(() => getPortfolioMetrics(properties), [properties]);
-  const headerTextColor = theme.palette.mode === 'dark' ? theme.palette.common.white : '#061e35';
+  const headerTextColor = theme.palette.mode === 'dark' ? theme.palette.common.white : theme.palette.text.primary;
   const stats = [
     {
       label: 'Portfolio occupancy',

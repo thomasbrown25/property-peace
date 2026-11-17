@@ -30,7 +30,7 @@ const expectedGroups = [
     items: [
       ['admin-users', 'Team', '/landlord/admin-members'],
       ['announcements', 'Announcements', '/landlord/announcements'],
-      ['messages', 'Messages', '/landlord/messages']
+      ['chat', 'Chat', '/landlord/chat']
     ]
   },
   {

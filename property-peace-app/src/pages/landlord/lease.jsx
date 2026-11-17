@@ -1659,7 +1659,7 @@ export default function LeasePage() {
         handleEndLeaseClick={handleEndLeaseClick}
         handleReopenLeaseClick={handleReopenLeaseClick}
         onRenew={() => { dispatch(setLease(lease)); drawer.openRenewLeaseDrawer(); }}
-        onRecordPayment={() => drawer.openPaymentAddDrawer({ lease: { ...lease, tenants }, property, unit: lease?.unit || null, tenant: tenants[0] || null })}
+        onRecordPayment={(options = {}) => drawer.openPaymentAddDrawer({ lease: { ...lease, tenants }, property, unit: lease?.unit || null, tenant: tenants[0] || null, ...options })}
         onViewAgreement={handleViewLeaseAgreement}
         onUploadDocument={() => setDocumentUploadDrawerOpen(true)}
         onEditTerms={() => { dispatch(setLease(lease)); drawer.openLeaseEditDrawer(); }}

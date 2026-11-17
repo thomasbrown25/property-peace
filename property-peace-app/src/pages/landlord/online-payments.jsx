@@ -14,6 +14,7 @@ import useAuth from 'hooks/useAuth';
 import useRentPaymentAccess from 'hooks/useRentPaymentAccess';
 import OnlinePaymentTransactions from 'sections/landlord/payments/OnlinePaymentTransactions';
 import { PaymentsSettingsContent } from 'sections/landlord/settings/PaymentsSettings';
+import { recordTabsSx } from 'sections/landlord/property/recordTabsStyle';
 import PayoutAssignments from 'sections/landlord/settings/PayoutAssignments';
 import axiosServices from 'utils/axios';
 import { DEFAULT_ONLINE_PAYMENT_TAB, getOnlinePaymentTabs, getSelectedOnlinePaymentTab } from 'utils/onlinePaymentTabs';
@@ -80,34 +81,7 @@ export default function OnlinePaymentsPage() {
 
       {hasContinued === true && (
         <Box>
-          <Box
-            sx={{
-              width: '100%',
-              mb: 3,
-              borderBottom: '1px solid',
-              borderColor: 'divider',
-              bgcolor: 'transparent',
-              '& .MuiTabs-root': { minHeight: 46, width: '100%' },
-              '& .MuiTab-root': {
-                minHeight: 46,
-                px: { xs: 2, sm: 2.5 },
-                textTransform: 'none',
-                fontSize: '0.875rem',
-                fontWeight: 700,
-                color: 'text.secondary',
-                bgcolor: 'transparent',
-                '&:hover': {
-                  color: theme.palette.mode === 'dark' ? 'primary.light' : 'primary.main',
-                  bgcolor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.16 : 0.06)
-                },
-                '&.Mui-selected': {
-                  color: theme.palette.mode === 'dark' ? 'primary.light' : 'primary.main',
-                  bgcolor: 'transparent'
-                }
-              },
-              '& .MuiTabs-indicator': { height: 2, borderRadius: 2 }
-            }}
-          >
+          <Box sx={recordTabsSx}>
             <Tabs
               value={selectedTab}
               onChange={(_event, value) => setActiveTab(value)}
@@ -181,8 +155,8 @@ export default function OnlinePaymentsPage() {
                 p: { xs: 2.5, sm: 5, lg: 6 },
                 background:
                   theme.palette.mode === 'dark'
-                    ? 'linear-gradient(145deg, #071b2e 0%, #0a2b43 58%, #0f3f4f 100%)'
-                    : 'linear-gradient(145deg, #061E35 0%, #0A3850 58%, #0D4B55 100%)',
+                    ? `linear-gradient(145deg, ${theme.palette.background.default} 0%, ${theme.palette.brand.forest} 58%, ${theme.palette.primary.dark} 100%)`
+                    : `linear-gradient(145deg, ${theme.palette.brand.forest} 0%, ${theme.palette.primary.dark} 58%, ${theme.palette.primary.main} 100%)`,
                 '&::before': {
                   content: '""',
                   position: 'absolute',

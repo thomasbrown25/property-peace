@@ -118,7 +118,7 @@ export default function PublicStayPage() {
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: '#f5f6f2', color: ink, pb: 10 }}>
-      <Box component="header" sx={{ bgcolor: ink, color: '#fff', borderBottom: '4px solid #b8aa72' }}>
+      <Box component="header" sx={{ bgcolor: 'primary.dark', color: 'primary.contrastText', borderBottom: '4px solid #b8aa72' }}>
         <Container maxWidth="lg" sx={{ py: 2.5 }}>
           <Typography sx={{ letterSpacing: '0.12em', fontWeight: 800, fontSize: 15 }}>PROPERTY PEACE <Box component="span" sx={{ fontWeight: 400, opacity: 0.8 }}>/ STAYS</Box></Typography>
         </Container>
@@ -154,7 +154,7 @@ export default function PublicStayPage() {
                   <TextField label="Check-in" type="date" value={dates.checkIn} onChange={updateDate('checkIn')} InputLabelProps={{ shrink: true }} inputProps={{ 'aria-label': 'Check-in date' }} fullWidth required />
                   <TextField label="Check-out" type="date" value={dates.checkOut} onChange={updateDate('checkOut')} InputLabelProps={{ shrink: true }} inputProps={{ 'aria-label': 'Check-out date' }} fullWidth required />
                   <TextField label="Guests" type="number" value={dates.guests} onChange={updateDate('guests')} inputProps={{ min: 1, max: listing.maxGuests, step: 1 }} fullWidth required />
-                  <Button type="submit" variant="contained" disabled={quoting} sx={{ bgcolor: ink, borderRadius: 1, py: 1.4, '&:hover': { bgcolor: '#174062' } }}>{quoting ? 'Checking dates…' : 'Get date estimate'}</Button>
+                  <Button type="submit" variant="contained" disabled={quoting} sx={{ bgcolor: 'primary.main', borderRadius: 1, py: 1.4, '&:hover': { bgcolor: 'primary.dark' } }}>{quoting ? 'Checking dates…' : 'Get date estimate'}</Button>
                 </Stack>
               </Box>
               {quoteError && <Typography role="alert" sx={{ mt: 2, color: '#a23328' }}>{quoteError}</Typography>}

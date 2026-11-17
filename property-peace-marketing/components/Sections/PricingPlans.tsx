@@ -3,72 +3,36 @@
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { FiCheck } from 'react-icons/fi';
-import { useState } from 'react';
 
-const plans = [
-  {
-    name: 'Free Plan for Small Portfolios',
-    monthlyPrice: 0,
-    annualMonthly: 0,
-    annualTotal: 0,
-    description: 'The essentials for a small portfolio — no credit card required.',
-    badge: null,
-    features: [
-      'Up to 5 units',
-      'Hosted Property Peace listing page',
-      '1 active external listing (coming soon)',
-      'Lead management & showing scheduling',
-      'Tenant portal',
-      'Maintenance request tracking',
-      'Lease management',
-      'Basic rent & expense tracking',
-      'Online rent payments (approval required)',
-      'Digital rental applications',
-      'Document storage',
-    ],
-    cta: 'Start for free',
-    ctaHref: 'https://app.propertypeace.io/register',
-    highlighted: false,
-  },
-  {
-    name: 'Premium',
-    monthlyPrice: 14.99,
-    annualMonthly: 12.74,
-    annualTotal: 152.90,
-    description: 'Complete portfolio management with unlimited units and advanced workflows.',
-    badge: null,
-    features: [
-      'Everything in Free',
-      'Unlimited units',
-      'Multiple active external listings (coming soon)',
-      'Lead source attribution after syndication launches',
-      'Rent ledger, late fees & reminders',
-      'Automated rent reminders',
-      'Advanced accounting & Schedule E',
-      'Occupancy tracking',
-      'Rent estimates',
-      'LeaseShield protection',
-      'Percy Pilot workflows (limited availability)',
-      'One dedicated organization SMS number included with Premium; activation and configuration required',
-      'Cancel anytime',
-    ],
-    cta: 'Get started',
-    ctaHref: 'https://app.propertypeace.io/register',
-    highlighted: true,
-  },
+const features = [
+  'Unlimited units',
+  'Hosted Property Peace listing page',
+  'Multiple active external listings (coming soon)',
+  'Lead management & showing scheduling',
+  'Lead source attribution after syndication launches',
+  'Tenant portal',
+  'Maintenance request tracking',
+  'Lease management',
+  'Digital rental applications',
+  'Document storage',
+  'Rent ledger, late fees & automated reminders',
+  'Online rent payments (approval required)',
+  'Advanced accounting & Schedule E',
+  'Occupancy tracking',
+  'Rent estimates',
+  'LeaseShield protection',
+  'Percy Pilot workflows (limited availability)',
+  'One dedicated organization SMS number (activation and configuration required)',
 ];
 
 export default function PricingPlans() {
-  const [annual, setAnnual] = useState(false);
-
   return (
     <section data-marketing-hero-theme="dark" className="relative isolate overflow-hidden bg-brand-forest px-4 pb-10 pt-32 text-white sm:px-6 sm:pb-14 md:pt-48 lg:px-8">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[680px] bg-cover bg-center bg-no-repeat" style={{ backgroundImage: 'url(/images/pricing/hero.png)' }} aria-hidden="true" />
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[680px] bg-brand-forest opacity-90" aria-hidden="true" />
       <div className="relative z-10 mx-auto max-w-6xl">
-        {/* Header */}
         <motion.div
-          className="mb-16 text-center md:mb-20"
+          className="mb-12 text-center md:mb-16"
           initial={false}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
@@ -77,127 +41,43 @@ export default function PricingPlans() {
             className="mb-4 text-4xl font-bold text-brand-mint md:text-5xl lg:text-6xl"
             style={{ fontFamily: '"Host Grotesk", sans-serif' }}
           >
-            Pricing
+            Free
           </h1>
           <p
-            className="mx-auto mb-8 max-w-2xl text-lg text-white/90 md:text-xl"
+            className="mx-auto max-w-2xl text-lg text-white/90 md:text-xl"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
-            Simple, transparent pricing for landlords. Start free. Upgrade when you&apos;re ready. No per-unit charges; provider-dependent workflows are labeled.
+            No credit card required.
           </p>
-
-          {/* Annual toggle */}
-          <div className="inline-flex max-w-full items-center gap-2 rounded-full border border-white/15 bg-brand-forest-raised px-3 py-2 shadow-sm sm:gap-3 sm:px-4">
-            <span
-              className={`text-sm font-medium cursor-pointer transition-colors ${!annual ? 'text-white' : 'text-white/70'}`}
-              style={{ fontFamily: '"Inter", sans-serif' }}
-              onClick={() => setAnnual(false)}
-            >
-              Monthly
-            </span>
-            <button
-              onClick={() => setAnnual(!annual)}
-              className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-mint ${annual ? 'bg-brand-teal' : 'bg-brand-slate'}`}
-              aria-label="Toggle annual billing"
-              aria-pressed={annual}
-            >
-              <span
-                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${annual ? 'translate-x-5' : 'translate-x-0'}`}
-              />
-            </button>
-            <span
-              className={`text-sm font-medium cursor-pointer transition-colors ${annual ? 'text-white' : 'text-white/70'}`}
-              style={{ fontFamily: '"Inter", sans-serif' }}
-              onClick={() => setAnnual(true)}
-            >
-              Annual <span className="font-semibold text-brand-mint">save 15%</span>
-            </span>
-          </div>
         </motion.div>
 
-        {/* Pricing Cards */}
-        <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-          {plans.map((plan, index) => (
-            <motion.div
-              key={plan.name}
-              className={`relative rounded-2xl p-6 md:p-8 flex flex-col ${
-                plan.highlighted
-                  ? 'bg-brand-forest-raised shadow-2xl'
-                  : 'bg-brand-surface border border-brand-mint shadow-sm'
-              }`}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: index * 0.1 }}
-            >
-              {plan.badge && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <span className="bg-brand-mint text-brand-forest text-xs font-semibold px-3 py-1 rounded-full" style={{ fontFamily: '"Inter", sans-serif' }}>
-                    {plan.badge}
-                  </span>
-                </div>
-              )}
-
-              <div className="mb-6">
-                <h2
-                  className={`text-xl font-bold mb-1 ${plan.highlighted ? 'text-white' : 'text-primary-main'}`}
-                  style={{ fontFamily: '"Host Grotesk", sans-serif' }}
-                >
-                  {plan.name}
-                </h2>
-                <p
-                  className={`text-sm mb-4 ${plan.highlighted ? 'text-white/80' : 'text-brand-slate'}`}
-                  style={{ fontFamily: '"Inter", sans-serif' }}
-                >
-                  {plan.description}
-                </p>
-
-                {plan.monthlyPrice === 0 ? (
-                  <div className={`text-4xl font-bold ${plan.highlighted ? 'text-white' : 'text-primary-main'}`} style={{ fontFamily: '"Host Grotesk", sans-serif' }}>
-                    Free
-                  </div>
-                ) : (
-                  <div>
-                    <div className={`text-4xl font-bold ${plan.highlighted ? 'text-white' : 'text-primary-main'}`} style={{ fontFamily: '"Host Grotesk", sans-serif' }}>
-                      ${annual ? plan.annualMonthly.toFixed(2) : plan.monthlyPrice.toFixed(2)}
-                      <span className={`text-base font-normal ml-1 ${plan.highlighted ? 'text-white/70' : 'text-brand-slate'}`}>/mo</span>
-                    </div>
-                    {annual && (
-                      <p className={`text-sm mt-1 ${plan.highlighted ? 'text-white/70' : 'text-brand-slate'}`} style={{ fontFamily: '"Inter", sans-serif' }}>
-                        Billed ${plan.annualTotal.toFixed(2)}/year
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <ul className={`mb-8 flex-1 ${plan.features.length > 6 ? 'grid gap-y-3 sm:grid-cols-2 sm:gap-x-4' : 'space-y-3'}`}>
-                {plan.features.map((feature) => (
-                  <li key={feature} className="flex items-start gap-2">
-                    <FiCheck className={`w-4 h-4 flex-shrink-0 mt-0.5 ${plan.highlighted ? 'text-brand-mint' : 'text-brand-teal'}`} />
-                    <span
-                      className={`text-sm ${plan.highlighted ? 'text-white/90' : 'text-primary-main'}`}
-                      style={{ fontFamily: '"Inter", sans-serif' }}
-                    >
-                      {feature}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-
-              <Link
-                href={plan.ctaHref}
-                className={`block w-full rounded-2xl px-6 py-3.5 text-center font-semibold transition-all duration-300 sm:rounded-full ${
-                  plan.highlighted
-                    ? 'bg-brand-mint text-brand-forest hover:bg-brand-ivory focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-mint'
-                    : 'bg-brand-teal text-white hover:bg-brand-teal-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-teal'
-                }`}
-                style={{ fontFamily: '"Inter", "Inter Placeholder", sans-serif' }}
-              >
-                {plan.cta}
-              </Link>
-            </motion.div>
-          ))}
-        </div>
+        <motion.div
+          className="mx-auto max-w-4xl rounded-2xl border border-brand-mint bg-brand-surface p-6 shadow-2xl md:p-8"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <h2 className="mb-6 text-xl font-bold text-primary-main" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>
+            Everything included
+          </h2>
+          <ul className="mb-8 grid gap-y-3 sm:grid-cols-2 sm:gap-x-6">
+            {features.map((feature) => (
+              <li key={feature} className="flex items-start gap-2">
+                <FiCheck className="mt-0.5 h-4 w-4 flex-shrink-0 text-brand-teal" aria-hidden="true" />
+                <span className="text-sm text-primary-main" style={{ fontFamily: '"Inter", sans-serif' }}>
+                  {feature}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <Link
+            href="https://app.propertypeace.io/register"
+            className="block w-full rounded-2xl bg-brand-teal px-6 py-3.5 text-center font-semibold text-white transition-all duration-300 hover:bg-brand-teal-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-teal sm:rounded-full"
+            style={{ fontFamily: '"Inter", "Inter Placeholder", sans-serif' }}
+          >
+            Start for free
+          </Link>
+        </motion.div>
       </div>
     </section>
   );

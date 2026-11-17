@@ -29,15 +29,12 @@ public sealed class SubscriptionLifecycleAuthorityTests
         { "trialing", "Trial" }
     };
 
-    [Theory]
-    [MemberData(nameof(StripeStatuses))]
-    public async Task SubscribeAsync_NewPaidSubscription_PersistsStripeLifecycleStatus(string stripeStatus, string expectedLocalStatus)
+    [Fact]
+    public async Task SubscribeAsync_NewPaidSubscription_IsUnavailableWithoutStripeMutation()
     {
         var fixture = new Fixture();
         fixture.Subscriptions.Setup(x => x.GetSubscriptionByOrganizationIdAsync(Fixture.OrganizationId))
             .ReturnsAsync((Subscription?)null);
-        fixture.Stripe.Setup(x => x.CreateSubscriptionAsync("cus_1", "price_monthly", null, null, null))
-            .ReturnsAsync(StripeResponse(stripeStatus));
 
         var result = await fixture.Service.SubscribeAsync(new CreateSubscriptionDto
         {
@@ -45,20 +42,15 @@ public sealed class SubscriptionLifecycleAuthorityTests
             BillingCycle = "Monthly"
         });
 
-        result.Success.Should().BeTrue(result.Message);
-        fixture.Subscriptions.Verify(x => x.CreateSubscriptionAsync(
-            It.Is<Subscription>(subscription => subscription.Status == expectedLocalStatus)), Times.Once);
+        AssertPaidSelectionRejected(result, fixture);
     }
 
-    [Theory]
-    [MemberData(nameof(StripeStatuses))]
-    public async Task UpgradeSubscriptionAsync_PersistsStripeLifecycleStatus(string stripeStatus, string expectedLocalStatus)
+    [Fact]
+    public async Task UpgradeSubscriptionAsync_NewPaidSelection_IsUnavailableWithoutStripeMutation()
     {
         var fixture = new Fixture();
         var subscription = fixture.CreateLocalSubscription();
         fixture.Subscriptions.Setup(x => x.GetSubscriptionByOwnerUserIdAsync(Fixture.UserId)).ReturnsAsync(subscription);
-        fixture.Stripe.Setup(x => x.UpdateSubscriptionAsync("sub_1", "price_monthly", true))
-            .ReturnsAsync(StripeResponse(stripeStatus));
 
         var result = await fixture.Service.UpgradeSubscriptionAsync(new UpdateSubscriptionDto
         {
@@ -66,22 +58,17 @@ public sealed class SubscriptionLifecycleAuthorityTests
             BillingCycle = "Monthly"
         });
 
-        result.Success.Should().BeTrue(result.Message);
-        subscription.Status.Should().Be(expectedLocalStatus);
+        AssertPaidSelectionRejected(result, fixture);
+        subscription.Status.Should().Be("Active");
     }
 
-    [Theory]
-    [MemberData(nameof(StripeStatuses))]
-    public async Task UpgradeSubscriptionAsync_Reactivation_PersistsStripeLifecycleStatus(string stripeStatus, string expectedLocalStatus)
+    [Fact]
+    public async Task UpgradeSubscriptionAsync_ReactivationViaPaidSelection_IsUnavailableWithoutStripeMutation()
     {
         var fixture = new Fixture();
         var subscription = fixture.CreateLocalSubscription();
         subscription.CancelAtPeriodEnd = true;
         fixture.Subscriptions.Setup(x => x.GetSubscriptionByOwnerUserIdAsync(Fixture.UserId)).ReturnsAsync(subscription);
-        fixture.Stripe.Setup(x => x.GetSubscriptionAsync("sub_1"))
-            .ReturnsAsync(StripeResponse("active", cancelAtPeriodEnd: true));
-        fixture.Stripe.Setup(x => x.ResumeSubscriptionAsync("sub_1"))
-            .ReturnsAsync(StripeResponse(stripeStatus));
 
         var result = await fixture.Service.UpgradeSubscriptionAsync(new UpdateSubscriptionDto
         {
@@ -89,8 +76,20 @@ public sealed class SubscriptionLifecycleAuthorityTests
             BillingCycle = "Monthly"
         });
 
-        result.Success.Should().BeTrue(result.Message);
-        subscription.Status.Should().Be(expectedLocalStatus);
+        AssertPaidSelectionRejected(result, fixture);
+        subscription.Status.Should().Be("Active");
+        subscription.CancelAtPeriodEnd.Should().BeTrue();
+    }
+
+    private static void AssertPaidSelectionRejected(ServiceResponse<SubscriptionDto> result, Fixture fixture)
+    {
+        result.Success.Should().BeFalse();
+        result.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        result.Message.Should().Contain("not available");
+        fixture.Stripe.VerifyNoOtherCalls();
+        fixture.Subscriptions.Verify(x => x.CreateSubscriptionAsync(It.IsAny<Subscription>()), Times.Never);
+        fixture.Subscriptions.Verify(x => x.UpdateSubscriptionAsync(It.IsAny<Subscription>()), Times.Never);
+        fixture.History.Verify(x => x.AddHistoryAsync(It.IsAny<SubscriptionHistory>()), Times.Never);
     }
 
     [Theory]

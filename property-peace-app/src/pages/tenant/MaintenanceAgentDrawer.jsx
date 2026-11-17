@@ -6,7 +6,7 @@ import ReactMarkdown from 'react-markdown';
 import axiosServices from 'utils/axios';
 
 const DRAWER_WIDTH = 460;
-const TEAL = '#0ea5e9';
+const TEAL = '#247568';
 
 // ── Message bubble ─────────────────────────────────────────────────────────────
 
@@ -115,7 +115,7 @@ function MessageBubble({ message, onUploadPhoto }) {
                 px: 2,
                 py: 0.5,
                 textTransform: 'none',
-                '&:hover': { borderColor: '#0284c7', color: '#0284c7', bgcolor: `${TEAL}08` }
+                '&:hover': { borderColor: '#102C29', color: '#102C29', bgcolor: `${TEAL}08` }
               }}
             >
               Upload a photo
@@ -523,7 +523,7 @@ export default function MaintenanceAgentDrawer({
                 flexShrink: 0,
                 transition: 'all 0.15s',
                 '&:hover': {
-                  bgcolor: canSend ? '#0284c7' : `${TEAL}20`
+                  bgcolor: canSend ? '#102C29' : `${TEAL}20`
                 },
                 '&.Mui-disabled': {
                   bgcolor: `${TEAL}0e`,

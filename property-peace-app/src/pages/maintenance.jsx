@@ -32,20 +32,20 @@ export default function MaintenancePage() {
 
   return (
     <Box
-      sx={{
+      sx={(theme) => ({
         minHeight: '100vh',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         px: { xs: 2, sm: 3 },
         py: { xs: 4, sm: 6 },
-        bgcolor: '#061e35',
+        bgcolor: theme.palette.primary.dark,
         backgroundImage: `
-          radial-gradient(circle at 14% 18%, ${alpha('#41a541', 0.18)}, transparent 30%),
-          radial-gradient(circle at 86% 82%, ${alpha('#41a541', 0.12)}, transparent 34%),
-          linear-gradient(135deg, #061e35 0%, #08233d 48%, #031426 100%)
+          radial-gradient(circle at 14% 18%, ${alpha(theme.palette.primary.light, 0.18)}, transparent 30%),
+          radial-gradient(circle at 86% 82%, ${alpha(theme.palette.primary.light, 0.12)}, transparent 34%),
+          linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 48%, ${theme.palette.primary.dark} 100%)
         `
-      }}
+      })}
     >
       <Button
         variant="outlined"

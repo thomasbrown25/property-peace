@@ -14,6 +14,11 @@ test('property finance search fills remaining toolbar width without duplicate ov
   assert.equal((source.match(/>Add Expense<\/Button>/g) || []).length, 1);
 });
 
+test('payments use PAID DATE while expenses retain Date', async () => {
+  const source = await read('./PropertyFinanceTable.jsx');
+  assert.match(source, /<TableCell>\{isPayments \? 'PAID DATE' : 'Date'\}<\/TableCell>/);
+});
+
 test('expense overview matches the compact payment label/value row and right-aligned action', async () => {
   const source = await read('./PropertyFinanceTable.jsx');
   const overview = source.slice(source.indexOf(') : ('), source.indexOf('<MainCard sx={financeSurfaceSx}>'));
@@ -27,16 +32,14 @@ test('expense overview matches the compact payment label/value row and right-ali
   assert.doesNotMatch(overview, /<MainCard|variant="h4"/);
 });
 
-test('payment overview keeps Record payment on the right and opens the property-scoped drawer', async () => {
+test('payment overview keeps total received without rent status or a Record payment button', async () => {
   const source = await read('./PropertyFinanceTable.jsx');
   const overview = source.slice(source.indexOf('{isPayments ? ('), source.indexOf(') : ('));
-  assert.match(overview, /justifyContent="space-between"/);
-  assert.match(overview, /\{rentOverview\}[\s\S]*onClick=\{onRecordPayment\}/);
-  assert.match(overview, /alignSelf: \{ xs: 'flex-end', sm: 'center' \}/);
-  assert.equal((source.match(/>Record payment<\/Button>/g) || []).length, 1);
+  assert.match(overview, /Total received:/);
+  assert.doesNotMatch(overview, /rentOverview|Rent status:|Record payment|onRecordPayment|<Button/);
   const payments = await read('./PaymentsTab.jsx');
-  assert.match(payments, /onRecordPayment=\{\(\) => drawer.openPaymentAddDrawer\(\{ property: property \|\| \{ id: propertyId \} \}\)\}/);
-  assert.match(payments, /\[propertyId, attempt, drawer.financeMutationVersion\]/);
+  assert.doesNotMatch(payments, /onRecordPayment|openPaymentAddDrawer/);
+  assert.match(payments, /\[propertyId, property, attempt, drawer.financeMutationVersion\]/);
 });
 
 test('Expenses reuses the existing property expense handler and modal, while Payments is independent', async () => {

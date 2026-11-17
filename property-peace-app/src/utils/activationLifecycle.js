@@ -132,7 +132,7 @@ function routeDescriptor(key, context, mode = 'vacant') {
     lease: [leaseId ? `/landlord/leases/${leaseId}/builder` : `/landlord/leases/selection${suffix ? `?${suffix}` : ''}`, leaseId ? 'Continue lease' : 'Select lease property'],
     'tenant-invite': [leaseId ? `/landlord/leases/${leaseId}/add-tenant${tenantId ? `?tenantId=${tenantId}` : ''}` : tenantId ? `/landlord/tenants/${tenantId}` : '/landlord/leases', leaseId ? 'Add or invite tenant' : tenantId ? 'Open renter' : 'Choose a lease'],
     'rent-readiness': [leaseId ? `/landlord/leases/${leaseId}` : '/landlord/leases', leaseId ? 'Open lease rent tracking' : 'Choose a configured lease'],
-    communication: ['/landlord/messages', 'Open messages']
+    communication: ['/landlord/chat', 'Open chat']
   };
   const [route, label] = routes[key];
   return { route, label };

@@ -202,7 +202,7 @@ export default function SmsNumberSettings() {
               <Alert severity={hasPremiumAccess ? 'info' : 'warning'} icon={hasPremiumAccess ? <InfoCircleOutlined /> : <CrownOutlined />}>
                 {hasPremiumAccess
                   ? 'One dedicated organization SMS number is included. Choose and activate it before sending tenant text messages.'
-                  : 'One dedicated organization SMS number is included with eligible Premium and Lifetime plans. Upgrade if needed, then activate and configure the number before sending SMS.'}
+                  : 'SMS number setup is not available for this organization. Contact support if you need help with eligibility or configuration.'}
               </Alert>
             )}
           </Stack>
@@ -213,13 +213,13 @@ export default function SmsNumberSettings() {
         <Card elevation={0} sx={{ borderRadius: 2.5, border: '1px solid', borderColor: alpha(theme.palette.primary.main, 0.2), bgcolor: alpha(theme.palette.primary.main, 0.055) }}>
           <CardContent>
             <Stack spacing={1.5} alignItems="flex-start">
-              <Chip icon={<CrownOutlined />} label="Premium eligibility required" color="primary" sx={{ fontWeight: 800 }} />
+              <Chip label="Setup unavailable" color="primary" sx={{ fontWeight: 800 }} />
               <Typography variant="h6" fontWeight={800}>One dedicated SMS number is included</Typography>
               <Typography variant="body2" color="text.secondary">
-                Eligible Premium and Lifetime organizations include one dedicated SMS number at no additional add-on charge. Activation and configuration are required before sending SMS.
+                A dedicated SMS number requires organization eligibility and provider configuration before sending SMS.
               </Typography>
-              <Button variant="contained" onClick={() => navigate('/landlord/settings?tab=subscription')} sx={{ textTransform: 'none' }}>
-                Upgrade to Premium
+              <Button variant="outlined" onClick={() => navigate('/landlord/support/ticket')} sx={{ textTransform: 'none' }}>
+                Contact support
               </Button>
             </Stack>
           </CardContent>

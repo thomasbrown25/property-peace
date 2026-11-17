@@ -1354,7 +1354,7 @@ function PropertyAddWorkflow({ onClose, initialAddress, onBackToRental }) {
                 borderTop: `1px solid ${alpha(theme.palette.divider, 0.5)}`,
                 ...(!onClose ? { position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 1, bgcolor: '#fff', px: { xs: 3, md: 6 }, py: 2.5 } : {})
               }}>
-                {!onClose && <Box sx={{ position: 'absolute', top: -2, left: 0, width: `${Math.min(90, 54 + getStepperStep() * 12)}%`, height: 3, bgcolor: '#061e35' }} />}
+                {!onClose && <Box sx={{ position: 'absolute', top: -2, left: 0, width: `${Math.min(90, 54 + getStepperStep() * 12)}%`, height: 3, bgcolor: 'primary.main' }} />}
                 <Button
                   onClick={() => {
                     if (currentStep === STEPS.PROPERTY_TYPE_SELECTION && !onClose) {

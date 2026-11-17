@@ -70,7 +70,7 @@ test("rent collection FAQ covers only supported payment behavior", async () => {
     "does not store raw bank-account or card credentials",
     "7 days for card payments",
     "14 days for ACH",
-    "SMS messaging remains a Premium feature",
+    "SMS messaging requires activation and configuration",
   ]) {
     assert.equal(source.includes(claim), true, "Missing: " + claim);
   }

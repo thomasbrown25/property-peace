@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import useSWR from 'swr';
 import { Link as RouterLink } from 'react-router-dom';
-import { Box, Button, ButtonBase, Collapse, Link, Stack, Typography } from '@mui/material';
+import { alpha, Box, Button, ButtonBase, Collapse, Link, Stack, Typography } from '@mui/material';
 import { DownOutlined, HistoryOutlined } from '@ant-design/icons';
 import { useOrganization } from 'contexts/OrganizationContext';
 import useAuth from 'hooks/useAuth';
@@ -15,7 +15,7 @@ const surfaceSx = {
   p: 2.5,
   borderRadius: 3,
   bgcolor: 'background.paper',
-  boxShadow: (theme) => `0 8px 28px ${theme.palette.mode === 'dark' ? '#00000026' : '#061e350d'}`
+  boxShadow: (theme) => `0 8px 28px ${alpha(theme.palette.mode === 'dark' ? theme.palette.common.black : theme.palette.brand.forest, theme.palette.mode === 'dark' ? 0.15 : 0.05)}`
 };
 
 function LoadState({ loading, error, onRetry, children }) {

@@ -35,7 +35,7 @@ export default function SiteFooter() {
               See how it works →
             </Link>
             <Link href="/pricing" className="inline-flex min-h-11 items-center font-bold text-white transition-colors hover:text-white/80">
-              Compare plans →
+              See what's included →
             </Link>
           </div>
           </div>

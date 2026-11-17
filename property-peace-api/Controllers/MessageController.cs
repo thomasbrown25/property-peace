@@ -202,6 +202,43 @@ namespace brownstone_hub_api.Controllers
         }
 
         [TenantSelfOrganization]
+        [HttpPost("conversation/{conversationId}/unread")]
+        public async Task<IActionResult> MarkConversationAsUnread(long conversationId, CancellationToken cancellationToken = default)
+        {
+            if (!await IsConversationInActiveOrganizationAsync(conversationId, cancellationToken))
+                return NotFound();
+            if (_dataContext is null || !TryGetPositiveId(HttpContext.Items["UserId"], out var userId))
+                return Forbid();
+
+            // Only the current reader's latest received message is marked unread.
+            var latestIncomingId = await _dataContext.Messages.AsNoTracking()
+                .Where(message => message.ConversationId == conversationId && !message.IsDeleted && message.SenderId != userId)
+                .OrderByDescending(message => message.Id)
+                .Select(message => (long?)message.Id)
+                .FirstOrDefaultAsync(cancellationToken);
+            if (!latestIncomingId.HasValue)
+                return BadRequest(new { message = "There are no received messages to mark unread." });
+
+            var receipt = await _dataContext.MessageReads
+                .SingleOrDefaultAsync(receipt => receipt.MessageId == latestIncomingId.Value && receipt.UserId == userId, cancellationToken);
+            if (receipt != null) _dataContext.MessageReads.Remove(receipt);
+
+            var latestSequence = await _dataContext.ConversationTimelineEntries.AsNoTracking()
+                .Where(entry => entry.ConversationId == conversationId && entry.MessageId == latestIncomingId.Value)
+                .Select(entry => (long?)entry.Sequence)
+                .MaxAsync(cancellationToken);
+            var watermark = await _dataContext.ConversationReadWatermarks
+                .SingleOrDefaultAsync(watermark => watermark.ConversationId == conversationId && watermark.UserId == userId, cancellationToken);
+            if (watermark != null && latestSequence.HasValue && watermark.LastReadSequence >= latestSequence.Value)
+            {
+                watermark.LastReadSequence = Math.Max(0, latestSequence.Value - 1);
+                watermark.UpdatedAtUtc = DateTime.UtcNow;
+            }
+            await _dataContext.SaveChangesAsync(cancellationToken);
+            return Ok(new { success = true });
+        }
+
+        [TenantSelfOrganization]
         [HttpPost("conversation/{conversationId}/read")]
         public async Task<IActionResult> MarkConversationAsRead(long conversationId, CancellationToken cancellationToken = default)
         {

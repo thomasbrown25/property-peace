@@ -14,7 +14,7 @@ public sealed class FreePackagingContractTests
 {
     private static readonly string[] IncludedCoreFeatures =
     [
-        "Up to 5 units",
+        "Unlimited units",
         "Hosted Property Peace listing page",
         "Lead management and showing scheduling",
         "Digital rental applications",
@@ -38,19 +38,16 @@ public sealed class FreePackagingContractTests
         free.IsTrial.Should().BeFalse();
         free.MonthlyPrice.Should().Be(0);
         free.AnnualPrice.Should().Be(0);
-        free.MaxProperties.Should().BeNull("the Free limit is total units, not property count");
-        free.MaxTotalUnits.Should().Be(5);
+        free.MaxProperties.Should().BeNull();
+        free.MaxTotalUnits.Should().BeNull("Free has unlimited units");
 
         var features = JsonSerializer.Deserialize<string[]>(free.Features!).Should().NotBeNull().And.Subject!;
         features.Should().Contain(IncludedCoreFeatures);
-        features.Should().Contain("1 active external listing (coming soon)",
+        features.Should().Contain("Multiple active external listings (coming soon)",
             "external syndication must not be presented as operational yet");
-        features.Should().NotContain(feature =>
-            feature.Contains("screening", StringComparison.OrdinalIgnoreCase)
-            || feature.Contains("e-signature", StringComparison.OrdinalIgnoreCase)
-            || feature.Contains("online rent collection", StringComparison.OrdinalIgnoreCase)
-            || feature.Contains("SMS", StringComparison.OrdinalIgnoreCase)
-            || feature.Contains("Percy", StringComparison.OrdinalIgnoreCase));
+        features.Should().Contain("Dedicated SMS number");
+        features.Should().Contain("Percy Pilot workflows");
+        features.Should().Contain("Reports and analytics");
     }
 
     [Fact]
@@ -95,7 +92,7 @@ public sealed class FreePackagingContractTests
         free.AnnualPrice.Should().Be(0, "Free must remain $0 regardless of stale paid-price mappings");
         free.IsTrial.Should().BeFalse("Free is a permanent plan, not a time-limited trial");
         free.MaxProperties.Should().BeNull();
-        free.MaxTotalUnits.Should().Be(5);
+        free.MaxTotalUnits.Should().BeNull();
         JsonSerializer.Deserialize<string[]>(free.Features!).Should().Contain(IncludedCoreFeatures);
     }
 

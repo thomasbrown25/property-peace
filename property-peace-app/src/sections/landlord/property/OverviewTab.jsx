@@ -10,7 +10,7 @@ import PropertyRentCollection from './PropertyRentCollection';
 import axiosServices from 'utils/axios';
 import { useNavigate } from 'react-router-dom';
 import useFetchMaintenances from 'hooks/useFetchMaintenances';
-import { useSubscription } from 'hooks/useSubscription';
+
 import RentEstimateCard from 'components/RentEstimateCard';
 
 export default function OverviewTab({ property, propertyId, selectedProperty, leases: propLeases, loadingLeases: propLoadingLeases, onLeasesRefresh, onAddUnit }) {
@@ -18,8 +18,7 @@ export default function OverviewTab({ property, propertyId, selectedProperty, le
   const propertyData = property || selectedProperty;
   const theme = useTheme();
   const navigate = useNavigate();
-  const { subscription } = useSubscription();
-  const isPremium = subscription?.plan?.name?.toLowerCase() === 'premium' || subscription?.cancelAtPeriodEnd === true;
+
   const firstUnitId = propertyData?.units?.[0]?.id ?? null;
   const [applicantsCount, setApplicantsCount] = useState(null);
   const [applicantsLoading, setApplicantsLoading] = useState(true);
@@ -694,7 +693,7 @@ export default function OverviewTab({ property, propertyId, selectedProperty, le
             <RentEstimateCard
               propertyId={propertyId}
               unitId={firstUnitId}
-              isPremium={isPremium}
+
             />
           </MainCard>
         </Stack>

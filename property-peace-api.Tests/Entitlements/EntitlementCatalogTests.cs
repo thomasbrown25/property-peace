@@ -10,7 +10,7 @@ public sealed class EntitlementCatalogTests
     [Fact]
     public void Catalog_has_version_and_unique_feature_keys()
     {
-        Assert.Equal("2026-08-10.v1", EntitlementCatalog.Version);
+        Assert.Equal("2026-11-17.v2", EntitlementCatalog.Version);
         Assert.NotEmpty(EntitlementCatalog.Features);
         Assert.Equal(
             EntitlementCatalog.Features.Count,
@@ -39,22 +39,22 @@ public sealed class EntitlementCatalogTests
     }
 
     [Fact]
-    public void Finite_quota_with_missing_usage_fails_closed_and_preserves_metadata()
+    public void Free_has_unlimited_units_even_without_usage()
     {
         var decision = EntitlementCatalog.Evaluate(FeatureKeys.PropertyManagement, PlanKeys.Free, NoRequirements);
 
-        Assert.False(decision.IsAllowed);
-        Assert.Equal(EntitlementReasonCodes.Unavailable, decision.Reason);
-        Assert.Equal(new EntitlementQuota("units", 5), decision.Quota);
+        Assert.True(decision.IsAllowed);
+        Assert.Equal(EntitlementReasonCodes.Allowed, decision.Reason);
+        Assert.Null(decision.Quota);
         Assert.Empty(decision.RequiredAddOns);
         Assert.Empty(decision.ReadinessDependencies);
     }
 
     [Theory]
     [InlineData(4, true, "allowed")]
-    [InlineData(5, false, "quota")]
-    [InlineData(6, false, "quota")]
-    public void Finite_quota_is_allowed_below_limit_and_denied_at_or_above_it(
+    [InlineData(5, true, "allowed")]
+    [InlineData(6, true, "allowed")]
+    public void Free_units_are_unlimited_regardless_of_usage(
         int usage,
         bool expectedAllowed,
         string expectedReason)
@@ -66,12 +66,13 @@ public sealed class EntitlementCatalogTests
 
         Assert.Equal(expectedAllowed, decision.IsAllowed);
         Assert.Equal(expectedReason, decision.Reason.Value);
-        Assert.Equal(new EntitlementQuota("units", 5), decision.Quota);
+        Assert.Null(decision.Quota);
         Assert.Empty(decision.RequiredAddOns);
         Assert.Empty(decision.ReadinessDependencies);
     }
 
     [Theory]
+    [InlineData("free")]
     [InlineData("premium")]
     [InlineData("lifetime")]
     public void Unlimited_property_plans_are_not_denied_for_missing_usage(string plan)
@@ -86,13 +87,13 @@ public sealed class EntitlementCatalogTests
     }
 
     [Fact]
-    public void Dedicated_number_setup_is_included_for_premium_and_lifetime_without_number_readiness_or_add_on()
+    public void Dedicated_number_setup_is_included_for_all_plans_without_number_readiness_or_add_on()
     {
         var free = EntitlementCatalog.Evaluate(FeatureKeys.DedicatedSmsNumberSetup, PlanKeys.Free, NoRequirements);
         var premium = EntitlementCatalog.Evaluate(FeatureKeys.DedicatedSmsNumberSetup, PlanKeys.Premium, NoRequirements);
         var lifetime = EntitlementCatalog.Evaluate(FeatureKeys.DedicatedSmsNumberSetup, PlanKeys.Lifetime, NoRequirements);
 
-        Assert.Equal(EntitlementReasonCodes.UpgradeRequired, free.Reason);
+        Assert.True(free.IsAllowed);
         Assert.True(premium.IsAllowed);
         Assert.True(lifetime.IsAllowed);
         Assert.Empty(premium.RequiredAddOns);
@@ -133,12 +134,12 @@ public sealed class EntitlementCatalogTests
     }
 
     [Fact]
-    public void Plan_without_feature_access_is_upgrade_required_with_diagnostic_metadata()
+    public void Free_messaging_still_requires_number_readiness()
     {
         var decision = EntitlementCatalog.Evaluate(FeatureKeys.SmsMessaging, PlanKeys.Free, NoRequirements);
 
         Assert.False(decision.IsAllowed);
-        Assert.Equal(EntitlementReasonCodes.UpgradeRequired, decision.Reason);
+        Assert.Equal(EntitlementReasonCodes.Unavailable, decision.Reason);
         Assert.Empty(decision.RequiredAddOns);
         Assert.Equal([ReadinessDependencyKeys.SmsNumberConfigured], decision.ReadinessDependencies);
     }

@@ -48,7 +48,7 @@ public sealed class CheckoutPackagingContractTests
     }
 
     [Fact]
-    public async Task Checkout_FreePlan_CreatesActiveFiveUnitSubscriptionWithoutStripe()
+    public async Task Checkout_FreePlan_CreatesActiveUnlimitedSubscriptionWithoutStripe()
     {
         var fixture = new CheckoutFixture();
         var free = fixture.AddPlan(new SubscriptionPlan
@@ -56,7 +56,7 @@ public sealed class CheckoutPackagingContractTests
             Id = 1,
             Name = "Free",
             IsActive = true,
-            MaxTotalUnits = 5,
+            MaxTotalUnits = null,
             MonthlyPrice = 0,
             AnnualPrice = 0,
         });
@@ -70,7 +70,7 @@ public sealed class CheckoutPackagingContractTests
 
         result.Success.Should().BeTrue();
         result.Data.Should().Be("/free-success");
-        free.MaxTotalUnits.Should().Be(5);
+        free.MaxTotalUnits.Should().BeNull();
         fixture.Subscriptions.Verify(repository => repository.CreateSubscriptionAsync(It.Is<Subscription>(value =>
             value.SubscriptionPlanId == free.Id
             && value.Status == "Active"
@@ -83,7 +83,7 @@ public sealed class CheckoutPackagingContractTests
     [Theory]
     [InlineData("Monthly", "price_monthly")]
     [InlineData("Annual", "price_annual")]
-    public async Task Checkout_PremiumPlan_UsesApplicableConfiguredPrice(string billingCycle, string expectedPriceId)
+    public async Task Checkout_PremiumPlan_IsNotCustomerSelectable(string billingCycle, string expectedPriceId)
     {
         var fixture = new CheckoutFixture();
         var premium = fixture.AddPlan(new SubscriptionPlan
@@ -112,12 +112,10 @@ public sealed class CheckoutPackagingContractTests
             CancelUrl = "/cancel",
         });
 
-        result.Success.Should().BeTrue();
-        result.Data.Should().Be("https://checkout.example/session");
-        fixture.Subscriptions.Verify(repository => repository.CreateSubscriptionAsync(It.Is<Subscription>(value =>
-            value.Status == "PaymentPending" && value.BillingCycle == billingCycle)), Times.Once);
-        fixture.Stripe.Verify(service => service.CreateCheckoutSessionAsync(
-            "cus_tenant", expectedPriceId, "/success", "/cancel", null), Times.Once);
+        result.Success.Should().BeFalse();
+        result.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        fixture.Subscriptions.Verify(repository => repository.CreateSubscriptionAsync(It.IsAny<Subscription>()), Times.Never);
+        fixture.Stripe.VerifyNoOtherCalls();
     }
 
     [Theory]
@@ -180,8 +178,8 @@ public sealed class CheckoutPackagingContractTests
         });
 
         result.Success.Should().BeFalse();
-        result.Message.Should().Be($"Price ID not configured for {billingCycle} billing");
-        result.StatusCode.Should().Be(StatusCodes.Status503ServiceUnavailable);
+        result.Message.Should().Contain("not available");
+        result.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
         fixture.Subscriptions.Verify(repository => repository.CreateSubscriptionAsync(It.IsAny<Subscription>()), Times.Never);
         fixture.Subscriptions.Verify(repository => repository.UpdateSubscriptionAsync(It.IsAny<Subscription>()), Times.Never);
         fixture.Organizations.Verify(repository => repository.UpdateOrganizationAsync(It.IsAny<Organization>()), Times.Never);

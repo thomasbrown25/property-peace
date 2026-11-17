@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { combinePropertyFinances, financeUnitName, hasFinanceUnits, paymentCategory } from './propertyFinances.mjs';
+import { combinePropertyFinances, financeUnitName, hasFinanceUnits, paymentCategory, paymentTenantName } from './propertyFinances.mjs';
 
 const read = path => readFile(new URL(path, import.meta.url), 'utf8');
 
@@ -37,6 +37,17 @@ test('rent, deposit and fee payments retain distinct categories', () => {
   assert.equal(paymentCategory({}), 'Rent payment');
 });
 
+test('manual property payments show the tenant on their own lease when payment name is absent', () => {
+  const property = { leases: [{ id: 8, tenants: [{ firstname: 'Avery', lastname: 'Stone' }] }], units: [
+    { id: 4, leases: [{ id: 9, tenants: [{ firstName: 'Jordan', lastName: 'Lee' }] }] }
+  ] };
+  assert.equal(paymentTenantName({ leaseId: 8, method: 'Manual Entry' }, property), 'Avery Stone');
+  assert.equal(paymentTenantName({ leaseId: 9 }, property), 'Jordan Lee');
+  assert.equal(paymentTenantName({ leaseId: 10 }, property), '—');
+  assert.equal(paymentTenantName({ leaseId: 8, tenantName: 'Recorded Payer' }, property), 'Recorded Payer');
+  assert.equal(paymentTenantName({ leaseId: 8, lease: { tenantName: 'Lease Payer' } }, property), 'Lease Payer');
+});
+
 test('property finances are separate tabs, with legacy links opening payments', async () => {
   const tabs = await read('./PropertyRecordsTabs.jsx');
   const payments = await read('./PaymentsTab.jsx');
@@ -53,6 +64,8 @@ test('property finances are separate tabs, with legacy links opening payments', 
   assert.match(expenses, /mode="expenses"/);
   assert.match(table, /combinePropertyFinances\(isPayments \? payments : \[\], isPayments \? \[\] : expenses, propertyId\)/);
   assert.match(table, /showUnit && <TableCell>Unit<\/TableCell>/);
+  assert.match(table, /isPayments \? paymentTenantName\(record, property\) : record\.name \|\| '—'/);
+  assert.match(table, /isPayments && paymentTenantName\(record, property\)/);
   assert.match(table, /colSpan=\{columnCount\}/);
 });
 

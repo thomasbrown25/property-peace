@@ -105,7 +105,7 @@ function getPostCta(post: ReturnType<typeof getBlogPost>): BlogCta {
     return {
       eyebrow: 'Rent tracking tools',
       title: 'Keep rent records organized this month',
-      body: 'Record payment history, track overdue rent, and organize reminders. Online rent payments are included with Free. Organizations request access, complete secure payment setup, and pass account review before tenants can pay online.',
+      body: 'Record payment history, track overdue rent, and organize reminders for free. Online rent processing is not currently available; when enabled, organizations must request access, complete secure payment setup, and pass account review before tenants can pay online.',
       href: '/features/rent-collection',
       label: 'See Rent Collection',
     };
@@ -549,7 +549,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
                   className="text-white/65 mb-7 max-w-md mx-auto leading-relaxed"
                   style={{ fontFamily: '"Inter", sans-serif' }}
                 >
-                  Free for up to 5 units. No credit card required.
+                  Free for unlimited units. No credit card required.
                 </p>
                 <Link
                   href="https://app.propertypeace.io/register"
@@ -658,7 +658,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
                     Why landlords use Property Peace
                   </div>
                   <ul className="space-y-3 text-sm leading-relaxed text-brand-slate" style={{ fontFamily: '"Inter", sans-serif' }}>
-                    <li>Free for up to 5 rental units</li>
+                    <li>Free for unlimited rental units</li>
                     <li>Built for independent landlords</li>
                     <li>Rent, leases, maintenance, and tenants together</li>
                   </ul>

@@ -4,11 +4,11 @@ import test from 'node:test';
 
 const source = fs.readFileSync(new URL('../sections/landlord/dashboard/DashboardHeader.jsx', import.meta.url), 'utf8');
 
-test('selected dashboard workspace tab uses the navy brand color and underline without a green fill', () => {
-  assert.match(source, /const dashboardNavy = '#061e35';/);
-  assert.match(source, /color: active \? dashboardNavy : 'text\.secondary'/);
+test('selected dashboard workspace tab uses forest and underline without a filled tab', () => {
+  assert.match(source, /const tabAccent = theme\.palette\.mode === 'dark' \? theme\.palette\.primary\.light : theme\.palette\.brand\.forest/);
+  assert.match(source, /color: active \? tabAccent : 'text\.secondary'/);
   assert.match(source, /borderBottom: '3px solid'/);
-  assert.match(source, /borderBottomColor: active \? dashboardNavy : 'transparent'/);
+  assert.match(source, /borderBottomColor: active \? tabAccent : 'transparent'/);
   assert.match(source, /backgroundColor: 'transparent'/);
   assert.doesNotMatch(source, /color: active \? 'success\.(?:main|dark)'/);
   assert.doesNotMatch(source, /bgcolor: active \? 'success\.(?:main|dark)'/);
@@ -22,11 +22,11 @@ test('dashboard workspace tabs use a light full-width baseline behind the select
   assert.match(source, /position: 'relative',[\s\S]*zIndex: 1,[\s\S]*borderBottom: '3px solid'/);
 });
 
-test('dashboard reminder card uses a solid navy date panel and navy calendar action', () => {
+test('dashboard reminder card uses a solid forest date panel and themed calendar action', () => {
   assert.match(source, /export function DashboardReminderCard/);
-  assert.match(source, /bgcolor: dashboardNavy/);
+  assert.match(source, /bgcolor: 'brand\.forest'/);
   assert.match(source, /View calendar/);
-  assert.match(source, /color: dashboardNavy/);
+  assert.match(source, /color: actionColor/);
   assert.doesNotMatch(source, /linear-gradient\(145deg, #061e35/);
   assert.doesNotMatch(source, /color: 'success\.dark'/);
 });

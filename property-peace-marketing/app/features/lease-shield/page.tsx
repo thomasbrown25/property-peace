@@ -5,7 +5,7 @@ import Link from 'next/link';
 import FeatureHeroMock from '@/components/Marketing/FeatureHeroMock';
 import { FiShield, FiArrowRight, FiCheck, FiBookOpen, FiGlobe, FiMessageSquare } from 'react-icons/fi';
 
-// ── Mock UI panels (mirrored from the app upgrade gate) ──────────────────────
+// ── Mock UI panels ──────────────────────────────────────────────────────────
 
 function Mock1() {
   return (
@@ -133,7 +133,7 @@ const BENEFITS = [
   'Covers evictions, deposits, notices, habitability & more',
   'All 50 US states supported',
   'Conversational Percy Pilot — no legal jargon',
-  'Included with Premium at no extra cost',
+  'Free where available; Percy Pilot access is limited',
   'Always up to date with current law',
 ];
 
@@ -151,8 +151,8 @@ const FAQS = [
     a: 'LeaseShield uses only official government and legal sources — state statutes, housing authority guidance, and official .gov publications. No blogs or third-party summaries.',
   },
   {
-    q: 'Is it included in my plan?',
-    a: 'LeaseShield is a Premium feature. Upgrade to Premium to unlock unlimited conversations across all states.',
+    q: 'Is LeaseShield free to use?',
+    a: 'LeaseShield does not require a subscription. Percy Pilot access has limited availability; check your account for access.',
   },
 ];
 
@@ -189,7 +189,7 @@ export default function LeaseShieldPage() {
           <div className="text-center lg:text-left">
             <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[var(--brand-border)] bg-brand-mint px-4 py-1.5 shadow-sm">
               <FiShield className="h-3.5 w-3.5 text-brand-teal" />
-              <span className="text-sm font-semibold text-brand-teal" style={{ fontFamily: '"Inter", sans-serif' }}>Premium Feature</span>
+              <span className="text-sm font-semibold text-brand-teal" style={{ fontFamily: '"Inter", sans-serif' }}>Percy Pilot — limited availability</span>
             </div>
             <h1
               className="mb-6 text-4xl font-extrabold leading-tight text-white md:text-5xl lg:text-6xl"
@@ -403,7 +403,7 @@ export default function LeaseShieldPage() {
             Stop guessing. Start knowing.
           </h2>
           <p className="text-white/70 mb-8 text-lg max-w-xl mx-auto" style={{ fontFamily: '"Inter", sans-serif' }}>
-            LeaseShield is included with Premium. Get started today and get instant, sourced answers to any landlord-tenant question.
+            LeaseShield is free where available. Percy Pilot access is limited; check availability in your account.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link
@@ -419,7 +419,7 @@ export default function LeaseShieldPage() {
               className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-brand-surface text-primary-main rounded-none font-semibold hover:border-brand-mint hover:text-brand-teal transition-colors border border-[var(--brand-border)] text-base"
               style={{ fontFamily: '"Inter", sans-serif' }}
             >
-              See Premium plans
+              See free pricing
             </Link>
           </div>
           <p className="mt-5 text-white/40 text-xs" style={{ fontFamily: '"Inter", sans-serif' }}>

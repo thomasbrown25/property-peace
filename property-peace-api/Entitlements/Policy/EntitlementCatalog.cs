@@ -4,7 +4,7 @@ namespace brownstone_hub_api.Entitlements.Policy;
 
 public static class EntitlementCatalog
 {
-    public const string Version = "2026-08-10.v1";
+    public const string Version = "2026-11-17.v2";
 
     private static readonly IReadOnlySet<PlanKey> KnownPlans = new HashSet<PlanKey>
     {
@@ -22,7 +22,7 @@ public static class EntitlementCatalog
                     OrganizationRole.Manager,
                     OrganizationPermission.ManageProperties),
                 [
-                    new(PlanKeys.Free, new EntitlementQuota("units", 5)),
+                    new(PlanKeys.Free),
                     new(PlanKeys.Premium),
                     new(PlanKeys.Lifetime)
                 ],
@@ -31,37 +31,37 @@ public static class EntitlementCatalog
             new FeatureEntitlement(
                 FeatureKeys.AdvancedReporting,
                 new OrganizationAuthorityRequirement(OrganizationRole.Viewer),
-                [new(PlanKeys.Premium), new(PlanKeys.Lifetime)],
+                [new(PlanKeys.Free), new(PlanKeys.Premium), new(PlanKeys.Lifetime)],
                 [],
                 []),
             new FeatureEntitlement(
                 FeatureKeys.DedicatedSmsNumberSetup,
                 new OrganizationAuthorityRequirement(OrganizationRole.Manager),
-                [new(PlanKeys.Premium), new(PlanKeys.Lifetime)],
+                [new(PlanKeys.Free), new(PlanKeys.Premium), new(PlanKeys.Lifetime)],
                 [],
                 []),
             new FeatureEntitlement(
                 FeatureKeys.SmsMessaging,
                 new OrganizationAuthorityRequirement(OrganizationRole.Manager),
-                [new(PlanKeys.Premium), new(PlanKeys.Lifetime)],
+                [new(PlanKeys.Free), new(PlanKeys.Premium), new(PlanKeys.Lifetime)],
                 [],
                 [ReadinessDependencyKeys.SmsNumberConfigured]),
             new FeatureEntitlement(
                 FeatureKeys.RentEstimate,
                 new OrganizationAuthorityRequirement(OrganizationRole.Viewer),
-                [new(PlanKeys.Premium), new(PlanKeys.Lifetime)],
+                [new(PlanKeys.Free), new(PlanKeys.Premium), new(PlanKeys.Lifetime)],
                 [],
                 []),
             new FeatureEntitlement(
                 FeatureKeys.LeaseShieldRead,
                 new OrganizationAuthorityRequirement(OrganizationRole.Viewer),
-                [new(PlanKeys.Premium), new(PlanKeys.Lifetime)],
+                [new(PlanKeys.Free), new(PlanKeys.Premium), new(PlanKeys.Lifetime)],
                 [],
                 []),
             new FeatureEntitlement(
                 FeatureKeys.LeaseShieldManage,
                 new OrganizationAuthorityRequirement(OrganizationRole.Manager),
-                [new(PlanKeys.Premium), new(PlanKeys.Lifetime)],
+                [new(PlanKeys.Free), new(PlanKeys.Premium), new(PlanKeys.Lifetime)],
                 [],
                 [])
         ]);

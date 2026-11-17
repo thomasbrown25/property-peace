@@ -2,15 +2,7 @@ import React from 'react';
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Typography, Box, Alert } from '@mui/material';
 import { WarningAmberOutlined } from '@mui/icons-material';
 
-export default function OrphanedSubscriptionModal({ open, onClose, onFix, subscription, loading = false }) {
-  const handleFix = async () => {
-    if (onFix) {
-      await onFix();
-      // Modal will close when redirect happens, or stay open if error occurs
-      // Don't close here - let the parent handle it
-    }
-  };
-
+export default function OrphanedSubscriptionModal({ open, onClose, onFix, subscription }) {
   const planName = subscription?.plan?.name || 'your current plan';
 
   return (
@@ -26,18 +18,18 @@ export default function OrphanedSubscriptionModal({ open, onClose, onFix, subscr
           There is an issue with your subscription payment information.
         </Alert>
         <Typography variant="body1" sx={{ mb: 2 }}>
-          Your subscription exists, but we need to update your payment details. Please click the button below to re-enter your payment information.
+          Your existing subscription is missing billing-provider information. Self-service checkout is not available for legacy paid plans.
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          You will be taken through the payment setup process for <strong>{planName}</strong>. Once completed, your subscription will be fully activated.
+          Contact support to review billing for <strong>{planName}</strong>. Your payment details have not been updated, and no new subscription has been started.
         </Typography>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={onClose} disabled={loading}>
-          Cancel
+        <Button onClick={onClose}>
+          Close
         </Button>
-        <Button onClick={handleFix} variant="contained" color="primary" disabled={loading}>
-          {loading ? 'Processing...' : 'Update Payment Information'}
+        <Button onClick={onFix} variant="contained" color="primary">
+          Contact support
         </Button>
       </DialogActions>
     </Dialog>

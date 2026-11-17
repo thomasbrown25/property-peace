@@ -325,6 +325,12 @@ namespace brownstone_hub_api.Services.RentCollectionService
                     return ServiceResponse<RentRecordDto>.CreateError("Lease not found or archived");
                 }
 
+                if (newPayment.TenantId.HasValue && !await _context.TenantLeases.AnyAsync(tl =>
+                    tl.LeaseId == newPayment.LeaseId && tl.TenantId == newPayment.TenantId.Value))
+                {
+                    return ServiceResponse<RentRecordDto>.CreateError("Selected tenant does not belong to this lease");
+                }
+
                 // Set method based on payment source
                 // If CreatedByUserId is set, it's a manual entry by landlord
                 // If Method is already set (e.g., from Stripe), keep it

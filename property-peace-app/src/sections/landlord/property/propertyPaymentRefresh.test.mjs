@@ -87,8 +87,8 @@ test('payment list refetches after mutation and ignores aborted old-property res
   assert.match(paymentEffect.arguments[1].elements.map(code).join(' '), /drawer\.financeMutationVersion/);
   const requests = [], results = [];
   const axios = { get: (url, options) => new Promise(resolve => requests.push({ url, ...options, resolve })) };
-  const run = id => new Function('propertyId', 'setResult', 'axiosServices', 'loadPaymentTimings', `return (${code(paymentEffect.arguments[0])})();`)(
-    id, result => results.push(result), axios, loadPaymentTimings);
+  const run = id => new Function('propertyId', 'setResult', 'axiosServices', 'loadPaymentTimings', 'property', `return (${code(paymentEffect.arguments[0])})();`)(
+    id, result => results.push(result), axios, loadPaymentTimings, { units: [] });
   const cleanup = run(7);
   cleanup();
   run(8);
@@ -104,8 +104,8 @@ test('payment list refetches after mutation and ignores aborted old-property res
 test('aborting during charge loading cannot publish stale payment timing', async () => {
   const requests = [], results = [];
   const axios = { get: (url, options) => new Promise(resolve => requests.push({ url, ...options, resolve })) };
-  const cleanup = new Function('propertyId', 'setResult', 'axiosServices', 'loadPaymentTimings', `return (${code(paymentEffect.arguments[0])})();`)(
-    7, result => results.push(result), axios, loadPaymentTimings);
+  const cleanup = new Function('propertyId', 'setResult', 'axiosServices', 'loadPaymentTimings', 'property', `return (${code(paymentEffect.arguments[0])})();`)(
+    7, result => results.push(result), axios, loadPaymentTimings, { units: [] });
   requests[0].resolve({ data: [{ id: 12, leaseId: 7, amount: 100, status: 'Completed', paymentDate: '2026-03-02' }] });
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(requests[1].url, '/api/payment/7/charges');

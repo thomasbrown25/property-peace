@@ -13,8 +13,8 @@ test('ledger computes status from conditions and progress, not persisted complet
   assert.doesNotMatch(ledger, /icon=\{checklist\.isCompleted/);
 });
 
-test('progress bar stays brand navy regardless of status while status chip keeps severity color', () => {
-  assert.match(ledger, /MuiLinearProgress-bar': \{ borderRadius: 8, bgcolor: '#061E35' \}/);
+test('progress bar stays brand forest regardless of status while status chip keeps severity color', () => {
+  assert.match(ledger, /MuiLinearProgress-bar': \{ borderRadius: 8, bgcolor: theme\.palette\.brand\.forest \}/);
   assert.doesNotMatch(ledger, /MuiLinearProgress-bar[^\n]*checklistStatus/);
   assert.match(ledger, /label=\{checklistStatus\.label\}/);
   assert.match(ledger, /color=\{checklistStatus\.color\}/);

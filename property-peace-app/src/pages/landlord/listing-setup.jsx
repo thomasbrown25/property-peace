@@ -38,7 +38,7 @@ import { selectSelectedListing, selectListingLoading } from 'store/listing/listi
 import listingApi from 'api/listing';
 import listingAIApi from 'api/listingAI';
 import { openSnackbar } from 'api/snackbar';
-import { useSubscription } from 'hooks/useSubscription';
+
 import RentEstimateCard from 'components/RentEstimateCard';
 import ListingAmenitiesStep from 'components/listings/ListingAmenitiesStep';
 import { getFallbackSelections } from 'utils/amenityFallbacks';
@@ -98,11 +98,10 @@ export default function ListingSetupPage() {
   const dispatch = useDispatch();
   const listing = useSelector(selectSelectedListing);
   const loading = useSelector(selectListingLoading);
-  const { subscription } = useSubscription();
+
   const { presentation: syndicationReadiness, canInvoke: syndicationCanInvoke } = useFeatureReadiness(FEATURE_KEYS.listingSyndication);
   const { canInvoke: screeningCanInvoke, presentation: screeningReadiness } = useFeatureReadiness(FEATURE_KEYS.tenantScreening);
-  const planName = (subscription?.plan?.name || subscription?.subscriptionPlan?.name || '').toLowerCase();
-  const isPremium = planName === 'premium' || planName.includes('lifetime');
+
 
   const [activeTab, setActiveTab] = useState('details');
   const [saving, setSaving] = useState(false);
@@ -407,7 +406,7 @@ export default function ListingSetupPage() {
               </Grid>
               {listing?.propertyId && (
                 <Grid size={{ xs: 12, md: 7 }}>
-                  <RentEstimateCard propertyId={listing.propertyId} unitId={listing.unitId} isPremium={isPremium} onUseAmount={(amount) => setFormData((p) => ({ ...p, monthlyRent: String(amount) }))} />
+                  <RentEstimateCard propertyId={listing.propertyId} unitId={listing.unitId} onUseAmount={(amount) => setFormData((p) => ({ ...p, monthlyRent: String(amount) }))} />
                 </Grid>
               )}
             </Grid>

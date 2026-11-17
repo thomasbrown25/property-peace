@@ -57,7 +57,7 @@ export default function AboutPage() {
 
       <section data-marketing-hero-theme="dark" className="relative flex min-h-[620px] items-center overflow-hidden bg-brand-forest px-4 pb-28 pt-36 text-center text-white sm:min-h-[680px] sm:px-6 md:pb-32 md:pt-40 lg:px-8">
         <div className="absolute inset-0 bg-cover bg-center bg-no-repeat" style={{ backgroundImage: 'url(/images/pricing/hero.png)' }} aria-hidden="true" />
-        <div className="absolute inset-0 bg-[linear-gradient(to_top,#061E35_0%,rgba(16,44,41,0.94)_18%,rgba(16,44,41,0.74)_57%,rgba(16,44,41,0.73)_100%)]" aria-hidden="true" />
+        <div className="marketing-hero-fade absolute inset-0" aria-hidden="true" />
         <div className="relative mx-auto w-full max-w-3xl">
           <p className="mb-7 text-[15px] font-extrabold uppercase leading-[1.5] tracking-[-0.2px] text-[#e1e1e1]" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>About Property Peace</p>
           <h1 className="text-4xl font-extrabold leading-[1.12] tracking-[-0.045em] text-white sm:text-5xl md:text-6xl" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>
@@ -147,7 +147,7 @@ export default function AboutPage() {
           <div className="mx-auto max-w-3xl border-t border-white/15 pt-20">
             <p className="text-xs font-bold uppercase tracking-[0.24em] text-brand-mint">A little more peace, every day</p>
             <h2 className="mt-5 text-3xl font-extrabold tracking-[-0.035em] md:text-4xl" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>Your homes deserve your attention. Your tools shouldn&apos;t demand it all.</h2>
-            <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-white/80">Start with the essentials, keep your rental work in one place, and grow at your own pace. Free for up to five units.</p>
+            <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-white/80">Start with the essentials, keep your rental work in one place, and grow at your own pace. Free for unlimited units.</p>
             <Link href="https://app.propertypeace.io/register" className="mt-9 inline-flex min-h-12 items-center justify-center gap-2 bg-brand-teal px-8 py-3.5 font-bold text-white transition hover:bg-brand-teal">
               Start free <FiArrowRight className="h-4 w-4" />
             </Link>
