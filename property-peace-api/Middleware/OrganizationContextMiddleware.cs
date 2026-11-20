@@ -64,7 +64,10 @@ namespace brownstone_hub_api.Middleware
                     if (userId.HasValue)
                     {
                         var endpoint = context.GetEndpoint();
-                        if (endpoint?.Metadata.GetMetadata<OrganizationContextOptionalAttribute>() != null ||
+                        var optionalOrganization = endpoint?.Metadata.GetMetadata<OrganizationContextOptionalAttribute>();
+                        var hasTenantRole = context.User.IsInRole("Tenant");
+                        var isTenantOnly = hasTenantRole && !context.User.IsInRole("Landlord") && !context.User.IsInRole("Admin");
+                        if ((optionalOrganization != null && (!optionalOrganization.TenantOnly || isTenantOnly)) ||
                             endpoint?.Metadata.GetMetadata<IAllowAnonymous>() != null)
                         {
                             context.Items.Remove("OrganizationId");
@@ -74,7 +77,7 @@ namespace brownstone_hub_api.Middleware
                         }
 
                         var tenantSelf = endpoint?.Metadata.GetMetadata<TenantSelfOrganizationAttribute>();
-                        if (tenantSelf != null && context.User.IsInRole("Tenant"))
+                        if (tenantSelf != null && (tenantSelf.TenantOnly ? isTenantOnly : hasTenantRole))
                         {
                             context.Items.Remove("OrganizationId");
                             context.Items["UserId"] = userId.Value;
@@ -94,6 +97,23 @@ namespace brownstone_hub_api.Middleware
                             }
                             var organizations = await authorityResolver.GetTenantLeaseOrganizationIdsAsync(userId.Value, context.RequestAborted);
                             var selectedId = hasHeader ? requestedId : organizations.Count == 1 ? organizations[0] : 0;
+                            if (!hasHeader && tenantSelf.AllowPersonalHubConnection && selectedId <= 0)
+                            {
+                                // SignalR browser transports can omit organization headers. Use a
+                                // persisted choice only when it matches a verified lease organization.
+                                if (organizations.Count > 1 && (await userRepository.GetUser(userId.Value))?.CurrentOrganizationId is long persistedId &&
+                                    organizations.Contains(persistedId))
+                                {
+                                    selectedId = persistedId;
+                                }
+                                else
+                                {
+                                    // The caller can receive personal events. Conversation group
+                                    // joins still require a validated organization and participation.
+                                    await _next(context);
+                                    return;
+                                }
+                            }
                             if (selectedId <= 0 || !organizations.Contains(selectedId))
                             {
                                 context.Items.Remove("UserId");

@@ -35,8 +35,12 @@ namespace brownstone_hub_api.Services.MaintenanceAgentService
 
         public async Task<MaintenanceAgentChatResponseDto> ChatAsync(
             List<MaintenanceAgentMessageDto> messages,
+            long organizationId,
             CancellationToken cancellationToken = default)
         {
+            if (organizationId <= 0)
+                throw new ArgumentOutOfRangeException(nameof(organizationId));
+
             var currentUser = await _userRepository.GetCurrentUser();
             if (currentUser == null)
             {
@@ -178,7 +182,8 @@ namespace brownstone_hub_api.Services.MaintenanceAgentService
                 foreach (var toolUse in toolUses)
                 {
                     _logger.LogDebug("Maintenance Agent calling tool {Tool}", toolUse.Name);
-                    var (result, request) = await DispatchToolAsync(toolUse.Name, toolUse.Input, currentUser.Id, cancellationToken);
+                    var (result, request) = await DispatchToolAsync(
+                        toolUse.Name, toolUse.Input, currentUser.Id, organizationId, cancellationToken);
                     if (request != null) submittedRequest = request;
 
                     toolResults.Add(new ToolResultContent
@@ -213,6 +218,7 @@ namespace brownstone_hub_api.Services.MaintenanceAgentService
             string toolName,
             JsonNode? input,
             long tenantUserId,
+            long organizationId,
             CancellationToken cancellationToken)
         {
             try
@@ -221,7 +227,7 @@ namespace brownstone_hub_api.Services.MaintenanceAgentService
                 {
                     case "get_tenant_leases":
                     {
-                        var result = await GetTenantLeasesAsync(tenantUserId);
+                        var result = await GetTenantLeasesAsync(tenantUserId, organizationId);
                         return (result, null);
                     }
                     case "get_maintenance_categories":
@@ -231,7 +237,7 @@ namespace brownstone_hub_api.Services.MaintenanceAgentService
                     }
                     case "submit_maintenance_request":
                     {
-                        var (result, request) = await SubmitMaintenanceRequestAsync(input, tenantUserId);
+                        var (result, request) = await SubmitMaintenanceRequestAsync(input, tenantUserId, organizationId);
                         return (result, request);
                     }
                     default:
@@ -247,10 +253,10 @@ namespace brownstone_hub_api.Services.MaintenanceAgentService
 
         // ── Tool Implementations ───────────────────────────────────────────────────
 
-        private async Task<string> GetTenantLeasesAsync(long tenantUserId)
+        private async Task<string> GetTenantLeasesAsync(long tenantUserId, long organizationId)
         {
             var leases = await _leaseRepository.GetLeasesByTenantUserId(tenantUserId);
-            var active = leases.Where(l => l.IsActive == true).ToList();
+            var active = leases.Where(l => l.IsActive == true && l.OrganizationId == organizationId).ToList();
 
             if (active.Count == 0)
                 return JsonSerializer.Serialize(new { leases = Array.Empty<object>(), message = "No active leases found." });
@@ -275,7 +281,8 @@ namespace brownstone_hub_api.Services.MaintenanceAgentService
             return JsonSerializer.Serialize(new { categories = result });
         }
 
-        private async Task<(string result, LoadMaintenanceRequestDto? request)> SubmitMaintenanceRequestAsync(JsonNode? input, long tenantUserId)
+        private async Task<(string result, LoadMaintenanceRequestDto? request)> SubmitMaintenanceRequestAsync(
+            JsonNode? input, long tenantUserId, long organizationId)
         {
             if (input == null)
                 return (JsonSerializer.Serialize(new { error = "Missing input parameters" }), null);
@@ -293,7 +300,7 @@ namespace brownstone_hub_api.Services.MaintenanceAgentService
             // Tool arguments come from the model, not a trusted tenant selection. Never let
             // a prompt or forged chat history create a ticket for another tenant's unit.
             var leases = await _leaseRepository.GetLeasesByTenantUserId(tenantUserId);
-            var matching = leases.Where(l => l.IsActive == true && l.PropertyId == propertyId &&
+            var matching = leases.Where(l => l.IsActive == true && l.OrganizationId == organizationId && l.PropertyId == propertyId &&
                 (!unitId.HasValue || l.UnitId == unitId.Value)).ToList();
             if (matching.Count != 1)
                 return (JsonSerializer.Serialize(new { error = "Select an active leased unit for this property" }), null);

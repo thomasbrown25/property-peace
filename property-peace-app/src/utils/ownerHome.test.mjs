@@ -86,15 +86,16 @@ test('today shows No lease instead of zero figures and a visible gray zero-colle
   assert.match(home, /bgcolor: rent\.paid === 0 \? theme\.palette\.grey\[theme\.palette\.mode === 'dark' \? 700 : 300\]/);
 });
 
-test('today property list includes image, address, rent paid and operations columns', () => {
+test('today property list includes image, address, rent paid and due date columns', () => {
   const home = source('sections/landlord/dashboard/OwnerTodayHome.jsx');
   const overview = source('pages/landlord/dashboard-overview.jsx');
   assert.match(home, /property\.imageUrl/);
   assert.match(home, /property\.address/);
   assert.match(home, /Rent paid/);
   assert.match(home, /LinearProgress/);
-  assert.match(home, /Operations/);
-  assert.match(home, /PropertyOperations/);
+  assert.match(home, /Due date/);
+  assert.match(home, /getPropertyRentDueDate/);
+  assert.doesNotMatch(home, /PropertyOperations/);
   assert.match(overview, /rentRecords=\{rentRecords\}/);
 });
 

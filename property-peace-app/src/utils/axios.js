@@ -140,7 +140,8 @@ axiosServices.interceptors.request.use(async (config) => {
     }
     config.headers.Authorization = `Bearer ${accessToken}`;
   }
-  if (!config.headers['X-Organization-Id'] && !config.headers['x-organization-id']) {
+  // Axios preserves an explicit false header value without sending it on the wire.
+  if (!config.headers.has('X-Organization-Id')) {
     const currentOrganizationId = getActiveOrganizationId(state.auth?.user);
     if (currentOrganizationId && !authEndpoint) config.headers['X-Organization-Id'] = currentOrganizationId.toString();
   }

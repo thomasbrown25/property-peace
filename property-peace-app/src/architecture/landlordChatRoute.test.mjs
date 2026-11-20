@@ -17,7 +17,7 @@ test('landlord Chat has a canonical route, matching page title and breadcrumb, a
   assert.match(page, /<Typography variant="h3" fontWeight=\{750\}>\s*Chat\s*<\/Typography>/);
 });
 
-test('landlord navigation producers use Chat, without changing tenant and admin destinations', () => {
+test('landlord navigation producers use Chat and retain role-specific inboxes', () => {
   const files = [
     'menu-items/pages.js', 'data/videos.js', 'layout/Dashboard/index.jsx',
     'layout/Dashboard/BottomNavBar/index.jsx', 'layout/Dashboard/Header/HeaderContent/Message.jsx',
@@ -31,5 +31,5 @@ test('landlord navigation producers use Chat, without changing tenant and admin 
     assert.doesNotMatch(read(file), /\/landlord\/messages(?!\.jsx)/, `${file} still points to the old URL`);
   }
   const header = read('layout/Dashboard/Header/HeaderContent/Message.jsx');
-  assert.match(header, /isAdmin \? '\/admin\/messages' : isTenant \? '\/tenant\/messages' : '\/landlord\/chat'/);
+  assert.match(header, /isAdmin \? '\/admin\/messages' : isTenant \? '\/tenant\/chat' : '\/landlord\/chat'/);
 });

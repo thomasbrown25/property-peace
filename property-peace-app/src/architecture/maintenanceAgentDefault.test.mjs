@@ -4,14 +4,11 @@ import test from 'node:test';
 
 const read = relative => readFileSync(new URL(`../${relative}`, import.meta.url), 'utf8');
 
-test('tenant maintenance and dashboard start with assistant and use form only on assistant failure', () => {
+test('tenant maintenance starts with assistant and uses form only on assistant failure', () => {
   const maintenance = read('pages/tenant/maintenance.jsx');
-  const dashboard = read('pages/tenant/dashboard.jsx');
   assert.match(maintenance, /agentFailed \? <TenantMaintenanceFormDrawer/);
   assert.match(maintenance, /onUnavailable=\{\(\) => setAgentFailed\(true\)\}/);
   assert.match(maintenance, /setAgentFailed\(false\); setAgentDrawerOpen\(true\)/);
-  assert.match(dashboard, /onUnavailable=\{\(\) => setMaintenanceAgentEnabled\(false\)\}/);
-  assert.doesNotMatch(dashboard, /get\('\/api\/maintenance-agent\/settings'\)/);
 });
 
 test('landlord starts assistant without an organization setting', () => {

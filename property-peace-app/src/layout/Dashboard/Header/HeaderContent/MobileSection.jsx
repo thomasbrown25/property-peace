@@ -23,8 +23,6 @@ import Transitions from 'components/@extended/Transitions';
 import useAuth from 'hooks/useAuth';
 import useIsAdmin from 'hooks/useIsAdmin';
 import { useOrganization } from 'contexts/OrganizationContext';
-import Message from './Message';
-import Notification from './Notification';
 
 // assets
 import MailOutlined from '@ant-design/icons/MailOutlined';
@@ -149,8 +147,6 @@ export default function MobileSection() {
 
   return (
     <>
-      <Message />
-      <Notification />
       <Box sx={{ flexShrink: 0, ml: 0.75, display: 'flex', alignItems: 'center', gap: 1 }}>
         <ButtonBase
           sx={(theme) => ({

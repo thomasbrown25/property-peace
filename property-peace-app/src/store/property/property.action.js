@@ -68,7 +68,7 @@ export const getProperties = (requestedOrganizationId = null) => async (dispatch
   const requestId = ++_latestPropertiesRequestId;
   const organizationId = requestedOrganizationId ?? getActiveOrganizationId(getState().auth?.user);
   try {
-    dispatch({ type: PROPERTY_ACTION_TYPES.GET_PROPERTIES_START });
+    dispatch({ type: PROPERTY_ACTION_TYPES.GET_PROPERTIES_START, meta: { organizationId } });
     // Pin the request to the organization selected when the refresh began.
     // Only the latest organization-scoped request may update the shared property store.
     const response = await axiosServices.get(`/api/property/list`, {
@@ -86,7 +86,8 @@ export const getProperties = (requestedOrganizationId = null) => async (dispatch
     console.log(error, error.message);
     dispatch({
       type: PROPERTY_ACTION_TYPES.GET_PROPERTIES_FAILED,
-      payload: error?.response?.data?.errors || error?.message
+      payload: error?.response?.data?.errors || error?.message,
+      meta: { organizationId }
     });
     return { success: false };
   }

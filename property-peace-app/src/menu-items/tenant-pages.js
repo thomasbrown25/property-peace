@@ -72,9 +72,9 @@ const tenantPages = [
       },
       {
         id: 'tenant-messages',
-        title: 'Messages',
+        title: 'Chat',
         type: 'item',
-        url: '/tenant/messages',
+        url: '/tenant/chat',
         icon: icons.MessageTwoTone
       }
     ]

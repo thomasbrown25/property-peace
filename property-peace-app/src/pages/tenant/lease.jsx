@@ -1,5 +1,6 @@
 import { isDetachedSingleUnitType } from 'utils/propertyType';
 import { useState, useEffect, useMemo } from 'react';
+import useSWR from 'swr';
 import {
   Box,
   Typography,
@@ -11,10 +12,7 @@ import {
   Alert,
   Button,
   Chip,
-  Avatar,
-  FormControl,
-  MenuItem,
-  Select
+  Avatar
 } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import {
@@ -30,12 +28,16 @@ import useAuth from 'hooks/useAuth';
 import axiosServices from 'utils/axios';
 import { formatCurrency, formatDate } from 'utils/formatters';
 import { calculateNextPaymentDate } from 'utils/helper-methods';
+import { normalizeRentBalance } from 'utils/rentBalance';
 import { tenantDocumentAPI } from 'api';
 import { openSnackbar } from 'api/snackbar';
+import TenantLeaseFilter from 'components/filters/TenantLeaseFilter';
+import { getLeaseOrganizationId, organizationRequestOptions } from './tenantDocumentScope.mjs';
+import { getStatusPillSx } from 'themes/statusPillStyles';
 
 // ==============================|| TENANT - LEASE ||============================== //
 
-function StatCard({ icon, label, value, accent }) {
+function StatCard({ icon, label, value, accent, overdue }) {
   const theme = useTheme();
   return (
     <Paper
@@ -43,8 +45,8 @@ function StatCard({ icon, label, value, accent }) {
       sx={{
         p: 2,
         borderRadius: 2,
-        border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-        bgcolor: alpha(theme.palette.background.paper, 0.7),
+        border: `1px solid ${theme.palette.divider}`,
+        bgcolor: 'background.paper',
         flex: 1
       }}
     >
@@ -55,85 +57,11 @@ function StatCard({ icon, label, value, accent }) {
             {label}
           </Typography>
         </Stack>
-        <Typography variant="h6" fontWeight={700} sx={{ pl: 0.25 }}>
+        <Typography variant="h6" fontWeight={700} color={overdue ? 'error.main' : undefined} sx={{ pl: 0.25 }}>
           {value || '—'}
         </Typography>
       </Stack>
     </Paper>
-  );
-}
-
-function getLeaseLabel(lease) {
-  const property = lease?.unit?.property?.name || lease?.propertyName || 'Property';
-  const unit = lease?.unit?.name || lease?.unitName;
-  const propertyType = lease?.unit?.property?.propertyType?.toLowerCase();
-  return isDetachedSingleUnitType(propertyType) || !unit ? property : `${property} · ${unit}`;
-}
-
-function LeaseListItem({ lease, selected, onClick }) {
-  const theme = useTheme();
-  const isActive = lease.isActive;
-  const normalizedPropertyType = String(lease.propertyType || lease.PropertyType || lease.unit?.property?.propertyType || '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, '');
-  const unitName = lease.unitName || lease.UnitName || lease.unit?.name || '';
-  const normalizedUnitName = String(unitName).toLowerCase().replace(/[^a-z0-9]/g, '');
-  const showUnitName = unitName && !isDetachedSingleUnitType(normalizedPropertyType) && normalizedUnitName !== 'unit1';
-
-  return (
-    <Box
-      onClick={onClick}
-      sx={{
-        p: 1.5,
-        cursor: 'pointer',
-        borderRadius: 1.5,
-        border: `1.5px solid ${selected ? theme.palette.primary.main : 'transparent'}`,
-        bgcolor: selected ? alpha(theme.palette.primary.main, 0.06) : 'transparent',
-        transition: 'all 0.15s',
-        '&:hover': {
-          bgcolor: selected ? alpha(theme.palette.primary.main, 0.08) : alpha(theme.palette.action.hover, 0.5),
-          border: `1.5px solid ${selected ? theme.palette.primary.main : alpha(theme.palette.divider, 0.4)}`
-        }
-      }}
-    >
-      <Stack direction="row" spacing={1.5} alignItems="center">
-        <Avatar
-          src={lease.propertyImageUrl || undefined}
-          sx={{
-            width: 42,
-            height: 42,
-            borderRadius: 1.5,
-            bgcolor: alpha(theme.palette.primary.main, 0.1),
-            color: 'primary.main',
-            flexShrink: 0,
-            fontSize: 18
-          }}
-        >
-          {!lease.propertyImageUrl && <HomeOutlined />}
-        </Avatar>
-        <Box sx={{ minWidth: 0, flex: 1 }}>
-          <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={0.5}>
-            <Typography variant="body2" fontWeight={600} noWrap sx={{ flex: 1 }}>
-              {lease.propertyName || 'Property'}
-            </Typography>
-            <Box
-              sx={{
-                width: 8,
-                height: 8,
-                borderRadius: '50%',
-                bgcolor: isActive ? 'success.main' : 'text.disabled',
-                flexShrink: 0
-              }}
-            />
-          </Stack>
-          {showUnitName && (
-            <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
-              {unitName}
-            </Typography>
-          )}
-        </Box>
-      </Stack>
-    </Box>
   );
 }
 
@@ -148,6 +76,23 @@ export default function TenantLease() {
   const [loadingAgreement, setLoadingAgreement] = useState(false);
 
   const selectedLease = useMemo(() => leases.find((l) => l.id === selectedLeaseId) || null, [leases, selectedLeaseId]);
+  const userId = user?.id ?? user?.Id;
+  const balanceOrganizationId = getLeaseOrganizationId(selectedLease);
+  const { data: rentBalance } = useSWR(
+    userId && selectedLease?.id && balanceOrganizationId
+      ? ['tenant-lease-rent-balance', userId, selectedLease.id, balanceOrganizationId]
+      : null,
+    async ([, , leaseId, organizationId]) => {
+      const { data } = await axiosServices.get('/api/rent-collection/tenant/my-rent', {
+        ...organizationRequestOptions(organizationId),
+        params: { leaseId }
+      });
+      const records = data?.data?.rentRecords ?? data?.data?.RentRecords ?? [];
+      const leaseRecord = records.find((record) => String(record.leaseId ?? record.LeaseId) === String(leaseId));
+      return leaseRecord ? normalizeRentBalance(leaseRecord) : null;
+    },
+    { shouldRetryOnError: false }
+  );
 
   const nextPaymentDate = useMemo(() => {
     if (!selectedLease?.rentDueDay || !selectedLease?.startDate) return null;
@@ -200,13 +145,14 @@ export default function TenantLease() {
 
   // Load lease agreement when selected lease changes
   useEffect(() => {
-    if (!selectedLeaseId) return;
+    const organizationId = getLeaseOrganizationId(selectedLease);
+    if (!selectedLeaseId || !selectedLease || organizationId === undefined || organizationId === null) return;
     if (leaseAgreements[selectedLeaseId] !== undefined) return; // already fetched
 
     const loadAgreement = async () => {
       setLoadingAgreement(true);
       try {
-        const response = await tenantDocumentAPI.getLeaseAgreement(selectedLeaseId);
+        const response = await tenantDocumentAPI.getLeaseAgreement(selectedLeaseId, organizationRequestOptions(organizationId));
         setLeaseAgreements((prev) => ({
           ...prev,
           [selectedLeaseId]: response.success && response.data ? response.data : null
@@ -219,12 +165,13 @@ export default function TenantLease() {
     };
 
     loadAgreement();
-  }, [selectedLeaseId]);
+  }, [selectedLeaseId, selectedLease, leaseAgreements]);
 
   const handleViewLeaseAgreement = async () => {
-    if (!selectedLease?.id) return;
+    const organizationId = getLeaseOrganizationId(selectedLease);
+    if (!selectedLease?.id || organizationId === undefined || organizationId === null) return;
     try {
-      const response = await tenantDocumentAPI.getLeaseAgreement(selectedLease.id);
+      const response = await tenantDocumentAPI.getLeaseAgreement(selectedLease.id, organizationRequestOptions(organizationId));
       if (response.success && response.data?.blobUrl) {
         window.open(response.data.blobUrl, '_blank');
       } else {
@@ -270,63 +217,17 @@ export default function TenantLease() {
           </Typography>
         </Box>
 
-        <Box sx={{ display: 'flex', gap: { xs: 0, md: 2.5 }, flex: 1, minHeight: 0, alignItems: 'flex-start' }}>
-          <Paper
-            variant="outlined"
-            sx={{
-              display: { xs: 'none', md: 'block' },
-              width: 260,
-              flexShrink: 0,
-              borderRadius: 2,
-              border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-              bgcolor: alpha(theme.palette.background.paper, 0.6),
-              overflow: 'hidden',
-              boxShadow: (t) => `0 0 20px ${alpha(t.palette.primary.main, 0.15)}`
-            }}
-          >
-            <Box sx={{ px: 2, py: 1.5, borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}` }}>
-              <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.6 }}>
-                Leases
-              </Typography>
-            </Box>
-            <Box sx={{ p: 1 }}>
-              <Box
-                sx={{
-                  p: 1.5,
-                  borderRadius: 1.5,
-                  border: `1.5px dashed ${alpha(theme.palette.divider, 0.35)}`,
-                  bgcolor: alpha(theme.palette.action.hover, 0.35)
-                }}
-              >
-                <Stack direction="row" spacing={1.5} alignItems="center">
-                  <Avatar sx={{ width: 42, height: 42, borderRadius: 1.5, bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main' }}>
-                    <HomeOutlined />
-                  </Avatar>
-                  <Box sx={{ minWidth: 0 }}>
-                    <Typography variant="body2" fontWeight={700}>
-                      No lease yet
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      Waiting for landlord
-                    </Typography>
-                  </Box>
-                </Stack>
-              </Box>
-            </Box>
-          </Paper>
-
-          <Box sx={{ flex: 1, minWidth: 0, width: '100%' }}>
-            <Paper
-              variant="outlined"
-              sx={{
-                p: { xs: 2.5, sm: 3 },
-                borderRadius: 2,
-                border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-                bgcolor: alpha(theme.palette.background.paper, 0.6),
-                boxShadow: (t) => `0 0 20px ${alpha(t.palette.primary.main, 0.15)}`
-              }}
-            >
-              <Stack spacing={2.25} alignItems="flex-start">
+        <Paper
+          variant="outlined"
+          sx={{
+            p: { xs: 2.5, sm: 3 },
+            borderRadius: 2,
+            borderColor: 'divider',
+            bgcolor: 'background.paper',
+            boxShadow: 'none'
+          }}
+        >
+          <Stack spacing={2.25} alignItems="flex-start">
                 <Box
                   sx={{
                     width: 48,
@@ -353,17 +254,15 @@ export default function TenantLease() {
                 </Box>
 
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25} sx={{ width: { xs: '100%', sm: 'auto' } }}>
-                  <Button variant="contained" href="/tenant/messages" startIcon={<MailOutlined />} sx={{ textTransform: 'none' }}>
+                  <Button variant="contained" href="/tenant/chat" startIcon={<MailOutlined />} sx={{ textTransform: 'none' }}>
                     Message landlord
                   </Button>
                   <Button variant="outlined" href="/tenant/dashboard" sx={{ textTransform: 'none' }}>
                     Back to dashboard
                   </Button>
                 </Stack>
-              </Stack>
-            </Paper>
-          </Box>
-        </Box>
+          </Stack>
+        </Paper>
       </Box>
     );
   }
@@ -393,108 +292,11 @@ export default function TenantLease() {
         </Typography>
       </Box>
 
-      {/* Mobile lease selector */}
-      <Paper
-        variant="outlined"
-        sx={{
-          display: { xs: 'block', md: 'none' },
-          mb: 2,
-          p: 1.5,
-          borderRadius: 2,
-          border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-          bgcolor: alpha(theme.palette.background.paper, 0.72),
-          boxShadow: (t) => `0 10px 28px ${alpha(t.palette.primary.main, 0.1)}`
-        }}
-      >
-        <Stack spacing={1}>
-          <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
-            <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: 0.6 }}>
-              Select lease
-            </Typography>
-            <Chip
-              size="small"
-              label={`${leases.length} ${leases.length === 1 ? 'Lease' : 'Leases'}`}
-              sx={{ height: 22, fontSize: '0.7rem', fontWeight: 600 }}
-            />
-          </Stack>
-          <FormControl fullWidth size="small">
-            <Select
-              value={selectedLeaseId || ''}
-              onChange={(event) => setSelectedLeaseId(Number(event.target.value))}
-              displayEmpty
-              sx={{
-                borderRadius: 1.5,
-                bgcolor: alpha(theme.palette.background.default, 0.42),
-                '& .MuiSelect-select': { py: 1.1, fontWeight: 650 }
-              }}
-            >
-              {leases.map((lease) => (
-                <MenuItem key={lease.id} value={lease.id}>
-                  <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
-                    <Box
-                      sx={{
-                        width: 8,
-                        height: 8,
-                        borderRadius: '50%',
-                        bgcolor: lease.isActive ? 'success.main' : 'text.disabled',
-                        flexShrink: 0
-                      }}
-                    />
-                    <Typography variant="body2" noWrap>
-                      {getLeaseLabel(lease)}
-                    </Typography>
-                  </Stack>
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Stack>
-      </Paper>
+      <Box sx={{ display: 'flex', justifyContent: 'flex-start', mb: 2 }}>
+        <TenantLeaseFilter leases={leases} selectedLeaseId={selectedLeaseId} onChange={setSelectedLeaseId} labelAbove />
+      </Box>
 
-      {/* Desktop two-column layout; mobile uses selector + full-width details */}
-      <Box
-        sx={{
-          display: 'flex',
-          gap: { xs: 0, md: 2.5 },
-          flex: 1,
-          minHeight: 0,
-          alignItems: 'flex-start'
-        }}
-      >
-        {/* ── Left: Lease List ────────────────────────────────────────────────── */}
-        <Paper
-          variant="outlined"
-          sx={{
-            display: { xs: 'none', md: 'block' },
-            width: 260,
-            flexShrink: 0,
-            borderRadius: 2,
-            border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-            bgcolor: alpha(theme.palette.background.paper, 0.6),
-            overflow: 'hidden',
-            position: 'sticky',
-            top: 0,
-            boxShadow: (t) => `0 0 20px ${alpha(t.palette.primary.main, 0.15)}`
-          }}
-        >
-          <Box sx={{ px: 2, py: 1.5, borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}` }}>
-            <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.6 }}>
-              {leases.length} {leases.length === 1 ? 'Lease' : 'Leases'}
-            </Typography>
-          </Box>
-          <Stack spacing={0.5} sx={{ p: 1 }}>
-            {leases.map((lease) => (
-              <LeaseListItem
-                key={lease.id}
-                lease={lease}
-                selected={lease.id === selectedLeaseId}
-                onClick={() => setSelectedLeaseId(lease.id)}
-              />
-            ))}
-          </Stack>
-        </Paper>
-
-        {/* ── Right: Lease Detail ─────────────────────────────────────────────── */}
+      <Box sx={{ display: 'flex', flex: 1, minHeight: 0, alignItems: 'flex-start' }}>
         <Box sx={{ flex: 1, minWidth: 0, width: '100%' }}>
           {!selectedLease ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 300 }}>
@@ -510,12 +312,22 @@ export default function TenantLease() {
                 sx={{
                   borderRadius: 2,
                   overflow: 'hidden',
-                  border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-                  bgcolor: alpha(theme.palette.background.paper, 0.6),
-                  boxShadow: (t) => `0 0 20px ${alpha(t.palette.primary.main, 0.15)}`
+                  borderColor: 'divider',
+                  bgcolor: 'background.paper',
+                  boxShadow: 'none'
                 }}
               >
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ p: { xs: 1.5, sm: 2 } }}>
+                  <StatCard
+                    icon={<DollarOutlined style={{ fontSize: 15 }} />}
+                    label="Amount Due"
+                    value={rentBalance ? formatCurrency(rentBalance.rentDue) : null}
+                  />
+                  <StatCard
+                    icon={<CalendarOutlined style={{ fontSize: 15 }} />}
+                    label="Next payment date"
+                    value={nextPaymentDate ? formatDate(nextPaymentDate) : 'N/A'}
+                  />
                   <StatCard
                     icon={<DollarOutlined style={{ fontSize: 15 }} />}
                     label="Monthly Rent"
@@ -523,18 +335,9 @@ export default function TenantLease() {
                   />
                   <StatCard
                     icon={<DollarOutlined style={{ fontSize: 15 }} />}
-                    label="Security Deposit"
-                    value={formatCurrency(selectedLease.depositAmount || 0)}
-                  />
-                  <StatCard
-                    icon={<CalendarOutlined style={{ fontSize: 15 }} />}
-                    label="Next Payment"
-                    value={nextPaymentDate ? formatDate(nextPaymentDate) : 'N/A'}
-                  />
-                  <StatCard
-                    icon={<CalendarOutlined style={{ fontSize: 15 }} />}
-                    label="Lease Ends"
-                    value={selectedLease.endDate ? formatDate(selectedLease.endDate) : 'Ongoing'}
+                    label="Overdue Amount"
+                    value={rentBalance ? formatCurrency(rentBalance.overdueAmount) : null}
+                    overdue={(rentBalance?.overdueAmount ?? 0) > 0}
                   />
                 </Stack>
               </Paper>
@@ -549,9 +352,9 @@ export default function TenantLease() {
                       p: { xs: 2, sm: 2.5 },
                       borderRadius: 2,
                       height: '100%',
-                      border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-                      bgcolor: alpha(theme.palette.background.paper, 0.6),
-                      boxShadow: (t) => `0 0 20px ${alpha(t.palette.primary.main, 0.15)}`
+                      borderColor: 'divider',
+                      bgcolor: 'background.paper',
+                      boxShadow: 'none'
                     }}
                   >
                     <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
@@ -603,8 +406,16 @@ export default function TenantLease() {
 
                       <Divider />
 
-                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={{ xs: 1.25, sm: 0 }} justifyContent="space-between">
+                      <Stack direction="row" spacing={2} justifyContent="space-between">
                         <Box>
+                          <Typography variant="caption" color="text.secondary">
+                            Monthly Rent
+                          </Typography>
+                          <Typography variant="body2" fontWeight={600}>
+                            {formatCurrency(selectedLease.rentAmount || 0)}
+                          </Typography>
+                        </Box>
+                        <Box sx={{ textAlign: 'right' }}>
                           <Typography variant="caption" color="text.secondary">
                             Rent Due Day
                           </Typography>
@@ -614,17 +425,20 @@ export default function TenantLease() {
                               : '—'}
                           </Typography>
                         </Box>
-                        {selectedLease.autoRenewLease && (
-                          <Box sx={{ textAlign: { xs: 'left', sm: 'right' } }}>
+                      </Stack>
+                      {selectedLease.autoRenewLease && (
+                        <>
+                          <Divider />
+                          <Box>
                             <Typography variant="caption" color="text.secondary">
                               Auto-Renew
                             </Typography>
-                            <Typography variant="body2" fontWeight={600} color="success.main">
-                              Enabled
-                            </Typography>
+                            <Box sx={{ mt: 0.25 }}>
+                              <Chip label="Enabled" size="small" sx={(chipTheme) => getStatusPillSx(chipTheme, 'success')} />
+                            </Box>
                           </Box>
-                        )}
-                      </Stack>
+                        </>
+                      )}
                     </Stack>
                   </Paper>
                 </Grid>
@@ -638,9 +452,9 @@ export default function TenantLease() {
                         p: { xs: 2, sm: 2.5 },
                         borderRadius: 2,
                         height: '100%',
-                        border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-                        bgcolor: alpha(theme.palette.background.paper, 0.6),
-                        boxShadow: (t) => `0 0 20px ${alpha(t.palette.primary.main, 0.15)}`
+                        borderColor: 'divider',
+                        bgcolor: 'background.paper',
+                        boxShadow: 'none'
                       }}
                     >
                       <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
@@ -708,9 +522,9 @@ export default function TenantLease() {
                   sx={{
                     p: { xs: 2, sm: 2.5 },
                     borderRadius: 2,
-                    border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-                    bgcolor: alpha(theme.palette.background.paper, 0.6),
-                    boxShadow: (t) => `0 0 20px ${alpha(t.palette.primary.main, 0.15)}`
+                    borderColor: 'divider',
+                    bgcolor: 'background.paper',
+                    boxShadow: 'none'
                   }}
                 >
                   <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>

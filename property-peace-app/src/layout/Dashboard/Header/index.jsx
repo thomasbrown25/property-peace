@@ -4,7 +4,12 @@ import { DRAWER_WIDTH } from 'config';
 import { LANDLORD_SIDEBAR_WIDTH } from '../LandlordSidebar';
 import HeaderContent from './HeaderContent';
 
-export default function Header({ adminPortal = false, landlordPortal = false, onAdminMenuOpen, onLandlordMenuOpen }) {
+const HEADER_HEIGHT = { xs: 52, sm: 60 };
+export const TENANT_HEADER_HEIGHT = { xs: 96, sm: 104, md: 60 };
+
+export default function Header({ adminPortal = false, landlordPortal = false, tenantPortal = false, onAdminMenuOpen, onLandlordMenuOpen }) {
+  const height = tenantPortal ? TENANT_HEADER_HEIGHT : HEADER_HEIGHT;
+
   return (
     <AppBar
       position="fixed"
@@ -21,11 +26,11 @@ export default function Header({ adminPortal = false, landlordPortal = false, on
         ...((adminPortal || landlordPortal) && { ml: { lg: `${adminPortal ? DRAWER_WIDTH : LANDLORD_SIDEBAR_WIDTH}px` } })
       })}
     >
-      <Toolbar sx={{ minHeight: { xs: 52, sm: 60 }, height: { xs: 52, sm: 60 }, py: 0, px: { xs: 2, sm: 2.5 }, gap: { xs: 1, sm: 2 } }}>
-        <HeaderContent adminPortal={adminPortal} landlordPortal={landlordPortal} onAdminMenuOpen={onAdminMenuOpen} onLandlordMenuOpen={onLandlordMenuOpen} />
+      <Toolbar sx={{ minHeight: height, height, py: 0, px: { xs: 2, sm: 2.5 }, gap: { xs: 1, sm: 2 } }}>
+        <HeaderContent adminPortal={adminPortal} landlordPortal={landlordPortal} tenantPortal={tenantPortal} onAdminMenuOpen={onAdminMenuOpen} onLandlordMenuOpen={onLandlordMenuOpen} />
       </Toolbar>
     </AppBar>
   );
 }
 
-Header.propTypes = { adminPortal: PropTypes.bool, landlordPortal: PropTypes.bool, onAdminMenuOpen: PropTypes.func, onLandlordMenuOpen: PropTypes.func };
+Header.propTypes = { adminPortal: PropTypes.bool, landlordPortal: PropTypes.bool, tenantPortal: PropTypes.bool, onAdminMenuOpen: PropTypes.func, onLandlordMenuOpen: PropTypes.func };

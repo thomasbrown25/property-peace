@@ -47,6 +47,20 @@ public sealed class TenantSelfEndpointPolicyTests
         typeof(UserController).GetMethod(action)!.GetCustomAttribute<OrganizationContextOptionalAttribute>().Should().NotBeNull();
 
     [Theory]
+    [InlineData(typeof(NotificationController), nameof(NotificationController.GetNotifications))]
+    [InlineData(typeof(NotificationController), nameof(NotificationController.GetUnreadCount))]
+    [InlineData(typeof(NotificationController), nameof(NotificationController.MarkNotificationAsRead))]
+    [InlineData(typeof(NotificationController), nameof(NotificationController.MarkAllNotificationsAsRead))]
+    public void PersonalNotificationEndpointsAreOrganizationIndependent(Type controller, string action) =>
+        controller.GetMethod(action)!.GetCustomAttribute<OrganizationContextOptionalAttribute>().Should().NotBeNull();
+
+    [Theory]
+    [InlineData(typeof(SubscriptionController), nameof(SubscriptionController.GetStatus))]
+    public void HeaderlessTenantSelfReadsOptOutOfOrganizationMembershipButNotStaffContext(Type controller, string action) =>
+        controller.GetMethod(action)!.GetCustomAttribute<OrganizationContextOptionalAttribute>()!
+            .TenantOnly.Should().BeTrue();
+
+    [Theory]
     [InlineData(typeof(PaymentController), nameof(PaymentController.AddPayment))]
     [InlineData(typeof(RentCollectionController), nameof(RentCollectionController.AddPayment))]
     public void ManualPaymentRequiresSelectedOrganizationWriteRole(Type controller, string action) =>

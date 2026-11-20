@@ -32,6 +32,8 @@ import { formatDateAndTime } from 'utils/formatters';
 import axiosServices from 'utils/axios';
 import { openSnackbar } from 'api/snackbar';
 import useAuth from 'hooks/useAuth';
+import { filterControlSx } from 'themes/filterControlStyles';
+import { getStatusPillSx } from 'themes/statusPillStyles';
 
 // Icons
 import SettingOutlined from '@ant-design/icons/SettingOutlined';
@@ -161,7 +163,9 @@ export default function TenantNotifications() {
         navigate('/tenant/lease');
         break;
       case 'message':
-        navigate('/tenant/messages');
+        navigate(notification.relatedId
+          ? `/tenant/chat?conversationId=${encodeURIComponent(notification.relatedId)}`
+          : '/tenant/chat');
         break;
       case 'application':
         navigate('/tenant/applications');
@@ -286,8 +290,8 @@ export default function TenantNotifications() {
       <MainCard
         sx={{
           mb: 3,
-          bgcolor: (t) => alpha(t.palette.background.paper, 0.6),
-          boxShadow: (t) => `0 0 20px ${alpha(t.palette.primary.main, 0.15)}`,
+          bgcolor: 'background.paper',
+          borderColor: 'divider',
           position: 'relative',
           zIndex: 1,
           overflow: 'visible' // Ensure dropdowns aren't clipped
@@ -300,6 +304,7 @@ export default function TenantNotifications() {
               value={filterType}
               onChange={(e) => setFilterType(e.target.value)}
               label="Type"
+              sx={filterControlSx}
             >
               <MenuItem value="all">All Types</MenuItem>
               <MenuItem value="rent">Rent</MenuItem>
@@ -316,9 +321,7 @@ export default function TenantNotifications() {
             label="From Date"
             value={dateFrom}
             onChange={(e) => setDateFrom(e.target.value)}
-            InputLabelProps={{
-              shrink: true,
-            }}
+            slotProps={{ inputLabel: { shrink: true }, input: { sx: filterControlSx } }}
             sx={{ minWidth: 160 }}
           />
 
@@ -328,9 +331,7 @@ export default function TenantNotifications() {
             label="To Date"
             value={dateTo}
             onChange={(e) => setDateTo(e.target.value)}
-            InputLabelProps={{
-              shrink: true,
-            }}
+            slotProps={{ inputLabel: { shrink: true }, input: { sx: filterControlSx } }}
             sx={{ minWidth: 160 }}
           />
 
@@ -348,8 +349,8 @@ export default function TenantNotifications() {
 
       <MainCard
         sx={{
-          bgcolor: (t) => alpha(t.palette.background.paper, 0.6),
-          boxShadow: (t) => `0 0 20px ${alpha(t.palette.primary.main, 0.15)}`
+          bgcolor: 'background.paper',
+          borderColor: 'divider'
         }}
       >
         {filteredNotifications.length === 0 ? (
@@ -411,7 +412,7 @@ export default function TenantNotifications() {
                               primary={
                                 <Stack direction="row" spacing={1} alignItems="center">
                                   <Typography variant="subtitle1">{notification.title}</Typography>
-                                  <Chip label="New" size="small" color="primary" />
+                                  <Chip label="New" size="small" sx={(theme) => getStatusPillSx(theme, 'primary')} />
                                 </Stack>
                               }
                               secondary={

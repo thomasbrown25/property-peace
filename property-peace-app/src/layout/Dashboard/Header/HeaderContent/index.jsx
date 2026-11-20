@@ -1,18 +1,20 @@
 import PropTypes from 'prop-types';
-import { MenuOutlined } from '@ant-design/icons';
-import { Box, Divider, IconButton, useMediaQuery, useTheme } from '@mui/material';
+import { Link } from 'react-router-dom';
+import { MenuOutlined, QuestionCircleOutlined } from '@ant-design/icons';
+import { Box, Divider, IconButton, Tooltip, useMediaQuery, useTheme } from '@mui/material';
 import Message from './Message';
 import Profile from './Profile';
 import Notification from './Notification';
 import MobileSection from './MobileSection';
 import MobileSearch from './MobileSearch';
 import LandlordPrimaryNavigation from './LandlordPrimaryNavigation';
+import TenantPrimaryNavigation from './TenantPrimaryNavigation';
 import Logo from 'components/logo';
 import useAuth from 'hooks/useAuth';
 import useIsAdmin from 'hooks/useIsAdmin';
 
 
-export default function HeaderContent({ adminPortal = false, landlordPortal = false, onAdminMenuOpen, onLandlordMenuOpen }) {
+export default function HeaderContent({ adminPortal = false, landlordPortal = false, tenantPortal = false, onAdminMenuOpen, onLandlordMenuOpen }) {
   const theme = useTheme();
   const { user } = useAuth();
   const isAdmin = useIsAdmin();
@@ -24,13 +26,19 @@ export default function HeaderContent({ adminPortal = false, landlordPortal = fa
 
   return (
     <Box sx={{
-      display: 'flex',
+      display: tenantPortal ? 'grid' : 'flex',
       alignItems: 'center',
-      gap: { xs: 1, sm: 2 },
+      columnGap: { xs: 1, sm: 2 },
       width: '100%',
-      minWidth: 0
+      minWidth: 0,
+      ...(tenantPortal && {
+        height: '100%',
+        gridTemplateColumns: { xs: 'minmax(0, 1fr) auto', md: 'minmax(0, 1fr) auto minmax(0, 1fr)' },
+        gridTemplateRows: { xs: 'minmax(0, 1fr) 44px', md: '1fr' },
+        gridTemplateAreas: { xs: '"logo actions" "navigation navigation"', md: '"logo navigation actions"' }
+      })
     }}>
-      <Box sx={{ display: landlordPortal ? { xs: 'flex', lg: 'none' } : 'flex', alignItems: 'center', gap: { xs: 1, sm: 2 }, minWidth: 0 }}>
+      <Box sx={{ display: landlordPortal ? { xs: 'flex', lg: 'none' } : 'flex', alignItems: 'center', gap: { xs: 1, sm: 2 }, minWidth: 0, ...(tenantPortal && { gridArea: 'logo' }) }}>
       {adminPortal && (
         <IconButton aria-label="Open admin navigation" onClick={onAdminMenuOpen} sx={{ display: { xs: 'inline-flex', lg: 'none' }, color: 'inherit' }}>
           <MenuOutlined />
@@ -51,24 +59,42 @@ export default function HeaderContent({ adminPortal = false, landlordPortal = fa
         sx={{ flexShrink: 0, lineHeight: 0, display: landlordPortal ? { xs: 'flex', lg: 'none' } : 'flex', alignItems: 'center' }}
       />
       </Box>
-      <Box sx={{ flex: 1, minWidth: 0, display: 'flex', justifyContent: 'center', height: 60 }}>
+      {tenantPortal ? <TenantPrimaryNavigation /> : <Box sx={{
+        flex: 1,
+        minWidth: 0,
+        display: 'flex',
+        justifyContent: 'center',
+        height: 60,
+        // On roomy screens, center the links in the area beside the property rail,
+        // rather than in the space left over after the header actions.
+        ...(landlordPortal && {
+          ml: { lg: 8 },
+          '@media (min-width: 1280px)': { ml: 0, position: 'absolute', left: '50%', transform: 'translateX(-50%)' }
+        })
+      }}>
         {landlordPortal && <LandlordPrimaryNavigation />}
-      </Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: { xs: 1, sm: 2 }, flexShrink: 0 }}>
+      </Box>}
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: { xs: 1, sm: 2 }, flexShrink: 0, ...(tenantPortal && { gridArea: 'actions' }), ...(landlordPortal && { '@media (min-width: 1280px)': { ml: 'auto' } }) }}>
+        {!hasTenantRole && <MobileSearch />}
+        <Message />
+        <Notification />
+        {tenantPortal && (
+          <Tooltip title="Support">
+            <IconButton component={Link} to="/tenant/help" aria-label="Support" sx={{ color: 'text.primary' }}>
+              <QuestionCircleOutlined aria-hidden="true" />
+            </IconButton>
+          </Tooltip>
+        )}
         {!downMD && (
           <>
-            {!hasTenantRole && <MobileSearch />}
-            <Message />
-            <Notification />
             <Divider orientation="vertical" flexItem sx={{ height: 28, alignSelf: 'center', mx: 1, borderColor: 'divider' }} />
             <Profile />
           </>
         )}
-        {downMD && !hasTenantRole && <MobileSearch />}
         {downMD && <MobileSection />}
       </Box>
     </Box>
   );
 }
 
-HeaderContent.propTypes = { adminPortal: PropTypes.bool, landlordPortal: PropTypes.bool, onAdminMenuOpen: PropTypes.func, onLandlordMenuOpen: PropTypes.func };
+HeaderContent.propTypes = { adminPortal: PropTypes.bool, landlordPortal: PropTypes.bool, tenantPortal: PropTypes.bool, onAdminMenuOpen: PropTypes.func, onLandlordMenuOpen: PropTypes.func };

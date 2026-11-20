@@ -7,10 +7,9 @@ import { format } from 'date-fns';
 import { ArrowRightOutlined } from '@ant-design/icons';
 import placeholderImage from 'assets/images/placeholder-house.png';
 import { getTableStyles } from 'themes/tableStyles';
-import PropertyOperations from 'sections/landlord/properties/PropertyOperations';
 import OwnerHomeSidebar from './OwnerHomeSidebar';
 import { dashboardEntranceDelay, dashboardSlideDownSx } from './dashboardEntrance.mjs';
-import { getOwnerNextStep, getOwnerProperties, getPropertyMonthRent, getPropertyOverdueRent } from 'utils/ownerHome';
+import { getOwnerNextStep, getOwnerProperties, getPropertyMonthRent, getPropertyOverdueRent, getPropertyRentDueDate } from 'utils/ownerHome';
 
 const money = (value) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(value);
 const columns = 'minmax(190px, 1.3fr) minmax(140px, 1fr) minmax(110px, .8fr) minmax(150px, 1fr)';
@@ -81,13 +80,14 @@ export default function OwnerTodayHome({ reminders = [], properties = [], proper
         ) : places.length ? (
           <Box style={tableStyles.container} sx={{ overflow: 'hidden' }}>
             <Box style={{ ...tableStyles.header, borderBottom: tableStyles.headerCell.borderBottom }} sx={{ display: { xs: 'none', xl: 'grid' }, gridTemplateColumns: columns, gap: 2, px: 2, py: 1.15 }}>
-              {['Property', 'Rent paid', 'Rent status', 'Operations'].map((label) => (
+              {['Property', 'Rent paid', 'Rent status', 'Due date'].map((label) => (
                 <Typography key={label} style={{ ...tableStyles.headerCell, padding: 0, borderBottom: 0 }}>{label}</Typography>
               ))}
             </Box>
             {places.slice(0, 4).map((property, index) => {
               const rent = getPropertyMonthRent(property.id, rentRecords, rentError || !rentReady);
               const overdue = getPropertyOverdueRent(property.id, rentRecords, rentError || !rentReady);
+              const dueDate = getPropertyRentDueDate(property.id, rentRecords, rentError || !rentReady);
               return (
                 <Box key={property.id} style={{ '--dashboard-deal-delay': dashboardEntranceDelay(index) }} sx={{ ...dashboardSlideDownSx, display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', xl: columns }, alignItems: 'center', gap: { xs: 1.5, xl: 2 }, px: 2, py: 1.5, borderTop: index ? '1px solid' : 0, borderColor: 'divider' }}>
                   <Stack component={RouterLink} to={property.href} direction="row" spacing={1.4} alignItems="center" sx={{ minWidth: 0, color: 'inherit', textDecoration: 'none', '&:hover .owner-property-name': { textDecoration: 'underline' }, '&:focus-visible': { outline: `2px solid ${theme.palette.primary.main}`, outlineOffset: 2 } }}>
@@ -117,8 +117,10 @@ export default function OwnerTodayHome({ reminders = [], properties = [], proper
                     </Typography>
                   </Box>
                   <Box>
-                    <Typography sx={{ display: { xs: 'block', xl: 'none' }, mb: 0.5, fontSize: '0.66rem', fontWeight: 750, textTransform: 'uppercase', color: 'text.secondary' }}>Operations</Typography>
-                    <PropertyOperations property={property.original} showOverdue={false} />
+                    <Typography sx={{ display: { xs: 'block', xl: 'none' }, mb: 0.5, fontSize: '0.66rem', fontWeight: 750, textTransform: 'uppercase', color: 'text.secondary' }}>Due date</Typography>
+                    <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>
+                      {property.activeLeaseCount === 0 ? 'No lease' : rentError ? 'Rent data unavailable' : !rentReady ? 'Loading rent…' : dueDate ? format(new Date(`${dueDate}T12:00:00`), 'MMM d, yyyy') : 'No due date'}
+                    </Typography>
                   </Box>
                 </Box>
               );

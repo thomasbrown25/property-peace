@@ -29,3 +29,13 @@ test('both the loaded task card and stable-keyed property rows use the entrance'
   assert.match(source, /key=\{property.id\} style=\{\{ '--dashboard-deal-delay': dashboardEntranceDelay\(index\) \}\}/);
   assert.doesNotMatch(source, /key=\{(?:index|Math\.random|Date\.now)/);
 });
+
+test('landlord sidebar property links use the same staggered entrance as dashboard rows', () => {
+  const source = readFileSync(new URL('../../../layout/Dashboard/LandlordSidebar.jsx', import.meta.url), 'utf8');
+  assert.match(source, /properties\.map\(\(property, index\) =>/);
+
+  const propertyLink = source.match(/<ListItemButton key=\{property\.id\}[\s\S]*?<Box component="img"/)?.[0];
+  assert.ok(propertyLink, 'Expected a sidebar link keyed by property ID');
+  assert.match(propertyLink, /'--dashboard-deal-delay': dashboardEntranceDelay\(index\)/);
+  assert.match(propertyLink, /\.\.\.dashboardSlideDownSx/);
+});

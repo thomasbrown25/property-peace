@@ -26,7 +26,7 @@ test('all shared route content, including the dashboard, stays uncapped with mod
   assert.match(content, /<Outlet \/>/);
 });
 
-test('navigation, footer, outer gutter, and vertical spacing stay unchanged', () => {
+test('navigation and footer sit outside the page gutters and content clears the fixed header', () => {
   assert.ok(layout.indexOf('<Header ') < contentStart);
   assert.ok(layout.indexOf('<Footer />') > contentEnd);
   assert.doesNotMatch(content, /<Header\b|<Footer\b/);
@@ -34,9 +34,12 @@ test('navigation, footer, outer gutter, and vertical spacing stay unchanged', ()
   assert.match(layout, /pb: 0/);
   const header = readFileSync(new URL('./Header/index.jsx', import.meta.url), 'utf8');
   const spacer = layout.match(/minHeight: \{ xs: '(\d+)px !important', sm: '(\d+)px !important' \}/);
-  const toolbar = header.match(/minHeight: \{ xs: (\d+), sm: (\d+) \}/);
+  const toolbar = header.match(/const HEADER_HEIGHT = \{ xs: (\d+), sm: (\d+) \}/);
   assert.ok(spacer && toolbar, 'Header and spacer must declare responsive heights');
   assert.deepEqual(spacer.slice(1), toolbar.slice(1), 'Content spacer must match the existing header height');
+  assert.match(header, /const height = tenantPortal \? TENANT_HEADER_HEIGHT : HEADER_HEIGHT/);
+  assert.match(header, /<Toolbar sx=\{\{ minHeight: height, height,/);
+  assert.match(layout, /<Toolbar[^\n]*height: isTenantPortal \? TENANT_HEADER_HEIGHT : undefined/);
 });
 
 test('standalone property onboarding keeps its existing edge-to-edge shell', () => {

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using brownstone_hub_api.Dtos.Subscription;
 using brownstone_hub_api.Services.SubscriptionService;
+using brownstone_hub_api.Middleware;
 
 namespace brownstone_hub_api.Controllers
 {
@@ -241,6 +242,7 @@ namespace brownstone_hub_api.Controllers
         /// </summary>
         [HttpGet("status")]
         [Authorize(Roles = "Landlord,Admin,Tenant")]
+        [OrganizationContextOptional(tenantOnly: true)]
         public async Task<IActionResult> GetStatus()
         {
             try

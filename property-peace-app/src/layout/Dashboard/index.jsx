@@ -10,7 +10,7 @@ import ScheduleInspectionDrawer from 'components/drawers/ScheduleInspectionDrawe
 import { Container, Toolbar, Box, alpha } from '@mui/material';
 
 // project imports
-import Header from './Header';
+import Header, { TENANT_HEADER_HEIGHT } from './Header';
 import MainDrawer from './Drawer';
 import LandlordSidebar, { LANDLORD_SIDEBAR_WIDTH } from './LandlordSidebar';
 import { DRAWER_WIDTH } from 'config';
@@ -33,6 +33,7 @@ import { useGetMenuMaster } from 'api/menu';
 export default function DashboardLayout() {
   const { pathname } = useLocation();
   const isAdminPortal = pathname === '/admin' || pathname.startsWith('/admin/');
+  const isTenantPortal = pathname === '/tenant' || pathname.startsWith('/tenant/');
 
   const isAddPropertyPage = pathname === '/landlord/properties/add' || pathname === '/landlord/property-add-workflow';
   const isLandlordPortal = (pathname === '/landlord' || pathname.startsWith('/landlord/')) && !isAddPropertyPage;
@@ -154,7 +155,7 @@ export default function DashboardLayout() {
           })
         })}
       >
-        {!isAddPropertyPage && <Header adminPortal={isAdminPortal} landlordPortal={isLandlordPortal} onAdminMenuOpen={() => setAdminMobileMenuOpen(true)} onLandlordMenuOpen={() => setLandlordMobileMenuOpen(true)} />}
+        {!isAddPropertyPage && <Header adminPortal={isAdminPortal} landlordPortal={isLandlordPortal} tenantPortal={isTenantPortal} onAdminMenuOpen={() => setAdminMobileMenuOpen(true)} onLandlordMenuOpen={() => setLandlordMobileMenuOpen(true)} />}
         {isAdminPortal && <MainDrawer mobileOpen={adminMobileMenuOpen} onMobileClose={() => setAdminMobileMenuOpen(false)} />}
         {isLandlordPortal && <LandlordSidebar mobileOpen={landlordMobileMenuOpen} onMobileClose={() => setLandlordMobileMenuOpen(false)} />}
 
@@ -171,7 +172,7 @@ export default function DashboardLayout() {
             minWidth: 0
           }}
         >
-          {!isAddPropertyPage && <Toolbar sx={{ minHeight: { xs: '52px !important', sm: '60px !important' } }} />}
+          {!isAddPropertyPage && <Toolbar sx={{ minHeight: { xs: '52px !important', sm: '60px !important' }, height: isTenantPortal ? TENANT_HEADER_HEIGHT : undefined }} />}
           <Container
             maxWidth={false}
             disableGutters

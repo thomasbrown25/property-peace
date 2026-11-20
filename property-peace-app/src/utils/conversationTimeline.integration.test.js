@@ -17,7 +17,7 @@ test('timeline API maps read, search, unread, watermark, quick reply and follow-
   assert.match(api, /buildTimelineSearchParams/);
 });
 
-test('tenant messages retain contextual communication activity while landlord messages omit it', async () => {
+test('landlord and tenant chat omit communication activity and retain quick replies', async () => {
   const [landlord, tenant, panel, quickReplies] = await Promise.all([
     source('pages/landlord/messages.jsx'),
     source('pages/tenant/messages.jsx'),
@@ -25,7 +25,7 @@ test('tenant messages retain contextual communication activity while landlord me
     source('components/conversation/ConversationQuickReplies.jsx')
   ]);
   assert.doesNotMatch(landlord, /ConversationTimelinePanel|Communication activity/);
-  assert.match(tenant, /<ConversationTimelinePanel[\s\S]*conversationId=\{selectedConversation\.id\}/);
+  assert.doesNotMatch(tenant, /ConversationTimelinePanel|Communication activity/);
   assert.match(panel, /Communication activity/);
   assert.match(panel, /Search activity/);
   assert.match(panel, /Load more activity/);

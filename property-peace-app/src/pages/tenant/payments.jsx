@@ -7,7 +7,6 @@ import {
   Typography,
   Paper,
   Stack,
-  Avatar,
   Table,
   TableBody,
   TableCell,
@@ -17,22 +16,11 @@ import {
   Button,
   Chip,
   CircularProgress,
-  Alert,
-  FormControl,
-  MenuItem,
-  Select,
-  alpha
+  InputAdornment,
+  TextField,
+  Alert
 } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
-import {
-  DollarOutlined,
-  CheckCircleOutlined,
-  CalendarOutlined,
-  HomeOutlined,
-  ClockCircleOutlined,
-  CloseCircleOutlined,
-  WarningOutlined
-} from '@ant-design/icons';
+import { DollarOutlined, CalendarOutlined, SearchOutlined } from '@ant-design/icons';
 
 // hooks
 import useAuth from 'hooks/useAuth';
@@ -42,13 +30,19 @@ import { calculateNextPaymentDate } from 'utils/helper-methods';
 import moment from 'moment';
 import { useModal } from 'contexts/ModalContext';
 import PaymentModal from 'components/drawers/PaymentModal';
-import FeatureReadinessNotice from 'components/feature-readiness/FeatureReadinessNotice';
 import useRentPaymentActionReadiness from 'hooks/useRentPaymentActionReadiness';
 import { classifyPaymentStatus, isBalanceCreditingPayment } from 'utils/paymentSafety';
 import { normalizeRentBalance } from 'utils/rentBalance';
 import LeaseChargeList from 'components/payments/LeaseChargeList';
 import { readChargesResponse } from 'utils/leaseCharges';
 import { feeCheckoutSelection } from 'utils/feeCheckout';
+import TenantLeaseFilter from 'components/filters/TenantLeaseFilter';
+import PortalListPagination from 'components/table/PortalListPagination';
+import { paginateRows } from 'components/table/paginateRows.mjs';
+import { filterControlSx } from 'themes/filterControlStyles';
+import { getStatusPillSx } from 'themes/statusPillStyles';
+import { getPortalListTableSx } from 'themes/tableStyles';
+import { filterPaymentHistory, getPaymentStatusMeta } from './paymentHistory.mjs';
 
 // ==============================|| TENANT - PAYMENTS ||============================== //
 
@@ -58,26 +52,6 @@ function getPaymentStatus(payment) {
 
 function canRetryPayment(payment) {
   return classifyPaymentStatus(payment).retryable;
-}
-
-function getPaymentStatusMeta(payment) {
-  const status = getPaymentStatus(payment).toLowerCase();
-  switch (status) {
-    case 'completed':
-    case 'paid':
-      return { label: 'Paid', color: 'success', icon: <CheckCircleOutlined /> };
-    case 'processing':
-      return { label: 'Processing', color: 'info', icon: <ClockCircleOutlined /> };
-    case 'failed':
-      return { label: 'Failed', color: 'error', icon: <CloseCircleOutlined /> };
-    case 'canceled':
-    case 'cancelled':
-      return { label: 'Canceled', color: 'default', icon: <CloseCircleOutlined /> };
-    case 'disputed':
-      return { label: 'Disputed', color: 'error', icon: <WarningOutlined /> };
-    default:
-      return { label: 'Needs review', color: 'warning', icon: <WarningOutlined /> };
-  }
 }
 
 function calculateOverdueAmount(lease, payments, today) {
@@ -117,70 +91,7 @@ function shouldShowLeaseUnitName(lease) {
   return Boolean(unitName) && !isDetachedSingleUnitType(normalizedPropertyType) && normalizedUnitName !== 'unit1';
 }
 
-function LeaseListItem({ lease, selected, onClick }) {
-  const theme = useTheme();
-  const unitName = getLeaseUnitName(lease);
-  const showUnitName = shouldShowLeaseUnitName(lease);
-
-  return (
-    <Box
-      onClick={onClick}
-      sx={{
-        p: 1.5,
-        cursor: 'pointer',
-        borderRadius: 1.5,
-        border: `1.5px solid ${selected ? theme.palette.primary.main : 'transparent'}`,
-        bgcolor: selected ? alpha(theme.palette.primary.main, 0.06) : 'transparent',
-        transition: 'all 0.15s',
-        '&:hover': {
-          bgcolor: selected ? alpha(theme.palette.primary.main, 0.08) : alpha(theme.palette.action.hover, 0.5),
-          border: `1.5px solid ${selected ? theme.palette.primary.main : alpha(theme.palette.divider, 0.4)}`
-        }
-      }}
-    >
-      <Stack direction="row" spacing={1.5} alignItems="center">
-        <Avatar
-          src={lease.propertyImageUrl || undefined}
-          sx={{
-            width: 42,
-            height: 42,
-            borderRadius: 1.5,
-            bgcolor: alpha(theme.palette.primary.main, 0.1),
-            color: 'primary.main',
-            flexShrink: 0,
-            fontSize: 18
-          }}
-        >
-          {!lease.propertyImageUrl && <HomeOutlined />}
-        </Avatar>
-        <Box sx={{ minWidth: 0, flex: 1 }}>
-          <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={0.5}>
-            <Typography variant="body2" fontWeight={600} noWrap sx={{ flex: 1 }}>
-              {lease.propertyName || 'Property'}
-            </Typography>
-            <Box
-              sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: lease.isActive ? 'success.main' : 'text.disabled', flexShrink: 0 }}
-            />
-          </Stack>
-          {showUnitName && (
-            <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
-              {unitName}
-            </Typography>
-          )}
-        </Box>
-      </Stack>
-    </Box>
-  );
-}
-
-function getLeaseLabel(lease) {
-  const propertyName = lease?.unit?.property?.name || lease?.propertyName || 'Property';
-  const unitName = getLeaseUnitName(lease);
-  return shouldShowLeaseUnitName(lease) ? `${propertyName} · ${unitName}` : propertyName;
-}
-
-function StatCard({ icon, label, value, accent, highlight }) {
-  const theme = useTheme();
+function StatCard({ icon, label, value, overdue }) {
   return (
     <Paper
       variant="outlined"
@@ -188,18 +99,18 @@ function StatCard({ icon, label, value, accent, highlight }) {
         p: 2,
         flex: 1,
         borderRadius: 2,
-        border: highlight ? `1px solid ${alpha(highlight, 0.3)}` : `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-        bgcolor: highlight ? alpha(highlight, 0.05) : alpha(theme.palette.background.paper, 0.7)
+        borderColor: 'divider',
+        bgcolor: 'background.paper'
       }}
     >
       <Stack spacing={0.5}>
         <Stack direction="row" spacing={1} alignItems="center">
-          <Box sx={{ color: accent || 'primary.main', lineHeight: 0 }}>{icon}</Box>
+          <Box sx={{ color: overdue ? 'error.main' : 'primary.main', lineHeight: 0 }}>{icon}</Box>
           <Typography variant="caption" color="text.secondary" fontWeight={500} sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
             {label}
           </Typography>
         </Stack>
-        <Typography variant="h6" fontWeight={700} color={highlight || 'text.primary'} sx={{ pl: 0.25 }}>
+        <Typography variant="h6" fontWeight={700} color={overdue ? 'error.main' : 'text.primary'} sx={{ pl: 0.25 }}>
           {value || '—'}
         </Typography>
       </Stack>
@@ -208,14 +119,16 @@ function StatCard({ icon, label, value, accent, highlight }) {
 }
 
 export default function TenantPayments() {
-  const theme = useTheme();
   const { user } = useAuth();
   const modal = useModal();
-  const { presentation: rentReadiness, canInvoke } = useRentPaymentActionReadiness('Pay');
+  const { canInvoke } = useRentPaymentActionReadiness('Pay');
 
   const [leases, setLeases] = useState([]);
   const [selectedLeaseId, setSelectedLeaseId] = useState(null);
   const [payments, setPayments] = useState([]);
+  const [historyFilters, setHistoryFilters] = useState({ search: '', fromDate: '', toDate: '' });
+  const [historyPage, setHistoryPage] = useState(0);
+  const [historyPageSize, setHistoryPageSize] = useState(10);
   const [charges, setCharges] = useState([]);
   const [chargeResultLeaseId, setChargeResultLeaseId] = useState(null);
   const [chargesLoading, setChargesLoading] = useState(false);
@@ -290,6 +203,7 @@ export default function TenantPayments() {
   );
 
   useEffect(() => {
+    setHistoryPage(0);
     if (selectedLeaseId) fetchPaymentData(selectedLeaseId);
   }, [selectedLeaseId, fetchPaymentData]);
 
@@ -377,6 +291,21 @@ export default function TenantPayments() {
   }, [payments, selectedLease, rentCollection]);
 
   const sortedPayments = useMemo(() => [...payments].sort((a, b) => new Date(b.paymentDate) - new Date(a.paymentDate)), [payments]);
+  const filteredPayments = useMemo(() => filterPaymentHistory(sortedPayments, historyFilters), [sortedPayments, historyFilters]);
+  const { page: visibleHistoryPage, pageCount, rows: visiblePayments, start, end } = paginateRows(filteredPayments, historyPage, historyPageSize);
+  const emptyHistoryMessage = sortedPayments.length ? 'No payments match your filters.' : 'No payments recorded yet';
+  const invalidDateRange = Boolean(historyFilters.fromDate && historyFilters.toDate && historyFilters.fromDate > historyFilters.toDate);
+
+  const handleHistoryFilterChange = (event) => {
+    const { name, value } = event.target;
+    setHistoryFilters((filters) => ({ ...filters, [name]: value }));
+    setHistoryPage(0);
+  };
+
+  const handleHistoryPageSizeChange = (size) => {
+    setHistoryPageSize(size);
+    setHistoryPage(0);
+  };
 
   const propertyDisplay = selectedLease?.unit?.property?.name || selectedLease?.propertyName || 'Property';
   const unitDisplay = getLeaseUnitName(selectedLease);
@@ -423,12 +352,7 @@ export default function TenantPayments() {
     });
   };
 
-  const panelSx = {
-    borderRadius: 2,
-    border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-    bgcolor: alpha(theme.palette.background.paper, 0.6),
-    boxShadow: (t) => `0 0 20px ${alpha(t.palette.primary.main, 0.15)}`
-  };
+  const panelSx = { borderRadius: 3, borderColor: 'divider', bgcolor: 'background.paper', overflow: 'hidden' };
 
   // ── States ─────────────────────────────────────────────────────────────────
 
@@ -484,72 +408,11 @@ export default function TenantPayments() {
         </Typography>
       </Box>
 
-      <FeatureReadinessNotice presentation={rentReadiness} featureName="Online rent collection" />
+      <Box sx={{ display: 'flex', justifyContent: { xs: 'stretch', sm: 'flex-end' }, mb: 2 }}>
+        <TenantLeaseFilter leases={leases} selectedLeaseId={selectedLeaseId} onChange={setSelectedLeaseId} />
+      </Box>
 
-      {/* Mobile lease selector */}
-      <Paper
-        variant="outlined"
-        sx={{
-          display: { xs: 'block', md: 'none' },
-          mb: 2,
-          p: 1.5,
-          borderRadius: 2,
-          border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-          bgcolor: alpha(theme.palette.background.paper, 0.72),
-          boxShadow: (t) => `0 10px 28px ${alpha(t.palette.primary.main, 0.1)}`
-        }}
-      >
-        <Stack spacing={1}>
-          <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
-            <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: 0.6 }}>
-              Select lease
-            </Typography>
-            <Chip size="small" label={`${leases.length} ${leases.length === 1 ? 'Lease' : 'Leases'}`} sx={{ height: 22, fontSize: '0.7rem', fontWeight: 600 }} />
-          </Stack>
-          <FormControl fullWidth size="small">
-            <Select
-              value={selectedLeaseId || ''}
-              onChange={(event) => setSelectedLeaseId(Number(event.target.value))}
-              displayEmpty
-              sx={{ borderRadius: 1.5, bgcolor: alpha(theme.palette.background.default, 0.42), '& .MuiSelect-select': { py: 1.1, fontWeight: 650 } }}
-            >
-              {leases.map((lease) => (
-                <MenuItem key={lease.id} value={lease.id}>
-                  <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
-                    <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: lease.isActive ? 'success.main' : 'text.disabled', flexShrink: 0 }} />
-                    <Typography variant="body2" noWrap>{getLeaseLabel(lease)}</Typography>
-                  </Stack>
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Stack>
-      </Paper>
-
-      <Box sx={{ display: 'flex', gap: { xs: 0, md: 2.5 }, flex: 1, minHeight: 0, alignItems: 'flex-start' }}>
-        {/* ── Left: Lease selector ──────────────────────────────────────────── */}
-        <Paper
-          variant="outlined"
-          sx={{ display: { xs: 'none', md: 'block' }, width: 260, flexShrink: 0, overflow: 'hidden', position: 'sticky', top: 0, ...panelSx }}
-        >
-          <Box sx={{ px: 2, py: 1.5, borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}` }}>
-            <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.6 }}>
-              {leases.length} {leases.length === 1 ? 'Lease' : 'Leases'}
-            </Typography>
-          </Box>
-          <Stack spacing={0.5} sx={{ p: 1 }}>
-            {leases.map((lease) => (
-              <LeaseListItem
-                key={lease.id}
-                lease={lease}
-                selected={lease.id === selectedLeaseId}
-                onClick={() => setSelectedLeaseId(lease.id)}
-              />
-            ))}
-          </Stack>
-        </Paper>
-
-        {/* ── Right: Payment detail ──────────────────────────────────────────── */}
+      <Box sx={{ display: 'flex', flex: 1, minHeight: 0, alignItems: 'flex-start' }}>
         <Box sx={{ flex: 1, minWidth: 0, width: '100%' }}>
           {!selectedLease ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 300 }}>
@@ -559,24 +422,15 @@ export default function TenantPayments() {
             </Box>
           ) : (
             <Stack spacing={{ xs: 2, sm: 2.5 }}>
-              <LeaseChargeList
-                charges={chargeResultLeaseId === selectedLeaseId ? charges : []}
-                rentBalance={loadingPayments ? null : summary.amountDue}
-                loading={chargesLoading || (chargeResultLeaseId !== selectedLeaseId && !chargesError)}
-                error={chargeResultLeaseId === selectedLeaseId || !chargesLoading ? chargesError : ''}
-                onRetry={() => setChargeRefresh((count) => count + 1)}
-                onPayFee={openPaymentForFee}
-                canPayFee={canInvoke && !chargesLoading && !chargesError}
-              />
               {/* Property + Stats */}
-              <Paper variant="outlined" sx={{ overflow: 'hidden', ...panelSx }}>
+              <Paper variant="outlined" sx={panelSx}>
                 {/* Panel header — matches maintenance page style */}
                 <Stack
                   direction={{ xs: 'column', sm: 'row' }}
                   alignItems={{ xs: 'stretch', sm: 'center' }}
                   justifyContent="space-between"
                   spacing={{ xs: 1.5, sm: 2 }}
-                  sx={{ px: { xs: 1.75, sm: 2.5 }, py: { xs: 1.75, sm: 2 }, borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}` }}
+                  sx={{ px: { xs: 1.75, sm: 2.5 }, py: { xs: 1.75, sm: 2 }, borderBottom: 1, borderColor: 'divider' }}
                 >
                   <Box sx={{ minWidth: 0 }}>
                     <Stack direction={{ xs: 'column', sm: 'row' }} spacing={{ xs: 0.75, sm: 1 }} alignItems={{ xs: 'flex-start', sm: 'center' }}>
@@ -591,14 +445,13 @@ export default function TenantPayments() {
                       <Chip
                         size="small"
                         label={selectedLease.isActive ? 'Active' : 'Inactive'}
-                        color={selectedLease.isActive ? 'success' : 'default'}
-                        sx={{ height: 20, fontSize: '0.7rem', fontWeight: 600 }}
+                        sx={(theme) => getStatusPillSx(theme, selectedLease.isActive ? 'success' : 'default')}
                       />
                     </Stack>
                   </Box>
                   <Button
                     variant="contained"
-                    color="success"
+                    color="primary"
                     size="small"
                     startIcon={<DollarOutlined />}
                     onClick={openPaymentForSelectedLease}
@@ -615,8 +468,7 @@ export default function TenantPayments() {
                     icon={<DollarOutlined style={{ fontSize: 15 }} />}
                     label="Amount Due"
                     value={formatCurrency(summary.amountDue)}
-                    accent={summary.isOverdue ? theme.palette.error.main : theme.palette.success.main}
-                    highlight={summary.isOverdue ? theme.palette.error.main : null}
+                    overdue={summary.isOverdue}
                   />
                   <StatCard
                     icon={<CalendarOutlined style={{ fontSize: 15 }} />}
@@ -627,7 +479,6 @@ export default function TenantPayments() {
                     icon={<DollarOutlined style={{ fontSize: 15 }} />}
                     label="Total Paid"
                     value={formatCurrency(summary.totalPaid)}
-                    accent={theme.palette.success.main}
                   />
                   <StatCard
                     icon={<CalendarOutlined style={{ fontSize: 15 }} />}
@@ -651,15 +502,73 @@ export default function TenantPayments() {
                 )}
               </Paper>
 
+              <LeaseChargeList
+                charges={chargeResultLeaseId === selectedLeaseId ? charges : []}
+                rentBalance={loadingPayments ? null : summary.amountDue}
+                loading={chargesLoading || (chargeResultLeaseId !== selectedLeaseId && !chargesError)}
+                error={chargeResultLeaseId === selectedLeaseId || !chargesLoading ? chargesError : ''}
+                onRetry={() => setChargeRefresh((count) => count + 1)}
+                onPayFee={openPaymentForFee}
+                canPayFee={canInvoke && !chargesLoading && !chargesError}
+              />
+
               {/* Payment history */}
-              <Paper variant="outlined" sx={{ overflow: 'hidden', ...panelSx }}>
-                <Box sx={{ px: 2.5, py: 2, borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}` }}>
+              <Paper variant="outlined" sx={panelSx}>
+                <Box sx={{ px: 2.5, py: 2, borderBottom: 1, borderColor: 'divider' }}>
                   <Typography variant="subtitle1" fontWeight={700}>
                     Payment History
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
                     {sortedPayments.length} {sortedPayments.length === 1 ? 'payment' : 'payments'} recorded
                   </Typography>
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.1} sx={{ mt: 2 }}>
+                    <TextField
+                      name="search"
+                      type="search"
+                      size="small"
+                      placeholder="Search payments"
+                      value={historyFilters.search}
+                      onChange={handleHistoryFilterChange}
+                      slotProps={{
+                        htmlInput: { 'aria-label': 'Search payments' },
+                        input: {
+                          sx: filterControlSx,
+                          startAdornment: <InputAdornment position="start"><SearchOutlined /></InputAdornment>
+                        }
+                      }}
+                      sx={{ flex: 1, minWidth: 0 }}
+                    />
+                    <TextField
+                      name="fromDate"
+                      type="date"
+                      size="small"
+                      label="From date"
+                      value={historyFilters.fromDate}
+                      onChange={handleHistoryFilterChange}
+                      slotProps={{
+                        inputLabel: { shrink: true },
+                        input: { sx: filterControlSx },
+                        htmlInput: { max: historyFilters.toDate || undefined }
+                      }}
+                      sx={{ width: { xs: '100%', sm: 180 }, flexShrink: 0 }}
+                    />
+                    <TextField
+                      name="toDate"
+                      type="date"
+                      size="small"
+                      label="To date"
+                      value={historyFilters.toDate}
+                      onChange={handleHistoryFilterChange}
+                      error={invalidDateRange}
+                      helperText={invalidDateRange ? 'Choose an end date on or after the start date.' : undefined}
+                      slotProps={{
+                        inputLabel: { shrink: true },
+                        input: { sx: filterControlSx },
+                        htmlInput: { min: historyFilters.fromDate || undefined }
+                      }}
+                      sx={{ width: { xs: '100%', sm: 180 }, flexShrink: 0 }}
+                    />
+                  </Stack>
                 </Box>
 
                 {loadingPayments ? (
@@ -667,8 +576,8 @@ export default function TenantPayments() {
                     <CircularProgress size={28} />
                   </Box>
                 ) : (
-                  <TableContainer sx={{ display: { xs: 'none', md: 'block' } }}>
-                    <Table size="small" sx={{ tableLayout: 'fixed' }}>
+                  <TableContainer sx={{ display: { xs: 'none', md: 'block' }, border: 0, borderRadius: 0 }}>
+                    <Table size="small" sx={(theme) => ({ ...getPortalListTableSx(theme), tableLayout: 'fixed' })}>
                       <TableHead>
                         <TableRow>
                           <TableCell sx={{ width: '20%' }}>Date</TableCell>
@@ -680,28 +589,22 @@ export default function TenantPayments() {
                         </TableRow>
                       </TableHead>
                       <TableBody>
-                        {sortedPayments.length === 0 ? (
+                        {visiblePayments.length === 0 ? (
                           <TableRow>
                             <TableCell colSpan={6} align="center" sx={{ py: 6, borderBottom: 0 }}>
-                              <DollarOutlined style={{ fontSize: 40, color: theme.palette.text.disabled, marginBottom: 8 }} />
+                              <Box component={DollarOutlined} sx={{ fontSize: 40, color: 'text.disabled', mb: 1 }} />
                               <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                                No payments recorded yet
+                                {emptyHistoryMessage}
                               </Typography>
                             </TableCell>
                           </TableRow>
                         ) : (
-                          sortedPayments.map((payment, index) => {
+                          visiblePayments.map((payment, index) => {
                             const statusMeta = getPaymentStatusMeta(payment);
                             const showRetry = canRetryPayment(payment);
 
                             return (
-                              <TableRow
-                                key={payment.id || index}
-                                sx={{
-                                  '&:last-child td': { borderBottom: 0 },
-                                  '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.03) }
-                                }}
-                              >
+                              <TableRow key={payment.id || index} hover>
                                 <TableCell sx={{ py: 1.5 }}>
                                   <Typography variant="body2" fontWeight={600}>
                                     {moment(payment.paymentDate).format('MMM D, YYYY')}
@@ -719,9 +622,7 @@ export default function TenantPayments() {
                                   <Chip
                                     size="small"
                                     label={statusMeta.label}
-                                    color={statusMeta.color}
-                                    icon={statusMeta.icon}
-                                    sx={{ fontSize: '0.7rem', height: 22, fontWeight: 600 }}
+                                    sx={(theme) => getStatusPillSx(theme, statusMeta.tone)}
                                   />
                                 </TableCell>
                                 <TableCell sx={{ py: 1.5 }}>
@@ -763,15 +664,15 @@ export default function TenantPayments() {
 
                 {!loadingPayments && (
                   <Stack spacing={1.25} sx={{ display: { xs: 'flex', md: 'none' }, p: { xs: 1.5, sm: 2 }, pt: 1.5 }}>
-                    {sortedPayments.length === 0 ? (
+                    {visiblePayments.length === 0 ? (
                       <Box sx={{ textAlign: 'center', py: 4 }}>
-                        <DollarOutlined style={{ fontSize: 36, color: theme.palette.text.disabled, marginBottom: 8 }} />
+                        <Box component={DollarOutlined} sx={{ fontSize: 36, color: 'text.disabled', mb: 1 }} />
                         <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                          No payments recorded yet
+                          {emptyHistoryMessage}
                         </Typography>
                       </Box>
                     ) : (
-                      sortedPayments.map((payment, index) => {
+                      visiblePayments.map((payment, index) => {
                         const statusMeta = getPaymentStatusMeta(payment);
                         const showRetry = canRetryPayment(payment);
 
@@ -782,8 +683,8 @@ export default function TenantPayments() {
                             sx={{
                               p: 1.5,
                               borderRadius: 2,
-                              borderColor: alpha(theme.palette.divider, 0.12),
-                              bgcolor: alpha(theme.palette.background.default, 0.28)
+                              borderColor: 'divider',
+                              bgcolor: 'background.paper'
                             }}
                           >
                             <Stack spacing={1.25}>
@@ -808,9 +709,7 @@ export default function TenantPayments() {
                                 <Chip
                                   size="small"
                                   label={statusMeta.label}
-                                  color={statusMeta.color}
-                                  icon={statusMeta.icon}
-                                  sx={{ fontSize: '0.7rem', height: 22, fontWeight: 600 }}
+                                  sx={(theme) => getStatusPillSx(theme, statusMeta.tone)}
                                 />
                               </Stack>
 
@@ -849,6 +748,19 @@ export default function TenantPayments() {
                       })
                     )}
                   </Stack>
+                )}
+                {!loadingPayments && filteredPayments.length > 0 && (
+                  <PortalListPagination
+                    page={visibleHistoryPage}
+                    pageCount={pageCount}
+                    pageSize={historyPageSize}
+                    start={start}
+                    end={end}
+                    total={filteredPayments.length}
+                    onPageChange={setHistoryPage}
+                    onPageSizeChange={handleHistoryPageSizeChange}
+                    itemLabel="payments"
+                  />
                 )}
               </Paper>
             </Stack>

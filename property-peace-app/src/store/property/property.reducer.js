@@ -4,6 +4,7 @@ const initialState = {
   properties: [],
   propertiesLoadedAt: null,
   propertiesOrganizationId: null,
+  propertiesRequest: null,
   selectedProperty: null,
   selectedPropertyIds: [],
   isSingleUnitPortfolio: true,
@@ -50,6 +51,7 @@ function propertyReducer(state = initialState, action) {
     case PROPERTY_ACTION_TYPES.GET_PROPERTIES_START:
       return {
         ...state,
+        propertiesRequest: { organizationId: action.meta.organizationId, status: 'pending' },
         loading: true,
         error: null
       };
@@ -60,6 +62,7 @@ function propertyReducer(state = initialState, action) {
         properties: payload.properties,
         propertiesOrganizationId: payload.organizationId,
         propertiesLoadedAt: Date.now(),
+        propertiesRequest: { organizationId: payload.organizationId, status: 'ready' },
         loading: false,
         error: null
       };
@@ -68,6 +71,7 @@ function propertyReducer(state = initialState, action) {
       return {
         ...state,
         properties: [],
+        propertiesRequest: { organizationId: action.meta.organizationId, status: 'failed' },
         loading: false,
         error: { ...state.error, payload }
       };

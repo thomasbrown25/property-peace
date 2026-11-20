@@ -134,6 +134,21 @@ public class ConversationHubAuthorizationTests
             "connection-1", "user_person@example.com", It.IsAny<CancellationToken>()), Times.Never);
     }
 
+    [Fact]
+    public async Task OnConnected_AllowsOnlyPersonalGroupWhenMiddlewareValidatesUserWithoutOrganization()
+    {
+        var fixture = CreateHub(userIdClaim: "42", validatedUserId: 42);
+
+        await fixture.Hub.OnConnectedAsync();
+        var join = () => fixture.Hub.JoinConversation(10);
+
+        await join.Should().ThrowAsync<HubException>();
+        fixture.Conversations.VerifyNoOtherCalls();
+        fixture.Groups.Verify(g => g.AddToGroupAsync(
+            "connection-1", "user_42", It.IsAny<CancellationToken>()), Times.Once);
+        fixture.Groups.VerifyNoOtherCalls();
+    }
+
     private static HubFixture CreateHub(
         string userIdClaim,
         long? validatedUserId = null,

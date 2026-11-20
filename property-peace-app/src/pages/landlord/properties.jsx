@@ -12,10 +12,10 @@ import {
   LinearProgress,
   Menu,
   MenuItem,
-  OutlinedInput,
   Pagination,
   Select,
   Stack,
+  TextField,
   Tooltip,
   Typography,
   useTheme
@@ -41,6 +41,7 @@ import { useDrawer } from 'contexts/DrawerContext';
 import { setProperty } from 'store/property/property.action';
 import { selectProperties } from 'store/property/property.selector';
 import { isHighPriorityMaintenanceRequest } from 'utils/maintenanceStatus';
+import { filterControlSx } from 'themes/filterControlStyles';
 import placeholderImage from 'assets/images/placeholder-house.png';
 
 const PAGE_SIZE = 10;
@@ -327,49 +328,64 @@ export default function Properties() {
       </Box>
 
       <Box data-testid="property-filters" sx={{ mb: 2 }}>
-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.1} alignItems={{ md: 'center' }}>
-            <OutlinedInput
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search properties, addresses, or units"
-              size="small"
-              startAdornment={<InputAdornment position="start"><SearchOutlined /></InputAdornment>}
-              sx={{ flex: 1, minWidth: { md: 260 }, borderRadius: 1.75 }}
-            />
-            <Stack direction="row" spacing={1} sx={{ overflowX: 'auto', pb: { xs: 0.25, md: 0 } }}>
-              <Select size="small" value={status} onChange={(event) => setStatus(event.target.value)} IconComponent={DownOutlined} sx={{ minWidth: 118, borderRadius: 1.75 }}>
-                <MenuItem value="active">Active</MenuItem>
-                <MenuItem value="archived">Archived</MenuItem>
-                <MenuItem value="all">All status</MenuItem>
-              </Select>
-              <Select size="small" value={occupancy} onChange={(event) => setOccupancy(event.target.value)} IconComponent={DownOutlined} sx={{ minWidth: 145, borderRadius: 1.75 }}>
-                <MenuItem value="all">All occupancy</MenuItem>
-                <MenuItem value="occupied">Has occupancy</MenuItem>
-                <MenuItem value="vacant">Has vacancy</MenuItem>
-                <MenuItem value="full">Fully occupied</MenuItem>
-              </Select>
-              <Select size="small" value={attention} onChange={(event) => setAttention(event.target.value)} IconComponent={DownOutlined} sx={{ minWidth: 148, borderRadius: 1.75 }}>
-                <MenuItem value="all">All attention</MenuItem>
-                <MenuItem value="any">Needs attention</MenuItem>
-                <MenuItem value="overdue">Overdue rent</MenuItem>
-                <MenuItem value="maintenance">Urgent maintenance</MenuItem>
-                <MenuItem value="lease">Lease ending soon</MenuItem>
-              </Select>
-              <Select size="small" value={sort} onChange={(event) => setSort(event.target.value)} IconComponent={DownOutlined} sx={{ minWidth: 158, borderRadius: 1.75 }}>
-                <MenuItem value="attention">Sort: Attention</MenuItem>
-                <MenuItem value="name">Sort: Name</MenuItem>
-                <MenuItem value="rent">Sort: Rent roll</MenuItem>
-                <MenuItem value="occupancy">Sort: Occupancy</MenuItem>
-                <MenuItem value="lease">Sort: Lease end</MenuItem>
-              </Select>
-            </Stack>
-          </Stack>
-          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 1.4 }}>
-            <Typography sx={{ fontSize: '0.76rem', color: 'text.secondary' }}>
-              {filteredProperties.length} of {properties.length} properties
-            </Typography>
-            {hasFilters && <Button size="small" onClick={clearFilters} sx={{ textTransform: 'none' }}>Reset view</Button>}
-          </Stack>
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: {
+              xs: 'repeat(2, minmax(0, 1fr))',
+              md: 'minmax(0, 1fr) minmax(118px, max-content) minmax(145px, max-content) minmax(148px, max-content) minmax(158px, max-content)'
+            },
+            gap: 1.1,
+            alignItems: 'center'
+          }}
+        >
+          <TextField
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search properties, addresses, or units"
+            type="search"
+            size="small"
+            slotProps={{
+              htmlInput: { 'aria-label': 'Search properties' },
+              input: {
+                sx: filterControlSx,
+                startAdornment: <InputAdornment position="start"><SearchOutlined /></InputAdornment>
+              }
+            }}
+            sx={{ gridColumn: { xs: '1 / -1', md: 'auto' }, minWidth: 0 }}
+          />
+          <Select size="small" value={status} onChange={(event) => setStatus(event.target.value)} inputProps={{ 'aria-label': 'Property status' }} IconComponent={DownOutlined} sx={filterControlSx}>
+            <MenuItem value="active">Active</MenuItem>
+            <MenuItem value="archived">Archived</MenuItem>
+            <MenuItem value="all">All status</MenuItem>
+          </Select>
+          <Select size="small" value={occupancy} onChange={(event) => setOccupancy(event.target.value)} inputProps={{ 'aria-label': 'Occupancy' }} IconComponent={DownOutlined} sx={filterControlSx}>
+            <MenuItem value="all">All occupancy</MenuItem>
+            <MenuItem value="occupied">Has occupancy</MenuItem>
+            <MenuItem value="vacant">Has vacancy</MenuItem>
+            <MenuItem value="full">Fully occupied</MenuItem>
+          </Select>
+          <Select size="small" value={attention} onChange={(event) => setAttention(event.target.value)} inputProps={{ 'aria-label': 'Attention' }} IconComponent={DownOutlined} sx={filterControlSx}>
+            <MenuItem value="all">All attention</MenuItem>
+            <MenuItem value="any">Needs attention</MenuItem>
+            <MenuItem value="overdue">Overdue rent</MenuItem>
+            <MenuItem value="maintenance">Urgent maintenance</MenuItem>
+            <MenuItem value="lease">Lease ending soon</MenuItem>
+          </Select>
+          <Select size="small" value={sort} onChange={(event) => setSort(event.target.value)} inputProps={{ 'aria-label': 'Sort properties' }} IconComponent={DownOutlined} sx={filterControlSx}>
+            <MenuItem value="attention">Sort: Attention</MenuItem>
+            <MenuItem value="name">Sort: Name</MenuItem>
+            <MenuItem value="rent">Sort: Rent roll</MenuItem>
+            <MenuItem value="occupancy">Sort: Occupancy</MenuItem>
+            <MenuItem value="lease">Sort: Lease end</MenuItem>
+          </Select>
+        </Box>
+        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 1.25 }}>
+          <Typography variant="body2" color="text.secondary" aria-live="polite">
+            {filteredProperties.length} of {properties.length} properties
+          </Typography>
+          {hasFilters && <Button size="small" onClick={clearFilters} sx={{ textTransform: 'none' }}>Reset view</Button>}
+        </Stack>
       </Box>
 
       <Box data-testid="property-table" sx={{ bgcolor: 'background.paper', border: `1px solid ${alpha(theme.palette.divider, 0.16)}`, borderRadius: 3, boxShadow: `0 8px 28px ${alpha('#061e35', 0.055)}`, overflow: 'hidden' }}>

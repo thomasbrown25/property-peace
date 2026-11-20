@@ -31,6 +31,23 @@ export function getOwnerProperties(properties = [], now = new Date()) {
   }).sort((a, b) => Number(b.activeLeaseCount > 0) - Number(a.activeLeaseCount > 0) || a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }));
 }
 
+export function getPropertyRentDueDate(propertyId, records = [], unavailable = false) {
+  if (unavailable || !Array.isArray(records)) return null;
+  const dates = records
+    .filter((record) => String(read(record, 'propertyId', 'PropertyId')) === String(propertyId))
+    .map((record) => {
+      const currentDue = Number(read(record, 'currentMonthRentDue', 'CurrentMonthRentDue'));
+      const value = currentDue > 0
+        ? read(record, 'currentMonthRentDueDate', 'CurrentMonthRentDueDate') ?? read(record, 'dueDate', 'DueDate')
+        : read(record, 'dueDate', 'DueDate');
+      const date = typeof value === 'string' ? value.slice(0, 10) : null;
+      return /^\d{4}-\d{2}-\d{2}$/.test(date || '') && !Number.isNaN(Date.parse(`${date}T12:00:00Z`)) ? date : null;
+    })
+    .filter(Boolean)
+    .sort();
+  return dates[0] ?? null;
+}
+
 export function getPropertyMonthRent(propertyId, records = [], unavailable = false) {
   if (unavailable || !Array.isArray(records)) return null;
   const matching = records.filter((record) => String(read(record, 'propertyId', 'PropertyId')) === String(propertyId));
