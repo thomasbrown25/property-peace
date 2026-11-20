@@ -8,7 +8,7 @@ const appRoot = fileURLToPath(new URL('../..', import.meta.url));
 test('tables share the home reference styling in both themes', async (t) => {
   const vite = await createServer({ root: appRoot, logLevel: 'silent', appType: 'custom', server: { middlewareMode: true } });
   t.after(() => vite.close());
-  const { getTableStyles } = await vite.ssrLoadModule('/src/themes/tableStyles.js');
+  const { getTableStyles, getPortalListTableSx } = await vite.ssrLoadModule('/src/themes/tableStyles.js');
   const load = async (name) => (await vite.ssrLoadModule(`/src/themes/overrides/${name}.js`)).default;
   const [cell, head, row, container, body, footer] = await Promise.all(['TableCell', 'TableHead', 'TableRow', 'TableContainer', 'TableBody', 'TableFooter'].map(load));
   for (const mode of ['light', 'dark']) {
@@ -28,5 +28,8 @@ test('tables share the home reference styling in both themes', async (t) => {
     assert.equal(cells.stickyHeader.backgroundColor, theme.palette.background.paper, 'Sticky cells stay opaque');
     assert.equal(body(theme).MuiTableBody.styleOverrides.root.backgroundColor, theme.palette.background.paper);
     assert.equal(footer(theme).MuiTableFooter.styleOverrides.root.borderTop, `1px solid ${theme.palette.divider}`);
+    const list = getPortalListTableSx(theme);
+    assert.notEqual(list['& .MuiTableCell-head'].borderBottomColor, theme.palette.text.primary);
+    assert.notEqual(list['& .MuiTableCell-body'].borderBottomColor, list['& .MuiTableCell-head'].borderBottomColor);
   }
 });

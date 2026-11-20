@@ -1,8 +1,6 @@
 import { isDetachedSingleUnitType } from 'utils/propertyType';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import MaintenanceAgentDrawer from './MaintenanceAgentDrawer';
-import TenantMaintenanceFormDrawer from 'components/drawers/TenantMaintenanceFormDrawer';
 
 // material-ui
 import {
@@ -13,6 +11,7 @@ import {
   Stack,
   Paper,
   Button,
+  Tooltip,
   Chip,
   CircularProgress,
   Alert,
@@ -32,9 +31,7 @@ import {
   CheckCircleOutlined,
   ClockCircleOutlined,
   CloseCircleOutlined,
-  PlusOutlined,
   EyeOutlined,
-  ToolOutlined,
   FileTextOutlined,
   WarningOutlined,
   SettingOutlined,
@@ -44,7 +41,7 @@ import {
 // hooks
 import useAuth from 'hooks/useAuth';
 import axiosServices from 'utils/axios';
-import { formatCurrency, formatDate, formatRelativeTime } from 'utils/formatters';
+import { formatCurrency, formatDate } from 'utils/formatters';
 import { calculateNextPaymentDate } from 'utils/helper-methods';
 import MainCard from 'components/MainCard';
 import { useModal } from 'contexts/ModalContext';
@@ -56,12 +53,12 @@ import Announcements from 'sections/tenant/dashboard/Announcements';
 import LeaseSelector from 'components/LeaseSelector';
 import { openSnackbar } from 'api/snackbar';
 import moment from 'moment';
-import FeatureReadinessNotice from 'components/feature-readiness/FeatureReadinessNotice';
 import useRentPaymentActionReadiness from 'hooks/useRentPaymentActionReadiness';
 import { classifyPaymentStatus, isBalanceCreditingPayment } from 'utils/paymentSafety';
 import { normalizeRentBalance } from 'utils/rentBalance';
 import { createRentStripeLoader, requireRentStripeAccount } from 'utils/connectedRentStripe.mjs';
 import SavedRentPaymentMethods from 'components/payments/SavedRentPaymentMethods';
+import { getStatusPillSx } from 'themes/statusPillStyles';
 
 // ==============================|| TENANT - DASHBOARD ||============================== //
 
@@ -107,8 +104,7 @@ function getPaymentStatusMeta(payment) {
         label: 'Paid',
         color: 'success',
         icon: <CheckCircleOutlined />,
-        iconColor: '#41a541',
-        accent: 'success',
+        accent: 'primary',
         datePrefix: 'Paid on'
       };
     case 'processing':
@@ -116,7 +112,6 @@ function getPaymentStatusMeta(payment) {
         label: 'Processing',
         color: 'info',
         icon: <ClockCircleOutlined />,
-        iconColor: '#1677ff',
         accent: 'info',
         datePrefix: 'Submitted on'
       };
@@ -125,7 +120,6 @@ function getPaymentStatusMeta(payment) {
         label: 'Failed',
         color: 'error',
         icon: <CloseCircleOutlined />,
-        iconColor: '#ff4d4f',
         accent: 'error',
         datePrefix: 'Failed on'
       };
@@ -135,7 +129,6 @@ function getPaymentStatusMeta(payment) {
         label: 'Canceled',
         color: 'default',
         icon: <CloseCircleOutlined />,
-        iconColor: '#8c8c8c',
         accent: 'default',
         datePrefix: 'Canceled on'
       };
@@ -144,7 +137,6 @@ function getPaymentStatusMeta(payment) {
         label: 'Disputed',
         color: 'error',
         icon: <WarningOutlined />,
-        iconColor: '#faad14',
         accent: 'warning',
         datePrefix: 'Disputed on'
       };
@@ -153,7 +145,6 @@ function getPaymentStatusMeta(payment) {
         label: 'Needs review',
         color: 'warning',
         icon: <WarningOutlined />,
-        iconColor: '#faad14',
         accent: 'warning',
         datePrefix: 'Submitted on'
       };
@@ -185,89 +176,6 @@ function getPaymentMethodLabel(payment) {
   if (!rawMethod) return null;
   if (rawMethod === 'Online Payment') return 'Online Payment';
   return rawMethod;
-}
-
-function getPaymentStatusPalette(theme, accent) {
-  const isDark = theme.palette.mode === 'dark';
-  switch (accent) {
-    case 'success':
-      return {
-        main: theme.palette.success.main,
-        bg: alpha(theme.palette.success.main, isDark ? 0.12 : 0.055),
-        border: alpha(theme.palette.success.main, isDark ? 0.28 : 0.18)
-      };
-    case 'info':
-      return {
-        main: theme.palette.info.main,
-        bg: alpha(theme.palette.info.main, isDark ? 0.13 : 0.06),
-        border: alpha(theme.palette.info.main, isDark ? 0.28 : 0.18)
-      };
-    case 'error':
-      return {
-        main: theme.palette.error.main,
-        bg: alpha(theme.palette.error.main, isDark ? 0.12 : 0.055),
-        border: alpha(theme.palette.error.main, isDark ? 0.28 : 0.18)
-      };
-    case 'warning':
-      return {
-        main: theme.palette.warning.main,
-        bg: alpha(theme.palette.warning.main, isDark ? 0.13 : 0.06),
-        border: alpha(theme.palette.warning.main, isDark ? 0.28 : 0.18)
-      };
-    default:
-      return {
-        main: theme.palette.text.secondary,
-        bg: alpha(theme.palette.action.hover, 0.45),
-        border: alpha(theme.palette.divider, 0.28)
-      };
-  }
-}
-
-function formatStatusLabel(status) {
-  if (!status) return 'Open';
-  return status
-    .toString()
-    .replace(/[_-]+/g, ' ')
-    .replace(/\w\S*/g, (word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase());
-}
-
-function getMaintenanceStatusChipSx(status) {
-  const normalizedStatus = (status || 'open')
-    .toString()
-    .toLowerCase()
-    .replace(/[\s_-]+/g, '');
-
-  return (theme) => {
-    const isDark = theme.palette.mode === 'dark';
-    const softChip = (color, bgOpacity = 0.08, borderOpacity = 0.22) => ({
-      color,
-      bgcolor: alpha(color, isDark ? Math.max(bgOpacity, 0.14) : bgOpacity),
-      borderColor: alpha(color, isDark ? Math.max(borderOpacity, 0.34) : borderOpacity),
-      '& .MuiChip-label': { px: 1.1 }
-    });
-
-    if (normalizedStatus === 'reported' || normalizedStatus === 'open' || normalizedStatus === 'new') {
-      return softChip(theme.palette.info.main, 0.075, 0.22);
-    }
-
-    if (normalizedStatus === 'acknowledged' || normalizedStatus === 'assigned') {
-      return softChip(theme.palette.primary.main, 0.07, 0.2);
-    }
-
-    if (normalizedStatus === 'scheduled' || normalizedStatus === 'inprogress' || normalizedStatus === 'pending') {
-      return softChip(theme.palette.warning.main, 0.095, 0.28);
-    }
-
-    if (normalizedStatus === 'resolved' || normalizedStatus === 'completed' || normalizedStatus === 'complete') {
-      return softChip(theme.palette.success.main, 0.075, 0.22);
-    }
-
-    if (normalizedStatus === 'cancelled' || normalizedStatus === 'canceled' || normalizedStatus === 'closed') {
-      return softChip(theme.palette.text.secondary, 0.06, 0.2);
-    }
-
-    return softChip(theme.palette.text.secondary, 0.06, 0.2);
-  };
 }
 
 // Helper function to calculate overdue amount (matches backend logic)
@@ -543,12 +451,26 @@ function TenantPaymentMethodModal({ open, onClose, canInvoke, leaseId }) {
   );
 }
 
+function getMakePaymentDisabledReason({ canInvoke, readiness, presentation }, paymentAllocation) {
+  if (!canInvoke) {
+    if (readiness?.blockers?.includes('connected_payee_missing')) {
+      return 'Your landlord hasn’t enabled online payments yet.';
+    }
+    return presentation.message;
+  }
+  if (!paymentAllocation) return 'Your rent balance is unavailable right now.';
+  return (paymentAllocation.totalAmountDue ?? 0) <= 0 ? 'There’s no rent balance due.' : '';
+}
+
 export default function TenantDashboard() {
   const theme = useTheme();
   const { user } = useAuth();
   const navigate = useNavigate();
   const modal = useModal();
-  const { presentation: rentReadiness, canInvoke } = useRentPaymentActionReadiness('Pay');
+  const firstName = (user?.firstname ?? user?.Firstname ?? user?.firstName ?? '').trim();
+  const greeting = firstName ? `Welcome back, ${firstName}!` : 'Welcome back!';
+  const payReadiness = useRentPaymentActionReadiness('Pay');
+  const { canInvoke } = payReadiness;
   const { getSelectedLease, selectedLeaseId, leases: contextLeases, setLeases: setContextLeases, selectLease } = useLease();
 
   // Track previous lease ID to prevent unnecessary re-fetches
@@ -556,13 +478,10 @@ export default function TenantDashboard() {
 
   const [lease, setLease] = useState(null);
   const [payments, setPayments] = useState([]);
-  const [maintenanceRequests, setMaintenanceRequests] = useState([]);
   const [rentCollection, setRentCollection] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [paymentMethodModalOpen, setPaymentMethodModalOpen] = useState(false);
-  const [maintenanceDrawerOpen, setMaintenanceDrawerOpen] = useState(false);
-  const [maintenanceAgentEnabled, setMaintenanceAgentEnabled] = useState(true);
   const [tenantConversations, setTenantConversations] = useState([]);
 
   // Fetch tenant conversations so the dashboard can fall back to conversation-level dedicated SMS numbers.
@@ -578,8 +497,6 @@ export default function TenantDashboard() {
       })
       .catch(() => setTenantConversations([]));
   }, [user]);
-
-  // The assistant is the default; switch to the form only after an assistant error.
 
   // Check if user was redirected here after account creation
   useEffect(() => {
@@ -609,7 +526,7 @@ export default function TenantDashboard() {
 
         // The dashboard should not depend on LeaseSelector to hydrate lease context.
         // On a hard refresh, this page can render before leases are loaded and would
-        // otherwise show empty lease, maintenance, and payment sections.
+        // otherwise show empty lease and payment sections.
         if (!availableLeases.length) {
           try {
             const leasesResponse = await axiosServices.get('/api/lease/tenant/my-leases');
@@ -637,7 +554,6 @@ export default function TenantDashboard() {
         if (!selectedLease) {
           setLease(null);
           setPayments([]);
-          setMaintenanceRequests([]);
           setRentCollection(null);
           prevLeaseIdRef.current = null;
           return;
@@ -706,18 +622,6 @@ export default function TenantDashboard() {
               setRentCollection(null);
             }
           }
-        }
-
-        // Fetch maintenance requests (try tenant-specific endpoint or use dummy data)
-        try {
-          // Try to fetch maintenance requests - this might need a tenant-specific endpoint
-          const maintenanceResponse = await axiosServices.get('/api/maintenance-request/tenant/current');
-          if (maintenanceResponse.data && maintenanceResponse.data.success) {
-            setMaintenanceRequests(maintenanceResponse.data.data || []);
-          }
-        } catch (err) {
-          if (import.meta.env.DEV) console.warn('Could not fetch maintenance requests:', err);
-          setMaintenanceRequests([]);
         }
       } catch (err) {
         if (import.meta.env.DEV) console.error('Error fetching tenant dashboard data:', err);
@@ -837,11 +741,6 @@ export default function TenantDashboard() {
       .slice(0, 5);
   }, [payments]);
 
-  // Get open maintenance requests
-  const openMaintenanceRequests = useMemo(() => {
-    return maintenanceRequests.filter((req) => req.status?.toLowerCase() !== 'completed' && req.status?.toLowerCase() !== 'cancelled');
-  }, [maintenanceRequests]);
-
   // The dashboard rent action pays the lease-wide accrued balance, oldest-first.
   // Fees and read-only deposits are shown separately on the Payments page.
   const paymentAllocation = useMemo(() => {
@@ -862,8 +761,8 @@ export default function TenantDashboard() {
   if (error) {
     return (
       <Box p={4}>
-        <Typography variant="h4" fontWeight="bold" gutterBottom>
-          Tenant Dashboard
+        <Typography component="h1" variant="h4" fontWeight="bold" gutterBottom>
+          {greeting}
         </Typography>
         <Alert severity="error" sx={{ mt: 2 }}>
           {error}
@@ -899,65 +798,73 @@ export default function TenantDashboard() {
       <Grid container spacing={2.25}>
         {/* Header */}
         <Grid size={12}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2 }}>
-            <Box>
-              <Typography variant="h4" fontWeight="bold">
-                Tenant Dashboard
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Welcome back, {user?.firstname}!
-              </Typography>
-            </Box>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25} alignItems={{ xs: 'stretch', sm: 'center' }}>
-              {landlordContactNumber && (
-                <Button
-                  variant="text"
-                  size="small"
-                  startIcon={<MobileOutlined />}
-                  href={`sms:${landlordContactNumber}`}
-                  sx={{
-                    textTransform: 'none',
-                    justifyContent: 'flex-start',
-                    px: 1.25,
-                    py: 0.75,
-                    borderRadius: 2,
-                    bgcolor: alpha(theme.palette.primary.main, 0.06),
-                    color: 'text.primary',
-                    '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.1) }
-                  }}
-                >
-                  <Stack spacing={0} alignItems="flex-start">
-                    <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>
-                      Text your landlord
-                    </Typography>
-                    <Typography variant="body2" fontWeight={700} sx={{ lineHeight: 1.2 }}>
-                      {formatTenantSmsPhone(landlordContactNumber)}
-                    </Typography>
-                  </Stack>
-                </Button>
-              )}
-              <LeaseSelector />
-            </Stack>
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'minmax(0, 1fr) auto' },
+              alignItems: 'center',
+              gap: { xs: 1.5, sm: 2 }
+            }}
+          >
+            <Typography
+              component="h1"
+              variant="h4"
+              fontWeight="bold"
+              sx={{ gridColumn: 1, gridRow: 1, overflowWrap: 'anywhere' }}
+            >
+              {greeting}
+            </Typography>
+            <LeaseSelector
+              sx={{
+                gridColumn: '1 / -1',
+                gridRow: 2,
+                justifySelf: 'start',
+                width: '100%',
+                maxWidth: 270
+              }}
+            />
+            {landlordContactNumber && (
+              <Button
+                variant="text"
+                size="small"
+                startIcon={<MobileOutlined />}
+                href={`sms:${landlordContactNumber}`}
+                sx={{
+                  display: { xs: 'none', md: 'inline-flex' },
+                  gridColumn: 2,
+                  gridRow: 1,
+                  justifySelf: 'end',
+                  textTransform: 'none',
+                  justifyContent: 'flex-start',
+                  px: 1.25,
+                  py: 0.75,
+                  borderRadius: 2,
+                  bgcolor: alpha(theme.palette.primary.main, 0.06),
+                  color: 'text.primary',
+                  '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.1) }
+                }}
+              >
+                <Stack spacing={0} alignItems="flex-start">
+                  <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>
+                    Text your landlord
+                  </Typography>
+                  <Typography variant="body2" fontWeight={700} sx={{ lineHeight: 1.2 }}>
+                    {formatTenantSmsPhone(landlordContactNumber)}
+                  </Typography>
+                </Stack>
+              </Button>
+            )}
           </Box>
         </Grid>
         <Divider width="100%" sx={{ mt: -0.25, mb: 0.25 }} />
 
-        <Grid size={12}>
-          <FeatureReadinessNotice presentation={rentReadiness} featureName="Online rent collection" />
-        </Grid>
-
-        {/* Announcements */}
-        <Grid size={{ xs: 12 }}>
-          <Announcements />
-        </Grid>
-
-        {/* Row 1: Rent Status & Lease Summary */}
-        <Grid size={{ xs: 12, md: 6 }}>
+        <Grid size={{ xs: 12, md: 4 }}>
           <MainCard
             title="Rent Status"
             sx={{
-              bgcolor: (t) => alpha(t.palette.background.paper, 0.6),
-              boxShadow: (t) => `0 0 20px ${alpha(t.palette.primary.main, 0.15)}`,
+              bgcolor: 'background.paper',
+              border: (t) => `1px solid ${t.palette.divider}`,
+              boxShadow: 'none',
               height: '100%'
             }}
           >
@@ -977,10 +884,11 @@ export default function TenantDashboard() {
                 {(() => {
                   const isDark = theme.palette.mode === 'dark';
                   const totalAmountDue = paymentAllocation?.totalAmountDue ?? 0;
+                  const paymentDisabledReason = getMakePaymentDisabledReason(payReadiness, paymentAllocation);
                   const isOverdue = nextRentDue.isOverdue || nextRentDue.daysUntil < 0;
-                  const statusTone = isOverdue ? theme.palette.error : totalAmountDue > 0 ? theme.palette.primary : theme.palette.success;
-                  const sectionDivider = alpha(isDark ? theme.palette.common.white : theme.palette.common.black, isDark ? 0.1 : 0.08);
-                  const mutedPanelBg = alpha(theme.palette.primary.main, isDark ? 0.08 : 0.04);
+                  const statusTone = isOverdue ? theme.palette.error : theme.palette.primary;
+                  const sectionDivider = theme.palette.divider;
+                  const mutedPanelBg = theme.palette.action.hover;
                   const iconBoxSx = {
                     width: 40,
                     height: 40,
@@ -999,21 +907,16 @@ export default function TenantDashboard() {
                       sx={{
                         overflow: 'hidden',
                         borderRadius: 2.5,
-                        border: `1px solid ${alpha(statusTone.main, isDark ? 0.28 : 0.18)}`,
-                        bgcolor: isDark ? alpha(theme.palette.background.paper, 0.26) : alpha(theme.palette.background.paper, 0.72),
-                        backgroundImage: isDark
-                          ? `linear-gradient(135deg, ${alpha(statusTone.main, 0.16)} 0%, ${alpha(theme.palette.background.paper, 0.18)} 42%, ${alpha(theme.palette.background.default, 0.12)} 100%)`
-                          : `linear-gradient(135deg, ${alpha(statusTone.main, 0.08)} 0%, ${alpha(theme.palette.background.paper, 0.96)} 48%, ${alpha(theme.palette.primary.light, 0.08)} 100%)`,
-                        boxShadow: isDark
-                          ? `0 18px 40px ${alpha(theme.palette.common.black, 0.24)}, inset 0 1px 0 ${alpha(theme.palette.common.white, 0.06)}`
-                          : `0 16px 34px ${alpha(theme.palette.primary.main, 0.1)}`
+                        border: `1px solid ${theme.palette.divider}`,
+                        bgcolor: 'background.paper',
+                        boxShadow: 'none'
                       }}
                     >
                       <Box sx={{ p: { xs: 2, sm: 2.25 } }}>
                         <Stack
-                          direction={{ xs: 'column', sm: 'row' }}
+                          direction={{ xs: 'column', sm: 'row', md: 'column', xl: 'row' }}
                           spacing={2}
-                          alignItems={{ xs: 'stretch', sm: 'center' }}
+                          alignItems={{ xs: 'stretch', sm: 'center', md: 'stretch', xl: 'center' }}
                           justifyContent="space-between"
                         >
                           <Stack direction="row" spacing={1.5} alignItems="center">
@@ -1033,11 +936,11 @@ export default function TenantDashboard() {
                             </Box>
                           </Stack>
 
-                          <Box sx={{ textAlign: { xs: 'left', sm: 'right' } }}>
+                          <Box sx={{ textAlign: { xs: 'left', sm: 'right', md: 'left', xl: 'right' } }}>
                             <Typography variant="overline" color="text.secondary" sx={{ lineHeight: 1.2, letterSpacing: 0.8 }}>
                               Accumulated rent balance
                             </Typography>
-                            <Typography variant="h4" fontWeight={800} color={totalAmountDue > 0 ? statusTone.main : 'success.main'}>
+                            <Typography variant="h4" fontWeight={800} color={isOverdue ? 'error.main' : totalAmountDue > 0 ? 'primary.main' : 'text.primary'}>
                               {formatCurrency(totalAmountDue)}
                             </Typography>
                             {nextRentDue.daysUntil < 0 && (
@@ -1069,45 +972,54 @@ export default function TenantDashboard() {
 
                       <Box sx={{ p: { xs: 2, sm: 2.25 } }}>
                         <Grid container spacing={1.25}>
-                          <Grid size={{ xs: 12, sm: 6 }}>
-                            <Button
-                              variant="contained"
-                              fullWidth
-                              startIcon={<DollarOutlined />}
-                              color="success"
-                              disabled={!canInvoke || !paymentAllocation || totalAmountDue <= 0}
-                              onClick={() => {
-                                if (paymentAllocation) {
-                                  modal.openPaymentModal({
-                                    leaseId: lease.id,
-                                    rentAmount: lease.rentAmount || 0,
-                                    rentDue: paymentAllocation.rentAmountDue,
-                                    amountDueNow: paymentAllocation.rentAmountDue,
-                                    overdueAmount: nextRentDue.overdueAmount,
-                                    propertyName: propertyDisplay || lease?.propertyName || '',
-                                    unitName: unitDisplay || lease?.unitName || ''
-                                  });
-                                }
-                              }}
-                              sx={{
-                                minHeight: 44,
-                                py: 1.05,
-                                px: 2,
-                                borderRadius: 1.75,
-                                textTransform: 'none',
-                                fontWeight: 800,
-                                bgcolor: theme.palette.success.main,
-                                boxShadow: `0 10px 22px ${alpha(theme.palette.success.main, isDark ? 0.2 : 0.14)}`,
-                                '&:hover': {
-                                  bgcolor: isDark ? theme.palette.success.light : theme.palette.success.main,
-                                  boxShadow: `0 12px 24px ${alpha(theme.palette.success.main, isDark ? 0.24 : 0.18)}`
-                                }
-                              }}
-                            >
-                              Make Payment
-                            </Button>
+                          <Grid size={{ xs: 12, sm: 6, md: 12, xl: 6 }}>
+                            <Tooltip title={paymentDisabledReason} describeChild>
+                              <Box
+                                component="span"
+                                sx={{ display: 'block' }}
+                                tabIndex={paymentDisabledReason ? 0 : undefined}
+                                aria-label={paymentDisabledReason ? 'Make Payment' : undefined}
+                              >
+                                <Button
+                                  variant="contained"
+                                  fullWidth
+                                  startIcon={<DollarOutlined />}
+                                  color="primary"
+                                  disabled={!canInvoke || !paymentAllocation || totalAmountDue <= 0}
+                                  onClick={() => {
+                                    if (paymentAllocation) {
+                                      modal.openPaymentModal({
+                                        leaseId: lease.id,
+                                        rentAmount: lease.rentAmount || 0,
+                                        rentDue: paymentAllocation.rentAmountDue,
+                                        amountDueNow: paymentAllocation.rentAmountDue,
+                                        overdueAmount: nextRentDue.overdueAmount,
+                                        propertyName: propertyDisplay || lease?.propertyName || '',
+                                        unitName: unitDisplay || lease?.unitName || ''
+                                      });
+                                    }
+                                  }}
+                                  sx={{
+                                    minHeight: 44,
+                                    py: 1.05,
+                                    px: 2,
+                                    borderRadius: 1.75,
+                                    textTransform: 'none',
+                                    fontWeight: 800,
+                                    bgcolor: theme.palette.primary.main,
+                                    boxShadow: `0 10px 22px ${alpha(theme.palette.primary.main, isDark ? 0.2 : 0.14)}`,
+                                    '&:hover': {
+                                      bgcolor: isDark ? theme.palette.primary.light : theme.palette.primary.main,
+                                      boxShadow: `0 12px 24px ${alpha(theme.palette.primary.main, isDark ? 0.24 : 0.18)}`
+                                    }
+                                  }}
+                                >
+                                  Make Payment
+                                </Button>
+                              </Box>
+                            </Tooltip>
                           </Grid>
-                          <Grid size={{ xs: 12, sm: 6 }}>
+                          <Grid size={{ xs: 12, sm: 6, md: 12, xl: 6 }}>
                             <Button
                               variant="outlined"
                               fullWidth
@@ -1121,7 +1033,6 @@ export default function TenantDashboard() {
                                 borderRadius: 1.75,
                                 textTransform: 'none',
                                 fontWeight: 800,
-                                whiteSpace: 'nowrap',
                                 color: isDark ? theme.palette.common.white : theme.palette.text.primary,
                                 bgcolor: isDark ? alpha(theme.palette.common.white, 0.08) : theme.palette.common.white,
                                 borderColor: isDark ? alpha(theme.palette.common.white, 0.22) : alpha(theme.palette.common.black, 0.12),
@@ -1149,12 +1060,13 @@ export default function TenantDashboard() {
           </MainCard>
         </Grid>
 
-        <Grid size={{ xs: 12, md: 6 }}>
+        <Grid size={{ xs: 12, md: 4 }}>
           <MainCard
             title="Lease Summary"
             sx={{
-              bgcolor: (t) => alpha(t.palette.background.paper, 0.6),
-              boxShadow: (t) => `0 0 20px ${alpha(t.palette.primary.main, 0.15)}`,
+              bgcolor: 'background.paper',
+              border: (t) => `1px solid ${t.palette.divider}`,
+              boxShadow: 'none',
               height: '100%'
             }}
             secondary={
@@ -1223,13 +1135,18 @@ export default function TenantDashboard() {
           </MainCard>
         </Grid>
 
-        {/* Row 2: Recent Payments & Maintenance Requests */}
-        <Grid size={{ xs: 12, lg: 6 }}>
+        <Grid size={{ xs: 12, md: 4 }}>
+          <Announcements />
+        </Grid>
+
+        {/* Recent Payments */}
+        <Grid size={12}>
           <MainCard
             title="Recent Payments"
             sx={{
-              bgcolor: (t) => alpha(t.palette.background.paper, 0.6),
-              boxShadow: (t) => `0 0 20px ${alpha(t.palette.primary.main, 0.15)}`,
+              bgcolor: 'background.paper',
+              border: (t) => `1px solid ${t.palette.divider}`,
+              boxShadow: 'none',
               height: '100%'
             }}
             secondary={
@@ -1251,7 +1168,7 @@ export default function TenantDashboard() {
               <Stack spacing={2}>
                 {recentPayments.map((payment, index) => {
                   const statusMeta = getPaymentStatusMeta(payment);
-                  const statusPalette = getPaymentStatusPalette(theme, statusMeta.accent);
+                  const statusIconColor = theme.palette[statusMeta.accent]?.main ?? theme.palette.text.secondary;
                   const displayDate = getPaymentDisplayDate(payment);
                   const method = getPaymentMethodLabel(payment);
 
@@ -1262,15 +1179,15 @@ export default function TenantDashboard() {
                       sx={{
                         p: 1.75,
                         borderRadius: 1.75,
-                        bgcolor: statusPalette.bg,
-                        border: `1px solid ${statusPalette.border}`,
-                        boxShadow: (t) => `0 8px 18px ${alpha(t.palette.common.black, t.palette.mode === 'dark' ? 0.12 : 0.035)}`
+                        bgcolor: 'background.paper',
+                        border: (t) => `1px solid ${t.palette.divider}`,
+                        boxShadow: 'none'
                       }}
                     >
                       <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
                         <Box sx={{ minWidth: 0 }}>
                           <Stack direction="row" spacing={1} alignItems="center">
-                            {statusMeta.icon && <Box sx={{ color: statusPalette.main, lineHeight: 0 }}>{statusMeta.icon}</Box>}
+                            {statusMeta.icon && <Box sx={{ color: statusIconColor, lineHeight: 0 }}>{statusMeta.icon}</Box>}
                             <Typography variant="body1" fontWeight={600}>
                               {formatCurrency(payment.amount || payment.Amount || 0)}
                             </Typography>
@@ -1282,10 +1199,11 @@ export default function TenantDashboard() {
                         </Box>
                         <Chip
                           label={statusMeta.label}
-                          color={statusMeta.color}
                           size="small"
-                          icon={statusMeta.icon}
-                          sx={{ flexShrink: 0, height: 24, fontWeight: 700 }}
+                          sx={(t) => ({
+                            flexShrink: 0,
+                            ...getStatusPillSx(t, statusMeta.color)
+                          })}
                         />
                       </Stack>
                     </Paper>
@@ -1301,122 +1219,7 @@ export default function TenantDashboard() {
             )}
           </MainCard>
         </Grid>
-
-        <Grid size={{ xs: 12, lg: 6 }}>
-          <MainCard
-            title="Maintenance Requests"
-            sx={{
-              bgcolor: (t) => alpha(t.palette.background.paper, 0.6),
-              boxShadow: (t) => `0 0 20px ${alpha(t.palette.primary.main, 0.15)}`,
-              height: '100%'
-            }}
-            secondary={
-              <Button size="small" startIcon={<PlusOutlined />} onClick={() => { setMaintenanceAgentEnabled(true); setMaintenanceDrawerOpen(true); }}>
-                New Request
-              </Button>
-            }
-          >
-            {openMaintenanceRequests.length > 0 ? (
-              <Stack spacing={2}>
-                {openMaintenanceRequests.slice(0, 3).map((request) => (
-                  <Paper
-                    key={request.id}
-                    variant="outlined"
-                    sx={{
-                      p: 1.75,
-                      borderRadius: 1.75,
-                      borderColor: (t) => alpha(t.palette.divider, t.palette.mode === 'dark' ? 0.18 : 0.55),
-                      cursor: 'pointer',
-                      transition: 'background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease',
-                      '&:hover': {
-                        bgcolor: (theme) => alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.08 : 0.04),
-                        borderColor: (theme) => alpha(theme.palette.primary.main, 0.22),
-                        transform: 'translateY(-1px)'
-                      }
-                    }}
-                    onClick={() => navigate(`/tenant/maintenance/${request.id}`)}
-                  >
-                    <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2}>
-                      <Box sx={{ flex: 1 }}>
-                        <Typography variant="body1" fontWeight={600}>
-                          {request.title || 'Maintenance Request'}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                          {request.description || 'No description'}
-                        </Typography>
-                        {request.createdAt && (
-                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.75 }}>
-                            {formatRelativeTime(request.createdAt)}
-                          </Typography>
-                        )}
-                      </Box>
-                      <Chip
-                        label={formatStatusLabel(request.status)}
-                        size="small"
-                        variant="outlined"
-                        sx={(theme) => ({
-                          height: 24,
-                          fontWeight: 700,
-                          ...getMaintenanceStatusChipSx(request.status)(theme)
-                        })}
-                      />
-                    </Stack>
-                  </Paper>
-                ))}
-              </Stack>
-            ) : (
-              <Box sx={{ textAlign: 'center', py: 3 }}>
-                <ToolOutlined style={{ fontSize: 48, color: '#ccc', marginBottom: 8 }} />
-                <Typography variant="body2" color="text.secondary">
-                  No open maintenance requests
-                </Typography>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  startIcon={<PlusOutlined />}
-                  onClick={() => { setMaintenanceAgentEnabled(true); setMaintenanceDrawerOpen(true); }}
-                  sx={{ mt: 2 }}
-                >
-                  Submit Request
-                </Button>
-              </Box>
-            )}
-          </MainCard>
-        </Grid>
       </Grid>
-
-      {/* Maintenance Drawer */}
-      {maintenanceAgentEnabled ? (
-        <MaintenanceAgentDrawer
-          open={maintenanceDrawerOpen}
-          onClose={() => setMaintenanceDrawerOpen(false)}
-          onUnavailable={() => setMaintenanceAgentEnabled(false)}
-          onRequestCreated={() => {
-            setMaintenanceDrawerOpen(false);
-            axiosServices
-              .get('/api/maintenance-request/tenant/current')
-              .then((res) => {
-                if (res.data?.success) setMaintenanceRequests(res.data.data || []);
-              })
-              .catch(() => {});
-          }}
-        />
-      ) : (
-        <TenantMaintenanceFormDrawer
-          open={maintenanceDrawerOpen}
-          onClose={() => setMaintenanceDrawerOpen(false)}
-          unitId={lease?.unitId ?? null}
-          onRequestCreated={() => {
-            setMaintenanceDrawerOpen(false);
-            axiosServices
-              .get('/api/maintenance-request/tenant/current')
-              .then((res) => {
-                if (res.data?.success) setMaintenanceRequests(res.data.data || []);
-              })
-              .catch(() => {});
-          }}
-        />
-      )}
 
       {/* Payment Method Modal */}
       {canInvoke && paymentMethodModalOpen && (

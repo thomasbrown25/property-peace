@@ -63,8 +63,8 @@ class ApiClient {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    // Add organization header if available
-    if (orgId && !isAuthEndpoint) {
+    // Use the active organization only when the request has no explicit scope.
+    if (orgId && !isAuthEndpoint && !Object.keys(headers).some((name) => name.toLowerCase() === 'x-organization-id')) {
       headers['X-Organization-Id'] = orgId.toString();
     }
 

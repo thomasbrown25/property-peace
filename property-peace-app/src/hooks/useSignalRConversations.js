@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { HubConnectionBuilder, LogLevel } from '@microsoft/signalr';
 import useAuth from 'hooks/useAuth';
 import { getActiveAccessToken } from 'utils/impersonationSession';
+import { isTerminalSignalRAuthError } from 'utils/signalRRetry';
 
 /**
  * Custom hook for managing SignalR connection for real-time conversation updates
@@ -15,6 +16,8 @@ export default function useSignalRConversations() {
   const conversationHandlersRef = useRef([]);
   const messageHandlersRef = useRef([]);
   const handlerRegisteredRef = useRef(false);
+  const terminalAuthErrorRef = useRef(false);
+  const authContextRef = useRef(null);
 
   // Get API base URL - use the same as axios (from env var or default to HTTPS)
   const apiBaseUrl = import.meta.env.VITE_APP_API_URL || 'https://localhost:5001';
@@ -94,6 +97,21 @@ export default function useSignalRConversations() {
       return;
     }
 
+    const authContext = { userId: user.id, accessToken: token };
+    const isCurrentAuthContext = () => (
+      authContextRef.current?.userId === authContext.userId &&
+      authContextRef.current?.accessToken === authContext.accessToken
+    );
+
+    if (!isCurrentAuthContext()) {
+      authContextRef.current = authContext;
+      terminalAuthErrorRef.current = false;
+    }
+
+    if (terminalAuthErrorRef.current) {
+      return;
+    }
+
     // If already connected or connecting, don't start again
     if (connectionRef.current?.state === 'Connected' || connectionRef.current?.state === 'Connecting') {
       return;
@@ -114,6 +132,16 @@ export default function useSignalRConversations() {
         })
         .withAutomaticReconnect({
           nextRetryDelayInMilliseconds: (retryContext) => {
+            if (!isCurrentAuthContext()) {
+              return null;
+            }
+
+            if (isTerminalSignalRAuthError(retryContext.retryReason)) {
+              terminalAuthErrorRef.current = true;
+              clearTimeout(reconnectTimeoutRef.current);
+              return null;
+            }
+
             if (retryContext.previousRetryCount === 0) return 2000;
             if (retryContext.previousRetryCount === 1) return 10000;
             if (retryContext.previousRetryCount === 2) return 30000;
@@ -125,13 +153,23 @@ export default function useSignalRConversations() {
 
       // Handle connection state changes
       connection.onclose((error) => {
+        if (!isCurrentAuthContext()) {
+          return;
+        }
+
         setConnectionState('Disconnected');
+
+        if (isTerminalSignalRAuthError(error)) {
+          terminalAuthErrorRef.current = true;
+          clearTimeout(reconnectTimeoutRef.current);
+          return;
+        }
         
         // Attempt to reconnect if user is still logged in
-        if (isLoggedIn && !error) {
+        if (isLoggedIn && !error && !terminalAuthErrorRef.current) {
           clearTimeout(reconnectTimeoutRef.current);
           reconnectTimeoutRef.current = setTimeout(() => {
-            if (isLoggedIn) {
+            if (isLoggedIn && isCurrentAuthContext()) {
               startConnection();
             }
           }, 3000);
@@ -139,10 +177,18 @@ export default function useSignalRConversations() {
       });
 
       connection.onreconnecting((error) => {
+        if (!isCurrentAuthContext()) {
+          return;
+        }
+
         setConnectionState('Reconnecting');
       });
 
       connection.onreconnected((connectionId) => {
+        if (!isCurrentAuthContext()) {
+          return;
+        }
+
         setConnectionState('Connected');
         handlerRegisteredRef.current = false;
         registerHandlers(connection);
@@ -195,17 +241,34 @@ export default function useSignalRConversations() {
 
       // Start connection
       await connection.start();
+
+      if (!isCurrentAuthContext()) {
+        try {
+          await connection.stop();
+        } catch (error) {
+          // Stale connections are best-effort cleanup only.
+        }
+        return;
+      }
+
       setConnectionState('Connected');
       
       connectionRef.current = connection;
     } catch (error) {
+      if (!isCurrentAuthContext()) {
+        return;
+      }
+
       setConnectionState('Disconnected');
       
       // Retry connection after a delay (only if it's not an auth error)
-      if (!error.message?.includes('401') && !error.message?.includes('Unauthorized')) {
+      if (isTerminalSignalRAuthError(error)) {
+        terminalAuthErrorRef.current = true;
+        clearTimeout(reconnectTimeoutRef.current);
+      } else {
         clearTimeout(reconnectTimeoutRef.current);
         reconnectTimeoutRef.current = setTimeout(() => {
-          if (isLoggedIn) {
+          if (isLoggedIn && isCurrentAuthContext()) {
             startConnection();
           }
         }, 5000);
@@ -237,6 +300,8 @@ export default function useSignalRConversations() {
     if (isLoggedIn && user?.id) {
       startConnection();
     } else {
+      terminalAuthErrorRef.current = false;
+      authContextRef.current = null;
       stopConnection();
     }
 

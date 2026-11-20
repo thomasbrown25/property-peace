@@ -1,12 +1,12 @@
 import { isDetachedSingleUnitType } from 'utils/propertyType';
 import { useState, useEffect, useRef } from 'react';
-import { FormControl, Select, MenuItem, Box, Typography, CircularProgress, Stack } from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
+import { Select, MenuItem, Box, Typography, CircularProgress } from '@mui/material';
+import { DownOutlined } from '@ant-design/icons';
 import { useLease } from 'contexts/LeaseContext';
 import axiosServices from 'utils/axios';
+import { filterControlSx } from 'themes/filterControlStyles';
 
 const LeaseSelector = ({ sx = {} }) => {
-  const theme = useTheme();
   const { selectedLeaseId, leases, setLeases, selectLease, loading, setLoading } = useLease();
   const [error, setError] = useState(null);
   const hasFetchedRef = useRef(false);
@@ -88,44 +88,21 @@ const LeaseSelector = ({ sx = {} }) => {
   };
 
   return (
-    <Stack spacing={0.5} sx={{ minWidth: { xs: '100%', sm: 270 }, ...sx }}>
-      <Typography
-        id="lease-selector-label"
-        variant="caption"
-        color="text.secondary"
-        fontWeight={700}
-        sx={{ lineHeight: 1, letterSpacing: 0.35 }}
-      >
-        Select Lease
-      </Typography>
-      <FormControl size="small" fullWidth>
-        <Select
-          id="lease-selector"
-          labelId="lease-selector-label"
-          value={selectedLeaseId || ''}
-          onChange={handleChange}
-          displayEmpty
-          sx={{
-            bgcolor: alpha(theme.palette.background.paper, theme.palette.mode === 'dark' ? 0.28 : 0.78),
-            borderRadius: 1.5,
-            boxShadow:
-              theme.palette.mode === 'dark'
-                ? `inset 0 1px 0 ${alpha(theme.palette.common.white, 0.04)}`
-                : `0 8px 20px ${alpha(theme.palette.primary.main, 0.06)}`,
-            '& .MuiSelect-select': {
-              py: 0.9,
-              fontWeight: 600
-            }
-          }}
-        >
-          {leases.map((lease) => (
-            <MenuItem key={lease.id || lease.Id} value={lease.id || lease.Id}>
-              {formatLeaseLabel(lease)}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
-    </Stack>
+    <Select
+      id="lease-selector"
+      size="small"
+      value={selectedLeaseId || ''}
+      onChange={handleChange}
+      inputProps={{ 'aria-label': 'Select lease' }}
+      IconComponent={DownOutlined}
+      sx={{ ...filterControlSx, ...sx }}
+    >
+      {leases.map((lease) => (
+        <MenuItem key={lease.id || lease.Id} value={lease.id || lease.Id}>
+          Lease: {formatLeaseLabel(lease)}
+        </MenuItem>
+      ))}
+    </Select>
   );
 };
 

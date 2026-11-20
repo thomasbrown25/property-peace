@@ -26,3 +26,13 @@ export function getTableStyles(theme) {
     cell: { padding: '12px 16px' }
   };
 }
+
+export function getPortalListTableSx(theme) {
+  const dark = theme.palette.mode === 'dark';
+  const ink = theme.palette.text.primary;
+
+  return {
+    '& .MuiTableCell-head': { borderBottomColor: alpha(ink, dark ? 0.16 : 0.08) },
+    '& .MuiTableCell-body': { borderBottomColor: alpha(ink, dark ? 0.12 : 0.055) }
+  };
+}

@@ -10,11 +10,19 @@ const controller = fs.readFileSync(path.resolve(root, '../../property-peace-api/
 const row = page.split('const renderConversationItem =')[1]?.split('const snapshotActionButtonSx')[0] ?? '';
 
 test('chat rows are compact with small avatars and keyboard-accessible hover actions', () => {
-  assert.match(row, /py: 0\.7/);
   assert.match(row, /width: 30, height: 30/);
   assert.match(row, /aria-label=\{`Actions for \$\{tenantName\}`\}/);
   assert.match(row, /focus-within/);
   assert.match(row, /stopPropagation\(\)/);
+});
+
+test('both chat lists give the avatar unread badge enough vertical clearance', () => {
+  const styles = fs.readFileSync(path.join(root, 'themes/chatStyles.js'), 'utf8');
+  assert.match(styles, /chatConversationRowButtonSx = \{\s*py: 1\.25,/);
+  for (const role of ['landlord', 'tenant']) {
+    const chat = fs.readFileSync(path.join(root, `pages/${role}/messages.jsx`), 'utf8');
+    assert.match(chat, /<ListItemButton\b[\s\S]*?sx=\{chatConversationRowButtonSx\}\s*>\s*<ListItemAvatar\b[^>]*>\s*<Badge badgeContent=\{hasUnread/);
+  }
 });
 
 test('row menu targets its own conversation and offers mark unread and archive without a white outline', () => {

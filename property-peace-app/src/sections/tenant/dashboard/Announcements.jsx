@@ -10,6 +10,7 @@ import Avatar from 'components/@extended/Avatar';
 import useFetchNotifications from 'hooks/useFetchNotifications';
 import { formatRelativeTime } from 'utils/formatters';
 import CircularLoader from 'components/CircularLoader';
+import { getStatusPillSx } from 'themes/statusPillStyles';
 
 // assets
 import FileTextOutlined from '@ant-design/icons/FileTextOutlined';
@@ -42,11 +43,7 @@ export default function Announcements() {
   return (
     <MainCard
       title="Announcements"
-      sx={{
-        bgcolor: (t) => alpha(t.palette.background.paper, 0.6),
-        boxShadow: (t) => `0 0 20px ${alpha(t.palette.primary.main, 0.15)}`,
-        height: '100%'
-      }}
+      sx={{ bgcolor: 'background.paper', borderColor: 'divider', height: '100%' }}
       content={false}
       secondary={
         <Link component={RouterLink} to="/tenant/announcements" color="primary">
@@ -114,12 +111,12 @@ export default function Announcements() {
                   sx={{
                     p: 2,
                     borderRadius: 1,
-                    border: (t) => `1px solid ${alpha(t.palette.divider, 0.12)}`,
+                    border: 1,
+                    borderColor: 'divider',
                     cursor: 'pointer',
-                    transition: 'all 0.2s ease',
                     '&:hover': {
-                      bgcolor: (t) => alpha(t.palette.primary.main, 0.05),
-                      border: (t) => `1px solid ${alpha(t.palette.primary.main, 0.3)}`
+                      bgcolor: 'action.hover',
+                      borderColor: 'surface.accentBorder'
                     }
                   }}
                   onClick={() => handleAnnouncementClick(announcement)}
@@ -139,7 +136,7 @@ export default function Announcements() {
                         <Typography variant="caption" color="text.secondary">
                           {formatRelativeTime(announcement.createdAt)}
                         </Typography>
-                        {!announcement.isRead && <Chip label="New" size="small" color="primary" sx={{ height: 16, fontSize: '0.65rem' }} />}
+                        {!announcement.isRead && <Chip label="New" size="small" sx={(theme) => getStatusPillSx(theme, 'primary')} />}
                       </Stack>
                     </Stack>
                     {announcement.relatedId && (

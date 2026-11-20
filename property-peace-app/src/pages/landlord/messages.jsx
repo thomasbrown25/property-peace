@@ -91,6 +91,7 @@ import axiosServices from 'utils/axios';
 import { getMessageRentStatus } from './messageRentStatus.mjs';
 import { canManageGroupConversation, getConversationBubbleSx } from 'utils/conversationPresentation';
 import { latestConfirmedSentMessageId } from 'utils/latestSentMessage.mjs';
+import { chatConversationRowButtonSx, getChatStyles } from 'themes/chatStyles';
 
 // ==============================|| MESSAGES PAGE ||============================== //
 
@@ -960,30 +961,7 @@ export default function Messages() {
 
   const isLoading = loadingConversations || loadingTenants || loadingProperties;
   const isDarkMode = theme.palette.mode === 'dark';
-  const messagesDivider = isDarkMode ? alpha(theme.palette.primary.main, 0.18) : alpha(theme.palette.divider, 0.72);
-  const messagesSoftDivider = isDarkMode ? alpha(theme.palette.primary.main, 0.12) : alpha(theme.palette.divider, 0.58);
-  const messagesCardBorder = isDarkMode ? alpha(theme.palette.primary.main, 0.2) : alpha(theme.palette.divider, 0.72);
-  const messagesDashedBorder = isDarkMode ? alpha(theme.palette.primary.main, 0.24) : alpha(theme.palette.divider, 0.85);
-  const messagesPanelShadow = isDarkMode ? `0 18px 42px ${alpha('#020617', 0.36)}` : 'none';
-  const messagesCardShadow = isDarkMode ? `0 10px 26px ${alpha('#020617', 0.26)}` : 'none';
-  const messageFilterSx = {
-    minHeight: 30,
-    minWidth: 0,
-    borderRadius: 999,
-    px: 1,
-    textTransform: 'none',
-    whiteSpace: 'nowrap',
-    fontSize: '0.75rem',
-    fontWeight: 600,
-    borderColor: messagesDivider,
-    color: 'text.primary',
-    '&:hover': { borderColor: 'primary.main', bgcolor: alpha(theme.palette.primary.main, 0.08) },
-    '&[aria-pressed="true"]': {
-      bgcolor: alpha(theme.palette.primary.main, isDarkMode ? 0.22 : 0.1),
-      borderColor: 'primary.main',
-      color: isDarkMode ? theme.palette.primary.light : theme.palette.primary.main
-    }
-  };
+  const { messagesDivider, messagesSoftDivider, messagesCardBorder, messagesDashedBorder, messagesPanelShadow, messagesCardShadow, messageFilterSx } = getChatStyles(theme);
 
   if (isLoading && !initialLoadDone.current) {
     return (
@@ -1029,7 +1007,7 @@ export default function Messages() {
             setIsNewConversation(false);
             handleSelectConversation(conversation);
           }}
-          sx={{ py: 0.7, pl: 1.5, pr: 0.5, minWidth: 0, flex: 1, alignItems: 'center', borderRadius: 0 }}
+          sx={chatConversationRowButtonSx}
         >
           <ListItemAvatar sx={{ minWidth: 40 }}>
             <Badge badgeContent={hasUnread ? conversation.unreadCount : 0} color="error" max={99} showZero={false}>

@@ -1,4 +1,5 @@
 using brownstone_hub_api.Dtos.Notification;
+using brownstone_hub_api.Middleware;
 using brownstone_hub_api.Models;
 using brownstone_hub_api.Services.NotificationService;
 using brownstone_hub_api.Services.UserService;
@@ -18,6 +19,7 @@ namespace brownstone_hub_api.Controllers
         private readonly IUserService _userService = userService;
 
         [HttpGet("list")]
+        [OrganizationContextOptional]
         public async Task<ActionResult<ServiceResponse<NotificationListResponseDto>>> GetNotifications()
         {
             var userIdResponse = await _userService.GetCurrentUserIdAsync();
@@ -40,6 +42,7 @@ namespace brownstone_hub_api.Controllers
         }
 
         [HttpGet("unread-count")]
+        [OrganizationContextOptional]
         public async Task<ActionResult<ServiceResponse<int>>> GetUnreadCount()
         {
             var userIdResponse = await _userService.GetCurrentUserIdAsync();
@@ -62,6 +65,7 @@ namespace brownstone_hub_api.Controllers
         }
 
         [HttpPost("mark-read/{notificationId}")]
+        [OrganizationContextOptional]
         public async Task<ActionResult<ServiceResponse<bool>>> MarkNotificationAsRead(long notificationId)
         {
             var response = await _notificationService.MarkNotificationAsRead(notificationId);
@@ -79,6 +83,7 @@ namespace brownstone_hub_api.Controllers
         }
 
         [HttpPost("mark-all-read")]
+        [OrganizationContextOptional]
         public async Task<ActionResult<ServiceResponse<int>>> MarkAllNotificationsAsRead()
         {
             var userIdResponse = await _userService.GetCurrentUserIdAsync();

@@ -187,6 +187,11 @@ function LegacyChatRedirect() {
   return <Navigate to={`/landlord/chat${search}${hash}`} replace />;
 }
 
+function TenantLegacyChatRedirect() {
+  const { search, hash } = useLocation();
+  return <Navigate to={`/tenant/chat${search}${hash}`} replace />;
+}
+
 function LegacyInspectionRedirect() {
   return <Navigate to="/landlord/checklists" replace />;
 }
@@ -1283,8 +1288,12 @@ const MainRoutes = {
           element: <TenantPayments />
         },
         {
-          path: 'tenant/messages',
+          path: 'tenant/chat',
           element: <TenantMessages />
+        },
+        {
+          path: 'tenant/messages',
+          element: <TenantLegacyChatRedirect />
         },
         {
           path: 'tenant/settings',

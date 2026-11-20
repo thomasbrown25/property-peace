@@ -1,6 +1,6 @@
-import { isDetachedSingleUnitType } from 'utils/propertyType';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import useSWR from 'swr';
 import TenantMaintenanceFormDrawer from 'components/drawers/TenantMaintenanceFormDrawer';
 import MaintenanceAgentDrawer from './MaintenanceAgentDrawer';
 
@@ -11,23 +11,21 @@ import {
   Stack,
   Button,
   Paper,
+  Avatar,
   Chip,
   TextField,
+  Select,
+  MenuItem,
   InputAdornment,
   CircularProgress,
   Alert,
-  Avatar,
-  Tabs,
-  Tab,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  TableSortLabel,
-  IconButton,
-  Divider
+  IconButton
 } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import {
@@ -35,117 +33,51 @@ import {
   SearchOutlined,
   ToolOutlined,
   CalendarOutlined,
-  EyeOutlined,
-  HomeOutlined
+  EnvironmentOutlined,
+  DownOutlined,
+  EyeOutlined
 } from '@ant-design/icons';
 
 // hooks
 import useAuth from 'hooks/useAuth';
-import axiosServices from 'utils/axios';
-import { formatDate, formatRelativeTime, formatDateAndTime } from 'utils/formatters';
-import { getPriorityColor, getStatusColor } from 'utils/helper-methods';
-import { openSnackbar } from 'api/snackbar';
-import { maintenanceWorkflowAPI } from 'api/maintenanceWorkflow';
+import { formatRelativeTime, formatDateAndTime } from 'utils/formatters';
+import { getTenantMaintenanceLeases, maintenanceWorkflowAPI } from 'api/maintenanceWorkflow';
 import { normalizeWorkflowToken } from 'utils/maintenanceWorkflow';
 import TenantMaintenanceDetail from './maintenance-detail';
+import TenantLeaseFilter from 'components/filters/TenantLeaseFilter';
+import ManagementPageHeader from 'components/headers/ManagementPageHeader';
+import { managementPageHeaderActionSx } from 'components/headers/managementPageHeaderStyles';
+import PortalListPagination from 'components/table/PortalListPagination';
+import { paginateRows } from 'components/table/paginateRows.mjs';
+import { filterControlSx } from 'themes/filterControlStyles';
+import { getPortalListTableSx } from 'themes/tableStyles';
+import { getMaintenanceRequestDate, getMaintenanceRows } from './maintenanceList.mjs';
+import { getLeaseOrganizationId, organizationRequestOptions } from './tenantDocumentScope.mjs';
 
 // ==============================|| TENANT - MAINTENANCE ||============================== //
-
-function LeaseListItem({ lease, selected, onClick }) {
-  const theme = useTheme();
-  const normalizedPropertyType = String(lease.propertyType || lease.PropertyType || lease.unit?.property?.propertyType || '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, '');
-  const unitName = lease.unitName || lease.UnitName || lease.unit?.name || '';
-  const normalizedUnitName = String(unitName).toLowerCase().replace(/[^a-z0-9]/g, '');
-  const showUnitName = unitName && !isDetachedSingleUnitType(normalizedPropertyType) && normalizedUnitName !== 'unit1';
-  return (
-    <Box
-      onClick={onClick}
-      sx={{
-        p: 1.5,
-        cursor: 'pointer',
-        borderRadius: 1.5,
-        border: `1.5px solid ${selected ? theme.palette.primary.main : 'transparent'}`,
-        bgcolor: selected ? alpha(theme.palette.primary.main, 0.06) : 'transparent',
-        transition: 'all 0.15s',
-        '&:hover': {
-          bgcolor: selected ? alpha(theme.palette.primary.main, 0.08) : alpha(theme.palette.action.hover, 0.5),
-          border: `1.5px solid ${selected ? theme.palette.primary.main : alpha(theme.palette.divider, 0.4)}`
-        }
-      }}
-    >
-      <Stack direction="row" spacing={1.5} alignItems="center">
-        <Avatar
-          src={lease.propertyImageUrl || undefined}
-          sx={{
-            width: 42,
-            height: 42,
-            borderRadius: 1.5,
-            bgcolor: alpha(theme.palette.primary.main, 0.1),
-            color: 'primary.main',
-            flexShrink: 0,
-            fontSize: 18
-          }}
-        >
-          {!lease.propertyImageUrl && <HomeOutlined />}
-        </Avatar>
-        <Box sx={{ minWidth: 0, flex: 1 }}>
-          <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={0.5}>
-            <Typography variant="body2" fontWeight={600} noWrap sx={{ flex: 1 }}>
-              {lease.propertyName || 'Property'}
-            </Typography>
-            <Box
-              sx={{
-                width: 8,
-                height: 8,
-                borderRadius: '50%',
-                bgcolor: lease.isActive ? 'success.main' : 'text.disabled',
-                flexShrink: 0
-              }}
-            />
-          </Stack>
-          {showUnitName && (
-            <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
-              {unitName}
-            </Typography>
-          )}
-        </Box>
-      </Stack>
-    </Box>
-  );
-}
 
 function formatCategoryLabel(category) {
   if (!category) return '—';
   return category.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
 }
 
-function formatStatusLabel(status) {
-  if (!status) return 'N/A';
-  if (status === 'in-progress') return 'In Progress';
-  return status.charAt(0).toUpperCase() + status.slice(1);
+function getSubmittedLabel(request, tab, fallback = '—') {
+  const date = getMaintenanceRequestDate(request);
+  if (!date) return fallback;
+  return tab === 'current' ? formatRelativeTime(date) : formatDateAndTime(date);
 }
 
 function MaintenanceRequestCard({ request, tab, onOpen }) {
-  const theme = useTheme();
-
   return (
-    <Paper
-      variant="outlined"
+    <Box
       onClick={onOpen}
       sx={{
         p: 2,
-        borderRadius: 2,
         cursor: 'pointer',
-        borderColor: alpha(theme.palette.divider, 0.12),
-        bgcolor: alpha(theme.palette.background.paper, 0.72),
-        transition: 'border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease',
-        '&:active': { transform: 'scale(0.99)' },
-        '&:hover': {
-          borderColor: alpha(theme.palette.primary.main, 0.28),
-          boxShadow: `0 10px 26px ${alpha(theme.palette.primary.main, 0.12)}`
-        }
+        borderBottom: '1px solid',
+        borderColor: 'divider',
+        '&:last-child': { borderBottom: 0 },
+        '&:hover': { bgcolor: 'action.hover' }
       }}
     >
       <Stack spacing={1.25}>
@@ -177,49 +109,35 @@ function MaintenanceRequestCard({ request, tab, onOpen }) {
               onOpen();
             }}
             sx={{ color: 'text.secondary', mt: -0.5 }}
-            aria-label="View maintenance request"
+            aria-label={'View ' + (request.title || 'maintenance request')}
           >
             <EyeOutlined style={{ fontSize: 16 }} />
           </IconButton>
         </Stack>
 
-        <Stack direction="row" spacing={0.75} flexWrap="wrap" sx={{ rowGap: 0.75 }}>
+        {request.category && (
           <Chip
-            label={formatStatusLabel(request.status)}
-            color={getStatusColor(request.status)}
+            label={formatCategoryLabel(request.category)}
             size="small"
-            sx={{ fontSize: '0.72rem', height: 24, fontWeight: 700 }}
+            variant="outlined"
+            sx={{ alignSelf: 'flex-start', fontSize: '0.72rem', height: 24, maxWidth: '100%' }}
           />
-          <Chip
-            label={request.priority ? request.priority.charAt(0).toUpperCase() + request.priority.slice(1) : 'N/A'}
-            color={getPriorityColor(request.priority)}
-            size="small"
-            sx={{ fontSize: '0.72rem', height: 24, fontWeight: 700 }}
-          />
-          {request.category && (
-            <Chip
-              label={formatCategoryLabel(request.category)}
-              size="small"
-              variant="outlined"
-              sx={{ fontSize: '0.72rem', height: 24, maxWidth: '100%' }}
-            />
-          )}
-        </Stack>
-
-        <Divider />
+        )}
 
         <Stack direction="row" alignItems="center" spacing={1} color="text.secondary">
           <CalendarOutlined style={{ fontSize: 14 }} />
           <Typography variant="caption">
-            {request.createdAt
-              ? tab === 'current'
-                ? formatRelativeTime(request.createdAt)
-                : formatDateAndTime(request.createdAt)
-              : 'Submitted date unavailable'}
+            {getSubmittedLabel(request, tab, 'Submitted date unavailable')}
           </Typography>
         </Stack>
+        {request.location && (
+          <Stack direction="row" alignItems="center" spacing={1} color="text.secondary">
+            <EnvironmentOutlined />
+            <Typography variant="caption">{request.location}</Typography>
+          </Stack>
+        )}
       </Stack>
-    </Paper>
+    </Box>
   );
 }
 
@@ -229,136 +147,75 @@ export default function TenantMaintenance() {
   const navigate = useNavigate();
   const { maintenanceId } = useParams();
 
-  const [leases, setLeases] = useState([]);
-  const [selectedLeaseId, setSelectedLeaseId] = useState(null);
-  const [currentRequests, setCurrentRequests] = useState([]);
-  const [historyRequests, setHistoryRequests] = useState([]);
+  const [leaseSelection, setSelectedLeaseId] = useState(null);
   const [tab, setTab] = useState('current');
   const [search, setSearch] = useState('');
-  const [sortField, setSortField] = useState('createdAt');
-  const [sortOrder, setSortOrder] = useState('desc');
-  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
   const [agentDrawerOpen, setAgentDrawerOpen] = useState(false);
   const [agentFailed, setAgentFailed] = useState(false);
 
-  const [error, setError] = useState(null);
-
-  const selectedLease = useMemo(
-    () => leases.find((l) => l.id === selectedLeaseId) || null,
-    [leases, selectedLeaseId]
+  const userId = user?.id ?? user?.Id;
+  const { data: leases = [], isLoading: leasesLoading, error: leasesError } = useSWR(
+    userId ? ['tenant-maintenance-leases', userId] : null,
+    async () => {
+      const { data } = await getTenantMaintenanceLeases();
+      return data?.success && Array.isArray(data.data) ? data.data : [];
+    },
+    { revalidateOnFocus: false, shouldRetryOnError: false }
   );
+  const selectedLease = leases.find((lease) => lease.id === leaseSelection) ?? leases.find((lease) => lease.isActive) ?? leases[0];
+  const selectedLeaseId = selectedLease?.id ?? null;
+  const organizationId = getLeaseOrganizationId(selectedLease);
+  const { data: requests = [], isLoading: requestsLoading, error: requestsError, mutate: refreshRequests } = useSWR(
+    userId && organizationId ? ['tenant-maintenance-requests', userId, organizationId] : null,
+    async ([, , selectedOrganizationId]) => {
+      const result = await maintenanceWorkflowAPI.list(organizationRequestOptions(selectedOrganizationId));
+      if (!Array.isArray(result)) throw new Error('Maintenance response was incomplete.');
+      return result;
+    },
+    { revalidateOnFocus: false, shouldRetryOnError: false }
+  );
+  const loading = leasesLoading || requestsLoading;
+  const loadError = leasesError || requestsError;
+  const error = loadError && loadError.status !== 404
+    ? loadError.detail || loadError.message || 'Maintenance requests could not be loaded.'
+    : selectedLease && !organizationId ? 'The organization for this lease could not be verified.' : '';
+  const refetchRequests = () => refreshRequests().catch(() => {});
 
-  // Fetch leases + all requests
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+  const [current, history] = useMemo(() => {
+    if (!selectedLease) return [[], []];
+    const matching = requests.filter((request) => selectedLease.unitId
+      ? request.unitId === selectedLease.unitId
+      : request.propertyId === selectedLease.propertyId);
+    const isHistory = (request) => ['resolved', 'cancelled'].includes(normalizeWorkflowToken(request.status));
+    return [matching.filter((request) => !isHistory(request)), matching.filter(isHistory)];
+  }, [requests, selectedLease]);
 
-        const leasesResponse = await axiosServices.get('/api/lease/tenant/my-leases');
-        if (leasesResponse.data?.success && leasesResponse.data?.data) {
-          const all = leasesResponse.data.data;
-          setLeases(all);
-          const active = all.find((l) => l.isActive) || all[0];
-          if (active) setSelectedLeaseId(active.id);
-        }
+  const source = tab === 'current' ? current : history;
+  const sorted = useMemo(() => getMaintenanceRows(source, { search }), [source, search]);
+  const { page: visiblePage, pageCount, rows: visibleRows, start, end } = paginateRows(sorted, page, pageSize);
+  const hasSearch = Boolean(search.trim());
 
-        const requests = await maintenanceWorkflowAPI.list();
-        if (!Array.isArray(requests)) throw new Error('Maintenance response was incomplete.');
-        setCurrentRequests(requests.filter((item) => !['resolved', 'cancelled'].includes(normalizeWorkflowToken(item.status))));
-        setHistoryRequests(requests.filter((item) => ['resolved', 'cancelled'].includes(normalizeWorkflowToken(item.status))));
-
-      } catch (err) {
-        const status = err?.response?.status || err?.status;
-        if (status !== 404) {
-          setError(err?.response?.data?.message || err?.message || 'Failed to load data');
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (user?.Id || user?.id) fetchData();
-  }, [user]);
-
-  const refetchRequests = async () => {
-    try {
-      const requests = await maintenanceWorkflowAPI.list();
-      if (!Array.isArray(requests)) throw new Error('Maintenance response was incomplete.');
-      setCurrentRequests(requests.filter((item) => !['resolved', 'cancelled'].includes(normalizeWorkflowToken(item.status))));
-      setHistoryRequests(requests.filter((item) => ['resolved', 'cancelled'].includes(normalizeWorkflowToken(item.status))));
-    } catch (err) {
-      setError(err?.response?.data?.detail || err?.message || 'Maintenance requests could not be refreshed.');
-    }
+  const handleSearchChange = (event) => {
+    setSearch(event.target.value);
+    setPage(0);
   };
 
-  // Filter requests to the selected lease's unit
-  const filterByLease = (requests) => {
-    if (!selectedLease) return requests;
-    return requests.filter((r) => {
-      if (selectedLease.unitId) return r.unitId === selectedLease.unitId;
-      return r.propertyId === selectedLease.propertyId;
-    });
+  const handleLeaseChange = (leaseId) => {
+    setSelectedLeaseId(leaseId);
+    setPage(0);
   };
 
-  const source = filterByLease(tab === 'current' ? currentRequests : historyRequests);
-
-  // Search
-  const filtered = useMemo(() => {
-    if (!search.trim()) return source;
-    const q = search.toLowerCase();
-    return source.filter((r) =>
-      (r.title || '').toLowerCase().includes(q) ||
-      (r.description || '').toLowerCase().includes(q) ||
-      (r.category || '').toLowerCase().includes(q) ||
-      (r.status || '').toLowerCase().includes(q) ||
-      (r.priority || '').toLowerCase().includes(q)
-    );
-  }, [source, search]);
-
-  // Sort
-  const sorted = useMemo(() => {
-    const priorityWeight = { high: 3, medium: 2, low: 1 };
-    return [...filtered].sort((a, b) => {
-      let av, bv;
-      switch (sortField) {
-        case 'title':
-          av = (a.title || '').toLowerCase();
-          bv = (b.title || '').toLowerCase();
-          break;
-        case 'priority':
-          av = priorityWeight[a.priority] || 0;
-          bv = priorityWeight[b.priority] || 0;
-          break;
-        case 'status':
-          av = (a.status || '').toLowerCase();
-          bv = (b.status || '').toLowerCase();
-          break;
-        case 'category':
-          av = (a.category || '').toLowerCase();
-          bv = (b.category || '').toLowerCase();
-          break;
-        default: // createdAt
-          av = new Date(a.createdAt || 0).getTime();
-          bv = new Date(b.createdAt || 0).getTime();
-      }
-      if (sortOrder === 'asc') return av > bv ? 1 : av < bv ? -1 : 0;
-      return av < bv ? 1 : av > bv ? -1 : 0;
-    });
-  }, [filtered, sortField, sortOrder]);
-
-  const handleSort = (field) => {
-    if (sortField === field) {
-      setSortOrder((o) => (o === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSortField(field);
-      setSortOrder('desc');
-    }
+  const handleViewChange = (view) => {
+    setTab(view);
+    setPage(0);
   };
 
-  // Count helpers for tab labels
-  const currentCount = filterByLease(currentRequests).length;
-  const historyCount = filterByLease(historyRequests).length;
+  const handlePageSizeChange = (size) => {
+    setPageSize(size);
+    setPage(0);
+  };
 
   // ── Detail view ───────────────────────────────────────────────────────────────
   if (maintenanceId) {
@@ -405,323 +262,211 @@ export default function TenantMaintenance() {
     );
   }
 
-  // ── Main layout ───────────────────────────────────────────────────────────────
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', pb: { xs: 8, md: 0 } }}>
-      {/* Page header */}
-      <Box sx={{ mb: 2.5 }}>
-        <Typography variant="h4" fontWeight="bold" sx={{ fontSize: { xs: '1.6rem', sm: '2rem' } }}>Maintenance Requests</Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-          Submit and track maintenance requests across your properties.
+    <Box sx={{ pb: { xs: 3, md: 0 } }}>
+      <ManagementPageHeader
+        title="Maintenance Requests"
+        description="Submit and track maintenance requests for your leases."
+        showBreadcrumbs={false}
+        actions={
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<PlusOutlined />}
+            onClick={() => { setAgentFailed(false); setAgentDrawerOpen(true); }}
+            sx={{ ...managementPageHeaderActionSx, display: 'flex', ml: 'auto' }}
+          >
+            New request
+          </Button>
+        }
+      />
+
+      <Stack spacing={1.25} sx={{ mb: 2 }}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.1} alignItems={{ sm: 'center' }}>
+          <TenantLeaseFilter
+            leases={leases}
+            selectedLeaseId={selectedLeaseId}
+            onChange={handleLeaseChange}
+            labelInline
+            sx={{ flexShrink: 0 }}
+          />
+          <TextField
+            placeholder="Search requests by title, location, or description"
+            type="search"
+            size="small"
+            value={search}
+            onChange={handleSearchChange}
+            slotProps={{
+              htmlInput: { 'aria-label': 'Search maintenance requests' },
+              input: {
+                sx: filterControlSx,
+                startAdornment: <InputAdornment position="start"><SearchOutlined /></InputAdornment>
+              }
+            }}
+            sx={{ flex: 1, minWidth: 0 }}
+          />
+          <Select
+            size="small"
+            value={tab}
+            onChange={(event) => handleViewChange(event.target.value)}
+            inputProps={{ 'aria-label': 'View' }}
+            IconComponent={DownOutlined}
+            sx={{ ...filterControlSx, minWidth: { sm: 144 }, flexShrink: 0 }}
+          >
+            <MenuItem value="current">Current ({current.length})</MenuItem>
+            <MenuItem value="history">History ({history.length})</MenuItem>
+          </Select>
+        </Stack>
+
+        <Typography variant="body2" color="text.secondary" aria-live="polite">
+          {sorted.length} of {source.length} {source.length === 1 ? 'request' : 'requests'}
         </Typography>
-      </Box>
+      </Stack>
 
-      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: { xs: 2, md: 2.5 }, flex: 1, minHeight: 0, alignItems: 'flex-start' }}>
-        {/* ── Left: Property list ──────────────────────────────────────────────── */}
-        <Paper
-          variant="outlined"
-          sx={{
-            width: { xs: '100%', md: 260 },
-            flexShrink: 0,
-            borderRadius: 2,
-            border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-            bgcolor: alpha(theme.palette.background.paper, 0.6),
-            overflow: 'hidden',
-            position: { xs: 'relative', md: 'sticky' },
-            top: { md: 0 },
-            boxShadow: (t) => `0 0 20px ${alpha(t.palette.primary.main, 0.15)}`
-          }}
-        >
-          <Box sx={{ px: 2, py: 1.5, borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}` }}>
-            <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.6 }}>
-              {leases.length} {leases.length === 1 ? 'Property' : 'Properties'}
-            </Typography>
-          </Box>
-          <Stack
-            direction={{ xs: 'row', md: 'column' }}
-            spacing={0.5}
-            sx={{
-              p: 1,
-              overflowX: { xs: 'auto', md: 'visible' },
-              WebkitOverflowScrolling: 'touch',
-              '& > *': { minWidth: { xs: 224, md: 'auto' } }
-            }}
-          >
-            {leases.map((lease) => (
-              <LeaseListItem
-                key={lease.id}
-                lease={lease}
-                selected={lease.id === selectedLeaseId}
-                onClick={() => {
-                  setSelectedLeaseId(lease.id);
-                  setSearch('');
-                  setTab('current');
-                }}
-              />
-            ))}
-          </Stack>
-        </Paper>
+      <Paper
+        elevation={0}
+        sx={{
+          bgcolor: 'background.paper',
+          border: '1px solid',
+          borderColor: (t) => alpha(t.palette.divider, 0.16),
+          borderRadius: 3,
+          boxShadow: (t) => '0 8px 28px ' + alpha(t.palette.text.primary, 0.055),
+          overflow: 'hidden'
+        }}
+      >
+        {visibleRows.length > 0 ? (
+          <>
+            <TableContainer sx={{
+              display: { xs: 'none', md: 'block' },
+              border: 0,
+              borderRadius: 0,
+              '& .MuiTable-root': { tableLayout: 'fixed' }
+            }}>
+              <Table size="small" sx={getPortalListTableSx} aria-label="Maintenance requests">
+                <TableHead>
+                  <TableRow>
+                    <TableCell sx={{ width: '48%' }}>Request</TableCell>
+                    <TableCell sx={{ width: '27%' }}>Location</TableCell>
+                    <TableCell sx={{ width: '18%' }}>Submitted</TableCell>
+                    <TableCell sx={{ width: '7%' }} align="right" aria-label="Actions" />
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {visibleRows.map((request) => {
+                    const title = request.title || 'Maintenance request';
+                    const detailsPath = '/tenant/maintenance/' + request.id;
 
-        {/* ── Right: Requests table ────────────────────────────────────────────── */}
-        <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Paper
-            variant="outlined"
-            sx={{
-              borderRadius: 2,
-              border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-              bgcolor: alpha(theme.palette.background.paper, 0.6),
-              overflow: 'hidden',
-              boxShadow: (t) => `0 0 20px ${alpha(t.palette.primary.main, 0.15)}`
-            }}
-          >
-            {/* Panel header */}
-            <Stack
-              direction={{ xs: 'column', sm: 'row' }}
-              alignItems={{ xs: 'stretch', sm: 'center' }}
-              justifyContent="space-between"
-              spacing={1.5}
-              sx={{ px: { xs: 2, sm: 2.5 }, py: 2, borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}` }}
-            >
-              <Box sx={{ minWidth: 0 }}>
-                <Typography variant="subtitle1" fontWeight={700}>
-                  {selectedLease?.propertyName || 'Property'}
-                  {selectedLease?.unitName && !isDetachedSingleUnitType(selectedLease?.propertyType) && (
-                    <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 1 }}>
-                      · {selectedLease.unitName}
-                    </Typography>
-                  )}
-                </Typography>
-              </Box>
-              <Button
-                variant="contained"
-                size="small"
-                startIcon={<PlusOutlined />}
-                onClick={() => { setAgentFailed(false); setAgentDrawerOpen(true); }}
-                sx={{ textTransform: 'none', width: { xs: '100%', sm: 'auto' } }}
-              >
-                New Request
-              </Button>
-            </Stack>
-
-            {/* Search + Tabs */}
-            <Stack
-              direction={{ xs: 'column', sm: 'row' }}
-              alignItems={{ sm: 'center' }}
-              justifyContent="space-between"
-              spacing={1.5}
-              sx={{ px: { xs: 2, sm: 2.5 }, pt: 2, pb: 0 }}
-            >
-              <Box sx={{ borderBottom: 1, borderColor: 'divider', flex: 1, width: '100%' }}>
-                <Tabs value={tab} onChange={(_, v) => { setTab(v); setSearch(''); }} aria-label="maintenance tabs">
-                  <Tab label={`Current (${currentCount})`} value="current" sx={{ textTransform: 'none' }} />
-                  <Tab label={`History (${historyCount})`} value="history" sx={{ textTransform: 'none' }} />
-                </Tabs>
-              </Box>
-              <TextField
-                placeholder="Search..."
-                size="small"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchOutlined style={{ fontSize: 16, opacity: 0.55 }} />
-                    </InputAdornment>
-                  )
-                }}
-                sx={{ width: { xs: '100%', sm: 220 }, flexShrink: 0 }}
-              />
-            </Stack>
-
-            {/* Table */}
-            {sorted.length > 0 ? (
-              <>
-              <TableContainer sx={{ display: { xs: 'none', md: 'block' } }}>
-                <Table size="small" sx={{ tableLayout: 'fixed' }}>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell sx={{ width: '35%' }}>
-                        <TableSortLabel
-                          active={sortField === 'title'}
-                          direction={sortField === 'title' ? sortOrder : 'asc'}
-                          onClick={() => handleSort('title')}
-                        >
-                          Title
-                        </TableSortLabel>
-                      </TableCell>
-                      <TableCell sx={{ width: '15%' }}>
-                        <TableSortLabel
-                          active={sortField === 'category'}
-                          direction={sortField === 'category' ? sortOrder : 'asc'}
-                          onClick={() => handleSort('category')}
-                        >
-                          Category
-                        </TableSortLabel>
-                      </TableCell>
-                      <TableCell sx={{ width: '12%' }}>
-                        <TableSortLabel
-                          active={sortField === 'priority'}
-                          direction={sortField === 'priority' ? sortOrder : 'asc'}
-                          onClick={() => handleSort('priority')}
-                        >
-                          Priority
-                        </TableSortLabel>
-                      </TableCell>
-                      <TableCell sx={{ width: '13%' }}>
-                        <TableSortLabel
-                          active={sortField === 'status'}
-                          direction={sortField === 'status' ? sortOrder : 'asc'}
-                          onClick={() => handleSort('status')}
-                        >
-                          Status
-                        </TableSortLabel>
-                      </TableCell>
-                      <TableCell sx={{ width: '18%' }}>
-                        <TableSortLabel
-                          active={sortField === 'createdAt'}
-                          direction={sortField === 'createdAt' ? sortOrder : 'asc'}
-                          onClick={() => handleSort('createdAt')}
-                        >
-                          Submitted
-                        </TableSortLabel>
-                      </TableCell>
-                      <TableCell sx={{ width: '7%' }} />
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {sorted.map((request) => (
+                    return (
                       <TableRow
                         key={request.id}
                         hover
-                        sx={{
-                          cursor: 'pointer',
-                          '&:last-child td': { borderBottom: 0 }
-                        }}
-                        onClick={() => navigate(`/tenant/maintenance/${request.id}`)}
+                        sx={{ cursor: 'pointer', '&:last-child td': { borderBottom: 0 } }}
+                        onClick={() => navigate(detailsPath)}
                       >
-                        {/* Title + description snippet */}
-                        <TableCell sx={{ py: 1.5 }}>
-                          <Typography variant="body2" fontWeight={600} noWrap>
-                            {request.title || 'Maintenance Request'}
-                          </Typography>
-                          {request.description && (
-                            <Typography
-                              variant="caption"
-                              color="text.secondary"
-                              noWrap
-                              sx={{ display: 'block', mt: 0.25, maxWidth: '100%' }}
-                            >
-                              {request.description.length > 80
-                                ? `${request.description.substring(0, 80)}…`
-                                : request.description}
+                        <TableCell sx={{ py: 1.35 }}>
+                          <Stack direction="row" spacing={1.25} alignItems="center">
+                            <Avatar sx={{
+                              width: 38,
+                              height: 38,
+                              flexShrink: 0,
+                              bgcolor: (t) => alpha(t.palette.primary.main, 0.1),
+                              color: 'primary.main',
+                              fontSize: 17
+                            }}>
+                              <ToolOutlined aria-hidden="true" />
+                            </Avatar>
+                            <Box sx={{ minWidth: 0, flex: 1 }}>
+                              <Typography variant="body2" fontWeight={700} noWrap title={title}>
+                                {title}
+                              </Typography>
+                              {request.description && (
+                                <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block', mt: 0.25 }}>
+                                  {request.description}
+                                </Typography>
+                              )}
+                            </Box>
+                          </Stack>
+                        </TableCell>
+
+                        <TableCell sx={{ py: 1.35 }}>
+                          {request.location ? (
+                            <Stack direction="row" spacing={0.75} alignItems="center" color="text.secondary">
+                              <EnvironmentOutlined aria-hidden="true" />
+                              <Typography variant="body2" color="text.primary" noWrap title={request.location}>
+                                {request.location}
+                              </Typography>
+                            </Stack>
+                          ) : (
+                            <Typography variant="caption" color="text.secondary">
+                              {formatCategoryLabel(request.category)}
                             </Typography>
                           )}
                         </TableCell>
-
-                        {/* Category */}
-                        <TableCell sx={{ py: 1.5 }}>
-                          {request.category ? (
-                            <Chip
-                              label={formatCategoryLabel(request.category)}
-                              size="small"
-                              variant="outlined"
-                              sx={{ fontSize: '0.7rem', height: 22 }}
-                            />
-                          ) : (
-                            <Typography variant="caption" color="text.disabled">—</Typography>
-                          )}
+                        <TableCell>
+                          <Typography variant="caption" color="text.secondary">{getSubmittedLabel(request, tab)}</Typography>
                         </TableCell>
-
-                        {/* Priority */}
-                        <TableCell sx={{ py: 1.5 }}>
-                          <Chip
-                            label={request.priority ? request.priority.charAt(0).toUpperCase() + request.priority.slice(1) : 'N/A'}
-                            color={getPriorityColor(request.priority)}
-                            size="small"
-                            sx={{ fontSize: '0.7rem', height: 22, fontWeight: 600 }}
-                          />
-                        </TableCell>
-
-                        {/* Status */}
-                        <TableCell sx={{ py: 1.5 }}>
-                          <Chip
-                            label={formatStatusLabel(request.status)}
-                            color={getStatusColor(request.status)}
-                            size="small"
-                            sx={{ fontSize: '0.7rem', height: 22, fontWeight: 600 }}
-                          />
-                        </TableCell>
-
-                        {/* Date */}
-                        <TableCell sx={{ py: 1.5 }}>
-                          <Typography variant="caption" color="text.secondary">
-                            {request.createdAt
-                              ? tab === 'current'
-                                ? formatRelativeTime(request.createdAt)
-                                : formatDateAndTime(request.createdAt)
-                              : '—'}
-                          </Typography>
-                        </TableCell>
-
-                        {/* Action */}
-                        <TableCell sx={{ py: 1.5 }} align="center">
+                        <TableCell align="right">
                           <IconButton
                             size="small"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigate(`/tenant/maintenance/${request.id}`);
+                            aria-label={'View ' + title}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              navigate(detailsPath);
                             }}
                             sx={{ color: 'text.secondary' }}
                           >
-                            <EyeOutlined style={{ fontSize: 15 }} />
+                            <EyeOutlined />
                           </IconButton>
                         </TableCell>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-              <Stack spacing={1.25} sx={{ display: { xs: 'flex', md: 'none' }, p: 2 }}>
-                {sorted.map((request) => (
-                  <MaintenanceRequestCard
-                    key={request.id}
-                    request={request}
-                    tab={tab}
-                    onOpen={() => navigate(`/tenant/maintenance/${request.id}`)}
-                  />
-                ))}
-              </Stack>
-              </>
-            ) : (
-              <Box sx={{ textAlign: 'center', py: 8 }}>
-                <ToolOutlined style={{ fontSize: 48, color: theme.palette.text.disabled, marginBottom: 12 }} />
-                <Typography variant="body1" color="text.secondary" fontWeight={500}>
-                  {search ? 'No requests match your search' : `No ${tab === 'current' ? 'active' : 'completed'} requests for this property`}
-                </Typography>
-                {!search && tab === 'current' && (
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    startIcon={<PlusOutlined />}
-                    onClick={() => { setAgentFailed(false); setAgentDrawerOpen(true); }}
-                    sx={{ mt: 2, textTransform: 'none' }}
-                  >
-                    Submit a Request
-                  </Button>
-                )}
-              </Box>
-            )}
-          </Paper>
-        </Box>
-      </Box>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </TableContainer>
+
+            <Stack sx={{ display: { xs: 'flex', md: 'none' } }}>
+              {visibleRows.map((request) => (
+                <MaintenanceRequestCard
+                  key={request.id}
+                  request={request}
+                  tab={tab}
+                  onOpen={() => navigate('/tenant/maintenance/' + request.id)}
+                />
+              ))}
+            </Stack>
+
+            <PortalListPagination
+              page={visiblePage}
+              pageCount={pageCount}
+              pageSize={pageSize}
+              start={start}
+              end={end}
+              total={sorted.length}
+              onPageChange={setPage}
+              onPageSizeChange={handlePageSizeChange}
+            />
+          </>
+        ) : (
+          <Box sx={{ textAlign: 'center', px: 2, py: 7 }}>
+            <ToolOutlined style={{ fontSize: 32, color: theme.palette.text.disabled }} />
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>
+              {hasSearch ? 'No requests match your search.' : tab === 'current' ? 'No current requests for this lease.' : 'No past requests for this lease.'}
+            </Typography>
+          </Box>
+        )}
+      </Paper>
 
       {agentFailed ? <TenantMaintenanceFormDrawer
         open={agentDrawerOpen}
-        onClose={() => setAgentDrawerOpen(false)}
+        leaseId={selectedLease?.id}
         unitId={selectedLease?.unitId ?? null}
+        onClose={() => setAgentDrawerOpen(false)}
         onRequestCreated={refetchRequests}
       /> : <MaintenanceAgentDrawer
+        key={organizationId}
         open={agentDrawerOpen}
+        organizationId={organizationId}
         onClose={() => setAgentDrawerOpen(false)}
         onUnavailable={() => setAgentFailed(true)}
         onRequestCreated={refetchRequests}

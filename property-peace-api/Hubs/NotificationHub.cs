@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.SignalR;
 using System.Security.Claims;
+using brownstone_hub_api.Middleware;
 using brownstone_hub_api.Repositories.Users;
 using Microsoft.AspNetCore.Authorization;
 
@@ -12,6 +13,7 @@ namespace brownstone_hub_api.Hubs
     /// OPTIONS preflight requests are automatically allowed by CORS middleware (before authentication)
     /// </summary>
     [Authorize]
+    [OrganizationContextOptional]
     public class NotificationHub : Hub
     {
         private readonly IUserRepository _userRepository;

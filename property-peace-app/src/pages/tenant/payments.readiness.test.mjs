@@ -24,6 +24,23 @@ test('tenant dashboard payment and payment-method actions use Pay readiness', as
   assert.match(source, /\{canInvoke && paymentMethodModalOpen/);
   assert.match(source, /\{canInvoke && lease && \(\s*<PaymentModal/s);
 });
+
+test('dashboard Make Payment explains why it is disabled and leaves enabled payments without a tooltip', async () => {
+  const source = await dashboard();
+  const reasonFunction = source.match(/^function getMakePaymentDisabledReason\([\s\S]*?^\}/m)?.[0];
+  assert.ok(reasonFunction, 'Make Payment needs a reason for each disabled state');
+  const getReason = new Function(`${reasonFunction}\nreturn getMakePaymentDisabledReason;`)();
+  const ready = { canInvoke: true };
+  const unavailable = { canInvoke: false, presentation: { message: 'Online payments are unavailable.' } };
+
+  assert.equal(getReason({ ...unavailable, readiness: { blockers: ['connected_payee_missing'] } }, { totalAmountDue: 50 }),
+    'Your landlord hasn’t enabled online payments yet.');
+  assert.equal(getReason(unavailable, { totalAmountDue: 50 }), 'Online payments are unavailable.');
+  assert.equal(getReason(ready, null), 'Your rent balance is unavailable right now.');
+  assert.equal(getReason(ready, { totalAmountDue: 0 }), 'There’s no rent balance due.');
+  assert.equal(getReason(ready, { totalAmountDue: 50 }), '');
+  assert.match(source, /<Tooltip title=\{paymentDisabledReason\} describeChild>\s*<Box[\s\S]*?tabIndex=\{paymentDisabledReason \? 0 : undefined\}[\s\S]*?disabled=\{!canInvoke \|\| !paymentAllocation \|\| totalAmountDue <= 0\}[\s\S]*?Make Payment\s*<\/Button>/);
+});
 test('tenant payment modal independently fails closed before loading Stripe', async () => {
   const source = await modal();
   assert.match(source, /useRentPaymentActionReadiness\('Pay'/);

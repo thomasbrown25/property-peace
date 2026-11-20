@@ -166,7 +166,9 @@ export default function Notification() {
           navigate('/tenant/lease');
           break;
         case 'message':
-          navigate('/tenant/messages');
+          navigate(notification.relatedId
+            ? `/tenant/chat?conversationId=${encodeURIComponent(notification.relatedId)}`
+            : '/tenant/chat');
           break;
         case 'application':
           navigate('/tenant/applications');

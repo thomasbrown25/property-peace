@@ -15,6 +15,19 @@ test('admin drawer and standalone property onboarding remain route-scoped', () =
   assert.match(drawer, /variant="temporary"/);
 });
 
+test('tenant top bar links to tenant support immediately after Notifications at both widths', () => {
+  const header = source('../layout/Dashboard/Header/HeaderContent/index.jsx');
+  const mobile = source('../layout/Dashboard/Header/HeaderContent/MobileSection.jsx');
+  const routes = source('../routes/MainRoutes.jsx');
+
+  const actions = header.slice(header.indexOf("justifyContent: 'flex-end'"));
+  assert.match(actions, /<Message \/>\s*<Notification \/>\s*\{tenantPortal && \(\s*<Tooltip title="Support">\s*<IconButton component=\{Link\} to="\/tenant\/help" aria-label="Support"/);
+  assert.match(actions, /<\/Tooltip>\s*\)\}\s*\{!downMD && \(/);
+  assert.match(header, /\{downMD && <MobileSection \/>\}/);
+  assert.doesNotMatch(mobile, /<(?:Message|Notification)\b/);
+  assert.match(routes, /path: 'tenant\/help',\s*element: <Help \/>/);
+});
+
 test('landlord shell reserves one green property rail rather than two sidebars', () => {
   const layout = source('../layout/Dashboard/index.jsx');
   const header = source('../layout/Dashboard/Header/index.jsx');
@@ -34,6 +47,8 @@ test('desktop top bar has ordered landlord links, More, and icon search', () => 
   const primary = source('../layout/Dashboard/Header/HeaderContent/LandlordPrimaryNavigation.jsx');
   const more = source('../layout/Dashboard/Header/HeaderContent/TopNavigation.jsx');
   assert.match(content, /landlordPortal && <LandlordPrimaryNavigation \/>/);
+  assert.match(content, /'@media \(min-width: 1280px\)': \{ ml: 0, position: 'absolute', left: '50%', transform: 'translateX\(-50%\)' \}/);
+  assert.match(content, /'@media \(min-width: 1280px\)': \{ ml: 'auto' \}/);
   assert.match(content, /!hasTenantRole && <MobileSearch \/>[\s\S]*?<Message \/>/);
   assert.doesNotMatch(content, /<Search \/>/);
   assert.match(primary, /landlordPrimaryLinks\.map/);
@@ -61,7 +76,7 @@ test('properties are searchable, accessible, and scroll in the single green rail
     'placeholder="Search properties"', "'aria-label': 'Search properties'", '<HomeOutlined aria-hidden="true" />',
     'component="span" variant="caption"', "sx: { color: '#FFFFFF' }", 'aria-label="Add property"',
     'component="img" src={property.image}', 'No matching properties.',
-    'Loading properties…', 'Properties could not be loaded.', 'No properties yet.', 'ResizeObserver(updateOverflow)',
+    'ResizeObserver(updateOverflow)',
     "overflowY: 'auto'", 'maxWidth: \'90vw\'']) assert.ok(sidebar.includes(token), token);
   assert.match(sidebar, /<Box component=\{Link\} to="\/landlord\/properties"/);
   assert.doesNotMatch(sidebar, /primary="All properties"/);
@@ -73,10 +88,23 @@ test('properties are searchable, accessible, and scroll in the single green rail
   assert.match(sidebar, /renderPropertyNavigation\('desktop'\)/);
   assert.match(sidebar, /renderPropertyNavigation\('mobile'\)/);
   assert.match(sidebar, /aria-label="Search properties" title="Search properties"[\s\S]*?<SearchOutlined \/>[\s\S]*?aria-label="Add property"/);
-  assert.match(sidebar, /<Collapse in=\{searchOpen\} timeout=\{reducedMotion \? 0 : 240\} unmountOnExit/);
+  assert.match(sidebar, /\{!loading && <Collapse in=\{searchOpen\} timeout=\{reducedMotion \? 0 : 240\} unmountOnExit/);
   assert.match(sidebar, /onKeyDown=\{\(event\) => \{ if \(event\.key === 'Escape'\)/);
   assert.match(sidebar, /disabled=\{trialExpired\}/);
   assert.match(sidebar, /borderBottom: '1px solid', borderColor: 'rgba\(255, 255, 255, 0\.14\)'/);
   assert.match(sidebar, /borderTop: '1px solid rgba\(255, 255, 255, 0\.14\)'[\s\S]*?to="\/landlord\/settings"[\s\S]*?primary="Settings"/);
   assert.match(sidebar, /<SettingOutlined aria-hidden="true" \/>/);
+});
+
+test('the property rail keeps the count and rows hidden until the current list is ready', () => {
+  const sidebar = source('../layout/Dashboard/LandlordSidebar.jsx');
+  assert.ok(!/Loading properties|No properties yet/.test(sidebar), 'Loading and empty portfolios need no placeholder text');
+  assert.match(sidebar, /selectPropertiesLoadStatus\(state, organizationId\)/);
+  assert.match(sidebar, /const propertiesReady = propertiesStatus === 'ready'/);
+  assert.match(sidebar, /properties=\{propertiesReady \? visibleProperties : \[\]\} total=\{propertiesReady \? propertyRows\.length : null\}/);
+  assert.match(sidebar, /loading=\{propertiesStatus === 'pending'\}/);
+  assert.match(sidebar, /total != null && <Typography component="span"/);
+  assert.match(sidebar, /\{!loading && <Box[^\n]*\n\s*<IconButton ref=\{searchButtonRef\}/);
+  assert.match(sidebar, /status=\{propertiesStatus === 'failed' \? 'Failed to load properties' : propertiesReady && propertyRows\.length \? 'No matching properties\.' : null\}/);
+  assert.match(sidebar, /!properties\.length && status && <Typography role="status"/);
 });

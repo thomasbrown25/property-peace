@@ -22,7 +22,7 @@ export default function LeaseChargeList({ charges, rentBalance, loading, error, 
       <Box sx={{ px: 2.5, py: 2, borderBottom: 1, borderColor: 'divider' }}>
         <Typography fontWeight={700}>Accumulated rent balance</Typography>
         <Typography variant="h6" fontWeight={700}>{rentBalance == null ? 'Unavailable' : formatCurrency(rentBalance)}</Typography>
-        <Typography variant="caption" color="text.secondary">All accrued unpaid rent for this lease. Pay rent using the lease-wide Make Payment action below.</Typography>
+        <Typography variant="caption" color="text.secondary">All accrued unpaid rent for this lease. Pay rent using the lease-wide Make Payment action.</Typography>
       </Box>
       {loading ? <Box role="status" aria-label="Loading charges" sx={{ p: 4, textAlign: 'center' }}><CircularProgress size={26} /></Box>
         : error ? <Alert severity="warning" action={onRetry && <Button color="inherit" onClick={onRetry}>Try again</Button>} sx={{ m: 2 }}>

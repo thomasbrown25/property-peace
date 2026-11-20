@@ -7,9 +7,10 @@ import {
 } from '@mui/material';
 import { CheckCircleOutlined, CloseOutlined, CloudUploadOutlined, DeleteOutlined, HomeOutlined, PlusOutlined } from '@ant-design/icons';
 import ThemeAdaptiveDrawer from 'components/drawers/shared/ThemeAdaptiveDrawer';
-import axiosServices from 'utils/axios';
-import { maintenanceWorkflowAPI, maintenanceProblemMessage, newMaintenanceIdempotencyKey } from 'api/maintenanceWorkflow';
+import { getStatusPillSx } from 'themes/statusPillStyles';
+import { getTenantMaintenanceLeases, maintenanceWorkflowAPI, maintenanceProblemMessage, newMaintenanceIdempotencyKey } from 'api/maintenanceWorkflow';
 import { buildCreateMaintenancePayload, classifySignals, createEvidenceUploadEntries, emergencyInstructions, evidenceSelection, MAINTENANCE_EVIDENCE_TYPES, MAINTENANCE_SIGNALS, slaState, uploadPendingEvidence } from 'utils/maintenanceWorkflow';
+import { getLeaseOrganizationId, organizationRequestOptions } from 'pages/tenant/tenantDocumentScope.mjs';
 
 const STEPS = ['Issue', 'Safety', 'Access', 'Evidence', 'Review'];
 const CATEGORIES = ['Plumbing', 'Electrical', 'HVAC', 'Appliance', 'Locks & security', 'Pest', 'Structural', 'General repair'];
@@ -20,7 +21,7 @@ function FieldSummary({ label, children, onEdit }) {
   return <Box sx={{ p: 1.5, border: '1px solid', borderColor: 'divider', borderRadius: 1.5 }}><Stack direction="row" justifyContent="space-between" spacing={1}><Box><Typography variant="caption" color="text.secondary" fontWeight={700}>{label}</Typography><Box sx={{ mt: 0.35 }}>{children}</Box></Box><Button size="small" onClick={onEdit}>Edit</Button></Stack></Box>;
 }
 
-export default function TenantMaintenanceFormDrawer({ open, onClose, onRequestCreated, unitId }) {
+export default function TenantMaintenanceFormDrawer({ open, onClose, onRequestCreated, leaseId, unitId }) {
   const theme = useTheme(); const inputRef = useRef(null); const createKeyRef = useRef(null);
   const [step, setStep] = useState(0); const [leases, setLeases] = useState([]); const [loadingLeases, setLoadingLeases] = useState(false);
   const [intake, setIntake] = useState(() => initialIntake(unitId)); const [submitting, setSubmitting] = useState(false);
@@ -29,23 +30,29 @@ export default function TenantMaintenanceFormDrawer({ open, onClose, onRequestCr
 
   useEffect(() => {
     if (!open) return; setLoadingLeases(true); setError('');
-    axiosServices.get('/api/lease/tenant/my-leases').then((response) => {
+    getTenantMaintenanceLeases().then((response) => {
       const rows = response.data?.success && Array.isArray(response.data?.data)
         ? response.data.data.filter((lease) => lease.id && lease.propertyId && lease.unitId)
         : null;
       if (!rows) throw new Error('Lease response was incomplete.');
       setLeases(rows);
-      const selected = rows.find((lease) => Number(lease.unitId) === Number(unitId)) || (rows.length === 1 ? rows[0] : null);
+      const selected = rows.find((lease) => Number(lease.id) === Number(leaseId)) ||
+        rows.find((lease) => Number(lease.unitId) === Number(unitId)) ||
+        (rows.length === 1 ? rows[0] : null);
       if (selected) setIntake((current) => ({ ...current, leaseId: selected.id, propertyId: selected.propertyId, unitId: selected.unitId }));
       if (!rows.length) setError('No lease with a property and unit is available for maintenance reporting.');
     }).catch(() => { setLeases([]); setError('Your leases could not be loaded. Property and unit selection is unavailable; no placeholder location will be submitted.'); }).finally(() => setLoadingLeases(false));
-  }, [open, unitId]);
+  }, [open, leaseId, unitId]);
 
   useEffect(() => () => intake.files.forEach((item) => URL.revokeObjectURL(item.preview)), [intake.files]);
   const selectedLease = leases.find((lease) => Number(lease.id) === Number(intake.leaseId));
+  const selectedLeaseRequestOptions = selectedLease
+    ? organizationRequestOptions(getLeaseOrganizationId(selectedLease))
+    : undefined;
   const urgency = classifySignals(intake.signals); const emergency = emergencyInstructions(intake.signals);
+  const urgencyTone = urgency === 'Emergency' ? 'error' : urgency === 'Urgent' ? 'warning' : 'success';
   const validWindows = intake.preferredWindows.every((window) => window.startsAtUtc && window.endsAtUtc && new Date(window.endsAtUtc) > new Date(window.startsAtUtc));
-  const canNext = [Boolean(intake.leaseId && intake.propertyId && intake.unitId && intake.category && intake.location.trim() && intake.description.trim().length >= 10), true, validWindows, true, true][step];
+  const canNext = [Boolean(!loadingLeases && selectedLeaseRequestOptions && intake.leaseId && intake.propertyId && intake.unitId && intake.category && intake.location.trim() && intake.description.trim().length >= 10), true, validWindows, true, true][step];
 
   const resetAndClose = () => { intake.files.forEach((item) => URL.revokeObjectURL(item.preview)); setStep(0); setIntake(initialIntake(unitId)); setReceipt(null); setError(''); setUploadFailures([]); onClose(); };
   const toggleSignal = (value) => update('signals', intake.signals.includes(value) ? intake.signals.filter((item) => item !== value) : [...intake.signals, value]);
@@ -59,16 +66,20 @@ export default function TenantMaintenanceFormDrawer({ open, onClose, onRequestCr
   const setWindow = (index, key, value) => update('preferredWindows', intake.preferredWindows.map((window, itemIndex) => itemIndex === index ? { ...window, [key]: value } : window));
 
   const uploadIntakeEvidence = async (requestId, entries = intake.files) => {
-    const next = await uploadPendingEvidence(entries, (file, key) => maintenanceWorkflowAPI.uploadAttachment(requestId, 'Intake', file, key));
+    const next = await uploadPendingEvidence(entries, (file, key) => maintenanceWorkflowAPI.uploadAttachment(requestId, 'Intake', file, key, selectedLeaseRequestOptions));
     setIntake((current) => ({ ...current, files: next.map((entry, index) => ({ ...entry, preview: entries[index].preview })) }));
     setUploadFailures(next.filter((item) => item.status === 'failed').map((item) => item.file.name));
     return next;
   };
   const submit = async () => {
+    if (loadingLeases || !selectedLeaseRequestOptions) {
+      setError('Choose a valid lease before submitting this maintenance request.');
+      return;
+    }
     setSubmitting(true); setError(''); setUploadFailures([]);
     try {
       createKeyRef.current ||= newMaintenanceIdempotencyKey();
-      const created = await maintenanceWorkflowAPI.create(buildCreateMaintenancePayload(intake), createKeyRef.current);
+      const created = await maintenanceWorkflowAPI.create(buildCreateMaintenancePayload(intake), createKeyRef.current, selectedLeaseRequestOptions);
       await uploadIntakeEvidence(created.id);
       createKeyRef.current = null; setReceipt(created); onRequestCreated?.(created);
     } catch (requestError) { setError(maintenanceProblemMessage(requestError, 'Request submission failed. Review the information and try again.')); }
@@ -88,7 +99,7 @@ export default function TenantMaintenanceFormDrawer({ open, onClose, onRequestCr
           <CheckCircleOutlined style={{ fontSize: 58, color: theme.palette.success.main }} />
           <Box><Typography variant="h4" fontWeight={800}>Request received</Typography><Typography color="text.secondary" sx={{ mt: .5 }}>Receipt MR-{receipt.id}. Keep this number for follow-up.</Typography></Box>
           <Paper variant="outlined" sx={{ p: 2, width: '100%', borderRadius: 2, textAlign: 'left' }}>
-            <Stack spacing={1}><Typography fontWeight={750}>{receipt.title}</Typography><Stack direction="row" spacing={1}><Chip label={receipt.urgency || urgency} color={urgency === 'Emergency' ? 'error' : urgency === 'Urgent' ? 'warning' : 'success'} /><Chip label={receipt.status || 'Reported'} variant="outlined" /></Stack>
+            <Stack spacing={1}><Typography fontWeight={750}>{receipt.title}</Typography><Stack direction="row" spacing={1}><Chip size="small" label={receipt.urgency || urgency} sx={(theme) => getStatusPillSx(theme, urgencyTone)} /><Chip size="small" label={receipt.status || 'Reported'} sx={(theme) => getStatusPillSx(theme)} /></Stack>
             <Divider /><Typography variant="body2"><b>Acknowledgement target:</b> {receipt.acknowledgeByUtc ? new Date(receipt.acknowledgeByUtc).toLocaleString() : 'Your property team will follow up.'}</Typography><Typography variant="caption" color={slaState(receipt.acknowledgeByUtc).tone === 'error' ? 'error' : 'text.secondary'}>{slaState(receipt.acknowledgeByUtc).label}</Typography></Stack>
           </Paper>
           {uploadFailures.length > 0 && <Alert severity="warning">Request saved, but these files did not upload: {uploadFailures.join(', ')}. The files remain here for an in-place retry.<Button size="small" onClick={() => uploadIntakeEvidence(receipt.id)} disabled={submitting} sx={{ ml: 1 }}>Retry failed uploads</Button></Alert>}
@@ -105,7 +116,7 @@ export default function TenantMaintenanceFormDrawer({ open, onClose, onRequestCr
           {step === 1 && <Stack spacing={2}>
             <Box><Typography variant="h6" fontWeight={750}>Safety and severity signals</Typography><Typography variant="body2" color="text.secondary">Select every condition that is true. Leave all clear for a routine issue.</Typography></Box>
             {emergency && <Alert severity="error" variant="filled"><Typography fontWeight={800}>{emergency.title}</Typography>{emergency.body}</Alert>}
-            <Stack spacing={.5}>{MAINTENANCE_SIGNALS.map((signal) => <FormControlLabel key={signal.value} control={<Checkbox checked={intake.signals.includes(signal.value)} onChange={() => toggleSignal(signal.value)} />} label={<Stack direction="row" spacing={1} alignItems="center"><span>{signal.label}</span><Chip size="small" label={signal.urgency} color={signal.urgency === 'emergency' ? 'error' : 'warning'} variant="outlined" /></Stack>} />)}</Stack>
+            <Stack spacing={.5}>{MAINTENANCE_SIGNALS.map((signal) => <FormControlLabel key={signal.value} control={<Checkbox checked={intake.signals.includes(signal.value)} onChange={() => toggleSignal(signal.value)} />} label={<Stack direction="row" spacing={1} alignItems="center"><span>{signal.label}</span><Chip size="small" label={signal.urgency} sx={(theme) => getStatusPillSx(theme, signal.urgency === 'emergency' ? 'error' : 'warning')} /></Stack>} />)}</Stack>
             <Alert severity={urgency === 'Emergency' ? 'error' : urgency === 'Urgent' ? 'warning' : 'info'}>Deterministic intake classification: <b>{urgency}</b>. The server applies the same signal precedence.</Alert>
           </Stack>}
           {step === 2 && <Stack spacing={2}>
@@ -127,7 +138,7 @@ export default function TenantMaintenanceFormDrawer({ open, onClose, onRequestCr
             {emergency && <Alert severity="error"><b>{emergency.title}.</b> {emergency.body}</Alert>}
             <FieldSummary label="PROPERTY · CATEGORY" onEdit={() => setStep(0)}><Typography>{selectedLease?.propertyName || 'Property'}{selectedLease?.unitName ? ` · ${selectedLease.unitName}` : ''} · {intake.category}</Typography></FieldSummary>
             <FieldSummary label="LOCATION · DESCRIPTION" onEdit={() => setStep(0)}><Typography fontWeight={650}>{intake.location}</Typography><Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{intake.description}</Typography></FieldSummary>
-            <FieldSummary label="SEVERITY" onEdit={() => setStep(1)}><Stack direction="row" spacing={.75} flexWrap="wrap" useFlexGap><Chip label={urgency} color={urgency === 'Emergency' ? 'error' : urgency === 'Urgent' ? 'warning' : 'success'} />{intake.signals.map((signal) => <Chip key={signal} label={MAINTENANCE_SIGNALS.find((item) => item.value === signal)?.label} variant="outlined" />)}</Stack></FieldSummary>
+            <FieldSummary label="SEVERITY" onEdit={() => setStep(1)}><Stack direction="row" spacing={.75} flexWrap="wrap" useFlexGap><Chip size="small" label={urgency} sx={(theme) => getStatusPillSx(theme, urgencyTone)} />{intake.signals.map((signal) => <Chip key={signal} size="small" label={MAINTENANCE_SIGNALS.find((item) => item.value === signal)?.label} sx={(theme) => getStatusPillSx(theme)} />)}</Stack></FieldSummary>
             <FieldSummary label="ACCESS" onEdit={() => setStep(2)}><Typography>{intake.accessPermission === 'yes' ? 'Entry permitted' : intake.accessPermission === 'contact' ? 'Contact before entry' : 'Tenant must be present'} · {intake.hasPets ? intake.petDetails || 'Pets present' : 'No pets reported'} · {intake.preferredWindows.length} preferred time(s)</Typography></FieldSummary>
             <FieldSummary label="EVIDENCE" onEdit={() => setStep(3)}><Typography>{intake.files.length} photo/video file(s)</Typography></FieldSummary>
           </Stack>}
@@ -139,4 +150,4 @@ export default function TenantMaintenanceFormDrawer({ open, onClose, onRequestCr
 }
 
 FieldSummary.propTypes = { label: PropTypes.string.isRequired, children: PropTypes.node.isRequired, onEdit: PropTypes.func.isRequired };
-TenantMaintenanceFormDrawer.propTypes = { open: PropTypes.bool.isRequired, onClose: PropTypes.func.isRequired, onRequestCreated: PropTypes.func, unitId: PropTypes.number };
+TenantMaintenanceFormDrawer.propTypes = { open: PropTypes.bool.isRequired, onClose: PropTypes.func.isRequired, onRequestCreated: PropTypes.func, leaseId: PropTypes.number, unitId: PropTypes.number };

@@ -16,3 +16,10 @@ test('portal filters API documents before merging generated agreements and expli
   assert.match(source, /isPrivate: false/);
   assert.match(source, /getLeaseAgreement/);
 });
+
+test('portal reads tenant documents and agreements in the organization scope of each lease', () => {
+  assert.match(source, /tenantDocumentContexts\(leases, userId\)/);
+  assert.match(source, /getTenantDocumentsByTenant\(context\.tenantId, organizationRequestOptions\(context\.organizationId\)\)/);
+  assert.match(source, /filter\(\(\{ organizationId \}\) => organizationId !== undefined && organizationId !== null\)/);
+  assert.match(source, /getLeaseAgreement\(getLeaseId\(lease\), organizationRequestOptions\(organizationId\)\)/);
+});

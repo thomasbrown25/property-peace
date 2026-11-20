@@ -1,6 +1,7 @@
 using brownstone_hub_api.Data;
 using brownstone_hub_api.Dtos.MaintenanceAgent;
 using brownstone_hub_api.Helpers;
+using brownstone_hub_api.Middleware;
 using brownstone_hub_api.Repositories.Users;
 using brownstone_hub_api.Services.MaintenanceAgentService;
 using Microsoft.AspNetCore.Authorization;
@@ -24,11 +25,16 @@ namespace brownstone_hub_api.Controllers
         private readonly ILogger<MaintenanceAgentController> _logger = logger;
 
         [HttpPost("chat")]
+        [TenantSelfOrganization]
         public async Task<IActionResult> Chat([FromBody] MaintenanceAgentChatRequestDto request, CancellationToken cancellationToken)
         {
             try
             {
-                var response = await _maintenanceAgentService.ChatAsync(request.Messages, cancellationToken);
+                var organizationId = this.GetCurrentOrganizationIdOrForbid();
+                if (!organizationId.HasValue)
+                    return Forbid();
+
+                var response = await _maintenanceAgentService.ChatAsync(request.Messages, organizationId.Value, cancellationToken);
                 return Ok(new { success = true, data = response });
             }
             catch (Exception ex)

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.SignalR;
 using System.Security.Claims;
+using brownstone_hub_api.Middleware;
 using brownstone_hub_api.Repositories.Users;
 using brownstone_hub_api.Repositories.Conversations;
 using Microsoft.AspNetCore.Authorization;
@@ -11,6 +12,7 @@ namespace brownstone_hub_api.Hubs
     /// Users connect to groups based on their user ID and conversation IDs
     /// </summary>
     [Authorize]
+    [TenantSelfOrganization(allowPersonalHubConnection: true)]
     public class ConversationHub : Hub
     {
         private readonly IUserRepository _userRepository;
@@ -38,19 +40,19 @@ namespace brownstone_hub_api.Hubs
         {
             try
             {
-                var scope = GetValidatedOrganizationScope();
-                if (scope.HasValue)
+                var httpContext = _httpContextAccessor.HttpContext;
+                if (httpContext?.Items["UserId"] is long userId && userId > 0)
                 {
                     // Join a group named after the user ID
-                    var groupName = $"user_{scope.Value.UserId}";
+                    var groupName = $"user_{userId}";
                     await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
                     _logger.LogInformation("User {UserId} connected to ConversationHub for organization {OrganizationId} with connection {ConnectionId} and joined group {GroupName}",
-                        scope.Value.UserId, scope.Value.OrganizationId, Context.ConnectionId, groupName);
+                        userId, httpContext.Items["OrganizationId"], Context.ConnectionId, groupName);
                     await base.OnConnectedAsync();
                 }
                 else
                 {
-                    _logger.LogWarning("User connected to ConversationHub without a validated active organization. Connection {ConnectionId}",
+                    _logger.LogWarning("User connected to ConversationHub without a validated user ID. Connection {ConnectionId}",
                         Context.ConnectionId);
                     Context.Abort();
                 }

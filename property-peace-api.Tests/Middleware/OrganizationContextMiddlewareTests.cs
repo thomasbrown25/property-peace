@@ -1,12 +1,18 @@
 using System.Security.Claims;
+using brownstone_hub_api.Controllers;
+using brownstone_hub_api.Hubs;
 using brownstone_hub_api.Middleware;
 using brownstone_hub_api.Models;
 using brownstone_hub_api.Repositories.Users;
 using brownstone_hub_api.Security;
 using FluentAssertions;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.Routing.Patterns;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
@@ -18,6 +24,180 @@ public sealed class OrganizationContextMiddlewareTests
     private const long UserId = 42;
     private const long PersistedOrganizationId = 101;
     private const long RequestedOrganizationId = 202;
+
+    [Theory]
+    [InlineData(nameof(TenantDocumentController.GetDocumentsByTenant), PersistedOrganizationId, null, true, true)]
+    [InlineData(nameof(TenantDocumentController.GetDocumentsByTenant), RequestedOrganizationId, null, true, false)]
+    [InlineData(nameof(TenantDocumentController.GetLeaseAgreement), PersistedOrganizationId, null, true, true)]
+    [InlineData(nameof(TenantDocumentController.GetLeaseAgreement), PersistedOrganizationId, null, false, false)]
+    [InlineData(nameof(TenantDocumentController.GetLeaseAgreement), RequestedOrganizationId, null, true, false)]
+    [InlineData(nameof(TenantDocumentController.GetLeaseAgreement), PersistedOrganizationId, "Landlord", true, false)]
+    [InlineData(nameof(TenantDocumentController.GetDocumentsByTenant), PersistedOrganizationId, "Admin", true, false)]
+    public async Task DocumentReadsUseLeaseAuthorityOnlyForTenantPortalUsers(
+        string action, long organizationId, string? staffRole, bool ownsLease, bool allowed)
+    {
+        const long leaseId = 136;
+        var fixture = CreateFixture(organizationId.ToString());
+        var method = typeof(TenantDocumentController).GetMethod(action)!;
+        var attributes = method.GetCustomAttributes(true);
+        var route = attributes.OfType<HttpGetAttribute>().Single().Template;
+        fixture.Context.SetEndpoint(new RouteEndpoint(_ => Task.CompletedTask,
+            RoutePatternFactory.Parse($"api/TenantDocument/{route}"), 0,
+            new EndpointMetadataCollection(attributes), action));
+        if (action == nameof(TenantDocumentController.GetLeaseAgreement))
+            fixture.Context.Request.RouteValues["leaseId"] = leaseId;
+
+        fixture.Authority.Setup(x => x.HasActiveMembershipAsync(UserId, organizationId, fixture.Context.RequestAborted))
+            .ReturnsAsync(false);
+        if (staffRole is not null)
+        {
+            ((ClaimsIdentity)fixture.Context.User.Identity!).AddClaim(new Claim(ClaimTypes.Role, staffRole));
+        }
+        else
+        {
+            fixture.Authority.Setup(x => x.GetTenantLeaseOrganizationIdsAsync(UserId, fixture.Context.RequestAborted))
+                .ReturnsAsync([PersistedOrganizationId]);
+            fixture.Authority.Setup(x => x.HasTenantLeaseInOrganizationAsync(
+                    UserId, leaseId, PersistedOrganizationId, fixture.Context.RequestAborted))
+                .ReturnsAsync(ownsLease);
+        }
+
+        await fixture.InvokeAsync();
+
+        fixture.NextWasCalled.Should().Be(allowed);
+        if (allowed)
+        {
+            fixture.Context.Items["OrganizationId"].Should().Be(organizationId);
+            fixture.Context.Items["UserId"].Should().Be(UserId);
+        }
+        else
+        {
+            fixture.Context.Response.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
+            fixture.Context.Items.Should().NotContainKey("OrganizationId");
+        }
+        if (staffRole is null)
+            fixture.Authority.Verify(x => x.HasActiveMembershipAsync(UserId, organizationId, fixture.Context.RequestAborted), Times.Never);
+        else
+            fixture.Authority.Verify(x => x.HasActiveMembershipAsync(UserId, organizationId, fixture.Context.RequestAborted), Times.Once);
+    }
+
+    [Theory]
+    [InlineData(null, true)]
+    [InlineData("Landlord", false)]
+    [InlineData("Admin", false)]
+    public async Task TenantOnlyOptionalOrganizationPreservesMembershipForOtherPortalRoles(string? otherRole, bool allowed)
+    {
+        var fixture = CreateFixture("101");
+        fixture.Context.SetEndpoint(new RouteEndpoint(_ => Task.CompletedTask,
+            RoutePatternFactory.Parse("api/subscription/status"), 0,
+            new EndpointMetadataCollection(new OrganizationContextOptionalAttribute(tenantOnly: true)), "subscription status"));
+        if (otherRole is not null)
+        {
+            ((ClaimsIdentity)fixture.Context.User.Identity!).AddClaim(new Claim(ClaimTypes.Role, otherRole));
+            fixture.Authority.Setup(x => x.HasActiveMembershipAsync(UserId, PersistedOrganizationId, fixture.Context.RequestAborted))
+                .ReturnsAsync(false);
+        }
+
+        await fixture.InvokeAsync();
+
+        fixture.NextWasCalled.Should().Be(allowed);
+        fixture.Context.Items.Should().NotContainKey("OrganizationId");
+        if (allowed) fixture.Context.Items["UserId"].Should().Be(UserId);
+        else fixture.Context.Response.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
+    }
+
+    [Theory]
+    [InlineData("/notificationHub")]
+    [InlineData("/notificationHub/negotiate")]
+    public async Task NotificationHubUsesAuthenticatedUserWithoutOrganizationMembership(string path)
+    {
+        var fixture = CreateFixture("101");
+        await using var app = CreateHubEndpoints<NotificationHub>("/notificationHub");
+        fixture.Context.SetEndpoint(GetHubEndpoint(app, path));
+
+        await fixture.InvokeAsync();
+
+        fixture.NextWasCalled.Should().BeTrue();
+        fixture.Context.Items["UserId"].Should().Be(UserId);
+        fixture.Context.Items.Should().NotContainKey("OrganizationId");
+        fixture.Authority.VerifyNoOtherCalls();
+    }
+
+    [Theory]
+    [InlineData("/conversationHub")]
+    [InlineData("/conversationHub/negotiate")]
+    public async Task ConversationHubUsesLeaseOrganizationForTenantWithoutTeamMembership(string path)
+    {
+        var fixture = CreateFixture();
+        await using var app = CreateHubEndpoints<ConversationHub>("/conversationHub");
+        fixture.Context.SetEndpoint(GetHubEndpoint(app, path));
+        fixture.Authority.Setup(x => x.GetTenantLeaseOrganizationIdsAsync(UserId, fixture.Context.RequestAborted))
+            .ReturnsAsync([PersistedOrganizationId]);
+
+        await fixture.InvokeAsync();
+
+        fixture.NextWasCalled.Should().BeTrue();
+        fixture.Context.Items["UserId"].Should().Be(UserId);
+        fixture.Context.Items["OrganizationId"].Should().Be(PersistedOrganizationId);
+    }
+
+    [Theory]
+    [InlineData(PersistedOrganizationId, PersistedOrganizationId)]
+    [InlineData(303L, null)]
+    public async Task HeaderlessConversationHubOnlyUsesPersistedOrganizationWhenVerifiedByALease(long persistedId, long? expectedOrg)
+    {
+        var fixture = CreateFixture();
+        await using var app = CreateHubEndpoints<ConversationHub>("/conversationHub");
+        fixture.Context.SetEndpoint(GetHubEndpoint(app, "/conversationHub/negotiate"));
+        fixture.Users.Setup(x => x.GetUser(UserId)).ReturnsAsync(new User { Id = UserId, CurrentOrganizationId = persistedId });
+        fixture.Authority.Setup(x => x.GetTenantLeaseOrganizationIdsAsync(UserId, fixture.Context.RequestAborted))
+            .ReturnsAsync([PersistedOrganizationId, RequestedOrganizationId]);
+
+        await fixture.InvokeAsync();
+
+        fixture.NextWasCalled.Should().BeTrue();
+        fixture.Context.Items["UserId"].Should().Be(UserId);
+        fixture.Context.Items["OrganizationId"].Should().Be(expectedOrg);
+    }
+
+    [Theory]
+    [InlineData(null, true)]
+    [InlineData("202", false)]
+    public async Task ConversationHubWithoutALeaseAllowsOnlyPersonalConnectionWithoutAnExplicitOrganization(string? header, bool allowed)
+    {
+        var fixture = CreateFixture(header);
+        await using var app = CreateHubEndpoints<ConversationHub>("/conversationHub");
+        fixture.Context.SetEndpoint(GetHubEndpoint(app, "/conversationHub/negotiate"));
+        fixture.Authority.Setup(x => x.GetTenantLeaseOrganizationIdsAsync(UserId, fixture.Context.RequestAborted))
+            .ReturnsAsync([]);
+
+        await fixture.InvokeAsync();
+
+        fixture.NextWasCalled.Should().Be(allowed);
+        fixture.Context.Items.Should().NotContainKey("OrganizationId");
+        if (allowed) fixture.Context.Items["UserId"].Should().Be(UserId);
+        else
+        {
+            fixture.Context.Response.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
+            fixture.Context.Items.Should().NotContainKey("UserId");
+        }
+    }
+
+    [Fact]
+    public async Task ConversationHubStillRequiresMembershipForTenantWithALandlordRole()
+    {
+        var fixture = CreateFixture("101");
+        ((ClaimsIdentity)fixture.Context.User.Identity!).AddClaim(new Claim(ClaimTypes.Role, "Landlord"));
+        await using var app = CreateHubEndpoints<ConversationHub>("/conversationHub");
+        fixture.Context.SetEndpoint(GetHubEndpoint(app, "/conversationHub/negotiate"));
+        fixture.Authority.Setup(x => x.HasActiveMembershipAsync(UserId, PersistedOrganizationId, fixture.Context.RequestAborted))
+            .ReturnsAsync(false);
+
+        await fixture.InvokeAsync();
+
+        fixture.Context.Response.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
+        fixture.NextWasCalled.Should().BeFalse();
+    }
 
     [Theory]
     [InlineData("Viewer", false)]
@@ -211,6 +391,19 @@ public sealed class OrganizationContextMiddlewareTests
         fixture.Context.Response.StatusCode.Should().NotBe(StatusCodes.Status500InternalServerError);
         fixture.NextWasCalled.Should().BeFalse();
     }
+
+    private static WebApplication CreateHubEndpoints<THub>(string path) where THub : Hub
+    {
+        var builder = WebApplication.CreateBuilder();
+        builder.Services.AddSignalR();
+        var app = builder.Build();
+        app.MapHub<THub>(path);
+        return app;
+    }
+
+    private static Endpoint GetHubEndpoint(WebApplication app, string path) => ((IEndpointRouteBuilder)app)
+        .DataSources.SelectMany(source => source.Endpoints).OfType<RouteEndpoint>()
+        .Single(endpoint => endpoint.RoutePattern.RawText == path);
 
     private static Fixture CreateFixture(string? organizationHeader = null, CancellationToken requestAborted = default)
     {

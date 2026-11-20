@@ -6,19 +6,27 @@ export const newMaintenanceIdempotencyKey = () => crypto.randomUUID();
 const idempotencyHeaders = (key) => ({ 'Idempotency-Key': key || newMaintenanceIdempotencyKey() });
 const retryKeys = new Map();
 const uploadRetryKeys = new WeakMap();
-const post = (url, body = {}, key) => {
-  const fingerprint = `${url}:${JSON.stringify(body)}`;
+const organizationScope = (config) => {
+  const headers = config?.headers;
+  return headers?.get?.('X-Organization-Id') ?? headers?.['X-Organization-Id'] ?? headers?.['x-organization-id'] ?? '';
+};
+const requestOptions = (config, headers) => ({ ...config, headers: { ...config?.headers, ...headers } });
+const post = (url, body = {}, key, config) => {
+  const fingerprint = `${organizationScope(config)}:${url}:${JSON.stringify(body)}`;
   const stableKey = key || retryKeys.get(fingerprint) || newMaintenanceIdempotencyKey();
   if (!key) retryKeys.set(fingerprint, stableKey);
-  return axiosServices.post(url, body, { headers: idempotencyHeaders(stableKey) }).then((response) => {
+  return axiosServices.post(url, body, requestOptions(config, idempotencyHeaders(stableKey))).then((response) => {
     if (!key) retryKeys.delete(fingerprint);
     return data(response);
   });
 };
 
+export const getTenantMaintenanceLeases = () =>
+  axiosServices.get('/api/lease/tenant/my-leases', { headers: { 'X-Organization-Id': false } });
+
 export const maintenanceWorkflowAPI = {
-  list: () => axiosServices.get(ROOT).then(data),
-  create: (body, key) => post(ROOT, body, key),
+  list: (config) => axiosServices.get(ROOT, config).then(data),
+  create: (body, key, config) => post(ROOT, body, key, config),
   get: (id) => axiosServices.get(`${ROOT}/${id}`).then(data),
   acknowledge: (id, key) => post(`${ROOT}/${id}/acknowledge`, {}, key),
   changeStatus: (id, status, expectedStatus, key = newMaintenanceIdempotencyKey()) =>
@@ -41,12 +49,12 @@ export const maintenanceWorkflowAPI = {
   staffCloseCompletion: (id, completionId, expectedVersion, reason, key) => post(`${ROOT}/${id}/completions/${completionId}/staff-close`, { expectedVersion, reason }, key),
   costProjection: (id) => axiosServices.get(`${ROOT}/${id}/cost-projection`).then(data),
   attachments: (id) => axiosServices.get(`${ROOT}/${id}/attachments`).then(data),
-  uploadAttachment: (id, purpose, file, key) => {
+  uploadAttachment: (id, purpose, file, key, config) => {
     const body = new FormData(); body.append('purpose', purpose); body.append('file', file);
-    const fingerprint = `${id}:${purpose}`; const fileKeys = uploadRetryKeys.get(file) || new Map();
+    const fingerprint = `${organizationScope(config)}:${id}:${purpose}`; const fileKeys = uploadRetryKeys.get(file) || new Map();
     const stableKey = key || fileKeys.get(fingerprint) || newMaintenanceIdempotencyKey();
     if (!key) { fileKeys.set(fingerprint, stableKey); uploadRetryKeys.set(file, fileKeys); }
-    return axiosServices.post(`${ROOT}/${id}/attachments`, body, { headers: { ...idempotencyHeaders(stableKey), 'Content-Type': 'multipart/form-data' } }).then((response) => {
+    return axiosServices.post(`${ROOT}/${id}/attachments`, body, requestOptions(config, { ...idempotencyHeaders(stableKey), 'Content-Type': 'multipart/form-data' })).then((response) => {
       if (!key) fileKeys.delete(fingerprint);
       return data(response);
     });

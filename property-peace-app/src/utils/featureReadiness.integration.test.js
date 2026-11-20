@@ -27,7 +27,7 @@ test('tenant payments fail closed and never mount or open payment UI while rent 
   assert.match(text, /if \(!canInvoke\) return;/);
   assert.match(text, /disabled=\{!canInvoke\}/);
   assert.match(text, /\{canInvoke && \(\s*<PaymentModal/s);
-  assert.match(text, /FeatureReadinessNotice[\s\S]*Online rent collection/);
+  assert.doesNotMatch(text, /<FeatureReadinessNotice\b/, 'Payment availability should not render as a tenant payments banner');
 });
 
 test('tenant dashboard gates payment, payment-method setup, Stripe initialization, and providers', async () => {
@@ -41,7 +41,7 @@ test('tenant dashboard gates payment, payment-method setup, Stripe initializatio
   assert.match(text, /disabled=\{!canInvoke\}[\s\S]*Edit payment method/);
   assert.match(text, /\{canInvoke && paymentMethodModalOpen && \(\s*<TenantPaymentMethodModal/s);
   assert.match(text, /\{canInvoke && lease && \(\s*<PaymentModal/s);
-  assert.match(text, /FeatureReadinessNotice[\s\S]*Online rent collection/);
+  assert.ok(!/<FeatureReadinessNotice\b/.test(text), 'Payment availability should not render as a tenant dashboard banner');
 });
 
 test('external syndication fails closed while hosted publication remains available', async () => {

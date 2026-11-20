@@ -7,7 +7,6 @@ import {
   Paper,
   Chip,
   Button,
-  alpha,
   Divider
 } from '@mui/material';
 import MainCard from 'components/MainCard';
@@ -15,6 +14,7 @@ import CircularLoader from 'components/CircularLoader';
 import useFetchNotifications from 'hooks/useFetchNotifications';
 import { formatDateAndTime } from 'utils/formatters';
 import Avatar from 'components/@extended/Avatar';
+import { getStatusPillSx } from 'themes/statusPillStyles';
 
 // Icons
 import FileTextOutlined from '@ant-design/icons/FileTextOutlined';
@@ -85,7 +85,7 @@ export default function TenantAnnouncements() {
       {announcements.length === 0 ? (
         <MainCard>
           <Box sx={{ textAlign: 'center', py: 8 }}>
-            <FileTextOutlined style={{ fontSize: 64, color: '#ccc', marginBottom: 16 }} />
+            <Box component={FileTextOutlined} sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
             <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
               No announcements
             </Typography>
@@ -103,17 +103,12 @@ export default function TenantAnnouncements() {
             return (
               <Paper
                 key={announcement.id}
-                elevation={0}
+                variant="outlined"
                 sx={{
                   p: 3,
                   borderRadius: 2,
-                  border: (t) => `1px solid ${alpha(t.palette.divider, 0.12)}`,
-                  bgcolor: (t) => alpha(t.palette.background.paper, 0.6),
-                  transition: 'all 0.2s ease',
-                  '&:hover': {
-                    boxShadow: (t) => `0 4px 16px ${alpha(t.palette.primary.main, 0.1)}`,
-                    border: (t) => `1px solid ${alpha(t.palette.primary.main, 0.3)}`
-                  }
+                  borderColor: 'divider',
+                  bgcolor: 'background.paper'
                 }}
               >
                 <Stack direction="row" spacing={2} alignItems="flex-start">
@@ -129,8 +124,7 @@ export default function TenantAnnouncements() {
                         <Chip
                           label="New"
                           size="small"
-                          color="primary"
-                          sx={{ height: 20, fontSize: '0.7rem' }}
+                          sx={(theme) => getStatusPillSx(theme, 'primary')}
                         />
                       )}
                     </Stack>

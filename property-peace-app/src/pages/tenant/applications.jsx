@@ -24,7 +24,6 @@ import {
   Tooltip,
   IconButton
 } from '@mui/material';
-import { alpha } from '@mui/system';
 import {
   FormOutlined,
   HomeOutlined,
@@ -37,6 +36,8 @@ import useAuth from 'hooks/useAuth';
 import { formatCurrency, formatDate } from 'utils/formatters';
 import { applicationAPI } from 'api';
 import { openSnackbar } from 'api/snackbar';
+import { getStatusPillSx } from 'themes/statusPillStyles';
+import { getPortalListTableSx } from 'themes/tableStyles';
 
 // Application Status Options
 const APPLICATION_STATUSES = [
@@ -113,9 +114,8 @@ export default function TenantApplications() {
     return (
       <Chip
         label={statusOption?.label || status?.toString()}
-        color={statusOption?.color || 'default'}
         size="small"
-        sx={{ textTransform: 'capitalize' }}
+        sx={(theme) => ({ ...getStatusPillSx(theme, statusOption?.color), textTransform: 'capitalize' })}
       />
     );
   };
@@ -205,10 +205,10 @@ export default function TenantApplications() {
             p: 5,
             textAlign: 'center',
             borderRadius: 2,
-            bgcolor: (t) => alpha(t.palette.background.paper, 0.6)
+            bgcolor: 'background.paper'
           }}
         >
-          <FormOutlined style={{ fontSize: 64, color: 'rgba(0,0,0,0.12)', marginBottom: 16 }} />
+          <Box component={FormOutlined} sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
           <Typography variant="h6" color="text.secondary" sx={{ mt: 2 }}>
             No applications found
           </Typography>
@@ -218,7 +218,7 @@ export default function TenantApplications() {
         </Paper>
       ) : (
         <TableContainer component={Paper} variant="outlined">
-          <Table>
+          <Table sx={getPortalListTableSx}>
             <TableHead>
               <TableRow>
                 <TableCell>Property/Unit</TableCell>

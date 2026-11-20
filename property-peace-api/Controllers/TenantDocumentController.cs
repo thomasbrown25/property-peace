@@ -93,6 +93,7 @@ namespace brownstone_hub_api.Controllers
         }
 
         [HttpGet("tenant/{tenantId}")]
+        [TenantSelfOrganization(tenantOnly: true)]
         public async Task<IActionResult> GetDocumentsByTenant(long tenantId)
         {
             var response = await _tenantDocumentService.GetTenantDocumentsByTenantId(tenantId);
@@ -112,6 +113,7 @@ namespace brownstone_hub_api.Controllers
         }
 
         [HttpGet("lease/{leaseId}/agreement")]
+        [TenantSelfOrganization(tenantOnly: true)]
         public async Task<IActionResult> GetLeaseAgreement(long leaseId)
         {
             var response = await _tenantDocumentService.GetLeaseAgreementByLeaseId(leaseId);

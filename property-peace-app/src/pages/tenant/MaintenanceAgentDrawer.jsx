@@ -4,6 +4,7 @@ import { CloseOutlined, SendOutlined, RobotOutlined, CameraOutlined } from '@ant
 import PropTypes from 'prop-types';
 import ReactMarkdown from 'react-markdown';
 import axiosServices from 'utils/axios';
+import { organizationRequestOptions } from './tenantDocumentScope.mjs';
 
 const DRAWER_WIDTH = 460;
 const TEAL = '#247568';
@@ -190,6 +191,7 @@ export default function MaintenanceAgentDrawer({
   onUnavailable,
   subtitle = 'Active · Tenant-initiated',
   chatEndpoint = '/api/maintenance-agent/chat',
+  organizationId,
   initialContext = null
 }) {
   const theme = useTheme();
@@ -261,7 +263,7 @@ export default function MaintenanceAgentDrawer({
             body.unitId = initialContext.unitId ?? null;
             body.unitName = initialContext.unitName ?? null;
           }
-          const response = await axiosServices.post(chatEndpoint, body);
+          const response = await axiosServices.post(chatEndpoint, body, organizationRequestOptions(organizationId));
           if (!openRef.current || sessionVersion !== sessionVersionRef.current) return;
           data = response.data?.data;
           if (!data || typeof data.message !== 'string' || data.message.trim() === '') {
@@ -310,7 +312,7 @@ export default function MaintenanceAgentDrawer({
         }
       }
     },
-    [onRequestCreated, onUnavailable, chatEndpoint, initialContext]
+    [onRequestCreated, onUnavailable, chatEndpoint, initialContext, organizationId]
   );
 
   const handleSend = () => {
@@ -550,6 +552,7 @@ MaintenanceAgentDrawer.propTypes = {
   onUnavailable: PropTypes.func,
   subtitle: PropTypes.string,
   chatEndpoint: PropTypes.string,
+  organizationId: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
   initialContext: PropTypes.shape({
     propertyId: PropTypes.number,
     propertyName: PropTypes.string,

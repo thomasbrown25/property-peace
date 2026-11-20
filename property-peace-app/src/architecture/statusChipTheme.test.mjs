@@ -10,6 +10,7 @@ test('status chips share the portal theme across default, success and soft varia
   t.after(() => vite.close());
   const { default: Palette } = await vite.ssrLoadModule('/src/themes/palette.js');
   const { default: createChipOverrides } = await vite.ssrLoadModule('/src/themes/overrides/Chip.js');
+  const { getStatusPillSx } = await vite.ssrLoadModule('/src/themes/statusPillStyles.js');
   for (const mode of ['light', 'dark']) {
     const theme = Palette(mode, 'default');
     const palette = theme.palette;
@@ -25,5 +26,16 @@ test('status chips share the portal theme across default, success and soft varia
     assert.equal(chip.combined['&.MuiChip-combinedSuccess'].color, palette.statusChip.active.softForeground);
     assert.notEqual(palette.statusChip.neutral.background.toLowerCase(), '#061e35');
     assert.notEqual(palette.statusChip.active.background.toLowerCase(), '#41a541');
+
+    const neutralPill = getStatusPillSx(theme)['&.MuiChip-root'];
+    const paidPill = getStatusPillSx(theme, 'success')['&.MuiChip-root'];
+    const urgentPill = getStatusPillSx(theme, 'error')['&.MuiChip-root'];
+    for (const pill of [neutralPill, paidPill, urgentPill]) {
+      assert.equal(pill.backgroundColor, palette.statusChip.neutral.background);
+      assert.equal(pill.color, palette.statusChip.neutral.foreground);
+    }
+    assert.equal(neutralPill.borderColor, palette.statusChip.neutral.border);
+    assert.equal(paidPill.borderColor, palette.surface.accentBorder);
+    assert.notEqual(urgentPill.borderColor, paidPill.borderColor);
   }
 });

@@ -6,6 +6,7 @@ namespace brownstone_hub_api.Services.MaintenanceAgentService
     {
         Task<MaintenanceAgentChatResponseDto> ChatAsync(
             List<MaintenanceAgentMessageDto> messages,
+            long organizationId,
             CancellationToken cancellationToken = default);
     }
 }

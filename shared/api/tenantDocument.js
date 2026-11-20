@@ -61,16 +61,16 @@ export class TenantDocumentAPI {
     return this.client.get(`/api/TenantDocument/${id}`);
   }
 
-  async getTenantDocumentsByTenant(tenantId) {
-    return this.client.get(`/api/TenantDocument/tenant/${tenantId}`);
+  async getTenantDocumentsByTenant(tenantId, options) {
+    return this.client.get(`/api/TenantDocument/tenant/${tenantId}`, options);
   }
 
   async getTenantDocumentsByLandlord(landlordId) {
     return this.client.get(`/api/TenantDocument/landlord/${landlordId}`);
   }
 
-  async getLeaseAgreement(leaseId) {
-    return this.client.get(`/api/TenantDocument/lease/${leaseId}/agreement`);
+  async getLeaseAgreement(leaseId, options) {
+    return this.client.get(`/api/TenantDocument/lease/${leaseId}/agreement`, options);
   }
 
   async getTenantDocumentsByLease(leaseId) {

@@ -42,6 +42,7 @@ import { openSnackbar } from 'api/snackbar';
 import useAuth from 'hooks/useAuth';
 import axiosServices from 'utils/axios';
 import MaintenanceRequestCreatedSuccessDialog from 'components/dialogs/MaintenanceRequestCreatedSuccessDialog';
+import { getStatusPillSx } from 'themes/statusPillStyles';
 
 export default function TenantMaintenanceAddWorkflow() {
   const theme = useTheme();
@@ -405,8 +406,8 @@ export default function TenantMaintenanceAddWorkflow() {
         sx={{
           maxWidth: 900,
           mx: 'auto',
-          bgcolor: (t) => alpha(t.palette.background.paper, 0.6),
-          boxShadow: (t) => `0 0 20px ${alpha(t.palette.primary.main, 0.15)}`
+          bgcolor: 'background.paper',
+          borderColor: 'divider'
         }}
       >
         {/* Step 0: Select Property / Unit */}
@@ -476,8 +477,7 @@ export default function TenantMaintenanceAddWorkflow() {
                             <Chip
                               label={lease.isActive ? 'Active' : 'Inactive'}
                               size="small"
-                              color={lease.isActive ? 'success' : 'default'}
-                              sx={{ mt: 0.5, height: 20, fontSize: '0.7rem' }}
+                              sx={(theme) => ({ ...getStatusPillSx(theme, lease.isActive ? 'success' : 'default'), mt: 0.5 })}
                             />
                           </Box>
                         </Stack>
