@@ -2,13 +2,9 @@ import { useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import {
-  Box, Typography, Stack, Chip, Fade, alpha, useTheme,
+  Box, Typography, Stack, Fade, useTheme,
   ToggleButton, ToggleButtonGroup, CircularProgress
 } from '@mui/material';
-import {
-  DollarOutlined, FileTextOutlined, ToolOutlined, CheckCircleOutlined,
-  ExclamationCircleOutlined
-} from '@ant-design/icons';
 import { format, subMonths, isAfter } from 'date-fns';
 import { formatCurrency } from 'utils/formatters';
 import { selectProperties } from 'store/property/property.selector';
@@ -19,82 +15,16 @@ import useFetchAllPayments from 'hooks/useFetchAllPayments';
 import MainCard from 'components/MainCard';
 import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
 import AnimateIn from 'components/AnimateIn';
+import LeaseActivityRow from 'sections/landlord/leases/LeaseActivityRow';
 
-// ─── Item type config ─────────────────────────────────────────────────────────
-
-const TYPE = {
-  payment:     { label: 'Payment',     color: '#41a541', icon: <DollarOutlined /> },
-  deposit:     { label: 'Deposit',     color: '#1464CC', icon: <DollarOutlined /> },
-  lease:       { label: 'Lease',       color: '#7c3aed', icon: <FileTextOutlined /> },
-  maintenance: { label: 'Maintenance', color: '#d97706', icon: <ToolOutlined /> },
-  fee:         { label: 'Fee',         color: '#41a541', icon: <ExclamationCircleOutlined /> },
-  signed:      { label: 'Signed',      color: '#0891b2', icon: <CheckCircleOutlined /> },
+const TYPE_LABELS = {
+  payment: 'Payment',
+  deposit: 'Deposit',
+  lease: 'Lease',
+  maintenance: 'Maintenance',
+  fee: 'Fee',
+  signed: 'Signed'
 };
-
-function TypeBadge({ type }) {
-  const cfg = TYPE[type] || TYPE.payment;
-  return (
-    <Chip
-      label={cfg.label}
-      size="small"
-      sx={{
-        height: 20, fontSize: '0.62rem', fontWeight: 700, letterSpacing: 0.4,
-        bgcolor: alpha(cfg.color, 0.1), color: cfg.color, border: 'none',
-        '& .MuiChip-label': { px: 0.75 }
-      }}
-    />
-  );
-}
-
-function ActivityDot({ type, isLast }) {
-  const cfg = TYPE[type] || TYPE.payment;
-  return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0, width: 32, alignSelf: 'stretch' }}>
-      <Box sx={{
-        width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
-        bgcolor: alpha(cfg.color, 0.08),
-        border: `2px solid ${cfg.color}`,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        color: cfg.color, fontSize: 13
-      }}>
-        {cfg.icon}
-      </Box>
-      {!isLast && <Box sx={{ width: 2, flex: 1, bgcolor: 'rgba(0,0,0,0.07)', mt: 0.75 }} />}
-    </Box>
-  );
-}
-
-function ActivityItem({ item, isLast }) {
-  const theme = useTheme();
-  return (
-    <Stack direction="row" spacing={1} alignItems="stretch">
-      <ActivityDot type={item.type} isLast={isLast} />
-      <Box sx={{ flex: 1, minWidth: 0, pb: isLast ? 0 : 2.5 }}>
-        <Box sx={{ border: '1px solid rgba(0,0,0,0.08)', borderRadius: 2, p: 1.75, bgcolor: 'background.paper' }}>
-          <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.6 }} flexWrap="wrap" gap={0.5}>
-            <TypeBadge type={item.type} />
-            <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.68rem' }}>
-              {format(item.date, 'MMM d, yyyy')} · {format(item.date, 'h:mm a')}
-            </Typography>
-            {item.amount != null && (
-              <Typography variant="subtitle2" fontWeight={700} sx={{ color: '#41a541', ml: 'auto !important', fontSize: '0.95rem' }}>
-                +{formatCurrency(item.amount)}
-              </Typography>
-            )}
-          </Stack>
-          <Typography variant="subtitle2" fontWeight={700} sx={{ fontSize: '0.88rem', mb: item.sub ? 0.25 : 0 }}>
-            {item.label}
-          </Typography>
-          {item.sub && (
-            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.76rem' }}>
-              {item.sub}
-            </Typography>
-          )}
-        </Box>
-      </Box>
-    </Stack>
-  );
-}
 
 // ─── Shared toggle style ──────────────────────────────────────────────────────
 
@@ -195,7 +125,7 @@ export default function LeaseActivityPage() {
         date: new Date(signedAt),
         type: 'signed',
         label: 'Lease signed by both parties',
-        sub: `DocuSign · signed at ${format(new Date(signedAt), 'h:mm a')}`,
+        sub: 'DocuSign',
         amount: null
       });
     }
@@ -207,7 +137,7 @@ export default function LeaseActivityPage() {
         date: new Date(startDate),
         type: 'lease',
         label: 'Lease became active',
-        sub: `${format(new Date(startDate), 'MMM d, yyyy')} · start date`,
+        sub: 'start date',
         amount: null
       });
     }
@@ -323,7 +253,12 @@ export default function LeaseActivityPage() {
             ) : (
               <Stack>
                 {filtered.map((item, idx) => (
-                  <ActivityItem key={idx} item={item} isLast={idx === filtered.length - 1} />
+                  <LeaseActivityRow
+                    key={idx}
+                    label={item.label}
+                    details={`${TYPE_LABELS[item.type]} · ${format(item.date, 'MMM d, yyyy, h:mm a')} · ${item.sub}`}
+                    amount={item.amount == null ? null : `+${formatCurrency(item.amount)}`}
+                  />
                 ))}
               </Stack>
             )}

@@ -8,7 +8,7 @@ const appRoot = fileURLToPath(new URL('../..', import.meta.url));
 test('tables share the home reference styling in both themes', async (t) => {
   const vite = await createServer({ root: appRoot, logLevel: 'silent', appType: 'custom', server: { middlewareMode: true } });
   t.after(() => vite.close());
-  const { getTableStyles, getPortalListTableSx } = await vite.ssrLoadModule('/src/themes/tableStyles.js');
+  const { getManagementGridTableStyles, getTableStyles, getPortalListTableSx } = await vite.ssrLoadModule('/src/themes/tableStyles.js');
   const load = async (name) => (await vite.ssrLoadModule(`/src/themes/overrides/${name}.js`)).default;
   const [cell, head, row, container, body, footer] = await Promise.all(['TableCell', 'TableHead', 'TableRow', 'TableContainer', 'TableBody', 'TableFooter'].map(load));
   for (const mode of ['light', 'dark']) {
@@ -18,7 +18,11 @@ test('tables share the home reference styling in both themes', async (t) => {
     assert.deepEqual(container(theme).MuiTableContainer.styleOverrides.root, { ...styles.container, boxShadow: 'none' });
     assert.deepEqual(head(theme).MuiTableHead.styleOverrides.root, styles.header);
     assert.deepEqual(cells.head, styles.headerCell);
-    assert.equal(cells.head.borderBottom, `1px solid ${theme.palette.text.primary}`);
+    const grid = getManagementGridTableStyles(theme);
+    assert.equal(grid.header.backgroundColor, styles.header.backgroundColor);
+    assert.deepEqual(grid.heading, { ...styles.headerCell, padding: 0, borderBottom: 'none' });
+    assert.equal(cells.head.borderBottom, styles.container.border);
+    assert.equal(cells.head.borderBottom, `1px solid ${theme.palette.divider}`);
     assert.equal(cells.root.borderBottom, `1px solid ${theme.palette.divider}`);
     assert.equal(cells.head.textTransform, 'uppercase');
     assert.equal(cells.head.fontWeight, 750);

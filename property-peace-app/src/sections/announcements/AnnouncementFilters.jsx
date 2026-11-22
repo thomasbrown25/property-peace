@@ -21,7 +21,7 @@ import {
   TextField,
   InputAdornment
 } from '@mui/material';
-import { PlusOutlined, CalendarOutlined } from '@ant-design/icons';
+import AppIcon from 'components/AppIcon';
 import FilterDeleteIcon from 'components/FilterDeleteIcon';
 
 // project imports
@@ -265,7 +265,7 @@ export default function AnnouncementFilters({ filters, onFiltersChange, onNewAnn
             <Button
               size="small"
               variant="contained"
-              startIcon={<PlusOutlined style={{ fontSize: 16 }} />}
+              startIcon={<AppIcon name="add" size={16} />}
               onClick={onNewAnnouncement}
               sx={{ borderRadius: 1.5, textTransform: 'none', flexShrink: 0, width: { xs: '100%', sm: '100%', md: 'auto' } }}
             >
@@ -312,7 +312,7 @@ export default function AnnouncementFilters({ filters, onFiltersChange, onNewAnn
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <CalendarOutlined style={{ fontSize: 16 }} />
+                    <AppIcon name="calendar" size={16} />
                   </InputAdornment>
                 )
               }}
@@ -330,7 +330,7 @@ export default function AnnouncementFilters({ filters, onFiltersChange, onNewAnn
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <CalendarOutlined style={{ fontSize: 16 }} />
+                    <AppIcon name="calendar" size={16} />
                   </InputAdornment>
                 )
               }}

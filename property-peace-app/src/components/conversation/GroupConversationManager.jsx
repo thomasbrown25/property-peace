@@ -1,10 +1,9 @@
+import AppIcon from 'components/AppIcon';
 import { useCallback, useMemo, useState } from 'react';
 import {
   Alert, Box, Button, Checkbox, Chip, CircularProgress, Dialog, DialogActions, DialogContent,
   DialogTitle, FormControlLabel, IconButton, List, ListItem, ListItemText, Stack, TextField, Tooltip, Typography
 } from '@mui/material';
-import TeamOutlined from '@ant-design/icons/TeamOutlined';
-import DeleteOutlined from '@ant-design/icons/DeleteOutlined';
 
 import {
   addGroupParticipant, createGroupConversation, discoverGroupParticipants,
@@ -101,7 +100,7 @@ export default function GroupConversationManager({ organizationId, conversation,
 
   return (
     <>
-      <Button variant={isGroup ? 'outlined' : 'contained'} startIcon={<TeamOutlined />} onClick={handleOpen} size="small">
+      <Button variant={isGroup ? 'outlined' : 'contained'} startIcon={<AppIcon name="team" />} onClick={handleOpen} size="small">
         {isGroup ? 'Manage group' : 'New group'}
       </Button>
       <Dialog open={open} onClose={() => !saving && setOpen(false)} fullWidth maxWidth="sm">
@@ -117,7 +116,7 @@ export default function GroupConversationManager({ organizationId, conversation,
                   {participants.map((person) => {
                     const id = person.userId ?? person.UserId;
                     const name = person.userName ?? person.UserName ?? `User ${id}`;
-                    return <ListItem key={id} secondaryAction={String(id) !== String(currentUserId) && <Tooltip title="Remove participant"><span><IconButton disabled={saving} aria-label={`Remove ${name}`} onClick={() => remove(id)}><DeleteOutlined /></IconButton></span></Tooltip>}>
+                    return <ListItem key={id} secondaryAction={String(id) !== String(currentUserId) && <Tooltip title="Remove participant"><span><IconButton disabled={saving} aria-label={`Remove ${name}`} onClick={() => remove(id)}><AppIcon name="trash" /></IconButton></span></Tooltip>}>
                       <ListItemText primary={name} secondary={(person.isAdmin ?? person.IsAdmin) ? 'Group admin' : 'Participant'} />
                     </ListItem>;
                   })}

@@ -1,6 +1,6 @@
-import { ArrowDownward, ArrowUpward, CalendarMonthOutlined, WalletOutlined } from '@mui/icons-material';
 import { alpha, Box, Grid, Stack, Typography, useTheme } from '@mui/material';
 
+import AppIcon from 'components/AppIcon';
 const money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
 
 function MetricCard({ label, value, available, note, color, icon, onSelect }) {
@@ -53,7 +53,7 @@ export default function FinancesMetrics({ overview, collectedThisMonth, collecte
       available: Boolean(overview?.fieldAvailability?.cameIn),
       note: 'Recorded money that came in',
       color: '#2e7d32',
-      icon: <ArrowUpward />
+      icon: <AppIcon name="arrowRight" size="1.25em" style={{ transform: 'rotate(-90deg)' }} />
     },
     {
       key: 'expenses',
@@ -62,7 +62,7 @@ export default function FinancesMetrics({ overview, collectedThisMonth, collecte
       available: Boolean(overview?.fieldAvailability?.wentOut),
       note: 'Recorded money that went out',
       color: '#d32f2f',
-      icon: <ArrowDownward />
+      icon: <AppIcon name="arrowRight" size="1.25em" style={{ transform: 'rotate(90deg)' }} />
     },
     {
       key: 'net-cash-flow',
@@ -71,7 +71,7 @@ export default function FinancesMetrics({ overview, collectedThisMonth, collecte
       available: Boolean(overview?.fieldAvailability?.recordedNetCashFlow),
       note: 'Recorded income minus expenses',
       color: '#1976d2',
-      icon: <WalletOutlined />
+      icon: <AppIcon name="wallet" size="1.25em" />
     },
     {
       key: 'collected-this-month',
@@ -80,7 +80,7 @@ export default function FinancesMetrics({ overview, collectedThisMonth, collecte
       available: collectedThisMonthAvailable,
       note: 'Completed payments in the current month',
       color: '#7b1fa2',
-      icon: <CalendarMonthOutlined />
+      icon: <AppIcon name="calendar" size="1.25em" />
     }
   ];
 

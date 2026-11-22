@@ -22,17 +22,9 @@ import {
   Typography,
   useTheme
 } from '@mui/material';
-import {
-  AuditOutlined,
-  DeleteOutlined,
-  DownOutlined,
-  HomeOutlined,
-  PlusOutlined,
-  CloseOutlined,
-  RightOutlined,
-  SearchOutlined
-} from '@ant-design/icons';
 import { Link as RouterLink, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import AppIcon from 'components/AppIcon';
+import ActionsDrawer from 'components/drawers/shared/ActionsDrawer';
 
 import { addChecklist, getChecklistsByLandlord, getChecklistsByLease } from 'api/checklist';
 import { findLinkedChecklist, getLeaseOptions, leaseDates, suggestLeaseId } from 'utils/checklistLeaseOptions.mjs';
@@ -75,6 +67,10 @@ const checklistTypeOptions = [
 ];
 const floorOptions = Array.from({ length: MAX_FLOORS }, (_, index) => String(index + 1));
 const limitedFloorOptions = createFilterOptions({ limit: 5 });
+
+function ChecklistSelectIcon({ className }) {
+  return <AppIcon name="chevronDown" size={16} className={className} />;
+}
 
 export default function ChecklistsPage() {
   const navigate = useNavigate();
@@ -392,14 +388,20 @@ export default function ChecklistsPage() {
             Track move-in and move-out inspections across every home in your portfolio.
           </Typography>
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<PlusOutlined />}
-          onClick={() => setPickerOpen(true)}
-          sx={{ alignSelf: { xs: 'flex-start', sm: 'center' }, bgcolor: theme.palette.brand.forest, color: '#fff', '&:hover': { bgcolor: theme.palette.primary.dark }, textTransform: 'none', fontWeight: 700, boxShadow: 'none' }}
-        >
-          Create checklist
-        </Button>
+        <Box sx={{ alignSelf: { xs: 'flex-start', sm: 'center' } }}>
+          <ActionsDrawer
+            id="checklists-actions-drawer"
+            title="Checklist actions"
+            actions={[
+              {
+                label: 'Create checklist',
+                description: 'Set up a move-in or move-out inspection for a property.',
+                icon: 'checklists',
+                onSelect: () => setPickerOpen(true)
+              }
+            ]}
+          />
+        </Box>
       </Stack>
 
       <Box
@@ -420,7 +422,7 @@ export default function ChecklistsPage() {
               size="small"
               startAdornment={
                 <InputAdornment position="start">
-                  <SearchOutlined />
+                  <AppIcon name="magnifier" />
                 </InputAdornment>
               }
               sx={{ flex: 1, minWidth: { md: 280 }, borderRadius: 1.75 }}
@@ -431,7 +433,7 @@ export default function ChecklistsPage() {
                 size="small"
                 value={type}
                 onChange={(event) => setType(event.target.value)}
-                IconComponent={DownOutlined}
+                IconComponent={ChecklistSelectIcon}
                 sx={{ minWidth: 146, borderRadius: 1.75 }}
                 inputProps={{ 'aria-label': 'Checklist type' }}
               >
@@ -443,7 +445,7 @@ export default function ChecklistsPage() {
                 size="small"
                 value={status}
                 onChange={(event) => setStatus(event.target.value)}
-                IconComponent={DownOutlined}
+                IconComponent={ChecklistSelectIcon}
                 sx={{ minWidth: 148, borderRadius: 1.75 }}
                 inputProps={{ 'aria-label': 'Checklist status' }}
               >
@@ -454,6 +456,7 @@ export default function ChecklistsPage() {
               <Select
                 size="small"
                 value={sort.key}
+                IconComponent={ChecklistSelectIcon}
                 onChange={(event) => setSort({ key: event.target.value, direction: event.target.value === 'created' ? 'desc' : 'asc' })}
                 sx={{ display: { xs: 'flex', lg: 'none' }, minWidth: 140, borderRadius: 1.75 }}
                 inputProps={{ 'aria-label': 'Sort checklists by' }}
@@ -541,6 +544,7 @@ export default function ChecklistsPage() {
             <Box sx={{ p: 2 }}>
               <Alert
                 severity="error"
+                icon={<AppIcon name="warning" />}
                 action={
                   <Button color="inherit" size="small" onClick={loadChecklists}>
                     Try again
@@ -564,7 +568,7 @@ export default function ChecklistsPage() {
                   justifyContent: 'center'
                 }}
               >
-                <AuditOutlined style={{ fontSize: 23 }} />
+                <AppIcon name="checklists" size={23} />
               </Box>
               <Typography variant="h5" fontWeight={700}>
                 {hasFilters ? 'No checklists match this view' : 'No checklists yet'}
@@ -633,7 +637,7 @@ export default function ChecklistsPage() {
                         flexShrink: 0
                       }}
                     >
-                      <HomeOutlined style={{ fontSize: 18 }} />
+                      <AppIcon name="house" size={18} />
                     </Box>
                     <Box minWidth={0}>
                       <Link
@@ -700,7 +704,7 @@ export default function ChecklistsPage() {
                   </Box>
 
                   <Box role="cell" sx={{ display: { xs: 'none', lg: 'flex' } }}>
-                    <RightOutlined style={{ color: theme.palette.text.secondary, fontSize: 13 }} />
+                    <AppIcon name="arrowRight" size={13} style={{ color: theme.palette.text.secondary }} />
                   </Box>
                 </Box>
               );
@@ -725,7 +729,7 @@ export default function ChecklistsPage() {
                 {standalone ? `For lease #${contextLeaseId} · ${selectedProperty ? getPropertyLabel(selectedProperty) : 'Loading home…'}${selectedUnit ? ` · ${selectedUnit.label}` : ''}` : 'Choose the inspection type and the home it belongs to.'}
               </Typography>
             </Box>
-            <IconButton aria-label="Close create checklist" onClick={leaveCreation} disabled={creating}><CloseOutlined /></IconButton>
+            <IconButton aria-label="Close create checklist" onClick={leaveCreation} disabled={creating}><AppIcon name="close" /></IconButton>
           </Stack>
           <Stack spacing={2.25} sx={{ flex: 1, overflowY: 'auto', px: 3, py: 3 }}>
             {!standalone && <>
@@ -839,6 +843,7 @@ export default function ChecklistsPage() {
                     <FormControl size="small" fullWidth>
                       <Select
                         value={shownLeaseId ?? ''}
+                        IconComponent={ChecklistSelectIcon}
                         displayEmpty
                         renderValue={(value) => value ? `Lease #${value}` : leaseDecision === 'none' ? 'No lease' : 'Choose a lease or no lease'}
                         inputProps={{ 'aria-label': 'Lease for checklist' }}
@@ -956,7 +961,7 @@ export default function ChecklistsPage() {
                       onClick={() => setRemovedRoomNames((current) => [...current, originalName])}
                       sx={{ flexShrink: 0, width: 40, height: 40 }}
                     >
-                      <DeleteOutlined />
+                      <AppIcon name="trash" />
                     </IconButton>
                   </Stack>
                 ))}
@@ -974,7 +979,7 @@ export default function ChecklistsPage() {
             <Button
               variant="contained"
               color="success"
-              startIcon={creating ? <CircularProgress size={16} color="inherit" /> : <PlusOutlined />}
+              startIcon={creating ? <CircularProgress size={16} color="inherit" /> : <AppIcon name="add" />}
               onClick={createChecklist}
               disabled={creating || !createType || !selectedProperty || (needsUnit && (!selectedUnit || unitsLoading)) || leasesLoading || Boolean(leasesError) || checklistsLoading || Boolean(checklistsError) || leaseChecking || (standalone && (!contextLease || leaseDecision !== 'linked' || String(selectedLeaseId) !== String(contextLeaseId))) || (!standalone && leaseOptions.length > 0 && leaseDecision === 'unanswered') || (leaseDecision === 'linked' && !shownLease) || !isValidFloorPlan(floorCount, floorPlan) || !visibleRoomNames.length || !validRoomNames}
               sx={{ textTransform: 'none', fontWeight: 700 }}

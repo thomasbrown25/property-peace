@@ -51,7 +51,7 @@ import useFetchProperty from 'hooks/useFetchProperty';
 import { getPropertyTypeLabel, parseDecimalToCurrency, formatDate, formatCurrency } from 'utils/formatters';
 import { isDetachedSingleUnitType } from 'utils/propertyType';
 import { getNextDueDate } from 'utils/helper-methods';
-import useFetchRentCollection from 'hooks/useFetchRentCollection';
+import usePropertyRentCollection from 'hooks/usePropertyRentCollection';
 import useFetchMaintenances from 'hooks/useFetchMaintenances';
 import LeaseOverviewCard from 'components/cards/LeaseOverviewCard';
 import PropertyEditDrawer from 'components/drawers/PropertyEditDrawer';
@@ -89,7 +89,7 @@ import PropertyMetrics from 'sections/landlord/property/PropertyMetrics';
 import PropertyHero from 'sections/landlord/property/PropertyHero';
 import MaintenanceTab from 'sections/landlord/property/MaintenanceTab';
 import MarketingTab from 'sections/landlord/property/MarketingTab';
-import DocumentsTab from 'sections/landlord/property/DocumentsTab';
+import PropertyDocumentUploadDrawer from 'components/drawers/PropertyDocumentUploadDrawer';
 import ExpensesTab from 'sections/landlord/property/ExpensesTab';
 import OverviewTab from 'sections/landlord/property/OverviewTab';
 import PropertyRecordsTabs from 'sections/landlord/property/PropertyRecordsTabs';
@@ -2323,19 +2323,7 @@ export default function Property() {
   const previousPathname = useRef(null);
   const reduxSelectedProperty = useSelector(selectProperty);
 
-  // Initialize tab from URL query parameter or default to 'overview'
-  const [tab, setTab] = useState(() => {
-    const tabParam = searchParams.get('tab');
-    return tabParam || 'overview';
-  });
-
-  // Update tab when URL query parameter changes
-  useEffect(() => {
-    const tabParam = searchParams.get('tab');
-    if (tabParam) {
-      setTab(tabParam);
-    }
-  }, [searchParams]);
+  const requestedTab = searchParams.get('tab') || 'overview';
 
   // Reset property selection when leaving this page
   useEffect(() => {
@@ -2350,6 +2338,8 @@ export default function Property() {
   }, [location.pathname, dispatch, reduxSelectedProperty]);
   const [openConfirm, setOpenConfirm] = useState(false);
   const [deletePropertyModalOpen, setDeletePropertyModalOpen] = useState(false);
+  const [documentUploadPropertyId, setDocumentUploadPropertyId] = useState(null);
+  const [documentsVersion, setDocumentsVersion] = useState(0);
   const [bulkUnitDrawerOpen, setBulkUnitDrawerOpen] = useState(false);
   const [uploadingImages, setUploadingImages] = useState(false);
   const [refreshingProperty, setRefreshingProperty] = useState(false);
@@ -2377,12 +2367,14 @@ export default function Property() {
   const propertyLoading = useSelector(selectPropertyLoading);
   const maintenanceLoading = useSelector(selectMaintenanceLoading);
 
-  const { rentRecords, loading: rentCollectionLoading, error: rentCollectionError, refetch: refetchRentCollection } = useFetchRentCollection(propertyId);
+  const { rentRecords, loading: rentCollectionLoading, error: rentCollectionError, refetch: refetchRentCollection } = usePropertyRentCollection(propertyId);
+  const lastFinanceMutationVersion = useRef(drawer.financeMutationVersion);
 
-  // Refresh the canonical balances shared by the hero and Payments rent status as
-  // soon as a payment is saved, including Record Another before the drawer closes.
+  // A bound SWR mutation revalidates this property even when an older read is pending.
   useEffect(() => {
-    if (drawer.financeMutationVersion > 0) refetchRentCollection();
+    if (lastFinanceMutationVersion.current === drawer.financeMutationVersion) return;
+    lastFinanceMutationVersion.current = drawer.financeMutationVersion;
+    void refetchRentCollection();
   }, [drawer.financeMutationVersion, refetchRentCollection]);
 
   const { maintenances, historyMaintenances, loadError: maintenanceError, refetch: refetchMaintenances } = useFetchMaintenances(propertyId);
@@ -2602,12 +2594,15 @@ export default function Property() {
   const longTermUnits = (selectedProperty?.units ?? selectedProperty?.Units ?? []).filter(unit => rentalMode(unit) !== 'shortTerm');
   const downMD = useMediaQuery(theme => theme.breakpoints.down('md'));
 
-  // Redirect from units tab to overview if single-family property
-  useEffect(() => {
-    if (isSingleFamily && tab === 'units') {
-      setTab('overview');
-    }
-  }, [isSingleFamily, tab]);
+  const tab = isSingleFamily && requestedTab === 'units' ? 'overview' : requestedTab;
+  const openDocumentUpload = () => setDocumentUploadPropertyId(propertyId);
+  const handleTabChange = (nextTab) => {
+    if (nextTab === tab) return;
+    const params = new URLSearchParams(searchParams);
+    if (nextTab === 'overview') params.delete('tab');
+    else params.set('tab', nextTab);
+    navigate({ pathname: location.pathname, search: params.toString() });
+  };
 
   return (
     <>
@@ -2622,6 +2617,8 @@ export default function Property() {
           <PropertyActions
             property={selectedProperty}
             onEdit={drawer.openPropertyEditDrawer}
+            onViewLeases={() => handleTabChange('leases')}
+            onUploadDocument={openDocumentUpload}
             onDelete={() => setDeletePropertyModalOpen(true)}
           />
         </Stack>
@@ -2645,21 +2642,14 @@ export default function Property() {
             <PropertyRecordsTabs
               property={selectedProperty}
               propertyId={propertyId}
-              rentRecords={rentRecords}
-              rentLoading={rentCollectionLoading}
-              rentError={rentCollectionError}
               maintenances={maintenances}
               historyMaintenances={historyMaintenances}
               maintenanceError={maintenanceError}
               onLeaseDeleted={handlePropertyRefresh}
+              onUploadDocument={openDocumentUpload}
+              documentsVersion={documentsVersion}
               tab={tab}
-              onTabChange={(nextTab) => {
-                setTab(nextTab);
-                const params = new URLSearchParams(searchParams);
-                if (nextTab === 'overview') params.delete('tab');
-                else params.set('tab', nextTab);
-                navigate({ pathname: location.pathname, search: params.toString() });
-              }}
+              onTabChange={handleTabChange}
             />
           </AnimateIn>
         </Box>
@@ -2692,6 +2682,14 @@ export default function Property() {
       />
 
       <LeaseAddDrawer />
+
+      <PropertyDocumentUploadDrawer
+        key={propertyId}
+        propertyId={propertyId}
+        open={documentUploadPropertyId === propertyId}
+        onClose={() => setDocumentUploadPropertyId(currentId => currentId === propertyId ? null : currentId)}
+        onUploaded={() => setDocumentsVersion(version => version + 1)}
+      />
 
       <DeletePropertyModal
         open={deletePropertyModalOpen}

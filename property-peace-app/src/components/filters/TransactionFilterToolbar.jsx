@@ -18,8 +18,8 @@ import {
   useMediaQuery,
   useTheme
 } from '@mui/material';
-import { CloseOutlined, FilterOutlined, SearchOutlined, SortAscendingOutlined } from '@ant-design/icons';
 
+import AppIcon from 'components/AppIcon';
 import { getActiveFilterCount, hasActiveToolbarFilters, resolveTransactionSearchLabel } from './transactionFilterToolbarUtils';
 
 const controlSx = {
@@ -137,7 +137,7 @@ export default function TransactionFilterToolbar({
           placeholder={searchPlaceholder}
           inputProps={{ 'aria-label': resolveTransactionSearchLabel(searchLabel) }}
           size="small"
-          startAdornment={<InputAdornment position="start"><SearchOutlined /></InputAdornment>}
+          startAdornment={<InputAdornment position="start"><AppIcon name="magnifier" /></InputAdornment>}
           sx={{ flex: { xs: '0 0 auto', md: '1 1 270px' }, minWidth: 0, width: { xs: '100%', md: 'auto' }, borderRadius: 1.75 }}
         />
 
@@ -153,7 +153,7 @@ export default function TransactionFilterToolbar({
           <Button
             variant="outlined"
             onClick={openFilters}
-            startIcon={<Badge color="primary" variant="dot" invisible={!activeFilterCount}><FilterOutlined /></Badge>}
+            startIcon={<Badge color="primary" variant="dot" invisible={!activeFilterCount}><AppIcon name="filter" /></Badge>}
             aria-haspopup="true"
             aria-expanded={isMobile ? mobileFiltersOpen : Boolean(filterAnchor)}
             sx={{ height: 40, minWidth: { xs: 104, md: 112 }, borderRadius: 1.75, textTransform: 'none', fontWeight: 700, whiteSpace: 'nowrap' }}
@@ -168,7 +168,7 @@ export default function TransactionFilterToolbar({
               options={sortOptions}
               ariaLabel="Sort"
               minWidth={isMobile ? 52 : 138}
-              startAdornment={isMobile ? <InputAdornment position="start"><SortAscendingOutlined /></InputAdornment> : undefined}
+              startAdornment={isMobile ? <InputAdornment position="start"><AppIcon name="sort" /></InputAdornment> : undefined}
             />
           )}
         </Box>
@@ -211,7 +211,7 @@ export default function TransactionFilterToolbar({
           <Box sx={{ width: 42, height: 4, borderRadius: 4, bgcolor: 'divider', mx: 'auto', mb: 1.75 }} />
           <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
             <Box><Typography variant="h6" fontWeight={750}>Filters</Typography><Typography sx={{ mt: 0.2, fontSize: '0.75rem', color: 'text.secondary' }}>Narrow this financial view</Typography></Box>
-            <Button color="inherit" onClick={() => setMobileFiltersOpen(false)} aria-label="Close filters" sx={{ minWidth: 40, width: 40, height: 40, borderRadius: '50%' }}><CloseOutlined /></Button>
+            <Button color="inherit" onClick={() => setMobileFiltersOpen(false)} aria-label="Close filters" sx={{ minWidth: 40, width: 40, height: 40, borderRadius: '50%' }}><AppIcon name="close" /></Button>
           </Stack>
           {filterFields}
           <Stack direction="row" spacing={1} sx={{ mt: 2.5 }}>

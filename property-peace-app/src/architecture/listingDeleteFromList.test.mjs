@@ -6,9 +6,9 @@ const page = readFileSync(new URL('../pages/landlord/listings.jsx', import.meta.
 const action = readFileSync(new URL('../store/listing/listing.action.js', import.meta.url), 'utf8');
 const api = readFileSync(new URL('../api/listing.js', import.meta.url), 'utf8');
 
-test('the listing row menu offers deletion with a confirmation, not a row-navigation click', () => {
+test('the listing row drawer opens deletion confirmation separately from row navigation', () => {
   assert.match(page, /onDelete\(listing\)/);
-  assert.match(page, /onClick=\{\(event\) => event\.stopPropagation\(\)\}/);
+  assert.match(page, /<Box\s+\{\.\.\.rowTriggerProps\}[\s\S]*?<ActionsDrawer\s+id=\{\x60listing-actions-/);
   assert.match(page, /Delete listing/);
   assert.match(page, /<Dialog open=\{Boolean\(listingToDelete\)\}|<Dialog\s+open=\{Boolean\(listingToDelete\)\}/);
   assert.match(page, /Applications? (?:will remain|will be kept)/);

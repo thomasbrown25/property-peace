@@ -29,6 +29,7 @@ import {
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 
+import AppIcon from 'components/AppIcon';
 import LeaseAddDrawer from 'components/drawers/LeaseAddDrawer';
 import DeletePropertyModal from 'components/dialogs/DeletePropertyModal';
 import { PropertyCsvImportButton } from 'components/import/CsvImportButtons';
@@ -41,8 +42,9 @@ import { useDrawer } from 'contexts/DrawerContext';
 import { setProperty } from 'store/property/property.action';
 import { selectProperties } from 'store/property/property.selector';
 import { isHighPriorityMaintenanceRequest } from 'utils/maintenanceStatus';
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 import { filterControlSx } from 'themes/filterControlStyles';
-import placeholderImage from 'assets/images/placeholder-house.png';
+import { getManagementGridTableStyles } from 'themes/tableStyles';
 
 const PAGE_SIZE = 10;
 
@@ -103,7 +105,7 @@ function formatMoney(value) {
   }).format(value || 0);
 }
 
-function PropertyRow({ property, onOpen, onAddLease, onDelete }) {
+function PropertyRow({ property, onOpen, onAddLease, onDelete, rowSx }) {
   const theme = useTheme();
   const navigate = useNavigate();
   const [anchorEl, setAnchorEl] = useState(null);
@@ -115,7 +117,9 @@ function PropertyRow({ property, onOpen, onAddLease, onDelete }) {
     read(property, 'city', 'City'),
     read(property, 'state', 'State')
   ].filter(Boolean).join(', ');
-  const imageUrl = read(property, 'mainImageUrl', 'MainImageUrl') || read(property, 'images', 'Images')?.[0]?.blobUrl || placeholderImage;
+  const image = read(property, 'images', 'Images')?.[0];
+  const imageUrl = read(property, 'mainImageUrl', 'MainImageUrl') || read(image, 'blobUrl', 'BlobUrl');
+  const propertyIcon = isDetachedSingleUnitType(read(property, 'propertyType', 'PropertyType')) ? 'house' : 'properties';
   const occupancy = summary.units.length ? Math.round((summary.occupied / summary.units.length) * 100) : 0;
   const statusColor = summary.overdue ? theme.palette.error.main : summary.vacant ? theme.palette.warning.main : theme.palette.success.main;
 
@@ -133,26 +137,26 @@ function PropertyRow({ property, onOpen, onAddLease, onDelete }) {
       onClick={() => onOpen(property)}
       onKeyDown={handleKeyDown}
       sx={{
-        px: { xs: 1.5, md: 2 },
-        py: { xs: 1.5, md: 1.35 },
+        ...rowSx,
         display: { xs: 'block', md: 'grid' },
         gridTemplateColumns: 'minmax(230px, 1.9fr) minmax(130px, .9fr) minmax(120px, .8fr) minmax(170px, 1fr) 44px',
         gap: { xs: 1.4, md: 2 },
         alignItems: 'center',
         cursor: 'pointer',
-        borderBottom: `1px solid ${alpha(theme.palette.divider, 0.13)}`,
-        transition: 'background-color 140ms ease',
-        '&:hover': { bgcolor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.08 : 0.028) },
         '&:focus-visible': { outline: `2px solid ${alpha(theme.palette.primary.main, 0.45)}`, outlineOffset: -2 }
       }}
     >
       <Stack direction="row" spacing={1.4} alignItems="center" minWidth={0}>
         <Box
-          component="img"
-          src={imageUrl}
-          alt=""
-          sx={{ width: 58, height: 58, borderRadius: 1.8, objectFit: 'cover', bgcolor: alpha(theme.palette.primary.main, 0.08), flexShrink: 0 }}
-        />
+          aria-hidden="true"
+          sx={{ position: 'relative', display: 'grid', placeItems: 'center', width: 58, height: 58, borderRadius: 1.8, overflow: 'hidden', bgcolor: alpha(theme.palette.primary.main, 0.08), color: 'primary.main', flexShrink: 0 }}
+        >
+          {imageUrl ? (
+            <Box component="img" src={imageUrl} alt="" sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+          ) : (
+            <AppIcon name={propertyIcon} size={24} />
+          )}
+        </Box>
         <Box minWidth={0}>
           <Stack direction="row" alignItems="center" spacing={0.75}>
             <Typography fontWeight={700} noWrap>{name}</Typography>
@@ -275,6 +279,7 @@ export default function Properties() {
   }, [attention, occupancy, properties, search, sort, status]);
 
   const pageCount = Math.ceil(filteredProperties.length / PAGE_SIZE);
+  const tableStyles = getManagementGridTableStyles(theme);
   const paginatedProperties = filteredProperties.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const hasFilters = search || status !== 'active' || occupancy !== 'all' || attention !== 'all' || sort !== 'attention';
 
@@ -388,10 +393,10 @@ export default function Properties() {
         </Stack>
       </Box>
 
-      <Box data-testid="property-table" sx={{ bgcolor: 'background.paper', border: `1px solid ${alpha(theme.palette.divider, 0.16)}`, borderRadius: 3, boxShadow: `0 8px 28px ${alpha('#061e35', 0.055)}`, overflow: 'hidden' }}>
-        <Box sx={{ display: { xs: 'none', md: 'grid' }, gridTemplateColumns: 'minmax(230px, 1.9fr) minmax(130px, .9fr) minmax(120px, .8fr) minmax(170px, 1fr) 44px', gap: 2, px: 2, py: 1.15, bgcolor: alpha(theme.palette.primary.main, 0.025) }}>
+      <Box data-testid="property-table" sx={tableStyles.container}>
+        <Box sx={{ ...tableStyles.header, gridTemplateColumns: 'minmax(230px, 1.9fr) minmax(130px, .9fr) minmax(120px, .8fr) minmax(170px, 1fr) 44px' }}>
           {['Property', 'Occupancy', 'Rent roll', 'Operations', ''].map((label) => (
-            <Typography key={label || 'actions'} sx={{ fontSize: '0.66rem', fontWeight: 750, letterSpacing: 0.65, textTransform: 'uppercase', color: 'text.secondary' }}>{label}</Typography>
+            <Typography key={label || 'actions'} sx={tableStyles.heading}>{label}</Typography>
           ))}
         </Box>
 
@@ -410,7 +415,7 @@ export default function Properties() {
           </Stack>
         ) : (
           paginatedProperties.map((property) => (
-            <PropertyRow key={getId(property)} property={property} onOpen={openProperty} onAddLease={addLease} onDelete={setPropertyToDelete} />
+            <PropertyRow key={getId(property)} property={property} onOpen={openProperty} onAddLease={addLease} onDelete={setPropertyToDelete} rowSx={tableStyles.row} />
           ))
         )}
 

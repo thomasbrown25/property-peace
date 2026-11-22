@@ -3,39 +3,8 @@ import LeaseDetailView from 'sections/landlord/leases/LeaseDetailView';
 import { useDashboardLoading } from 'contexts/DashboardLoadingContext';
 import { Box, Typography, Stack, Divider, Grid, Paper, Button, Chip, IconButton, alpha, Card, CardContent, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Link, CircularProgress, useTheme, FormControl, Select, MenuItem, InputLabel, Tabs, Tab, LinearProgress, Checkbox, Tooltip, RadioGroup, Radio, FormControlLabel, Avatar } from '@mui/material';
 import MainCard from 'components/MainCard';
-import {
-  HomeOutlined,
-  UserOutlined,
-  CalendarOutlined,
-  DollarOutlined,
-  ArrowLeftOutlined,
-  FileTextOutlined,
-  EditOutlined,
-  CloseCircleOutlined,
-  MailOutlined,
-  PhoneOutlined,
-  CheckCircleOutlined,
-  SendOutlined,
-  ReloadOutlined,
-  StopOutlined,
-  EyeOutlined,
-  UploadOutlined,
-  DeleteOutlined,
-  ArrowRightOutlined,
-  RedoOutlined,
-  PlusOutlined,
-  BankOutlined,
-  CloseOutlined,
-  FormOutlined,
-  InfoCircleOutlined,
-  CloudOutlined,
-  MoreOutlined,
-  ClockCircleOutlined,
-  LoginOutlined,
-  LogoutOutlined
-} from '@ant-design/icons';
+import AppIcon from 'components/AppIcon';
 import { useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
-import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
 import { useSelector, useDispatch } from 'react-redux';
 import { selectProperties } from 'store/property/property.selector';
 import { selectDashboardSummary } from 'store/dashboard/dashboard.selector';
@@ -82,6 +51,8 @@ import { FEATURE_KEYS } from 'utils/featureReadiness';
 import { buildLeaseMoveInReadiness, deriveExactLeaseSigners, selectCurrentSignatureStatus, validateExactLeaseSigners } from 'utils/leaseMoveIn';
 import { normalizeRentBalance } from 'utils/rentBalance';
 import { leaseById } from 'utils/leaseById.mjs';
+import { leaseDetailTitle } from 'utils/leaseDetailTitle.mjs';
+import { getPropertyLeasesPath } from 'utils/leaseNavigation.mjs';
 import { buildChecklistWorkspacePath } from 'utils/checklistPortfolio';
 import { findLinkedChecklist } from 'utils/checklistLeaseOptions.mjs';
 import { isDetachedSingleUnitType } from 'utils/propertyType';
@@ -591,7 +562,7 @@ export default function LeasePage() {
       hasHandledSignParam.current = true;
       
       // Remove the query parameter
-      setSearchParams({});
+      setSearchParams({}, { replace: true });
       
       // Auto-trigger signing flow
       if (!user?.email) {
@@ -672,7 +643,7 @@ export default function LeasePage() {
     if (searchParams.get('signed') === 'true' && lease?.id) {
       // DocuSign redirected back - signing is complete
       setEmbeddedSigningOpen(false);
-      setSearchParams({}); // Remove the query parameter
+      setSearchParams({}, { replace: true }); // Remove the query parameter
       
       // Sync signature status from DocuSign to update landlordSignedAt
       const syncSignatureStatus = async () => {
@@ -787,19 +758,17 @@ export default function LeasePage() {
   };
 
   // 🧮 Derived values (for rendering) - MUST be before early return (Rules of Hooks)
-  // Get property ID for navigation - try unit.propertyId first, then find by name
-  // MUST be called before early return to maintain hook order
+  // Use the lease's property ID when available, with a name lookup for older records.
   const propertyId = useMemo(() => {
-    if (lease?.unit?.propertyId) {
-      return lease.unit.propertyId;
-    }
-    // Fallback: find property by name from lease
+    const linkedPropertyId = lease?.unit?.propertyId || lease?.propertyId;
+    if (linkedPropertyId) return linkedPropertyId;
     if (lease?.propertyName) {
       const foundProperty = properties?.find(p => p.name === lease.propertyName);
       return foundProperty?.id;
     }
     return null;
-  }, [lease?.unit?.propertyId, lease?.propertyName, properties]);
+  }, [lease?.unit?.propertyId, lease?.propertyId, lease?.propertyName, properties]);
+  const propertyLeasesPath = getPropertyLeasesPath(propertyId);
 
   // Get property object
   const property = useMemo(() => {
@@ -827,15 +796,6 @@ export default function LeasePage() {
     const normalizedType = propertyType?.toLowerCase() || '';
     return isDetachedSingleUnitType(normalizedType);
   }, [property?.propertyType, lease?.propertyType, lease?.PropertyType]);
-
-  // Build the header display text
-  const headerDisplay = useMemo(() => {
-    if (isSingleUnitType) {
-      return propertyNameOrAddress;
-    }
-    const unitDisplay = lease?.unit?.name || 'Unit';
-    return `${propertyNameOrAddress} – ${unitDisplay}`;
-  }, [isSingleUnitType, propertyNameOrAddress, lease?.unit?.name]);
 
   const propertyDisplay = propertyNameOrAddress;
   const unitDisplay = isSingleUnitType ? null : (lease?.unit?.name || 'Unit');
@@ -1629,12 +1589,13 @@ export default function LeasePage() {
 
   return (
     <Box>
-      <PageBreadcrumbs items={[
-        { label: 'Dashboard', path: '/landlord/dashboard' },
-        { label: 'Leases', path: '/landlord/leases' },
-        { label: headerDisplay || 'Lease' }
-      ]} />
       <LeaseDetailView
+        breadcrumbItems={[
+          { label: 'Dashboard', path: '/landlord/dashboard' },
+          { label: 'Properties', path: '/landlord/properties' },
+          { label: property?.name?.trim() || lease.propertyName?.trim() || propertyDisplay, path: propertyLeasesPath },
+          { label: leaseDetailTitle(lease, propertyDisplay, leaseId) }
+        ]}
         lease={lease}
         tenants={tenants}
         property={property}
@@ -1786,7 +1747,7 @@ export default function LeasePage() {
 
                 {tenants.length === 0 ? (
                   <Stack spacing={2} alignItems="center" sx={{ py: 3 }}>
-                    <UserOutlined style={{ fontSize: 48, color: theme.palette.text.secondary }} />
+                    <AppIcon name="user" size={48} style={{ color: theme.palette.text.secondary }} />
                     <Typography variant="body2" color="text.secondary" align="center">
                       No tenants assigned to this lease.
                     </Typography>
@@ -1884,13 +1845,14 @@ export default function LeasePage() {
         <DialogTitle>
           <Stack direction="row" justifyContent="space-between" alignItems="center">
             <Typography variant="h6">Sign Lease Agreement</Typography>
-            <IconButton 
+            <IconButton
+              aria-label="Close lease signing"
               onClick={() => {
                 setEmbeddedSigningOpen(false);
               }} 
               size="small"
             >
-              <CloseCircleOutlined />
+              <AppIcon name="close" size={16} />
             </IconButton>
           </Stack>
         </DialogTitle>
@@ -1966,11 +1928,12 @@ export default function LeasePage() {
           <Stack direction="row" justifyContent="space-between" alignItems="center">
             <Typography variant="h6">Banking Information</Typography>
             <IconButton
+              aria-label="Close banking information"
               onClick={() => setBankingModalOpen(false)}
               size="small"
               sx={{ color: 'text.secondary' }}
             >
-              <CloseOutlined />
+              <AppIcon name="close" size={16} />
             </IconButton>
           </Stack>
         </DialogTitle>
@@ -2017,7 +1980,7 @@ export default function LeasePage() {
 
             <Button
               variant="outlined"
-              startIcon={<PlusOutlined />}
+              startIcon={<AppIcon name="add" />}
               onClick={handleOpenStripeOnboarding}
               disabled={!rentCanInvoke}
               sx={{

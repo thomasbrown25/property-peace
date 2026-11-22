@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Alert, Button, CircularProgress, IconButton, MenuItem, Stack, TextField, Typography, alpha, useTheme } from '@mui/material';
-import { CloseOutlined, TeamOutlined } from '@ant-design/icons';
+import AppIcon from 'components/AppIcon';
 import ThemeAdaptiveDrawer from 'components/drawers/shared/ThemeAdaptiveDrawer';
 
 export default function MaintenanceAssignmentDrawer({ open, onClose, assignees, currentAssignment, onAssign, saving = false }) {
@@ -41,7 +41,7 @@ export default function MaintenanceAssignmentDrawer({ open, onClose, assignees, 
             <Typography variant="h5" fontWeight={800}>Assign maintenance</Typography>
             <Typography variant="caption" color="text.secondary">Choose yourself, a team member, or a portal-ready vendor.</Typography>
           </Stack>
-          <IconButton onClick={onClose} disabled={saving} aria-label="Close assignment drawer"><CloseOutlined /></IconButton>
+          <IconButton onClick={onClose} disabled={saving} aria-label="Close assignment drawer"><AppIcon name="close" size={16} /></IconButton>
         </Stack>
 
         <Stack spacing={2.25} sx={{ flex: 1, overflowY: 'auto', px: 3, py: 3 }}>
@@ -67,7 +67,7 @@ export default function MaintenanceAssignmentDrawer({ open, onClose, assignees, 
 
           {!assignees.length && <Alert severity="warning">No active team members or portal-ready vendors are available. Reload the page after updating your organization or vendor list.</Alert>}
           {selected && (
-            <Alert icon={<TeamOutlined />} severity="info">
+            <Alert icon={<AppIcon name="team" />} severity="info">
               Assigning to <strong>{selected.label}</strong> will move this request to Assigned.
             </Alert>
           )}
@@ -79,7 +79,7 @@ export default function MaintenanceAssignmentDrawer({ open, onClose, assignees, 
             variant="contained"
             onClick={() => onAssign(selected)}
             disabled={!selected || saving}
-            startIcon={saving ? <CircularProgress size={15} color="inherit" /> : <TeamOutlined />}
+            startIcon={saving ? <CircularProgress size={15} color="inherit" /> : <AppIcon name="team" />}
             sx={{ px: 2.5, textTransform: 'none', fontWeight: 800 }}
           >
             {saving ? 'Assigning…' : 'Assign'}

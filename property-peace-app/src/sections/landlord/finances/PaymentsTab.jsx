@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { CSVLink } from 'react-csv';
-import { DollarOutlined, PlusOutlined } from '@ant-design/icons';
 import {
   Alert,
   alpha,
@@ -24,6 +23,7 @@ import {
   useTheme
 } from '@mui/material';
 
+import AppIcon from 'components/AppIcon';
 import { openSnackbar } from 'api/snackbar';
 import PaymentEditDrawer from 'components/drawers/PaymentEditDrawer';
 import TransactionFilterToolbar from 'components/filters/TransactionFilterToolbar';
@@ -308,7 +308,7 @@ export default function PaymentsTab({
         </Box>
       ) : visiblePayments.length === 0 ? (
         <Box role="status" aria-live="polite" sx={{ px: 3, py: 7, textAlign: 'center' }}>
-          <Avatar sx={{ width: 52, height: 52, mx: 'auto', bgcolor: alpha(theme.palette.success.main, 0.1), color: 'success.main' }}><DollarOutlined /></Avatar>
+          <Avatar sx={{ width: 52, height: 52, mx: 'auto', bgcolor: alpha(theme.palette.success.main, 0.1), color: 'success.main' }}><AppIcon name="dollarCircle" /></Avatar>
           <Typography variant="h6" sx={{ mt: 1.5 }}>
             {selection.unfilteredCount > 0 ? 'No payments match this view' : 'No payments in this period'}
           </Typography>
@@ -318,7 +318,7 @@ export default function PaymentsTab({
           {hasClientFilters && selection.unfilteredCount > 0 ? (
             <Button onClick={clearFilters} sx={{ mt: 1.5, textTransform: 'none' }}>Clear filters</Button>
           ) : (
-            <Button variant="contained" color="success" startIcon={<PlusOutlined />} onClick={() => drawer.openPaymentAddDrawer()} sx={{ mt: 2, textTransform: 'none' }}>
+            <Button variant="contained" color="success" startIcon={<AppIcon name="add" />} onClick={() => drawer.openPaymentAddDrawer()} sx={{ mt: 2, textTransform: 'none' }}>
               Record payment
             </Button>
           )}

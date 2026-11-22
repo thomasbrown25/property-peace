@@ -3,6 +3,8 @@ using brownstone_hub_api.Enums;
 
 namespace brownstone_hub_api.Dtos.RentCollection
 {
+    public sealed record BillingPeriodRentDto(string Period, decimal Expected, decimal Collected, decimal Due, DateOnly? NextUnpaidDueDate, bool PaidInFull);
+
     public class RentRecordDto
     {
         public long Id { get; set; }
@@ -16,6 +18,8 @@ namespace brownstone_hub_api.Dtos.RentCollection
         public decimal CurrentMonthExpected { get; set; }
         /// <summary>Finalized rent credits allocated to that month, not merely received in it.</summary>
         public decimal CurrentMonthCollected { get; set; }
+        public decimal? CurrentBillingPeriodRentDue { get; set; }
+        public BillingPeriodRentDto? CurrentBillingPeriod { get; set; }
         public decimal OverdueAmount { get; set; }
         /// <summary>Total accrued unpaid rent, with no fees or deposits.</summary>
         public decimal RentDue { get; set; }

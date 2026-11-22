@@ -47,10 +47,14 @@ test('desktop top bar has ordered landlord links, More, and icon search', () => 
   const primary = source('../layout/Dashboard/Header/HeaderContent/LandlordPrimaryNavigation.jsx');
   const more = source('../layout/Dashboard/Header/HeaderContent/TopNavigation.jsx');
   assert.match(content, /landlordPortal && <LandlordPrimaryNavigation \/>/);
-  assert.match(content, /'@media \(min-width: 1280px\)': \{ ml: 0, position: 'absolute', left: '50%', transform: 'translateX\(-50%\)' \}/);
-  assert.match(content, /'@media \(min-width: 1280px\)': \{ ml: 'auto' \}/);
+  assert.match(content, /gridTemplateColumns: 'minmax\(0, 1fr\) auto minmax\(max-content, 1fr\)'/);
+  assert.match(content, /gridTemplateAreas: '"\. navigation actions"'/);
+  assert.match(content, /gap: landlordPortal \? \{ xs: 0\.5, sm: 0\.75, xl: 1\.25 \}/);
   assert.match(content, /!hasTenantRole && <MobileSearch \/>[\s\S]*?<Message \/>/);
   assert.doesNotMatch(content, /<Search \/>/);
+  assert.match(source('../layout/Dashboard/Header/HeaderContent/MobileSearch.jsx'), /<AppIcon name="magnifier" \/>/);
+  assert.match(source('../layout/Dashboard/Header/HeaderContent/Message.jsx'), /<AppIcon name=\{isAdmin \? 'support' : 'chatBubbles'\} \/>/);
+  assert.match(source('../layout/Dashboard/Header/HeaderContent/Notification.jsx'), /<AppIcon name="notification" \/>/);
   assert.match(primary, /landlordPrimaryLinks\.map/);
   assert.match(primary, /<TopNavigation \/>/);
   assert.match(primary, /display: \{ xs: 'none', lg: 'flex' \}/);
@@ -73,7 +77,7 @@ test('properties are searchable, accessible, and scroll in the single green rail
   const sidebar = source('../layout/Dashboard/LandlordSidebar.jsx');
   for (const token of ['useFetchProperties()', 'visibleProperties = propertyRows.filter', 'sortPropertiesByLastVisit',
     'readPropertyVisitDates(user)', 'recordRecentlyViewedProperty(property.id, user)',
-    'placeholder="Search properties"', "'aria-label': 'Search properties'", '<HomeOutlined aria-hidden="true" />',
+    'placeholder="Search properties"', "'aria-label': 'Search properties'", '<AppIcon name="properties" />',
     'component="span" variant="caption"', "sx: { color: '#FFFFFF' }", 'aria-label="Add property"',
     'component="img" src={property.image}', 'No matching properties.',
     'ResizeObserver(updateOverflow)',
@@ -87,13 +91,13 @@ test('properties are searchable, accessible, and scroll in the single green rail
   assert.match(sidebar, /landlordMoreLinks\.filter\(\(\{ label \}\) => label !== 'Settings'\)\.map/);
   assert.match(sidebar, /renderPropertyNavigation\('desktop'\)/);
   assert.match(sidebar, /renderPropertyNavigation\('mobile'\)/);
-  assert.match(sidebar, /aria-label="Search properties" title="Search properties"[\s\S]*?<SearchOutlined \/>[\s\S]*?aria-label="Add property"/);
+  assert.match(sidebar, /aria-label="Search properties" title="Search properties"[\s\S]*?<AppIcon name="search" \/>[\s\S]*?aria-label="Add property"/);
   assert.match(sidebar, /\{!loading && <Collapse in=\{searchOpen\} timeout=\{reducedMotion \? 0 : 240\} unmountOnExit/);
   assert.match(sidebar, /onKeyDown=\{\(event\) => \{ if \(event\.key === 'Escape'\)/);
   assert.match(sidebar, /disabled=\{trialExpired\}/);
   assert.match(sidebar, /borderBottom: '1px solid', borderColor: 'rgba\(255, 255, 255, 0\.14\)'/);
   assert.match(sidebar, /borderTop: '1px solid rgba\(255, 255, 255, 0\.14\)'[\s\S]*?to="\/landlord\/settings"[\s\S]*?primary="Settings"/);
-  assert.match(sidebar, /<SettingOutlined aria-hidden="true" \/>/);
+  assert.match(sidebar, /<AppIcon name="settings" \/>/);
 });
 
 test('the property rail keeps the count and rows hidden until the current list is ready', () => {

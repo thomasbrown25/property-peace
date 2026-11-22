@@ -1,3 +1,4 @@
+import AppIcon from 'components/AppIcon';
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useSearchParams } from 'react-router-dom';
@@ -18,8 +19,6 @@ import {
   ListItem,
   ListItemAvatar,
   ListItemButton,
-  Menu,
-  MenuItem,
   Paper,
   Stack,
   TextField,
@@ -30,19 +29,9 @@ import {
   useTheme
 } from '@mui/material';
 
-import ArrowLeftOutlined from '@ant-design/icons/ArrowLeftOutlined';
-import CheckCircleOutlined from '@ant-design/icons/CheckCircleOutlined';
-import CloseOutlined from '@ant-design/icons/CloseOutlined';
-import HomeOutlined from '@ant-design/icons/HomeOutlined';
-import InboxOutlined from '@ant-design/icons/InboxOutlined';
-import MessageOutlined from '@ant-design/icons/MessageOutlined';
-import MobileOutlined from '@ant-design/icons/MobileOutlined';
-import MoreOutlined from '@ant-design/icons/MoreOutlined';
-import PlusOutlined from '@ant-design/icons/PlusOutlined';
-import SearchOutlined from '@ant-design/icons/SearchOutlined';
-import SendOutlined from '@ant-design/icons/SendOutlined';
 
 import MainCard from 'components/MainCard';
+import ChatRowActions from 'components/conversation/ChatRowActions';
 import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
 import useAuth from 'hooks/useAuth';
 import axiosServices from 'utils/axios';
@@ -129,7 +118,6 @@ export default function TenantChat() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showMessageSearch, setShowMessageSearch] = useState(false);
   const [unreadOnly, setUnreadOnly] = useState(false);
-  const [rowAction, setRowAction] = useState(null);
   const [rowActionError, setRowActionError] = useState('');
   const [optimisticMessages, setOptimisticMessages] = useState([]);
   const [sendError, setSendError] = useState('');
@@ -338,9 +326,7 @@ export default function TenantChat() {
     }
   };
 
-  const handleMarkUnread = async () => {
-    const conversationId = rowAction?.conversationId;
-    setRowAction(null);
+  const handleMarkUnread = async (conversationId) => {
     if (!conversationId) return;
     setRowActionError('');
     try {
@@ -413,7 +399,7 @@ export default function TenantChat() {
 
       <Box sx={snapshotCardSx}>
         <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mb: 0.75 }}>
-          <HomeOutlined style={{ fontSize: 14, color: theme.palette.text.secondary }} />
+          <AppIcon name="house" size={14} style={{ color: theme.palette.text.secondary }} />
           <Typography
             variant="caption"
             color="text.secondary"
@@ -430,7 +416,7 @@ export default function TenantChat() {
 
       <Box sx={snapshotCardSx}>
         <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mb: 0.75 }}>
-          <MobileOutlined style={{ fontSize: 14, color: theme.palette.text.secondary }} />
+          <AppIcon name="phone" size={14} style={{ color: theme.palette.text.secondary }} />
           <Typography
             variant="caption"
             color="text.secondary"
@@ -524,7 +510,7 @@ export default function TenantChat() {
                       onClick={() => showMessageSearch ? messageSearchRef.current?.focus() : setShowMessageSearch(true)}
                       sx={{ color: 'text.secondary', width: 36, height: 36 }}
                     >
-                      <SearchOutlined style={{ fontSize: 18 }} />
+                      <AppIcon name="magnifier" size={18} />
                     </IconButton>
                   </Tooltip>
                   <Tooltip title="New message">
@@ -536,11 +522,7 @@ export default function TenantChat() {
                         onClick={handleOpenNewMessage}
                         sx={{ color: 'text.secondary', width: 36, height: 36 }}
                       >
-                        <Box component="svg" viewBox="0 0 24 24" sx={{ width: 19, height: 19, fill: 'none', stroke: 'currentColor', strokeWidth: 1.7, strokeLinecap: 'round', strokeLinejoin: 'round' }} aria-hidden="true">
-                          <path d="M19 13v6H5V5h6" />
-                          <path d="M13 5h6v6" />
-                          <path d="M19 5 10 14" />
-                        </Box>
+                        <AppIcon name="edit" size={19} />
                       </IconButton>
                     </span>
                   </Tooltip>
@@ -562,11 +544,11 @@ export default function TenantChat() {
                   htmlInput: { 'aria-label': 'Search messages' },
                   input: {
                     sx: { ...filterControlSx, height: 34, fontSize: '0.8rem', borderRadius: 1 },
-                    startAdornment: <InputAdornment position="start"><SearchOutlined style={{ fontSize: 14, opacity: 0.55 }} /></InputAdornment>,
+                    startAdornment: <InputAdornment position="start"><AppIcon name="magnifier" size={14} style={{ opacity: 0.55 }} /></InputAdornment>,
                     endAdornment: (
                       <InputAdornment position="end">
                         <IconButton size="small" aria-label="Close message search" onClick={closeMessageSearch}>
-                          <CloseOutlined style={{ fontSize: 14 }} />
+                          <AppIcon name="close" size={14} />
                         </IconButton>
                       </InputAdornment>
                     )
@@ -584,18 +566,18 @@ export default function TenantChat() {
               {rowActionError && <Alert severity="error" sx={{ m: 1.5 }} onClose={() => setRowActionError('')}>{rowActionError}</Alert>}
               {newMessageOpen && (
                 <Stack direction="row" spacing={1.25} alignItems="center" sx={{ px: 1.5, py: 1, bgcolor: 'action.selected', borderLeft: 3, borderColor: 'primary.main' }}>
-                  <Avatar sx={{ bgcolor: 'primary.main', color: '#fff', width: 38, height: 38 }}><PlusOutlined /></Avatar>
+                  <Avatar sx={{ bgcolor: 'primary.main', color: '#fff', width: 38, height: 38 }}><AppIcon name="add" /></Avatar>
                   <Typography variant="subtitle2" fontWeight={600}>New message</Typography>
                 </Stack>
               )}
               {filteredConversations.length === 0 ? (
                 <Stack spacing={1.25} alignItems="center" sx={{ p: 3, textAlign: 'center' }}>
                   {searchQuery ? (
-                    <SearchOutlined style={{ fontSize: 36, color: theme.palette.text.disabled }} />
+                    <AppIcon name="magnifier" size={36} style={{ color: theme.palette.text.disabled }} />
                   ) : unreadOnly ? (
-                    <CheckCircleOutlined style={{ fontSize: 40, color: theme.palette.success.main }} />
+                    <AppIcon name="checkCircle" size={40} style={{ color: theme.palette.success.main }} />
                   ) : (
-                    <InboxOutlined style={{ fontSize: 40, color: theme.palette.text.disabled }} />
+                    <AppIcon name="document" size={40} style={{ color: theme.palette.text.disabled }} />
                   )}
                   <Typography variant="subtitle2" fontWeight={700}>
                     {searchQuery ? 'No matching conversations' : unreadOnly ? 'You’re all caught up' : 'Your inbox is empty'}
@@ -606,7 +588,7 @@ export default function TenantChat() {
                   {(searchQuery || (!unreadOnly && !newMessageOpen)) && <Button
                     size="small"
                     variant={searchQuery ? 'text' : 'contained'}
-                    startIcon={searchQuery ? undefined : <PlusOutlined />}
+                    startIcon={searchQuery ? undefined : <AppIcon name="add" />}
                     onClick={searchQuery ? () => setSearchQuery('') : handleOpenNewMessage}
                     disabled={!searchQuery && sendingMessage}
                     sx={{ textTransform: 'none' }}
@@ -658,17 +640,11 @@ export default function TenantChat() {
                             {landlordName}
                           </Typography>
                         </ListItemButton>
-                        <IconButton
-                          className="chat-row-actions"
-                          size="small"
-                          aria-label={`Actions for ${landlordName}`}
-                          aria-haspopup="menu"
-                          aria-expanded={rowAction?.conversationId === conversation.id}
-                        onClick={(event) => setRowAction({ anchor: event.currentTarget, conversationId: conversation.id })}
-                          sx={{ mx: 0.75, width: 30, height: 30, flexShrink: 0, '&:focus-visible': { outline: `2px solid ${theme.palette.primary.main}` } }}
-                        >
-                          <MoreOutlined />
-                        </IconButton>
+                        <ChatRowActions
+                          id={`tenant-chat-row-actions-${conversation.id}`}
+                          name={landlordName}
+                          onMarkUnread={() => handleMarkUnread(conversation.id)}
+                        />
                       </ListItem>
                     );
                   })}
@@ -729,7 +705,7 @@ export default function TenantChat() {
                             onClick={() => setSelectedConversation(null)}
                             sx={{ ml: -0.5, flexShrink: 0 }}
                           >
-                            <ArrowLeftOutlined />
+                            <AppIcon name="arrowRight" style={{ transform: 'rotate(180deg)' }} />
                           </IconButton>
                         </Tooltip>
                       )}
@@ -785,7 +761,7 @@ export default function TenantChat() {
                     <Alert severity="error">{messageError}</Alert>
                   ) : visibleMessages.length === 0 ? (
                     <Stack spacing={1} alignItems="center" justifyContent="center" sx={{ textAlign: 'center', p: 3, minHeight: 220 }}>
-                      <MessageOutlined style={{ fontSize: 38, color: theme.palette.text.disabled }} />
+                      <AppIcon name="messages" size={38} style={{ color: theme.palette.text.disabled }} />
                       <Typography variant="subtitle2" fontWeight={700}>
                         Start the conversation
                       </Typography>
@@ -898,7 +874,7 @@ export default function TenantChat() {
                                   </Paper>
                                   {message._optimistic && isOwn && <CircularProgress size={12} sx={{ color: 'primary.main', mb: 0.25, flexShrink: 0 }} />}
                                   {isOwn && !message._optimistic && latestSentMessageId != null && String(message.id) === String(latestSentMessageId) && (
-                                    <CheckCircleOutlined aria-label="Message sent" style={{ fontSize: 15, color: theme.palette.success.main, marginBottom: 2, flexShrink: 0 }} />
+                                    <Box component="span" role="img" aria-label="Message sent" sx={{ display: 'inline-flex', color: 'success.main', mb: '2px', flexShrink: 0 }}><AppIcon name="checkCircle" size={15} /></Box>
                                   )}
                                 </Stack>
                               </Box>
@@ -991,7 +967,7 @@ export default function TenantChat() {
                             '&.Mui-disabled': { bgcolor: 'action.disabledBackground', color: 'text.disabled' }
                           }}
                         >
-                          {sendingMessage ? <CircularProgress size={19} color="inherit" /> : <SendOutlined style={{ fontSize: 18 }} />}
+                          {sendingMessage ? <CircularProgress size={19} color="inherit" /> : <AppIcon name="send" size={18} />}
                         </IconButton>
                       </span>
                     </Tooltip>
@@ -1024,7 +1000,7 @@ export default function TenantChat() {
               >
                 <Stack spacing={1.5} alignItems="center" sx={{ textAlign: 'center', maxWidth: 360 }}>
                   <Avatar sx={{ width: 64, height: 64, bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main' }}>
-                    <MessageOutlined style={{ fontSize: 28 }} />
+                    <AppIcon name="messages" size={28} />
                   </Avatar>
                   <Typography variant="h5" fontWeight={700}>
                     Your inbox
@@ -1036,7 +1012,7 @@ export default function TenantChat() {
                     variant="contained"
                     color="primary"
                     size="small"
-                    startIcon={<PlusOutlined />}
+                    startIcon={<AppIcon name="add" />}
                     onClick={handleOpenNewMessage}
                     sx={{ mt: 0.5, textTransform: 'none', minHeight: 34, px: 1.5, fontSize: '0.8rem' }}
                   >
@@ -1107,16 +1083,6 @@ export default function TenantChat() {
         </MainCard>
       )}
 
-      <Menu
-        anchorEl={rowAction?.anchor}
-        open={Boolean(rowAction)}
-        onClose={() => setRowAction(null)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-        slotProps={{ paper: { sx: { outline: 'none' } } }}
-      >
-        <MenuItem onClick={handleMarkUnread}>Mark as unread</MenuItem>
-      </Menu>
     </Box>
   );
 }

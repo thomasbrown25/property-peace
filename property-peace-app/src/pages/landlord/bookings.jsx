@@ -1,18 +1,22 @@
 import { useEffect, useState } from 'react';
-import { PlusOutlined, SearchOutlined, DownOutlined } from '@ant-design/icons';
 import {
   alpha, Alert, Box, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent,
   DialogTitle, InputAdornment, MenuItem, OutlinedInput, Pagination, Select, Stack, Typography, useTheme
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import axios from 'utils/axios';
+import AppIcon from 'components/AppIcon';
+import ActionsDrawer from 'components/drawers/shared/ActionsDrawer';
 import ManagementPageHeader from 'components/headers/ManagementPageHeader';
-import { managementPageHeaderActionSx } from 'components/headers/managementPageHeaderStyles';
 
 const statuses = ['Held', 'PendingPayment', 'Processing', 'Confirmed', 'Expired', 'Failed', 'RefundRequired', 'Refunded', 'Disputed'];
 const label = (status) => status?.replace(/([a-z])([A-Z])/g, '$1 $2') || 'Unknown';
 const date = (value) => value ? new Date(`${value.slice(0, 10)}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
 const money = (cents, currency) => new Intl.NumberFormat('en-US', { style: 'currency', currency: currency || 'USD' }).format(cents / 100);
+
+function BookingSelectIcon({ className }) {
+  return <AppIcon name="chevronDown" size={16} className={className} />;
+}
 
 export default function BookingsPage() {
   const theme = useTheme();
@@ -49,21 +53,32 @@ export default function BookingsPage() {
 
   return <Box sx={{ pb: 3 }}>
     <ManagementPageHeader title="Bookings" showBreadcrumbs={false} actions={
-      <Button variant="contained" startIcon={<PlusOutlined />} onClick={() => setAddOpen(true)} sx={managementPageHeaderActionSx}>Add booking</Button>
+      <ActionsDrawer
+        id="bookings-actions-drawer"
+        title="Booking actions"
+        actions={[
+          {
+            label: 'Add booking',
+            description: 'See how bookings appear and open your properties to set up a short stay.',
+            icon: 'calendar',
+            onSelect: () => setAddOpen(true)
+          }
+        ]}
+      />
     } />
     <Box sx={{ mb: 2 }}>
       <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.1}>
         <OutlinedInput size="small" value={search} onChange={(event) => setSearch(event.target.value)}
           placeholder="Search guests, properties, units, or booking codes" inputProps={{ 'aria-label': 'Search bookings' }}
-          startAdornment={<InputAdornment position="start"><SearchOutlined /></InputAdornment>}
+          startAdornment={<InputAdornment position="start"><AppIcon name="magnifier" /></InputAdornment>}
           sx={{ flex: 1, minWidth: { md: 260 }, borderRadius: 1.75 }} />
         <Stack direction="row" spacing={1} sx={{ overflowX: 'auto' }}>
-          <Select size="small" value={status} onChange={(event) => setStatus(event.target.value)} IconComponent={DownOutlined}
+          <Select size="small" value={status} onChange={(event) => setStatus(event.target.value)} IconComponent={BookingSelectIcon}
             inputProps={{ 'aria-label': 'Filter booking status' }} sx={{ minWidth: 160, borderRadius: 1.75 }}>
             <MenuItem value="all">All statuses</MenuItem>
             {statuses.map((item) => <MenuItem key={item} value={item}>{label(item)}</MenuItem>)}
           </Select>
-          <Select size="small" value={period} onChange={(event) => setPeriod(event.target.value)} IconComponent={DownOutlined}
+          <Select size="small" value={period} onChange={(event) => setPeriod(event.target.value)} IconComponent={BookingSelectIcon}
             inputProps={{ 'aria-label': 'Filter booking dates' }} sx={{ minWidth: 150, borderRadius: 1.75 }}>
             <MenuItem value="all">All dates</MenuItem><MenuItem value="upcoming">Upcoming stays</MenuItem><MenuItem value="past">Past stays</MenuItem>
           </Select>
@@ -74,7 +89,7 @@ export default function BookingsPage() {
         {filtered && <Button size="small" onClick={reset} sx={{ textTransform: 'none' }}>Reset view</Button>}
       </Stack>
     </Box>
-    {error && <Alert severity="error" sx={{ mb: 2 }} action={<Button color="inherit" size="small" onClick={() => setReload((value) => value + 1)}>Retry</Button>}>{error}</Alert>}
+    {error && <Alert severity="error" icon={<AppIcon name="warning" />} sx={{ mb: 2 }} action={<Button color="inherit" size="small" onClick={() => setReload((value) => value + 1)}>Retry</Button>}>{error}</Alert>}
     <Box sx={{ bgcolor: 'background.paper', border: `1px solid ${alpha(theme.palette.divider, 0.16)}`, borderRadius: 3,
       boxShadow: `0 8px 28px ${alpha('#061e35', 0.055)}`, overflow: 'hidden' }}>
       <Box sx={{ display: { xs: 'none', md: 'grid' }, gridTemplateColumns: columns, gap: 2, px: 2, py: 1.15,

@@ -5,8 +5,8 @@ import {
   Alert, alpha, Box, Button, FormControl, MenuItem, Pagination, Select, Skeleton, Stack,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography, useMediaQuery, useTheme
 } from '@mui/material';
-import { ErrorOutline } from '@mui/icons-material';
 
+import AppIcon from 'components/AppIcon';
 import TransactionFilterToolbar from 'components/filters/TransactionFilterToolbar';
 import ActivityRow from './ActivityRow';
 import { buildActivityCsvRows, getActivityAccountOptions, selectActivityEntriesPage } from 'utils/finances';
@@ -173,7 +173,7 @@ export default function ActivityTab({ entries = [],
         <Box sx={{ p: 2 }}>
           <Alert
             severity="warning"
-            icon={<ErrorOutline />}
+            icon={<AppIcon name="warning" />}
             action={<Button color="inherit" onClick={onRetry}>Try again</Button>}
           >
             <Typography fontWeight={700}>Activity records could not be loaded</Typography>

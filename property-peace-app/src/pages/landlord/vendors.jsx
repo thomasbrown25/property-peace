@@ -10,12 +10,10 @@ import {
   IconButton,
   Chip,
   Avatar,
-  Menu,
   MenuItem,
   OutlinedInput,
   Pagination,
   Select,
-  Tooltip,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -36,29 +34,11 @@ import {
   Switch,
   Divider
 } from '@mui/material';
-import {
-  PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  SearchOutlined,
-  PhoneOutlined,
-  MailOutlined,
-  ShopOutlined,
-  CloseOutlined,
-  ArrowLeftOutlined,
-  UserOutlined,
-  ContactsOutlined,
-  DollarOutlined,
-  FileTextOutlined,
-  MoreOutlined,
-  DownOutlined,
-  CheckCircleOutlined,
-  ExclamationCircleOutlined,
-  ToolOutlined
-} from '@ant-design/icons';
+import AppIcon from 'components/AppIcon';
+import ActionsDrawer from 'components/drawers/shared/ActionsDrawer';
 import { formatPhoneInput } from 'utils/formatters';
 import ManagementPageHeader from 'components/headers/ManagementPageHeader';
-import { creationActionSx, managementPageHeaderActionSx } from 'components/headers/managementPageHeaderStyles';
+import { creationActionSx } from 'components/headers/managementPageHeaderStyles';
 import { VendorCsvImportButton } from 'components/import/CsvImportButtons';
 import { useDispatch, useSelector } from 'react-redux';
 import useAuth from 'hooks/useAuth';
@@ -150,24 +130,33 @@ function SummaryCard({ label, value, helper, icon, color, active, onClick }) {
   );
 }
 
-function VendorRow({ vendor, openRequestCount, onEdit, onActions }) {
+function VendorSelectIcon({ className }) {
+  return <AppIcon name="chevronDown" className={className} size={16} />;
+}
+
+const vendorRowControlSx = { position: 'relative', zIndex: 2 };
+
+function VendorRow({ vendor, openRequestCount, onEdit, onToggleActive, onDelete }) {
   const theme = useTheme();
   const address = [vendor.address, vendor.city, vendor.state, vendor.zipCode].filter(Boolean).join(', ');
   const hasContact = Boolean(vendor.email || vendor.phone);
   const initial = (vendor.businessName || vendor.name || 'V').trim().charAt(0).toUpperCase();
+  const name = vendor.name || 'Unnamed vendor';
+  const actions = [
+    { label: 'Edit vendor', description: 'Update contact, business, or tax details.', icon: 'edit', onSelect: () => onEdit(vendor) },
+    {
+      label: vendor.isActive ? 'Mark inactive' : 'Reactivate vendor',
+      description: vendor.isActive ? 'Move this vendor out of your active network.' : 'Return this vendor to your active network.',
+      icon: vendor.isActive ? 'stopCircle' : 'checkCircle',
+      onSelect: () => onToggleActive(vendor)
+    },
+    { label: 'Delete vendor', description: 'Review and confirm removal of this vendor.', icon: 'trash', destructive: true, onSelect: () => onDelete(vendor) }
+  ];
 
   return (
     <Box
-      role="button"
-      tabIndex={0}
-      onClick={() => onEdit(vendor)}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          onEdit(vendor);
-        }
-      }}
       sx={{
+        position: 'relative',
         width: '100%',
         px: { xs: 1.5, md: 2 },
         py: { xs: 1.6, md: 1.4 },
@@ -176,16 +165,24 @@ function VendorRow({ vendor, openRequestCount, onEdit, onActions }) {
         color: 'text.primary',
         textAlign: 'left',
         font: 'inherit',
-        cursor: 'pointer',
         display: { xs: 'block', md: 'grid' },
         gridTemplateColumns: 'minmax(230px, 1.45fr) minmax(190px, 1.1fr) minmax(145px, .8fr) minmax(155px, .85fr) 44px',
         gap: { xs: 1.25, md: 2 },
         alignItems: 'center',
         borderBottom: `1px solid ${alpha(theme.palette.divider, 0.13)}`,
-        '&:hover': { bgcolor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.07 : 0.025) },
-        '&:focus-visible': { outline: `2px solid ${alpha(theme.palette.primary.main, 0.4)}`, outlineOffset: -2 }
+        '&:hover': { bgcolor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.07 : 0.025) }
       }}
     >
+      <Box
+        component="button"
+        type="button"
+        aria-label={`Edit ${name}`}
+        onClick={() => onEdit(vendor)}
+        sx={{
+          position: 'absolute', inset: 0, zIndex: 1, p: 0, border: 0, bgcolor: 'transparent', cursor: 'pointer',
+          '&:focus-visible': { outline: `2px solid ${alpha(theme.palette.primary.main, 0.4)}`, outlineOffset: -2 }
+        }}
+      />
       <Stack direction="row" spacing={1.25} alignItems="center" minWidth={0}>
         <Avatar sx={{ width: 42, height: 42, bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main', fontWeight: 750 }}>
           {initial}
@@ -193,7 +190,7 @@ function VendorRow({ vendor, openRequestCount, onEdit, onActions }) {
         <Box minWidth={0}>
           <Stack direction="row" spacing={0.7} alignItems="center" minWidth={0}>
             <Typography fontWeight={720} noWrap>
-              {vendor.name || 'Unnamed vendor'}
+              {name}
             </Typography>
             {!vendor.isActive && <Chip label="Inactive" size="small" sx={{ height: 20, fontSize: '0.64rem' }} />}
           </Stack>
@@ -209,11 +206,10 @@ function VendorRow({ vendor, openRequestCount, onEdit, onActions }) {
             <Typography
               component="a"
               href={`mailto:${vendor.email}`}
-              onClick={(event) => event.stopPropagation()}
               noWrap
-              sx={{ fontSize: '0.76rem', color: 'text.primary', textDecoration: 'none', '&:hover': { color: 'primary.main' } }}
+              sx={{ ...vendorRowControlSx, fontSize: '0.76rem', color: 'text.primary', textDecoration: 'none', '&:hover': { color: 'primary.main' } }}
             >
-              <MailOutlined style={{ marginRight: 7, color: theme.palette.text.secondary }} />
+              <AppIcon name="mail" style={{ marginRight: 7, color: theme.palette.text.secondary }} />
               {vendor.email}
             </Typography>
           )}
@@ -221,10 +217,9 @@ function VendorRow({ vendor, openRequestCount, onEdit, onActions }) {
             <Typography
               component="a"
               href={`tel:${vendor.phone}`}
-              onClick={(event) => event.stopPropagation()}
-              sx={{ fontSize: '0.76rem', color: 'text.primary', textDecoration: 'none', '&:hover': { color: 'primary.main' } }}
+              sx={{ ...vendorRowControlSx, fontSize: '0.76rem', color: 'text.primary', textDecoration: 'none', '&:hover': { color: 'primary.main' } }}
             >
-              <PhoneOutlined style={{ marginRight: 7, color: theme.palette.text.secondary }} />
+              <AppIcon name="phone" style={{ marginRight: 7, color: theme.palette.text.secondary }} />
               {formatPhoneInput(vendor.phone)}
             </Typography>
           )}
@@ -262,18 +257,9 @@ function VendorRow({ vendor, openRequestCount, onEdit, onActions }) {
       </Box>
 
       <Box sx={{ display: 'flex', justifyContent: { xs: 'flex-end', md: 'center' } }}>
-        <Tooltip title="Vendor actions">
-          <IconButton
-            size="small"
-            aria-label={`Actions for ${vendor.name}`}
-            onClick={(event) => {
-              event.stopPropagation();
-              onActions(event, vendor);
-            }}
-          >
-            <MoreOutlined />
-          </IconButton>
-        </Tooltip>
+        <Box sx={vendorRowControlSx}>
+          <ActionsDrawer id={`vendor-actions-${vendor.id}`} title="Vendor actions" triggerLabel={`Actions for ${name}`} actions={actions} iconOnly />
+        </Box>
       </Box>
     </Box>
   );
@@ -294,8 +280,6 @@ export default function Vendors() {
   const [workloadFilter, setWorkloadFilter] = useState('all');
   const [sortBy, setSortBy] = useState('workload');
   const [page, setPage] = useState(1);
-  const [menuAnchor, setMenuAnchor] = useState(null);
-  const [menuVendor, setMenuVendor] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedVendor, setSelectedVendor] = useState(null);
@@ -532,20 +516,12 @@ export default function Vendors() {
     }
   };
 
-  const handleVendorActions = (event, vendor) => {
-    setMenuAnchor(event.currentTarget);
-    setMenuVendor(vendor);
+  const confirmVendorDelete = (vendor) => {
+    setSelectedVendor(vendor);
+    setDeleteDialogOpen(true);
   };
 
-  const closeVendorMenu = () => {
-    setMenuAnchor(null);
-    setMenuVendor(null);
-  };
-
-  const handleToggleActive = async () => {
-    if (!menuVendor) return;
-    const vendor = menuVendor;
-    closeVendorMenu();
+  const handleToggleActive = async (vendor) => {
     const result = await dispatch(updateVendor(vendor.id, { ...vendor, id: vendor.id, isActive: !vendor.isActive }));
     if (result.success) {
       openSnackbar({
@@ -586,7 +562,7 @@ export default function Vendors() {
                   mb: 1.5
                 }}
               >
-                <UserOutlined style={{ fontSize: 26, color: theme.palette.primary.main }} />
+                <AppIcon name="user" size={26} style={{ color: theme.palette.primary.main }} />
               </Box>
               <Typography variant="h5" fontWeight={700}>
                 Basic Info
@@ -630,7 +606,7 @@ export default function Vendors() {
                   mb: 1.5
                 }}
               >
-                <ContactsOutlined style={{ fontSize: 26, color: theme.palette.info.main }} />
+                <AppIcon name="team" size={26} style={{ color: theme.palette.info.main }} />
               </Box>
               <Typography variant="h5" fontWeight={700}>
                 Contact Info
@@ -673,7 +649,7 @@ export default function Vendors() {
                   mb: 1.5
                 }}
               >
-                <DollarOutlined style={{ fontSize: 26, color: theme.palette.warning.main }} />
+                <AppIcon name="dollarCircle" size={26} style={{ color: theme.palette.warning.main }} />
               </Box>
               <Typography variant="h5" fontWeight={700}>
                 Financial Details
@@ -761,7 +737,7 @@ export default function Vendors() {
                   mb: 1.5
                 }}
               >
-                <FileTextOutlined style={{ fontSize: 26, color: theme.palette.success.main }} />
+                <AppIcon name="document" size={26} style={{ color: theme.palette.success.main }} />
               </Box>
               <Typography variant="h5" fontWeight={700}>
                 Review
@@ -801,22 +777,18 @@ export default function Vendors() {
         title="Vendors"
         description="Keep your contractor network ready, reachable, and connected to the work in progress."
         actions={
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-            <VendorCsvImportButton
-              buttonProps={{
-                variant: 'outlined',
-                sx: managementPageHeaderActionSx
-              }}
-            />
-            <Button
-              variant="contained"
-              startIcon={<PlusOutlined />}
-              onClick={() => handleOpenDrawer()}
-              sx={creationActionSx}
-            >
-              Add vendor
-            </Button>
-          </Stack>
+          <VendorCsvImportButton
+            renderTrigger={({ openImport, disabled }) => (
+              <ActionsDrawer
+                id="vendors-actions-drawer"
+                title="Vendor network actions"
+                actions={[
+                  { label: 'Add vendor', description: 'Create a record for a contractor or service provider.', icon: 'add', onSelect: () => handleOpenDrawer() },
+                  { label: 'Import vendors', description: 'Add multiple vendors from a CSV file.', icon: 'uploadDocument', onSelect: openImport, disabled }
+                ]}
+              />
+            )}
+          />
         }
       />
 
@@ -826,7 +798,7 @@ export default function Vendors() {
             label="Active network"
             value={metrics.active}
             helper={`${vendors.length - metrics.active} inactive vendor${vendors.length - metrics.active === 1 ? '' : 's'}`}
-            icon={<CheckCircleOutlined />}
+            icon={<AppIcon name="checkCircle" />}
             color={theme.palette.success.main}
             active={statusFilter === 'active' && workloadFilter === 'all'}
             onClick={() => {
@@ -840,7 +812,7 @@ export default function Vendors() {
             label="Working now"
             value={metrics.assigned}
             helper="Assigned to open maintenance"
-            icon={<ToolOutlined />}
+            icon={<AppIcon name="maintenance" />}
             color={theme.palette.info.main}
             active={workloadFilter === 'assigned'}
             onClick={() => setWorkloadFilter((value) => (value === 'assigned' ? 'all' : 'assigned'))}
@@ -851,7 +823,7 @@ export default function Vendors() {
             label="Recorded spend"
             value={formatMoney(metrics.spend)}
             helper="Across vendor-linked expenses"
-            icon={<DollarOutlined />}
+            icon={<AppIcon name="dollarCircle" />}
             color={theme.palette.primary.main}
             active={sortBy === 'spend'}
             onClick={() => setSortBy((value) => (value === 'spend' ? 'workload' : 'spend'))}
@@ -862,7 +834,7 @@ export default function Vendors() {
             label="Needs setup"
             value={metrics.needsSetup}
             helper="Missing phone and email"
-            icon={<ExclamationCircleOutlined />}
+            icon={<AppIcon name="warning" />}
             color={theme.palette.warning.main}
             active={workloadFilter === 'contact'}
             onClick={() => setWorkloadFilter((value) => (value === 'contact' ? 'all' : 'contact'))}
@@ -879,7 +851,7 @@ export default function Vendors() {
               size="small"
               startAdornment={
                 <InputAdornment position="start">
-                  <SearchOutlined />
+                  <AppIcon name="magnifier" />
                 </InputAdornment>
               }
               sx={{ flex: 1, minWidth: { md: 280 }, borderRadius: 1.75 }}
@@ -889,7 +861,7 @@ export default function Vendors() {
                 size="small"
                 value={statusFilter}
                 onChange={(event) => setStatusFilter(event.target.value)}
-                IconComponent={DownOutlined}
+                IconComponent={VendorSelectIcon}
                 sx={{ minWidth: 120, borderRadius: 1.75 }}
               >
                 <MenuItem value="active">Active</MenuItem>
@@ -900,7 +872,7 @@ export default function Vendors() {
                 size="small"
                 value={categoryFilter}
                 onChange={(event) => setCategoryFilter(event.target.value)}
-                IconComponent={DownOutlined}
+                IconComponent={VendorSelectIcon}
                 sx={{ minWidth: 150, borderRadius: 1.75 }}
               >
                 <MenuItem value="all">All categories</MenuItem>
@@ -914,7 +886,7 @@ export default function Vendors() {
                 size="small"
                 value={workloadFilter}
                 onChange={(event) => setWorkloadFilter(event.target.value)}
-                IconComponent={DownOutlined}
+                IconComponent={VendorSelectIcon}
                 sx={{ minWidth: 158, borderRadius: 1.75 }}
               >
                 <MenuItem value="all">All workload</MenuItem>
@@ -927,7 +899,7 @@ export default function Vendors() {
                 size="small"
                 value={sortBy}
                 onChange={(event) => setSortBy(event.target.value)}
-                IconComponent={DownOutlined}
+                IconComponent={VendorSelectIcon}
                 sx={{ minWidth: 155, borderRadius: 1.75 }}
               >
                 <MenuItem value="workload">Sort: Workload</MenuItem>
@@ -978,7 +950,7 @@ export default function Vendors() {
         ) : vendors.length === 0 ? (
           <Stack alignItems="center" spacing={1.5} sx={{ py: 7, px: 2, textAlign: 'center' }}>
             <Avatar sx={{ width: 52, height: 52, bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main' }}>
-              <ShopOutlined />
+              <AppIcon name="shop" />
             </Avatar>
             <Typography variant="h6" fontWeight={700}>
               Build your vendor network
@@ -988,7 +960,7 @@ export default function Vendors() {
             </Typography>
             <Button
               variant="contained"
-              startIcon={<PlusOutlined />}
+              startIcon={<AppIcon name="add" />}
               onClick={() => handleOpenDrawer()}
               sx={creationActionSx}
             >
@@ -1014,7 +986,8 @@ export default function Vendors() {
               vendor={vendor}
               openRequestCount={openRequestCounts.get(vendor.id) || 0}
               onEdit={handleOpenDrawer}
-              onActions={handleVendorActions}
+              onToggleActive={handleToggleActive}
+              onDelete={confirmVendorDelete}
             />
           ))
         )}
@@ -1028,37 +1001,6 @@ export default function Vendors() {
           </Stack>
         )}
       </Box>
-
-      <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={closeVendorMenu}>
-        <MenuItem
-          onClick={() => {
-            const vendor = menuVendor;
-            closeVendorMenu();
-            if (vendor) handleOpenDrawer(vendor);
-          }}
-        >
-          <EditOutlined style={{ marginRight: 10 }} />
-          Edit vendor
-        </MenuItem>
-        <MenuItem onClick={handleToggleActive}>
-          <CheckCircleOutlined style={{ marginRight: 10 }} />
-          {menuVendor?.isActive ? 'Mark inactive' : 'Reactivate vendor'}
-        </MenuItem>
-        <MenuItem
-          sx={{ color: 'error.main' }}
-          onClick={() => {
-            const vendor = menuVendor;
-            closeVendorMenu();
-            if (vendor) {
-              setSelectedVendor(vendor);
-              setDeleteDialogOpen(true);
-            }
-          }}
-        >
-          <DeleteOutlined style={{ marginRight: 10 }} />
-          Delete vendor
-        </MenuItem>
-      </Menu>
 
       {/* Add/Edit Drawer */}
       <ThemeAdaptiveDrawer
@@ -1090,8 +1032,8 @@ export default function Vendors() {
           <Typography variant="h5" fontWeight={700}>
             {selectedVendor ? 'Edit Vendor' : 'Add Vendor'}
           </Typography>
-          <IconButton size="small" onClick={handleCloseDrawer}>
-            <CloseOutlined />
+          <IconButton size="small" onClick={handleCloseDrawer} aria-label="Close vendor form">
+            <AppIcon name="close" />
           </IconButton>
         </Box>
 
@@ -1136,7 +1078,7 @@ export default function Vendors() {
           <Button
             onClick={handleBack}
             disabled={activeStep === 0 || saving}
-            startIcon={<ArrowLeftOutlined />}
+            startIcon={<AppIcon name="arrowRight" style={{ transform: 'rotate(180deg)' }} />}
             sx={{ textTransform: 'none', px: 2.5 }}
           >
             Back

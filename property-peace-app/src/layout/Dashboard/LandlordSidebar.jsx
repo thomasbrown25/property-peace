@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { Link, useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import { DownOutlined, HomeOutlined, MoreOutlined, PlusOutlined, SearchOutlined, SettingOutlined } from '@ant-design/icons';
+import AppIcon from 'components/AppIcon';
 import { Box, Collapse, Drawer, IconButton, List, ListItemButton, ListItemText, TextField, Typography, useMediaQuery } from '@mui/material';
 import Logo from 'components/logo';
 import { brand } from 'themes/brand';
@@ -86,8 +86,8 @@ export default function LandlordSidebar({ mobileOpen, onMobileClose }) {
           ))}
           <ListItemButton onClick={() => setMoreOpen((open) => !open)} aria-expanded={moreOpen}
             sx={{ mx: 1.5, borderRadius: 1.5, color: '#FFFFFF' }}>
-            <MoreOutlined style={{ marginRight: 12 }} /><ListItemText primary="More" primaryTypographyProps={{ fontSize: 13 }} />
-            <DownOutlined style={{ fontSize: 11, transform: moreOpen ? 'rotate(180deg)' : undefined }} />
+            <AppIcon name="more" style={{ marginRight: 12 }} /><ListItemText primary="More" primaryTypographyProps={{ fontSize: 13 }} />
+            <AppIcon name="chevronDown" size={11} style={{ transform: moreOpen ? 'rotate(180deg)' : undefined }} />
           </ListItemButton>
           <Collapse in={moreOpen} unmountOnExit>
             {landlordMoreLinks.filter(({ label }) => label !== 'Settings').map(({ label, to }) => (
@@ -141,7 +141,7 @@ function PropertyNavigation({ properties, total, loading, search, searchId, onSe
         sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, color: '#FFFFFF', textDecoration: 'none',
           '&:hover': { color: '#FFFFFF', textDecoration: 'underline' },
           '&:focus-visible': { outline: '2px solid', outlineColor: brand.mint, outlineOffset: 3 } }}>
-        <HomeOutlined aria-hidden="true" />
+        <AppIcon name="properties" />
         <Typography component="h2" variant="subtitle1" sx={{ fontWeight: 700, color: 'inherit' }}>Properties</Typography>
         {total != null && <Typography component="span" variant="caption" sx={{ color: 'inherit', fontWeight: 600 }}>{total}</Typography>}
       </Box>
@@ -149,10 +149,10 @@ function PropertyNavigation({ properties, total, loading, search, searchId, onSe
         <IconButton ref={searchButtonRef} aria-label="Search properties" title="Search properties"
           aria-expanded={searchOpen} aria-controls={searchOpen ? searchId : undefined}
           onClick={() => { if (searchOpen) closeSearch(); else setSearchOpen(true); }} size="small" sx={{ color: 'inherit' }}>
-          <SearchOutlined />
+          <AppIcon name="search" />
         </IconButton>
         <IconButton component={Link} to="/landlord/properties/add" aria-label="Add property" title="Add property"
-          disabled={disabled} onClick={onNavigate} size="small" sx={{ color: 'inherit' }}><PlusOutlined /></IconButton>
+          disabled={disabled} onClick={onNavigate} size="small" sx={{ color: 'inherit' }}><AppIcon name="add" /></IconButton>
       </Box>}
     </Box>
     {!loading && <Collapse in={searchOpen} timeout={reducedMotion ? 0 : 240} unmountOnExit sx={{ flexShrink: 0 }}>
@@ -193,7 +193,7 @@ function PropertyNavigation({ properties, total, loading, search, searchId, onSe
       <ListItemButton component={Link} to="/landlord/settings" onClick={onNavigate}
         selected={pathname === '/landlord/settings' || pathname.startsWith('/landlord/settings/')}
         sx={{ ...rowSx, gap: 1.5, px: 2, minHeight: 44 }}>
-        <SettingOutlined aria-hidden="true" />
+        <AppIcon name="settings" />
         <ListItemText primary="Settings" primaryTypographyProps={{ fontSize: 13, fontWeight: 600, sx: { color: '#FFFFFF' } }} />
       </ListItemButton>
     </Box>

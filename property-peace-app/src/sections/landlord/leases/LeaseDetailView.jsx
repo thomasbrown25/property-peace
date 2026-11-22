@@ -6,13 +6,9 @@ import {
   FormControlLabel, Menu, MenuItem, Stack, Tab, Tabs, TextField, Typography, useTheme,
   FormControl, InputLabel, Select, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TablePagination
 } from '@mui/material';
-import {
-  CheckOutlined, DollarOutlined, EditOutlined, EllipsisOutlined,
-  FileTextOutlined, PlusOutlined,
-  StopOutlined, UploadOutlined, ArrowRightOutlined,
-  MailOutlined, PhoneOutlined, DeleteOutlined, CalendarOutlined,
-  SearchOutlined, UserOutlined, ThunderboltOutlined
-} from '@ant-design/icons';
+import AppIcon from 'components/AppIcon';
+import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
+import ActionsDrawer from 'components/drawers/shared/ActionsDrawer';
 import PaymentEditDrawer from 'components/drawers/PaymentEditDrawer';
 import TenantMessageDrawer from 'components/drawers/TenantMessageDrawer';
 import { openSnackbar } from 'api/snackbar';
@@ -26,6 +22,7 @@ import { getLeaseHeaderBalance } from 'utils/leaseHeaderSummary';
 import { buildDocumentRows, filterDocumentRows, paginateDocumentRows } from './leaseDocumentTable.mjs';
 import { leaseDetailTitle } from 'utils/leaseDetailTitle.mjs';
 import { renterProfileRoute } from 'utils/renterWorkspace';
+import LeaseActivityRow from './LeaseActivityRow';
 import LeaseChargesTab from './LeaseChargesTab';
 import { recordTabsSx } from 'sections/landlord/property/recordTabsStyle';
 import { buildLeaseChecklistCards, sortLeaseChecklistSteps } from 'utils/leaseMoveIn';
@@ -143,7 +140,7 @@ function LeaseMoveInCard({
             >
               <Stack direction="row" spacing={1} alignItems="flex-start">
                 <Box sx={{ width: 22, height: 22, borderRadius: '50%', flexShrink: 0, mt: 0.1, bgcolor: complete ? color : 'transparent', border: `1.5px solid ${color}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {complete ? <CheckOutlined style={{ color: '#fff', fontSize: 10 }} /> : <Box sx={{ width: 5, height: 5, borderRadius: '50%', bgcolor: color }} />}
+                  {complete ? <AppIcon name="check" size={10} style={{ color: '#fff' }} /> : <Box sx={{ width: 5, height: 5, borderRadius: '50%', bgcolor: color }} />}
                 </Box>
                 <Box sx={{ minWidth: 0, flex: 1 }}>
                   <Typography sx={{ fontSize: '0.75rem', fontWeight: 700 }}>{step.label}</Typography>
@@ -213,13 +210,13 @@ function TenantRow({ role, name, email, phone, initials, onMessage, onViewProfil
               </Typography>
               {email && (
                 <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mb: 0.2 }}>
-                  <MailOutlined style={{ fontSize: 10, color: theme.palette.text.disabled }} />
+                  <AppIcon name="mail" size={10} style={{ color: theme.palette.text.disabled }} />
                   <Typography sx={{ fontSize: '0.68rem', color: 'text.secondary' }} noWrap>{email}</Typography>
                 </Stack>
               )}
               {phone && (
                 <Stack direction="row" alignItems="center" spacing={0.5}>
-                  <PhoneOutlined style={{ fontSize: 10, color: theme.palette.text.disabled }} />
+                  <AppIcon name="phone" size={10} style={{ color: theme.palette.text.disabled }} />
                   <Typography sx={{ fontSize: '0.68rem', color: 'text.secondary' }}>{formatPhoneInput(phone)}</Typography>
                 </Stack>
               )}
@@ -312,7 +309,7 @@ function TenantsCard({ tenants, property, onAddTenant, onViewProfile }) {
             </Typography>
           </Box>
           <Box sx={{ width: 24, height: 24, borderRadius: '50%', border: (t) => `1px solid ${subtleDivider(t, 0.34, 0.24)}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <PlusOutlined style={{ fontSize: 11, color: theme.palette.text.secondary }} />
+            <AppIcon name="add" size={11} style={{ color: theme.palette.text.secondary }} />
           </Box>
         </Box>
       </Stack>
@@ -329,6 +326,7 @@ function TenantsCard({ tenants, property, onAddTenant, onViewProfile }) {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function LeaseDetailView({
+  breadcrumbItems,
   lease, tenants, property, payments, deposits, rentRecord,
   paymentsLoading = true, paymentsError, onRetryPayments,
   propertyDisplay, unitDisplay, isDraftLease, isNotStarted, leaseId,
@@ -340,7 +338,6 @@ export default function LeaseDetailView({
 }) {
   const theme = useTheme();
   const navigate = useNavigate();
-  const [leaseActionsAnchor, setLeaseActionsAnchor] = useState(null);
   const [deleteLeaseOpen, setDeleteLeaseOpen] = useState(false);
   const [deleteDocuments, setDeleteDocuments] = useState(true);
   const [deleteChecklists, setDeleteChecklists] = useState(true);
@@ -405,6 +402,45 @@ export default function LeaseDetailView({
     setDeleteChecklists(true);
     setDeleteLeaseOpen(true);
   };
+
+  const leaseActions = [
+    {
+      label: 'Edit lease',
+      description: 'Update lease terms and details.',
+      icon: 'edit',
+      onSelect: onEditTerms
+    },
+    !isDraftLease && (lease?.isActive || isNotStarted) && {
+      label: 'Record a payment',
+      description: 'Log a payment for this lease.',
+      icon: 'dollarCircle',
+      onSelect: onRecordPayment
+    },
+    !isDraftLease && {
+      label: 'Upload a document',
+      description: 'Attach a file to this lease.',
+      icon: 'uploadDocument',
+      onSelect: onUploadDocument
+    },
+    !isDraftLease && (lease?.isActive ? {
+      label: 'End lease early',
+      description: 'Review and confirm ending this lease early.',
+      icon: 'stopCircle',
+      onSelect: handleEndLeaseClick
+    } : {
+      label: 'Reopen lease',
+      description: 'Review and confirm reopening this lease.',
+      icon: 'reopen',
+      onSelect: handleReopenLeaseClick
+    }),
+    {
+      label: 'Delete lease',
+      description: 'Review which lease records will be affected before confirming.',
+      icon: 'trash',
+      destructive: true,
+      onSelect: openDeleteLease
+    }
+  ].filter(Boolean);
 
   const confirmDeleteLease = async () => {
     const id = lease?.id ?? lease?.Id ?? leaseId;
@@ -548,8 +584,7 @@ export default function LeaseDetailView({
         label: type === 'deposit' ? 'Deposit received' : `${tenantFullName || 'Tenant'} paid ${formatCurrency(amt)}`,
         sub: [type === 'deposit' ? `${formatCurrency(amt)} · deposit` : `${format(date, 'MMM d')} · on time`, getLeasePaymentOrigin(p)].filter(Boolean).join(' · '),
         amount: `+${formatCurrency(amt)}`,
-        payment: p,
-        dot: true
+        payment: p
       });
     });
     if (lease.landlordSignedAt) {
@@ -557,7 +592,7 @@ export default function LeaseDetailView({
         date: new Date(lease.landlordSignedAt),
         label: 'Lease signed by both parties',
         sub: `DocuSign · signed at ${format(new Date(lease.landlordSignedAt), 'h:mma')}`,
-        amount: null, dot: false
+        amount: null
       });
     }
     return items.sort((a, b) => b.date - a.date).slice(0, 8);
@@ -610,6 +645,10 @@ export default function LeaseDetailView({
 
   return (
     <Box>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1.5} sx={{ mb: 2, '& .MuiBreadcrumbs-root': { mb: 0, minWidth: 0 } }}>
+        <PageBreadcrumbs items={breadcrumbItems} />
+        <ActionsDrawer id="lease-actions-drawer" title="Lease actions" triggerLabel="Lease actions" actions={leaseActions} />
+      </Stack>
       {/* The home gives this lease its context; the adjacent snapshot gives it its terms. */}
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'minmax(0, 7fr) minmax(0, 5fr)' }, gap: 2, mb: 2, alignItems: 'stretch' }}>
         <Box sx={{ position: 'relative', overflow: 'hidden', borderRadius: 3, minHeight: { xs: 240, md: 288 }, bgcolor: 'brand.forest', color: 'common.white' }}>
@@ -636,65 +675,16 @@ export default function LeaseDetailView({
           </Stack>
         </Box>
         <Box sx={{ ...detailCardSx, borderRadius: 3, p: { xs: 2.25, sm: 2.75 }, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-          <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={1}>
-            <Box sx={{ minWidth: 0 }}>
-              <Typography sx={{ ...detailHeaderSx, fontSize: '0.67rem' }}>Monthly rent</Typography>
-              <Typography variant="h3" sx={{ fontWeight: 850, fontSize: { xs: '1.9rem', sm: '2.25rem' }, lineHeight: 1.25, overflowWrap: 'anywhere' }}>
-                {rentAmount > 0 ? formatCurrency(rentAmount) : 'Not set'}
-                {rentAmount > 0 && <Typography component="span" sx={{ color: 'text.secondary', fontSize: '0.88rem', ml: 0.5 }}>/month</Typography>}
-              </Typography>
-            </Box>
-            <Box sx={{ flexShrink: 0 }}>
-              <Button
-              variant="contained"
-              startIcon={<ThunderboltOutlined />}
-              aria-label="Lease actions"
-              aria-controls={leaseActionsAnchor ? 'lease-actions-menu' : undefined}
-              aria-haspopup="menu"
-              aria-expanded={Boolean(leaseActionsAnchor)}
-              onClick={(event) => setLeaseActionsAnchor(event.currentTarget)}
-              sx={{ textTransform: 'none', whiteSpace: 'nowrap' }}
-            >
-              Actions
-            </Button>
-            <Menu
-              id="lease-actions-menu"
-              anchorEl={leaseActionsAnchor}
-              open={Boolean(leaseActionsAnchor)}
-              onClose={() => setLeaseActionsAnchor(null)}
-              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-              transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-            >
-              {!isDraftLease && (
-                <MenuItem onClick={() => { setLeaseActionsAnchor(null); onUploadDocument?.(); }}>
-                  <FileTextOutlined style={{ marginRight: 12 }} /> Upload document
-                </MenuItem>
-              )}
-              {!isDraftLease && (lease?.isActive || isNotStarted) && (
-                <MenuItem onClick={() => { setLeaseActionsAnchor(null); onRecordPayment?.(); }}>
-                  <DollarOutlined style={{ marginRight: 12 }} /> Record payment
-                </MenuItem>
-              )}
-              <MenuItem onClick={() => { setLeaseActionsAnchor(null); onEditTerms?.(); }}>
-                <EditOutlined style={{ marginRight: 12 }} /> Edit lease
-              </MenuItem>
-              {!isDraftLease && (
-                <MenuItem onClick={() => { setLeaseActionsAnchor(null); (lease?.isActive ? handleEndLeaseClick : handleReopenLeaseClick)?.(); }}>
-                  <StopOutlined style={{ marginRight: 12 }} /> {lease?.isActive ? 'End lease early' : 'Reopen lease'}
-                </MenuItem>
-              )}
-              <Divider />
-              <MenuItem onClick={() => { setLeaseActionsAnchor(null); openDeleteLease(); }} sx={{ color: 'error.main' }}>
-                <DeleteOutlined style={{ marginRight: 12 }} /> Delete
-              </MenuItem>
-            </Menu>
-            </Box>
-          </Stack>
+          <Typography sx={{ ...detailHeaderSx, fontSize: '0.67rem' }}>Monthly rent</Typography>
+          <Typography variant="h3" sx={{ fontWeight: 850, fontSize: { xs: '1.9rem', sm: '2.25rem' }, lineHeight: 1.25, overflowWrap: 'anywhere' }}>
+            {rentAmount > 0 ? formatCurrency(rentAmount) : 'Not set'}
+            {rentAmount > 0 && <Typography component="span" sx={{ color: 'text.secondary', fontSize: '0.88rem', ml: 0.5 }}>/month</Typography>}
+          </Typography>
           <Box sx={{ mt: 2, pt: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
             <Typography sx={{ ...detailHeaderSx, fontSize: '0.64rem', mb: 0.65 }}>Lease term</Typography>
             <Stack direction="row" alignItems="center" spacing={1} sx={{ flexWrap: 'wrap', color: 'text.primary' }}>
               <Typography sx={{ fontWeight: 750, fontSize: '0.84rem' }}>{startDate ? format(startDate, 'MMM d, yyyy') : 'Not set'}</Typography>
-              <ArrowRightOutlined style={{ color: theme.palette.text.secondary }} />
+              <AppIcon name="arrowRight" style={{ color: theme.palette.text.secondary }} />
               <Typography sx={{ fontWeight: 750, fontSize: '0.84rem' }}>{endDate ? format(endDate, 'MMM d, yyyy') : 'Not set'}</Typography>
             </Stack>
           </Box>
@@ -733,7 +723,7 @@ export default function LeaseDetailView({
               <Button variant="outlined" size="small" onClick={() => navigate(leaseAgreementSetupUrl)} sx={{ textTransform: 'none', fontWeight: 650, borderColor: '#d97706', color: '#92400e' }}>
                 Create agreement
               </Button>
-              <Button variant="contained" color="success" size="small" startIcon={<EditOutlined />} onClick={onEditTerms} sx={{ textTransform: 'none', fontWeight: 700, boxShadow: 'none', '&:hover': { boxShadow: 'none' } }}>
+              <Button variant="contained" color="success" size="small" startIcon={<AppIcon name="edit" />} onClick={onEditTerms} sx={{ textTransform: 'none', fontWeight: 700, boxShadow: 'none', '&:hover': { boxShadow: 'none' } }}>
                 Edit lease details
               </Button>
             </Stack>
@@ -846,36 +836,22 @@ export default function LeaseDetailView({
               {activityItems.length > 0 ? (
                 <Stack>
                   {activityItems.map((item, i) => (
-                    <Stack key={i} direction="row" spacing={1.5} alignItems="flex-start"
-                      sx={{ py: 1, borderBottom: i < activityItems.length - 1 ? `1px solid ${subtleDivider(theme, 0.16, 0.1)}` : 'none' }}>
-                      <Box sx={{
-                        width: 18, height: 18, borderRadius: '50%', flexShrink: 0, mt: 0.15,
-                        bgcolor: item.dot ? alpha(theme.palette.success.main, 0.12) : alpha(theme.palette.primary.main, 0.1),
-                        border: `2px solid ${item.dot ? theme.palette.success.main : theme.palette.primary.main}`,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center'
-                      }}>
-                        {item.dot && <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: 'success.main' }} />}
-                      </Box>
-                      <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Typography sx={{ fontSize: '0.78rem', fontWeight: 500, lineHeight: 1.3 }}>{item.label}</Typography>
-                        <Typography sx={{ fontSize: '0.65rem', color: 'text.secondary' }}>{item.sub}</Typography>
-                      </Box>
-                      {item.amount && (
-                        <Stack direction="row" alignItems="center" spacing={0.5} sx={{ flexShrink: 0 }}>
-                          <Typography sx={{ fontSize: '0.82rem', fontWeight: 700, color: 'success.main' }}>{item.amount}</Typography>
-                          {item.payment && (
-                            <IconButton
-                              size="small"
-                              onClick={(event) => handlePaymentActionsClick(event, item.payment)}
-                              aria-label="Payment actions"
-                              sx={{ width: 24, height: 24, color: 'text.secondary' }}
-                            >
-                              <EllipsisOutlined style={{ fontSize: 13 }} />
-                            </IconButton>
-                          )}
-                        </Stack>
+                    <LeaseActivityRow
+                      key={i}
+                      label={item.label}
+                      details={item.sub}
+                      amount={item.amount}
+                      action={item.payment && (
+                        <IconButton
+                          size="small"
+                          onClick={(event) => handlePaymentActionsClick(event, item.payment)}
+                          aria-label="Payment actions"
+                          sx={{ width: 24, height: 24, color: 'text.secondary' }}
+                        >
+                          <AppIcon name="more" size={13} />
+                        </IconButton>
                       )}
-                    </Stack>
+                    />
                   ))}
                 </Stack>
               ) : (
@@ -896,7 +872,7 @@ export default function LeaseDetailView({
       {activeTab === 2 && (
         <SectionCard title="Payment history">
           <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.25} sx={{ mb: 2 }}>
-            <TextField fullWidth size="small" value={paymentSearch} onChange={(event) => setPaymentSearch(event.target.value)} placeholder="Search payments" slotProps={{ input: { startAdornment: <SearchOutlined style={{ marginRight: 8, color: theme.palette.text.secondary }} /> } }} />
+            <TextField fullWidth size="small" value={paymentSearch} onChange={(event) => setPaymentSearch(event.target.value)} placeholder="Search payments" slotProps={{ input: { startAdornment: <AppIcon name="magnifier" style={{ marginRight: 8, color: theme.palette.text.secondary }} /> } }} />
             <TextField size="small" type="date" label="From" value={paymentFromDate} onChange={(event) => setPaymentFromDate(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} sx={{ minWidth: { md: 170 } }} />
             <TextField size="small" type="date" label="To" value={paymentToDate} onChange={(event) => setPaymentToDate(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} sx={{ minWidth: { md: 170 } }} />
           </Stack>
@@ -910,13 +886,13 @@ export default function LeaseDetailView({
                 const type = payment.type ?? payment.Type ?? 'Payment';
                 return (
                   <Stack key={paymentId} direction="row" alignItems="center" spacing={1.5} sx={{ py: 1.25 }}>
-                    <Box sx={{ width: 38, height: 38, borderRadius: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: alpha(theme.palette.success.main, 0.09), color: 'success.main', flexShrink: 0 }}><DollarOutlined /></Box>
+                    <Box sx={{ width: 38, height: 38, borderRadius: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: alpha(theme.palette.success.main, 0.09), color: 'success.main', flexShrink: 0 }}><AppIcon name="dollarCircle" variant="bulk" size={20} /></Box>
                     <Box sx={{ flex: 1, minWidth: 0 }}>
                       <Typography sx={{ fontSize: '0.82rem', fontWeight: 700 }}>{type}</Typography>
                       <Typography sx={{ fontSize: '0.68rem', color: 'text.secondary' }}>{paymentDate ? format(new Date(paymentDate), 'MMM d, yyyy') : 'Date not recorded'}{tenantFullName ? ` · ${tenantFullName}` : ''}</Typography>
                     </Box>
                     <Typography sx={{ fontSize: '0.9rem', fontWeight: 750, color: 'success.main' }}>{formatCurrency(amount)}</Typography>
-                    <IconButton size="small" aria-label="Payment actions" onClick={(event) => handlePaymentActionsClick(event, payment)}><EllipsisOutlined /></IconButton>
+                    <IconButton size="small" aria-label="Payment actions" onClick={(event) => handlePaymentActionsClick(event, payment)}><AppIcon name="more" /></IconButton>
                   </Stack>
                 );
               })}
@@ -932,8 +908,8 @@ export default function LeaseDetailView({
 
       {activeTab === 3 && (
         <SectionCard title="Documents" action={<Stack direction="row" spacing={1}>
-          <Button size="small" variant="outlined" startIcon={<PlusOutlined />} onClick={() => navigate(leaseAgreementSetupUrl)}>Create agreement</Button>
-          <Button size="small" variant="contained" startIcon={<UploadOutlined />} onClick={onUploadDocument}>Upload</Button>
+          <Button size="small" variant="outlined" startIcon={<AppIcon name="add" />} onClick={() => navigate(leaseAgreementSetupUrl)}>Create agreement</Button>
+          <Button size="small" variant="contained" startIcon={<AppIcon name="uploadDocument" />} onClick={onUploadDocument}>Upload</Button>
         </Stack>}>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mb: 2 }}>
             <TextField size="small" label="Search documents" value={documentSearch} onChange={(event) => { setDocumentSearch(event.target.value); setDocumentPage(0); }} sx={{ flex: 1 }} />
@@ -1029,11 +1005,11 @@ export default function LeaseDetailView({
         PaperProps={{ sx: { mt: 0.5, minWidth: 170, borderRadius: 1.5 } }}
       >
         <MenuItem onClick={handlePaymentEdit} sx={{ gap: 1, fontSize: '0.85rem' }}>
-          <EditOutlined style={{ fontSize: 14 }} />
+          <AppIcon name="edit" size={14} />
           Edit payment
         </MenuItem>
         <MenuItem onClick={handlePaymentDelete} sx={{ gap: 1, fontSize: '0.85rem', color: 'error.main' }}>
-          <DeleteOutlined style={{ fontSize: 14 }} />
+          <AppIcon name="trash" size={14} />
           Delete payment
         </MenuItem>
       </Menu>

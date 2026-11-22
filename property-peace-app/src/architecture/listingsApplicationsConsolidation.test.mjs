@@ -13,6 +13,8 @@ test('Listings owns the combined header and URL-addressable Listings and Applica
   assert.match(listings, /<Tab value="applications" label="Applications"/);
   assert.match(listings, /searchParams\.get\('tab'\) === 'applications'/);
   assert.match(listings, /<ApplicationsPage hideHeader \/>/);
+  assert.match(listings, /const createAction = activeTab === 'applications'[\s\S]*?label: 'New application'[\s\S]*?openApplicationAddDrawer\(\)[\s\S]*?label: 'Add listing'[\s\S]*?navigate\('\/landlord\/listings\/add'\)/);
+  assert.match(listings, /<ActionsDrawer\s+key=\{activeTab\}[\s\S]*?actions=\{\[createAction\]\}/);
 });
 
 test('landlord navigation exposes one combined destination without the Leasing group or retired pages', async () => {

@@ -12,9 +12,7 @@ import {
   TableRow,
   Paper,
   IconButton,
-  Tooltip,
   TextField,
-  InputAdornment,
   CircularProgress,
   alpha,
   useTheme,
@@ -29,27 +27,14 @@ import {
   MenuItem,
   Menu,
   Checkbox,
-  FormControlLabel,
   Chip,
   MenuList,
   ListItemText
 } from '@mui/material';
 import MainCard from 'components/MainCard';
 import FilterDeleteIcon from 'components/FilterDeleteIcon';
-import {
-  UploadOutlined,
-  SearchOutlined,
-  MoreOutlined,
-  FileTextOutlined,
-  CalendarOutlined,
-  DownOutlined,
-  PlusOutlined,
-  CloseOutlined,
-  DeleteOutlined,
-  EditOutlined,
-  CheckOutlined,
-  FilterOutlined
-} from '@ant-design/icons';
+import AppIcon from 'components/AppIcon';
+import ActionsDrawer from 'components/drawers/shared/ActionsDrawer';
 import { useDispatch, useSelector } from 'react-redux';
 import { openSnackbar } from 'api/snackbar';
 import { selectProperty } from 'store/property/property.selector';
@@ -65,6 +50,10 @@ import { fileAPI, fileCategoryAPI } from 'api';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+
+function CalendarIcon({ className }) {
+  return <AppIcon name="calendar" className={className} />;
+}
 
 export default function Documents() {
   const theme = useTheme();
@@ -109,8 +98,6 @@ export default function Documents() {
   // Modals
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [categoriesDialogOpen, setCategoriesDialogOpen] = useState(false);
-  const [fileMenuAnchor, setFileMenuAnchor] = useState(null);
-  const [selectedFileId, setSelectedFileId] = useState(null);
   const [selectedCategoryForUpload, setSelectedCategoryForUpload] = useState('');
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -267,7 +254,6 @@ export default function Documents() {
         alert: { color: 'error' }
       });
     }
-    setFileMenuAnchor(null);
   };
 
   const handleBulkDelete = async () => {
@@ -428,6 +414,20 @@ export default function Documents() {
   }, [sortedFiles]);
 
   const matchCount = filteredFiles.length;
+  const documentActions = [
+    {
+      label: 'Upload account file',
+      description: 'Upload files and assign them to a category.',
+      icon: 'uploadDocument',
+      onSelect: () => setUploadDialogOpen(true)
+    },
+    {
+      label: 'Manage file categories',
+      description: 'Add, rename, or remove categories for your documents.',
+      icon: 'tag',
+      onSelect: () => setCategoriesDialogOpen(true)
+    }
+  ];
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
@@ -450,22 +450,7 @@ export default function Documents() {
           <Typography variant="h4" fontWeight={700}>
             Documents
           </Typography>
-          <Button
-            variant="text"
-            startIcon={<UploadOutlined style={{ fontSize: 16, color: theme.palette.primary.main }} />}
-            onClick={() => setUploadDialogOpen(true)}
-            sx={{
-              color: 'primary.main',
-              textTransform: 'none',
-              minWidth: 'auto',
-              px: 1,
-              '&:hover': {
-                bgcolor: alpha(theme.palette.primary.main, 0.08)
-              }
-            }}
-          >
-            Upload account file
-          </Button>
+          <ActionsDrawer id="documents-actions-drawer" title="Documents actions" actions={documentActions} />
         </Stack>
 
         {/* Filters */}
@@ -553,7 +538,7 @@ export default function Documents() {
               <Button
                 size="small"
                 variant="outlined"
-                startIcon={<FilterOutlined style={{ fontSize: 16 }} />}
+                startIcon={<AppIcon name="filter" size={16} />}
                 onClick={(e) => setFilterAnchorEl(e.currentTarget)}
                 sx={{
                   color: 'primary.main',
@@ -697,6 +682,7 @@ export default function Documents() {
               <Stack spacing={2}>
                 <DatePicker
                   label="From Date"
+                  slots={{ openPickerIcon: CalendarIcon }}
                   value={startDate}
                   onChange={(newDate) => {
                     setStartDate(newDate);
@@ -710,6 +696,7 @@ export default function Documents() {
                 />
                 <DatePicker
                   label="To Date"
+                  slots={{ openPickerIcon: CalendarIcon }}
                   value={endDate}
                   onChange={(newDate) => {
                     setEndDate(newDate);
@@ -739,7 +726,7 @@ export default function Documents() {
               <Button
                 variant="outlined"
                 color="error"
-                startIcon={<DeleteOutlined />}
+                startIcon={<AppIcon name="trash" />}
                 onClick={() => setDeleteConfirmOpen(true)}
                 disabled={deleting}
                 size="small"
@@ -786,7 +773,7 @@ export default function Documents() {
                     <Stack direction="row" spacing={0.5} alignItems="center">
                       <span>LAST MODIFIED BY</span>
                       {sortField === 'lastModified' && (
-                        sortOrder === 'asc' ? <DownOutlined style={{ fontSize: 12 }} /> : <DownOutlined style={{ fontSize: 12, transform: 'rotate(180deg)' }} />
+                        <AppIcon name="chevronDown" size={12} style={{ transform: sortOrder === 'desc' ? 'rotate(180deg)' : undefined }} />
                       )}
                     </Stack>
                   </TableCell>
@@ -823,7 +810,7 @@ export default function Documents() {
                       </TableCell>
                       <TableCell>
                         <Stack direction="row" spacing={1} alignItems="center">
-                          <FileTextOutlined style={{ fontSize: 18, color: theme.palette.primary.main }} />
+                          <AppIcon name="document" size={18} style={{ color: theme.palette.primary.main }} />
                           <Typography>{file.title || 'Lease document'}</Typography>
                         </Stack>
                       </TableCell>
@@ -842,15 +829,28 @@ export default function Documents() {
                           : '—'}
                       </TableCell>
                       <TableCell>
-                        <IconButton
-                          size="small"
-                          onClick={(e) => {
-                            setFileMenuAnchor(e.currentTarget);
-                            setSelectedFileId(file.id);
-                          }}
-                        >
-                          <MoreOutlined />
-                        </IconButton>
+                        <ActionsDrawer
+                          id={`document-actions-${file.id}`}
+                          title="Document actions"
+                          triggerLabel={`Actions for ${file.title || 'Lease document'}`}
+                          iconOnly
+                          actions={[
+                            {
+                              label: 'View document',
+                              description: 'Open this file in a new tab.',
+                              icon: 'document',
+                              href: file.blobUrl || undefined,
+                              disabled: !file.blobUrl
+                            },
+                            {
+                              label: 'Delete document',
+                              description: 'Permanently remove this file.',
+                              icon: 'trash',
+                              destructive: true,
+                              onSelect: () => handleDeleteFile(file.id)
+                            }
+                          ]}
+                        />
                       </TableCell>
                     </TableRow>
                   ))
@@ -859,36 +859,6 @@ export default function Documents() {
             </Table>
           </TableContainer>
         </MainCard>
-
-        {/* File Menu */}
-        <Menu
-          anchorEl={fileMenuAnchor}
-          open={Boolean(fileMenuAnchor)}
-          onClose={() => setFileMenuAnchor(null)}
-        >
-          <MenuItem
-            onClick={() => {
-              if (selectedFileId) {
-                const file = files.find((f) => f.id === selectedFileId);
-                if (file?.blobUrl) {
-                  window.open(file.blobUrl, '_blank');
-                }
-              }
-              setFileMenuAnchor(null);
-            }}
-          >
-            View
-          </MenuItem>
-          <MenuItem
-            onClick={() => {
-              if (selectedFileId) {
-                handleDeleteFile(selectedFileId);
-              }
-            }}
-          >
-            Delete
-          </MenuItem>
-        </Menu>
 
         {/* Upload Dialog */}
         <Dialog open={uploadDialogOpen} onClose={() => setUploadDialogOpen(false)} maxWidth="sm" fullWidth>
@@ -926,7 +896,7 @@ export default function Documents() {
                   variant="outlined"
                   component="span"
                   fullWidth
-                  startIcon={<UploadOutlined />}
+                  startIcon={<AppIcon name="uploadDocument" />}
                   sx={{ py: 2 }}
                 >
                   Select Files
@@ -1015,37 +985,41 @@ export default function Documents() {
                               size="small"
                               onClick={() => handleUpdateCategory(category.id)}
                               color="primary"
+                              aria-label="Save category name"
                             >
-                              <CheckOutlined />
+                              <AppIcon name="check" />
                             </IconButton>
                             <IconButton
                               size="small"
+                              aria-label="Cancel editing category"
                               onClick={() => {
                                 setEditingCategoryId(null);
                                 setEditingCategoryName('');
                               }}
                             >
-                              <CloseOutlined />
+                              <AppIcon name="close" />
                             </IconButton>
                           </Stack>
                         ) : (
                           <Stack direction="row" spacing={1} justifyContent="flex-end">
                             <IconButton
                               size="small"
+                              aria-label={`Edit ${category.name}`}
                               onClick={() => {
                                 setEditingCategoryId(category.id);
                                 setEditingCategoryName(category.name);
                               }}
                             >
-                              <EditOutlined />
+                              <AppIcon name="edit" />
                             </IconButton>
                             {category.fileCount === 0 && (
                               <IconButton
                                 size="small"
+                                aria-label={`Delete ${category.name}`}
                                 onClick={() => handleDeleteCategory(category.id)}
                                 color="error"
                               >
-                                <DeleteOutlined />
+                                <AppIcon name="trash" />
                               </IconButton>
                             )}
                           </Stack>
@@ -1060,7 +1034,7 @@ export default function Documents() {
             <Divider sx={{ my: 2 }} />
 
             <Stack direction="row" spacing={1} alignItems="center">
-              <PlusOutlined />
+              <AppIcon name="add" />
               <TextField
                 placeholder="Add a new category"
                 value={newCategoryName}

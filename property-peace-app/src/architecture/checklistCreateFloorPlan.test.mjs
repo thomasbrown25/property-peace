@@ -29,7 +29,7 @@ test('bathroom count accepts only whole and half steps and explains the new room
 test('room name trash action immediately removes a room from the drawer and creation payload', () => {
   assert.match(source, /const \[removedRoomNames, setRemovedRoomNames\] = useState\(\[\]\)/);
   assert.match(source, /generatedRoomNames\.filter\(\(name\) => !removedRoomNames\.includes\(name\)\)/);
-  assert.match(source, /<DeleteOutlined\s*\/>/);
+  assert.match(source, /<AppIcon name="trash"\s*\/>/);
   assert.match(source, /aria-label=\{`Remove \$\{originalName\} room`\}/);
   assert.match(source, /setRemovedRoomNames\(\(current\) => \[\.\.\.current, originalName\]\)/);
   assert.match(source, /removeInspectionRooms\(buildFloorInspectionItems\(floorPlan\.slice\(0, floorCount\)\), removedRoomNames\)/);

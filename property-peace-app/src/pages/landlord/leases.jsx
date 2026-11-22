@@ -78,6 +78,7 @@ import RenewLeaseDrawer from 'components/drawers/RenewLeaseDrawer';
 import FilterDeleteIcon from 'components/FilterDeleteIcon';
 import useFetchProperties from 'hooks/useFetchProperties';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
+import { openLeaseWithPropertyHistory } from 'utils/leaseNavigation.mjs';
 import { formatCurrency, formatDate, formatRentStatus, getRentStatusColor } from 'utils/formatters';
 import { getLeaseTermLabel } from 'utils/leaseTermLabel';
 import { getLeaseStatusPresentation as presentLeaseStatus } from 'utils/leaseStatusPresentation';
@@ -1227,8 +1228,12 @@ export default function LeasesPage({ onEditLease }) {
     navigate(`/landlord/leases/build-lease-agreement?${params.toString()}`);
   };
 
+  const handleOpenLease = (lease) => {
+    return openLeaseWithPropertyHistory(navigate, location, lease.propertyId, `/landlord/leases/${lease.id}`);
+  };
+
   const handleSignLeaseFromAgreement = (leaseAgreement) => {
-    navigate(`/landlord/leases/${leaseAgreement.id}?sign=true`);
+    return openLeaseWithPropertyHistory(navigate, location, leaseAgreement.propertyId, `/landlord/leases/${leaseAgreement.id}?sign=true`);
   };
 
   const getAgreementStatus = agreementWorkspaceStatus;
@@ -1588,7 +1593,7 @@ export default function LeasesPage({ onEditLease }) {
                             <Card
                               key={lease.id}
                               variant="outlined"
-                              onClick={() => hasLease && navigate(`/landlord/leases/${lease.id}`)}
+                              onClick={() => hasLease && handleOpenLease(lease)}
                               sx={{ borderRadius: 2, cursor: hasLease ? 'pointer' : 'default', boxShadow: `0 6px 18px ${alpha(theme.palette.common.black, 0.05)}` }}
                             >
                               <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
@@ -1697,7 +1702,7 @@ export default function LeasesPage({ onEditLease }) {
                               const handleRowClick = (e) => {
                                 const target = e.target;
                                 const isActionElement = target.closest('button') || target.closest('[role="button"]') || target.closest('.MuiIconButton-root') || target.closest('.MuiButton-root');
-                                if (!isActionElement && hasLease) navigate(`/landlord/leases/${lease.id}`);
+                                if (!isActionElement && hasLease) handleOpenLease(lease);
                               };
 
                               return (

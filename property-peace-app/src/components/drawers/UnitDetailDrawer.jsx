@@ -4,10 +4,11 @@ import {
   CloseOutlined, MailOutlined, PhoneOutlined, HomeOutlined,
   FileTextOutlined, MessageOutlined, ToolOutlined, ArrowRightOutlined
 } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { format, differenceInDays, differenceInMonths } from 'date-fns';
 import { formatCurrency, formatPhone } from 'utils/formatters';
 import { getLeasePagePath, getUnitStatusPresentation } from 'utils/unitPresentation';
+import { openLeaseWithPropertyHistory } from 'utils/leaseNavigation.mjs';
 import { useDrawer } from 'contexts/DrawerContext';
 import { isOpenMaintenanceRequest } from 'utils/maintenanceStatus';
 import { rentalMode, modeLabel, propertyModeLabel } from 'utils/rentalMode';
@@ -24,6 +25,7 @@ function InfoRow({ label, value }) {
 export default function UnitDetailDrawer({ open, unit, property, onClose }) {
   const theme = useTheme();
   const navigate = useNavigate();
+  const location = useLocation();
   const drawer = useDrawer();
 
   if (!unit) return null;
@@ -83,7 +85,7 @@ export default function UnitDetailDrawer({ open, unit, property, onClose }) {
   const handleOpenLease = () => {
     if (!leasePagePath) return;
     onClose();
-    navigate(leasePagePath);
+    openLeaseWithPropertyHistory(navigate, location, propertyId, leasePagePath);
   };
 
   return (

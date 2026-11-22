@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { ClickAwayListener, IconButton, Paper, Popper, Tooltip } from '@mui/material';
-import SearchOutlined from '@ant-design/icons/SearchOutlined';
+import AppIcon from 'components/AppIcon';
 import Search from './Search';
 
 // Search stays out of the toolbar until requested. The panel is anchored below
@@ -28,7 +28,7 @@ export default function MobileSearch() {
             '&:hover': { bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'action.hover' }
           })}
         >
-          <SearchOutlined />
+          <AppIcon name="magnifier" />
         </IconButton>
       </Tooltip>
       <Popper open={open} anchorEl={anchor} placement="bottom-end" sx={{ zIndex: (theme) => theme.zIndex.modal }}>

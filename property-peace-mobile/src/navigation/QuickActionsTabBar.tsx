@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
+import AppIcon from '../components/AppIcon';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { StackActions } from '@react-navigation/native';
 import { Animated, Easing, Image, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -8,7 +9,7 @@ import { logout } from '../store/user/user.slice';
 import { useMoreDrawer } from './MoreDrawerContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { brandColors, useAppTheme } from '../theme/AppTheme';
-import { mainTabIconNames, type MainAudience } from './mainTabModel';
+import { mainTabIconName, type MainAudience } from './mainTabModel';
 import PropertyAPI from '../api/propertyAPI';
 import { loadPortfolioRentalMode } from '../features/properties/portfolioRentalMode';
 import type { PropertyRentalMode } from '../features/properties/rentalMode';
@@ -70,7 +71,7 @@ const webAppUrl = process.env.EXPO_PUBLIC_WEB_APP_URL?.replace(/\/$/, '')
 
 function AnimatedTab({ label, icon, selected, mode, selectedForeground, onPress, onLongPress }: {
   label: string;
-  icon: ReturnType<typeof mainTabIconNames>;
+  icon: ReturnType<typeof mainTabIconName>;
   selected: boolean;
   mode: string;
   selectedForeground: string;
@@ -95,7 +96,7 @@ function AnimatedTab({ label, icon, selected, mode, selectedForeground, onPress,
       onLongPress={onLongPress}
     >
       <Animated.View style={[styles.tabContent, { transform: [{ scale }] }]}>
-        {icon && <Ionicons name={(selected ? icon.active : icon.inactive) as keyof typeof Ionicons.glyphMap} size={22} color={color} />}
+        {icon && <AppIcon name={icon} variant={selected ? 'bold' : 'linear'} size={22} color={color} />}
       </Animated.View>
     </Pressable>
   );
@@ -174,7 +175,7 @@ export default function QuickActionsTabBar({ state, descriptors, navigation, aud
     const selected = state.index === index;
     const label = typeof descriptors[route.key].options.tabBarLabel === 'string'
       ? descriptors[route.key].options.tabBarLabel as string : route.name;
-    const icon = mainTabIconNames(route.name);
+    const icon = mainTabIconName(route.name);
     return (
       <AnimatedTab
         key={route.key}

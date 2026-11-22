@@ -16,7 +16,6 @@ import {
   TableHead,
   TableRow,
   Paper,
-  IconButton,
   Chip,
   Dialog,
   DialogTitle,
@@ -38,19 +37,8 @@ import {
   Menu,
   MenuList
 } from '@mui/material';
-import {
-  PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  SearchOutlined,
-  PhoneOutlined,
-  MailOutlined,
-  UserOutlined,
-  HomeOutlined,
-  LinkOutlined,
-  FilterOutlined,
-  CloseOutlined
-} from '@ant-design/icons';
+import AppIcon from 'components/AppIcon';
+import ActionsDrawer from 'components/drawers/shared/ActionsDrawer';
 import MainCard from 'components/MainCard';
 import FilterDeleteIcon from 'components/FilterDeleteIcon';
 import { useDispatch, useSelector } from 'react-redux';
@@ -74,6 +62,12 @@ import useFetchProperties from 'hooks/useFetchProperties';
 import { selectProperties } from 'store/property/property.selector';
 import { organizationAPI } from 'api';
 import { useOrganization } from 'contexts/OrganizationContext';
+
+const getClientName = (client) => `${client.firstName || ''} ${client.lastName || ''}`.trim() || 'Unnamed Client';
+
+function ClientSelectIcon({ className }) {
+  return <AppIcon name="chevronDown" size={16} className={className} />;
+}
 
 export default function Owners() {
   const dispatch = useDispatch();
@@ -426,6 +420,34 @@ export default function Owners() {
   const activeClients = useMemo(() => clients.filter((c) => c.isActive), [clients]);
   const inactiveClients = useMemo(() => clients.filter((c) => !c.isActive), [clients]);
 
+  const getClientActions = (client) => {
+    const actions = [
+      {
+        label: 'Link properties', description: 'Choose which properties belong to this client.',
+        icon: 'properties', onSelect: () => handleOpenLinkPropertyDialog(client)
+      },
+      {
+        label: 'Edit client', description: 'Update contact details and management settings.',
+        icon: 'edit', onSelect: () => handleOpenDialog(client)
+      },
+      {
+        label: 'Delete client', description: 'Review and confirm removal of this client.',
+        icon: 'trash', destructive: true,
+        onSelect: () => {
+          setSelectedClient(client);
+          setDeleteDialogOpen(true);
+        }
+      }
+    ];
+    if (!client.userId && client.email) {
+      actions.unshift({
+        label: 'Resend invite', description: 'Send this client another invitation email.',
+        icon: 'send', onSelect: () => handleResendInvite(client)
+      });
+    }
+    return actions;
+  };
+
   return (
     <Box>
       {/* Header */}
@@ -438,6 +460,18 @@ export default function Owners() {
             Manage clients, their properties, and management settings
           </Typography>
         </Box>
+        <ActionsDrawer
+          id="clients-actions-drawer"
+          title="Client actions"
+          actions={[
+            {
+              label: 'Add client',
+              description: 'Set up a new client with contact and management details.',
+              icon: 'user',
+              onSelect: () => navigate('/landlord/clients/add')
+            }
+          ]}
+        />
       </Box>
 
       {/* Summary Cards */}
@@ -452,7 +486,7 @@ export default function Owners() {
           >
             <CardContent>
               <Stack direction="row" spacing={1} alignItems="center">
-                <UserOutlined style={{ fontSize: 24, color: '#1877F2' }} />
+                <AppIcon name="user" size={24} style={{ color: '#1877F2' }} />
                 <Box>
                   <Typography variant="body2" color="text.secondary" sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 'bold' }}>
                     Total Clients
@@ -475,7 +509,7 @@ export default function Owners() {
           >
             <CardContent>
               <Stack direction="row" spacing={1} alignItems="center">
-                <UserOutlined style={{ fontSize: 24, color: '#2e7d32' }} />
+                <AppIcon name="user" size={24} style={{ color: '#2e7d32' }} />
                 <Box>
                   <Typography variant="body2" color="text.secondary" sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 'bold' }}>
                     Active Clients
@@ -498,7 +532,7 @@ export default function Owners() {
           >
             <CardContent>
               <Stack direction="row" spacing={1} alignItems="center">
-                <UserOutlined style={{ fontSize: 24, color: '#ed6c02' }} />
+                <AppIcon name="user" size={24} style={{ color: '#ed6c02' }} />
                 <Box>
                   <Typography variant="body2" color="text.secondary" sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 'bold' }}>
                     Inactive Clients
@@ -542,7 +576,7 @@ export default function Owners() {
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <SearchOutlined />
+                    <AppIcon name="magnifier" />
                   </InputAdornment>
                 )
               }}
@@ -621,7 +655,7 @@ export default function Owners() {
             <Button
               size="small"
               variant="outlined"
-              startIcon={<FilterOutlined style={{ fontSize: 16 }} />}
+              startIcon={<AppIcon name="filter" size={16} />}
               onClick={(e) => setFilterAnchorEl(e.currentTarget)}
               sx={{
                 color: 'primary.main',
@@ -635,24 +669,6 @@ export default function Owners() {
               }}
             >
               Add filters
-            </Button>
-            <Button
-              size="small"
-              variant="outlined"
-              startIcon={<PlusOutlined style={{ fontSize: 16 }} />}
-              onClick={() => navigate('/landlord/clients/add')}
-              sx={{
-                color: 'primary.main',
-                borderColor: 'primary.main',
-                textTransform: 'none',
-                flexShrink: 0,
-                '&:hover': {
-                  bgcolor: alpha(theme.palette.primary.main, 0.08),
-                  borderColor: 'primary.main'
-                }
-              }}
-            >
-              Add Client
             </Button>
           </Box>
         </Box>
@@ -808,7 +824,7 @@ export default function Owners() {
           </Box>
         ) : filteredClients.length === 0 ? (
           <Box textAlign="center" py={5}>
-            <UserOutlined style={{ fontSize: 64, color: '#ccc', marginBottom: 2 }} />
+            <AppIcon name="user" size={64} style={{ color: '#ccc', marginBottom: 2 }} />
             <Typography variant="h6" color="text.secondary">
               {clients.length === 0 ? 'No clients yet' : 'No clients match your filters'}
             </Typography>
@@ -837,19 +853,19 @@ export default function Owners() {
                   <TableRow key={client.id} hover>
                     <TableCell>
                       <Typography variant="subtitle2">
-                        {`${client.firstName || ''} ${client.lastName || ''}`.trim() || 'Unnamed Client'}
+                        {getClientName(client)}
                       </Typography>
                     </TableCell>
                     <TableCell>
                       {client.email && (
                         <Stack direction="row" spacing={0.5} alignItems="center">
-                          <MailOutlined style={{ fontSize: 14 }} />
+                          <AppIcon name="mail" size={14} />
                           <Typography variant="caption">{client.email}</Typography>
                         </Stack>
                       )}
                       {client.phoneNumber && (
                         <Stack direction="row" spacing={0.5} alignItems="center" mt={0.5}>
-                          <PhoneOutlined style={{ fontSize: 14 }} />
+                          <AppIcon name="phone" size={14} />
                           <Typography variant="caption">{client.phoneNumber}</Typography>
                         </Stack>
                       )}
@@ -893,43 +909,13 @@ export default function Owners() {
                       })()}
                     </TableCell>
                     <TableCell align="right">
-                      {!client.userId && client.email && (
-                        <IconButton
-                          size="small"
-                          onClick={() => handleResendInvite(client)}
-                          color="primary"
-                          title="Resend Invite"
-                        >
-                          <MailOutlined />
-                        </IconButton>
-                      )}
-                      <IconButton
-                        size="small"
-                        onClick={() => handleOpenLinkPropertyDialog(client)}
-                        color="primary"
-                        title="Link Properties"
-                      >
-                        <LinkOutlined />
-                      </IconButton>
-                      <IconButton
-                        size="small"
-                        onClick={() => handleOpenDialog(client)}
-                        color="primary"
-                        title="Edit Client"
-                      >
-                        <EditOutlined />
-                      </IconButton>
-                      <IconButton
-                        size="small"
-                        onClick={() => {
-                          setSelectedClient(client);
-                          setDeleteDialogOpen(true);
-                        }}
-                        color="error"
-                        title="Delete Client"
-                      >
-                        <DeleteOutlined />
-                      </IconButton>
+                      <ActionsDrawer
+                        id={`client-actions-${client.id}`}
+                        title="Client actions"
+                        triggerLabel={`Actions for ${getClientName(client)}`}
+                        actions={getClientActions(client)}
+                        iconOnly
+                      />
                     </TableCell>
                   </TableRow>
                 ))}
@@ -1017,6 +1003,7 @@ export default function Owners() {
             <Grid size={12}>
               <FormControl fullWidth>
                 <Select
+                  IconComponent={ClientSelectIcon}
                   value={formData.statementFrequency}
                   onChange={(e) => setFormData({ ...formData, statementFrequency: e.target.value })}
                   label="Statement Frequency"

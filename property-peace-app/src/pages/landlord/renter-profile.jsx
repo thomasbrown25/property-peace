@@ -3,13 +3,9 @@ import {
   Alert, alpha, Avatar, Box, Button, Chip, CircularProgress, Divider, Grid, IconButton,
   Menu, MenuItem, Paper, Stack, Tab, Tabs, Tooltip, Typography, useMediaQuery, useTheme
 } from '@mui/material';
-import {
-  CloudUploadOutlined, DollarOutlined, DownloadOutlined, EditOutlined, FileTextOutlined,
-  HomeOutlined, MailOutlined, MessageOutlined, MoreOutlined, PhoneOutlined,
-  SafetyCertificateOutlined, SendOutlined, ToolOutlined
-} from '@ant-design/icons';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
+import AppIcon from 'components/AppIcon';
 import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
 import { managementPageHeaderDescriptionSx, managementPageHeaderTitleSx } from 'components/headers/managementPageHeaderStyles';
 import TenantEditDrawer from 'components/drawers/TenantEditDrawer';
@@ -324,7 +320,7 @@ export default function RenterProfilePage() {
     if (activeTab === 'profile') {
       return (
         <>
-          <Section title="Personal information" action={<Button size="small" startIcon={<EditOutlined />} onClick={() => drawer.openTenantEditDrawer(renter)}>Edit</Button>}>
+          <Section title="Personal information" action={<Button size="small" startIcon={<AppIcon name="edit" />} onClick={() => drawer.openTenantEditDrawer(renter)}>Edit</Button>}>
             <Grid container spacing={2.25}>
               <Grid size={{ xs: 12, sm: 6 }}><InfoField label="First name" value={read(renter, 'firstname', 'Firstname') || read(renter, 'firstName', 'FirstName')} /></Grid>
               <Grid size={{ xs: 12, sm: 6 }}><InfoField label="Last name" value={read(renter, 'lastname', 'Lastname') || read(renter, 'lastName', 'LastName')} /></Grid>
@@ -353,8 +349,8 @@ export default function RenterProfilePage() {
               {generalDocuments.length ? <Stack spacing={1}>{generalDocuments.map((document) => (
                 <Paper key={recordId(document)} variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
                   <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
-                    <Stack direction="row" spacing={1.2} alignItems="center" minWidth={0}><FileTextOutlined /><Box minWidth={0}><Typography fontWeight={700} noWrap>{read(document, 'fileName', 'FileName') || 'Renter document'}</Typography><Typography variant="caption" color="text.secondary">{titleCase(read(document, 'documentTypeName', 'DocumentTypeName') || read(document, 'documentType', 'DocumentType'))}</Typography></Box></Stack>
-                    <IconButton aria-label="Download document" onClick={() => tenantDocumentAPI.downloadTenantDocument(read(document, 'blobUrl', 'BlobUrl'), read(document, 'fileName', 'FileName'))}><DownloadOutlined /></IconButton>
+                    <Stack direction="row" spacing={1.2} alignItems="center" minWidth={0}><AppIcon name="document" /><Box minWidth={0}><Typography fontWeight={700} noWrap>{read(document, 'fileName', 'FileName') || 'Renter document'}</Typography><Typography variant="caption" color="text.secondary">{titleCase(read(document, 'documentTypeName', 'DocumentTypeName') || read(document, 'documentType', 'DocumentType'))}</Typography></Box></Stack>
+                    <IconButton aria-label="Download document" onClick={() => tenantDocumentAPI.downloadTenantDocument(read(document, 'blobUrl', 'BlobUrl'), read(document, 'fileName', 'FileName'))}><AppIcon name="downloadDocument" /></IconButton>
                   </Stack>
                 </Paper>
               ))}</Stack> : <Typography color="text.secondary">No general attachments added.</Typography>}
@@ -385,7 +381,7 @@ export default function RenterProfilePage() {
                   </Stack>
                 </Paper>
               );
-            })}</Stack> : <EmptyState icon={<HomeOutlined />} title="No leases" description="This renter is not connected to a current or historical lease." />}
+            })}</Stack> : <EmptyState icon={<AppIcon name="leases" />} title="No leases" description="This renter is not connected to a current or historical lease." />}
           </TabState>
         </Section>
       );
@@ -403,14 +399,14 @@ export default function RenterProfilePage() {
                     const status = read(payment, 'status', 'Status') || (read(payment, 'isOnTime', 'IsOnTime') === false ? 'Late' : 'Paid');
                     return (
                       <Stack key={recordId(payment) || index} direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1.5} sx={{ p: 1.75, borderTop: index ? '1px solid' : 0, borderColor: 'divider' }}>
-                        <Stack direction="row" spacing={1.2} alignItems="center"><Avatar sx={{ bgcolor: alpha(theme.palette.success.main, 0.11), color: 'success.main' }}><DollarOutlined /></Avatar><Box><Typography fontWeight={750}>{titleCase(read(payment, 'paymentType', 'PaymentType') || 'Payment')}</Typography><Typography variant="caption" color="text.secondary">{read(payment, 'paymentDate', 'PaymentDate') ? formatDate(read(payment, 'paymentDate', 'PaymentDate')) : 'Date unavailable'}</Typography></Box></Stack>
+                        <Stack direction="row" spacing={1.2} alignItems="center"><Avatar sx={{ bgcolor: alpha(theme.palette.success.main, 0.11), color: 'success.main' }}><AppIcon name="dollarCircle" variant="bulk" size={22} /></Avatar><Box><Typography fontWeight={750}>{titleCase(read(payment, 'paymentType', 'PaymentType') || 'Payment')}</Typography><Typography variant="caption" color="text.secondary">{read(payment, 'paymentDate', 'PaymentDate') ? formatDate(read(payment, 'paymentDate', 'PaymentDate')) : 'Date unavailable'}</Typography></Box></Stack>
                         <Stack direction="row" spacing={1.2} alignItems="center" justifyContent="space-between"><StatusChip value={status} /><Typography variant="h5" fontWeight={800}>{formatCurrency(read(payment, 'amount', 'Amount') || 0)}</Typography></Stack>
                       </Stack>
                     );
                   })}
                 </Paper>
               </Box>
-            ))}</Stack> : <EmptyState icon={<DollarOutlined />} title="No transactions" description="Payments and recorded charges for this renter will appear here." />}
+            ))}</Stack> : <EmptyState icon={<AppIcon name="dollarCircle" />} title="No transactions" description="Payments and recorded charges for this renter will appear here." />}
           </TabState>
         </Section>
       );
@@ -418,9 +414,9 @@ export default function RenterProfilePage() {
 
     if (activeTab === 'insurance') {
       return (
-        <Section title="Insurance" action={<Button component="label" variant="contained" color="success" startIcon={<CloudUploadOutlined />} disabled={uploadingInsurance}>{uploadingInsurance ? 'Uploading…' : 'Upload policy'}<input hidden type="file" accept=".pdf,.png,.jpg,.jpeg" onChange={uploadInsurance} /></Button>}>
+        <Section title="Insurance" action={<Button component="label" variant="contained" color="success" startIcon={<AppIcon name="uploadDocument" />} disabled={uploadingInsurance}>{uploadingInsurance ? 'Uploading…' : 'Upload policy'}<input hidden type="file" accept=".pdf,.png,.jpg,.jpeg" onChange={uploadInsurance} /></Button>}>
           <Paper variant="outlined" sx={{ p: 2, mb: 2, borderRadius: 2.5, bgcolor: alpha(theme.palette.info.main, 0.035) }}>
-            <Stack direction="row" spacing={1.2} alignItems="center"><SafetyCertificateOutlined style={{ fontSize: 22, color: theme.palette.info.main }} /><Box><Typography fontWeight={750}>Lease requirement</Typography><Typography color="text.secondary">{read(activeLease, 'rentersInsuranceRequired', 'RentersInsuranceRequired') === true ? 'Renters insurance is required for the current lease.' : read(activeLease, 'rentersInsuranceRequired', 'RentersInsuranceRequired') === false ? 'The current lease does not require renters insurance.' : 'No insurance requirement is recorded.'}</Typography></Box></Stack>
+            <Stack direction="row" spacing={1.2} alignItems="center"><AppIcon name="insurance" size={22} style={{ color: theme.palette.info.main }} /><Box><Typography fontWeight={750}>Lease requirement</Typography><Typography color="text.secondary">{read(activeLease, 'rentersInsuranceRequired', 'RentersInsuranceRequired') === true ? 'Renters insurance is required for the current lease.' : read(activeLease, 'rentersInsuranceRequired', 'RentersInsuranceRequired') === false ? 'The current lease does not require renters insurance.' : 'No insurance requirement is recorded.'}</Typography></Box></Stack>
           </Paper>
           <TabState loading={tabLoading.insurance} error={tabErrors.insurance} onRetry={() => loadDocuments(true)}>
             {insuranceDocuments.length ? <Stack spacing={1.25}>{insuranceDocuments.map((document) => {
@@ -429,12 +425,12 @@ export default function RenterProfilePage() {
               return (
                 <Paper key={recordId(document)} variant="outlined" sx={{ p: 1.75, borderRadius: 2.5 }}>
                   <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ sm: 'center' }} spacing={1.5}>
-                    <Stack direction="row" spacing={1.2} alignItems="center" minWidth={0}><Avatar sx={{ bgcolor: alpha(theme.palette.info.main, 0.1), color: 'info.main' }}><SafetyCertificateOutlined /></Avatar><Box minWidth={0}><Typography fontWeight={750} noWrap>{read(document, 'fileName', 'FileName') || 'Insurance policy'}</Typography><Typography variant="caption" color="text.secondary">{titleCase(read(document, 'documentTypeName', 'DocumentTypeName') || read(document, 'documentType', 'DocumentType'))}{expiration ? ` · Expires ${formatDate(expiration)}` : ' · No expiration recorded'}</Typography></Box></Stack>
-                    <Stack direction="row" spacing={1} alignItems="center"><StatusChip value={expired ? 'expired' : 'on file'} label={expired ? 'Expired' : 'On file'} /><IconButton aria-label="Download insurance document" onClick={() => tenantDocumentAPI.downloadTenantDocument(read(document, 'blobUrl', 'BlobUrl'), read(document, 'fileName', 'FileName'))}><DownloadOutlined /></IconButton></Stack>
+                    <Stack direction="row" spacing={1.2} alignItems="center" minWidth={0}><Avatar sx={{ bgcolor: alpha(theme.palette.info.main, 0.1), color: 'info.main' }}><AppIcon name="insurance" /></Avatar><Box minWidth={0}><Typography fontWeight={750} noWrap>{read(document, 'fileName', 'FileName') || 'Insurance policy'}</Typography><Typography variant="caption" color="text.secondary">{titleCase(read(document, 'documentTypeName', 'DocumentTypeName') || read(document, 'documentType', 'DocumentType'))}{expiration ? ` · Expires ${formatDate(expiration)}` : ' · No expiration recorded'}</Typography></Box></Stack>
+                    <Stack direction="row" spacing={1} alignItems="center"><StatusChip value={expired ? 'expired' : 'on file'} label={expired ? 'Expired' : 'On file'} /><IconButton aria-label="Download insurance document" onClick={() => tenantDocumentAPI.downloadTenantDocument(read(document, 'blobUrl', 'BlobUrl'), read(document, 'fileName', 'FileName'))}><AppIcon name="downloadDocument" /></IconButton></Stack>
                   </Stack>
                 </Paper>
               );
-            })}</Stack> : <EmptyState icon={<SafetyCertificateOutlined />} title="No insurance on file" description="Upload a renter or liability insurance policy to track coverage and expiration." />}
+            })}</Stack> : <EmptyState icon={<AppIcon name="insurance" />} title="No insurance on file" description="Upload a renter or liability insurance policy to track coverage and expiration." />}
           </TabState>
         </Section>
       );
@@ -447,11 +443,11 @@ export default function RenterProfilePage() {
             {applications.length ? <Stack spacing={1.25}>{applications.map((item) => (
               <Paper key={recordId(item)} variant="outlined" sx={{ p: 1.75, borderRadius: 2.5 }}>
                 <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1.5}>
-                  <Stack direction="row" spacing={1.2} alignItems="center"><Avatar sx={{ bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main' }}><FileTextOutlined /></Avatar><Box><Typography fontWeight={750}>{read(item, 'propertyName', 'PropertyName') || 'Rental application'}</Typography><Typography variant="caption" color="text.secondary">Submitted {read(item, 'submittedAt', 'SubmittedAt') ? formatDate(read(item, 'submittedAt', 'SubmittedAt')) : 'date unavailable'}</Typography></Box></Stack>
+                  <Stack direction="row" spacing={1.2} alignItems="center"><Avatar sx={{ bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main' }}><AppIcon name="document" /></Avatar><Box><Typography fontWeight={750}>{read(item, 'propertyName', 'PropertyName') || 'Rental application'}</Typography><Typography variant="caption" color="text.secondary">Submitted {read(item, 'submittedAt', 'SubmittedAt') ? formatDate(read(item, 'submittedAt', 'SubmittedAt')) : 'date unavailable'}</Typography></Box></Stack>
                   <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap><StatusChip value={read(item, 'status', 'Status')} /><Button variant="outlined" onClick={() => navigate(`/landlord/listings?tab=applications&applicationId=${recordId(item)}`)}>View application</Button>{read(item, 'pdfBlobUrl', 'PdfBlobUrl') && <Button component="a" href={read(item, 'pdfBlobUrl', 'PdfBlobUrl')} target="_blank" rel="noreferrer">PDF</Button>}</Stack>
                 </Stack>
               </Paper>
-            ))}</Stack> : <EmptyState icon={<FileTextOutlined />} title="No linked applications" description="Applications converted to this renter will appear here." />}
+            ))}</Stack> : <EmptyState icon={<AppIcon name="document" />} title="No linked applications" description="Applications converted to this renter will appear here." />}
           </TabState>
         </Section>
       );
@@ -464,11 +460,11 @@ export default function RenterProfilePage() {
             {requests.length ? <Stack spacing={1.25}>{requests.map((request) => (
               <Paper key={recordId(request)} variant="outlined" sx={{ p: 1.75, borderRadius: 2.5 }}>
                 <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1.5}>
-                  <Stack direction="row" spacing={1.2} alignItems="center"><Avatar sx={{ bgcolor: alpha(theme.palette.warning.main, 0.12), color: 'warning.main' }}><ToolOutlined /></Avatar><Box><Typography fontWeight={750}>{read(request, 'title', 'Title') || `Request ${read(request, 'orderNumber', 'OrderNumber') || recordId(request)}`}</Typography><Typography variant="caption" color="text.secondary">{read(request, 'orderNumber', 'OrderNumber') || `MR-${recordId(request)}`} · Submitted {read(request, 'createdAt', 'CreatedAt') ? formatDate(read(request, 'createdAt', 'CreatedAt')) : 'date unavailable'}</Typography></Box></Stack>
+                  <Stack direction="row" spacing={1.2} alignItems="center"><Avatar sx={{ bgcolor: alpha(theme.palette.warning.main, 0.12), color: 'warning.main' }}><AppIcon name="maintenance" /></Avatar><Box><Typography fontWeight={750}>{read(request, 'title', 'Title') || `Request ${read(request, 'orderNumber', 'OrderNumber') || recordId(request)}`}</Typography><Typography variant="caption" color="text.secondary">{read(request, 'orderNumber', 'OrderNumber') || `MR-${recordId(request)}`} · Submitted {read(request, 'createdAt', 'CreatedAt') ? formatDate(read(request, 'createdAt', 'CreatedAt')) : 'date unavailable'}</Typography></Box></Stack>
                   <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap><StatusChip value={read(request, 'priority', 'Priority')} /><StatusChip value={read(request, 'status', 'Status')} /><Button variant="outlined" onClick={() => navigate(`/landlord/maintenance/${recordId(request)}`)}>View request</Button></Stack>
                 </Stack>
               </Paper>
-            ))}</Stack> : <EmptyState icon={<ToolOutlined />} title="No requests" description="Maintenance requests submitted by this renter will appear here." />}
+            ))}</Stack> : <EmptyState icon={<AppIcon name="maintenance" />} title="No requests" description="Maintenance requests submitted by this renter will appear here." />}
           </TabState>
         </Section>
       );
@@ -512,7 +508,7 @@ export default function RenterProfilePage() {
                 <Avatar src={read(renter, 'profileImageUrl', 'ProfileImageUrl') || read(linkedUser, 'profileImageUrl', 'ProfileImageUrl')} sx={{ width: '100%', height: '100%', bgcolor: 'primary.main', fontSize: '1.6rem', fontWeight: 750 }}>{initials}</Avatar>
                 <Tooltip title="Upload renter photo">
                   <IconButton component="label" aria-label="Upload renter photo" size="small" disabled={uploadingPhoto} sx={{ position: 'absolute', right: -4, top: -4, width: 32, height: 32, p: 0.75, bgcolor: 'transparent', color: 'common.white', border: 0, borderRadius: 0, boxShadow: 'none', '&:hover': { bgcolor: 'transparent', opacity: 0.8 }, '&:focus-visible': { outline: '2px solid', outlineColor: 'common.white', outlineOffset: 2 } }}>
-                    {uploadingPhoto ? <CircularProgress size={18} color="inherit" /> : <EditOutlined style={{ fontSize: 19, filter: 'drop-shadow(0 1px 2px rgba(0, 0, 0, 0.8))' }} />}
+                    {uploadingPhoto ? <CircularProgress size={18} color="inherit" /> : <AppIcon name="edit" size={19} style={{ filter: 'drop-shadow(0 1px 2px rgba(0, 0, 0, 0.8))' }} />}
                     <input hidden type="file" accept="image/png,image/jpeg,image/webp" onChange={uploadPhoto} disabled={uploadingPhoto} />
                   </IconButton>
                 </Tooltip>
@@ -523,8 +519,8 @@ export default function RenterProfilePage() {
               </Box>
             </Stack>
             <Stack spacing={1.15} sx={{ mt: 2.25 }}>
-              {renterEmail && <Stack direction="row" spacing={1} alignItems="center" minWidth={0}><MailOutlined /><Typography component="a" href={`mailto:${renterEmail}`} color="primary.main" sx={{ overflowWrap: 'anywhere', minWidth: 0 }}>{renterEmail}</Typography></Stack>}
-              {renterPhone && <Stack direction="row" spacing={1} alignItems="center"><PhoneOutlined /><Typography component="a" href={`tel:${renterPhone}`} color="text.primary">{formatPhoneInput(renterPhone)}</Typography></Stack>}
+              {renterEmail && <Stack direction="row" spacing={1} alignItems="center" minWidth={0}><AppIcon name="mail" /><Typography component="a" href={`mailto:${renterEmail}`} color="primary.main" sx={{ overflowWrap: 'anywhere', minWidth: 0 }}>{renterEmail}</Typography></Stack>}
+              {renterPhone && <Stack direction="row" spacing={1} alignItems="center"><AppIcon name="phone" /><Typography component="a" href={`tel:${renterPhone}`} color="text.primary">{formatPhoneInput(renterPhone)}</Typography></Stack>}
             </Stack>
             <ResidencyTrack lease={activeLease} propertyName={propertyName} unitName={unitName} />
           </Paper>
@@ -535,14 +531,22 @@ export default function RenterProfilePage() {
             <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ sm: 'center' }} spacing={1.5} sx={{ px: { xs: 2, md: 2.5 }, py: 2 }}>
               <Box><Typography variant="overline" color="text.secondary" fontWeight={800}>Renter profile</Typography><Typography variant="h4" fontWeight={750}>Details &amp; activity</Typography></Box>
               <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                <Button variant="outlined" startIcon={<MessageOutlined />} onClick={() => setMessageOpen(true)}>Message</Button>
-                <Button variant="contained" startIcon={<DollarOutlined />} disabled={!activeLeaseId} onClick={() => activeLeaseId && navigate(`/landlord/leases/${activeLeaseId}/charges`)}>Add charge</Button>
-                <Tooltip title="Renter actions"><IconButton aria-label="Renter actions" onClick={(event) => setActionsAnchor(event.currentTarget)} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1.5 }}><MoreOutlined /></IconButton></Tooltip>
+                <Button variant="outlined" startIcon={<AppIcon name="chatBubbles" />} onClick={() => setMessageOpen(true)}>Message</Button>
+                <Button variant="contained" startIcon={<AppIcon name="dollarCircle" />} disabled={!activeLeaseId} onClick={() => activeLeaseId && navigate(`/landlord/leases/${activeLeaseId}/charges`)}>Add charge</Button>
+                <Tooltip title="Renter actions">
+                  <IconButton
+                    id="renter-actions-button" aria-label="Renter actions" aria-haspopup="menu"
+                    aria-controls={actionsAnchor ? 'renter-actions-menu' : undefined} aria-expanded={Boolean(actionsAnchor)}
+                    onClick={(event) => setActionsAnchor(event.currentTarget)} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1.5 }}
+                  >
+                    <AppIcon name="flash" variant="bold" size={20} />
+                  </IconButton>
+                </Tooltip>
               </Stack>
             </Stack>
-            <Menu anchorEl={actionsAnchor} open={Boolean(actionsAnchor)} onClose={() => setActionsAnchor(null)}>
-              <MenuItem onClick={() => { setActionsAnchor(null); drawer.openTenantEditDrawer(renter); }}><EditOutlined style={{ marginRight: 10 }} />Edit renter</MenuItem>
-              {!portalConnected && renterEmail && <MenuItem disabled={sendingInvite} onClick={() => { setActionsAnchor(null); sendInvite(); }}><SendOutlined style={{ marginRight: 10 }} />{sendingInvite ? 'Sending invite…' : 'Invite to portal'}</MenuItem>}
+            <Menu id="renter-actions-menu" anchorEl={actionsAnchor} open={Boolean(actionsAnchor)} onClose={() => setActionsAnchor(null)} slotProps={{ list: { 'aria-labelledby': 'renter-actions-button' } }}>
+              <MenuItem onClick={() => { setActionsAnchor(null); drawer.openTenantEditDrawer(renter); }}><AppIcon name="edit" size={18} style={{ marginRight: 10 }} />Edit renter</MenuItem>
+              {!portalConnected && renterEmail && <MenuItem disabled={sendingInvite} onClick={() => { setActionsAnchor(null); sendInvite(); }}><AppIcon name="send" size={18} style={{ marginRight: 10 }} />{sendingInvite ? 'Sending invite…' : 'Invite to portal'}</MenuItem>}
             </Menu>
             <Divider />
             <Tabs value={RENTER_PROFILE_TABS.indexOf(activeTab)} onChange={changeTab} variant="scrollable" scrollButtons="auto" aria-label="Renter profile sections" sx={{ px: { xs: 1, md: 2 }, minHeight: 52, '& .MuiTab-root': { minHeight: 52, textTransform: 'none', fontWeight: 750 } }}>

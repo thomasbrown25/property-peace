@@ -1,3 +1,4 @@
+import AppIcon from 'components/AppIcon';
 import { isDetachedSingleUnitType } from 'utils/propertyType';
 import { useState, useEffect, useRef, useCallback, useMemo, Fragment } from 'react';
 import { formatCurrency } from 'utils/formatters';
@@ -25,35 +26,15 @@ import {
   CircularProgress,
   Alert,
   Tooltip,
-  Menu,
-  MenuItem,
   Chip,
   alpha,
   Container
 } from '@mui/material';
 
-// Icons
-import SendOutlined from '@ant-design/icons/SendOutlined';
-import SearchOutlined from '@ant-design/icons/SearchOutlined';
-import PlusOutlined from '@ant-design/icons/PlusOutlined';
-import MoreOutlined from '@ant-design/icons/MoreOutlined';
-import MessageOutlined from '@ant-design/icons/MessageOutlined';
-import EditOutlined from '@ant-design/icons/EditOutlined';
-import WarningOutlined from '@ant-design/icons/WarningOutlined';
-import ToolOutlined from '@ant-design/icons/ToolOutlined';
-import DollarOutlined from '@ant-design/icons/DollarOutlined';
-import SafetyOutlined from '@ant-design/icons/SafetyOutlined';
-import FileTextOutlined from '@ant-design/icons/FileTextOutlined';
-import CheckOutlined from '@ant-design/icons/CheckOutlined';
-import RobotOutlined from '@ant-design/icons/RobotOutlined';
-import ThunderboltOutlined from '@ant-design/icons/ThunderboltOutlined';
-import InboxOutlined from '@ant-design/icons/InboxOutlined';
-import HomeOutlined from '@ant-design/icons/HomeOutlined';
-import ArrowLeftOutlined from '@ant-design/icons/ArrowLeftOutlined';
-import CheckCircleOutlined from '@ant-design/icons/CheckCircleOutlined';
-
 // Project imports
 import MainCard from 'components/MainCard';
+import ActionsDrawer from 'components/drawers/shared/ActionsDrawer';
+import ChatRowActions from 'components/conversation/ChatRowActions';
 import useAuth from 'hooks/useAuth';
 import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
 import Avatar from 'components/@extended/Avatar';
@@ -75,8 +56,6 @@ import useSignalRConversations from 'hooks/useSignalRConversations';
 import useFetchTenants from 'hooks/useFetchTenants';
 import useFetchProperties from 'hooks/useFetchProperties';
 import { addConversation } from 'store/conversation/conversation.action';
-import CloseOutlined from '@ant-design/icons/CloseOutlined';
-import UserOutlined from '@ant-design/icons/UserOutlined';
 import { openSnackbar } from 'api/snackbar';
 import { formatRelativeTime, formatMessageTime } from 'utils/formatters';
 import { conversationAPI } from 'api';
@@ -208,9 +187,6 @@ export default function Messages() {
   const [draftTenant, setDraftTenant] = useState(null);
   const [newMessageDraft, setNewMessageDraft] = useState('');
   const [startingConversation, setStartingConversation] = useState(false);
-  const [actionMenuAnchor, setActionMenuAnchor] = useState(null);
-  const [rowActionAnchor, setRowActionAnchor] = useState(null);
-  const [rowActionConversation, setRowActionConversation] = useState(null);
   const [hoveredMessageId, setHoveredMessageId] = useState(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [suppressedMessageIds, setSuppressedMessageIds] = useState(new Set());
@@ -446,14 +422,7 @@ export default function Messages() {
     [activeTab, dispatch]
   );
 
-  const closeRowActionMenu = () => {
-    setRowActionAnchor(null);
-    setRowActionConversation(null);
-  };
-
-  const handleRowMarkUnread = async () => {
-    const conversationId = rowActionConversation?.id;
-    closeRowActionMenu();
+  const handleRowMarkUnread = async (conversationId) => {
     if (!conversationId) return;
     try {
       await axiosServices.post(`/api/Message/conversation/${conversationId}/unread`);
@@ -472,9 +441,7 @@ export default function Messages() {
     }
   };
 
-  const handleRowArchive = async () => {
-    const conversationId = rowActionConversation?.id;
-    closeRowActionMenu();
+  const handleRowArchive = async (conversationId) => {
     if (!conversationId) return;
     try {
       const result = await dispatch(archiveConversation(conversationId, true));
@@ -489,7 +456,6 @@ export default function Messages() {
 
   const handleOpenArchiveConfirm = useCallback(() => {
     if (!selectedConversation?.id || selectedConversation.isArchived) return;
-    setActionMenuAnchor(null);
     setArchiveConfirmOpen(true);
   }, [selectedConversation]);
 
@@ -528,7 +494,6 @@ export default function Messages() {
 
   const handleRestore = useCallback(async () => {
     if (!selectedConversation?.id || !selectedConversation.isArchived) return;
-    setActionMenuAnchor(null);
     try {
       const result = await dispatch(archiveConversation(selectedConversation.id, false));
       if (result.success) {
@@ -1024,21 +989,12 @@ export default function Messages() {
             {tenantName}
           </Typography>
         </ListItemButton>
-        <IconButton
-          className="chat-row-actions"
-          size="small"
-          aria-label={`Actions for ${tenantName}`}
-          aria-haspopup="menu"
-          aria-expanded={rowActionConversation?.id === conversation.id && Boolean(rowActionAnchor)}
-          onClick={(event) => {
-            event.stopPropagation();
-            setRowActionConversation(conversation);
-            setRowActionAnchor(event.currentTarget);
-          }}
-          sx={{ mx: 0.75, width: 30, height: 30, flexShrink: 0, '&:focus-visible': { outline: `2px solid ${theme.palette.primary.main}` } }}
-        >
-          <MoreOutlined />
-        </IconButton>
+        <ChatRowActions
+          id={`landlord-chat-row-actions-${conversation.id}`}
+          name={tenantName}
+          onMarkUnread={() => handleRowMarkUnread(conversation.id)}
+          onArchive={conversation.isArchived ? undefined : () => handleRowArchive(conversation.id)}
+        />
       </ListItem>
     );
   };
@@ -1088,7 +1044,7 @@ export default function Messages() {
             variant="outlined"
             size="small"
             fullWidth
-            startIcon={<DollarOutlined style={{ fontSize: 13 }} />}
+            startIcon={<AppIcon name="dollarCircle" size={13} />}
             onClick={() => drawer.openPaymentAddDrawer()}
             sx={snapshotActionButtonSx}
           >
@@ -1099,7 +1055,7 @@ export default function Messages() {
               variant="outlined"
               size="small"
               fullWidth
-              startIcon={<EditOutlined style={{ fontSize: 13 }} />}
+              startIcon={<AppIcon name="edit" size={13} />}
               onClick={handleEditActiveTenant}
               sx={snapshotActionButtonSx}
             >
@@ -1111,7 +1067,7 @@ export default function Messages() {
               variant="outlined"
               size="small"
               fullWidth
-              startIcon={<FileTextOutlined style={{ fontSize: 13 }} />}
+              startIcon={<AppIcon name="document" size={13} />}
               onClick={() => navigate(`/landlord/leases/${activeLeaseId}`)}
               sx={snapshotActionButtonSx}
             >
@@ -1123,7 +1079,7 @@ export default function Messages() {
               variant="outlined"
               size="small"
               fullWidth
-              startIcon={<HomeOutlined style={{ fontSize: 13 }} />}
+              startIcon={<AppIcon name="house" size={13} />}
               onClick={() => navigate(`/landlord/property/${activePropertyId}`)}
               sx={snapshotActionButtonSx}
             >
@@ -1134,7 +1090,7 @@ export default function Messages() {
             variant="outlined"
             size="small"
             fullWidth
-            startIcon={<ToolOutlined style={{ fontSize: 13 }} />}
+            startIcon={<AppIcon name="maintenance" size={13} />}
             onClick={() => drawer.openMaintenanceAddDrawer()}
             sx={snapshotActionButtonSx}
           >
@@ -1241,7 +1197,7 @@ export default function Messages() {
                       }}
                       sx={{ color: 'text.secondary', width: 36, height: 36 }}
                     >
-                      <SearchOutlined style={{ fontSize: 18 }} />
+                      <AppIcon name="magnifier" size={18} />
                     </IconButton>
                   </Tooltip>
                   <Tooltip title="New message">
@@ -1258,11 +1214,7 @@ export default function Messages() {
                       }}
                       sx={{ color: 'text.secondary', width: 36, height: 36 }}
                     >
-                      <Box component="svg" viewBox="0 0 24 24" sx={{ width: 19, height: 19, fill: 'none', stroke: 'currentColor', strokeWidth: 1.7, strokeLinecap: 'round', strokeLinejoin: 'round' }} aria-hidden="true">
-                        <path d="M19 13v6H5V5h6" />
-                        <path d="M13 5h6v6" />
-                        <path d="M19 5 10 14" />
-                      </Box>
+                      <AppIcon name="edit" size={19} />
                     </IconButton>
                   </Tooltip>
                 </Stack>
@@ -1290,7 +1242,7 @@ export default function Messages() {
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
-                        <SearchOutlined style={{ fontSize: 14, opacity: 0.55 }} />
+                        <AppIcon name="magnifier" size={14} style={{ opacity: 0.55 }} />
                       </InputAdornment>
                     ),
                     endAdornment: (
@@ -1303,7 +1255,7 @@ export default function Messages() {
                             setShowMessageSearch(false);
                           }}
                         >
-                          <CloseOutlined style={{ fontSize: 14 }} />
+                          <AppIcon name="close" size={14} />
                         </IconButton>
                       </InputAdornment>
                     )
@@ -1335,7 +1287,7 @@ export default function Messages() {
                         <ListItemButton disabled>
                           <ListItemAvatar>
                             <Avatar sx={{ bgcolor: 'primary.main', color: '#fff', width: 38, height: 38 }}>
-                              <PlusOutlined />
+                              <AppIcon name="add" />
                             </Avatar>
                           </ListItemAvatar>
                           <ListItemText
@@ -1369,7 +1321,7 @@ export default function Messages() {
                 <Box sx={{ p: 3, textAlign: 'center' }}>
                   {searchQuery ? (
                     <Stack spacing={1.25} alignItems="center">
-                      <SearchOutlined style={{ fontSize: 36, color: theme.palette.text.disabled }} />
+                      <AppIcon name="magnifier" size={36} style={{ color: theme.palette.text.disabled }} />
                       <Typography variant="subtitle2" fontWeight={700}>
                         No matching conversations
                       </Typography>
@@ -1382,7 +1334,7 @@ export default function Messages() {
                     </Stack>
                   ) : activeTab === 'archived' ? (
                     <Stack spacing={1} alignItems="center">
-                      <InboxOutlined style={{ fontSize: 40, color: theme.palette.text.disabled }} />
+                      <AppIcon name="document" size={40} style={{ color: theme.palette.text.disabled }} />
                       <Typography variant="subtitle2" fontWeight={700}>
                         No archived conversations
                       </Typography>
@@ -1392,7 +1344,7 @@ export default function Messages() {
                     </Stack>
                   ) : activeTab === 'unread' ? (
                     <Stack spacing={1} alignItems="center">
-                      <CheckOutlined style={{ fontSize: 40, color: theme.palette.success.main }} />
+                      <AppIcon name="check" size={40} style={{ color: theme.palette.success.main }} />
                       <Typography variant="subtitle2" fontWeight={700}>
                         You’re all caught up
                       </Typography>
@@ -1414,7 +1366,7 @@ export default function Messages() {
                     </Stack>
                   ) : (
                     <Stack spacing={1.25} alignItems="center">
-                      <MessageOutlined style={{ fontSize: 40, color: theme.palette.text.disabled }} />
+                      <AppIcon name="messages" size={40} style={{ color: theme.palette.text.disabled }} />
                       <Typography variant="subtitle2" fontWeight={700}>
                         No conversations yet
                       </Typography>
@@ -1424,7 +1376,7 @@ export default function Messages() {
                       <Button
                         size="small"
                         variant="contained"
-                        startIcon={<PlusOutlined />}
+                        startIcon={<AppIcon name="add" />}
                         onClick={() => {
                           setIsNewConversation(true);
                           setDraftTenant(null);
@@ -1444,23 +1396,6 @@ export default function Messages() {
                 <List sx={{ p: 0 }}>{filteredConversations.map((conversation) => renderConversationItem(conversation))}</List>
               )}
             </Box>
-            <Menu
-              anchorEl={rowActionAnchor}
-              open={Boolean(rowActionAnchor)}
-              onClose={closeRowActionMenu}
-              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-              transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-              slotProps={{ paper: { sx: { minWidth: 176, borderRadius: 1.5, border: `1px solid ${messagesSoftDivider}`, outline: 'none', boxShadow: theme.shadows[8] } } }}
-            >
-              <MenuItem onClick={handleRowMarkUnread} sx={{ gap: 1.25, fontSize: '0.85rem' }}>
-                <MessageOutlined style={{ fontSize: 16 }} /> Mark as unread
-              </MenuItem>
-              {!rowActionConversation?.isArchived && (
-                <MenuItem onClick={handleRowArchive} sx={{ gap: 1.25, fontSize: '0.85rem' }}>
-                  <InboxOutlined style={{ fontSize: 16 }} /> Archive
-                </MenuItem>
-              )}
-            </Menu>
           </Grid>
 
           {/* ── Chat Area ── */}
@@ -1497,7 +1432,7 @@ export default function Messages() {
                           }}
                           sx={{ mt: -0.5 }}
                         >
-                          <CloseOutlined />
+                          <AppIcon name="close" />
                         </IconButton>
                       </Stack>
                     </Box>
@@ -1549,7 +1484,7 @@ export default function Messages() {
                             boxShadow: messagesCardShadow
                           }}
                         >
-                          <UserOutlined style={{ fontSize: 42, color: theme.palette.text.disabled, marginBottom: 8 }} />
+                          <AppIcon name="user" size={42} style={{ color: theme.palette.text.disabled, marginBottom: 8 }} />
                           <Typography variant="subtitle2" fontWeight={700}>
                             {tenantSearchQuery ? 'No tenants found' : 'No tenants available'}
                           </Typography>
@@ -1606,7 +1541,7 @@ export default function Messages() {
                     )}
                     <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', px: 2, bgcolor: 'background.paper' }}>
                       <Box sx={{ width: 82, height: 82, borderRadius: 3, bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main', display: 'grid', placeItems: 'center', mb: 2 }}>
-                        <MessageOutlined style={{ fontSize: 38 }} />
+                        <AppIcon name="messages" size={38} />
                       </Box>
                       <Typography variant="h5" fontWeight={700}>You’re starting a new conversation</Typography>
                       <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>Type your first message below.</Typography>
@@ -1622,7 +1557,7 @@ export default function Messages() {
                           inputProps={{ maxLength: MAX_MESSAGE_LENGTH }}
                         />
                         <IconButton aria-label="Send first message" color="primary" disabled={!draftTenant || !newMessageDraft.trim() || startingConversation} onClick={handleSendNewMessage}>
-                          {startingConversation ? <CircularProgress size={20} /> : <SendOutlined />}
+                          {startingConversation ? <CircularProgress size={20} /> : <AppIcon name="send" />}
                         </IconButton>
                       </Stack>
                     </Box>
@@ -1645,6 +1580,26 @@ export default function Messages() {
                         const tenantName = tenant
                           ? getTenantName(tenant)
                           : selectedConversation.tenantName || selectedConversation.title || 'Unknown';
+                        const conversationActions = [
+                          selectedConversation.isArchived
+                            ? { label: 'Restore to inbox', description: 'Move this conversation back to your inbox.', icon: 'reopen', onSelect: handleRestore }
+                            : { label: 'Archive conversation', description: 'Review and confirm moving this conversation out of your inbox.', icon: 'document', onSelect: handleOpenArchiveConfirm }
+                        ];
+                        if (tenant) {
+                          conversationActions.push({
+                            label: 'Open tenant profile',
+                            description: 'View the renter’s profile, lease, and contact details.',
+                            icon: 'user',
+                            onSelect: () => navigate(`/landlord/tenants/${tenant.id}`)
+                          });
+                        }
+                        conversationActions.push({
+                          label: summaryLoading ? 'Summarizing...' : selectedConversation.aiSummary ? 'Refresh AI summary' : 'Generate AI summary',
+                          description: 'Summarize the messages in this conversation.',
+                          icon: 'flash',
+                          disabled: summaryLoading,
+                          onSelect: handleSummarize
+                        });
                         const initials = tenant ? getTenantInitials(tenant) : tenantName.charAt(0).toUpperCase();
                         const avatarColor = getAvatarColor(tenantName);
                         const propertyId = selectedConversation?.propertyId || tenant?.propertyId;
@@ -1677,7 +1632,7 @@ export default function Messages() {
                                     onClick={() => dispatch(setSelectedConversation(null))}
                                     sx={{ ml: -0.5, flexShrink: 0 }}
                                   >
-                                    <ArrowLeftOutlined />
+                                    <AppIcon name="arrowRight" style={{ transform: 'rotate(180deg)' }} />
                                   </IconButton>
                                 </Tooltip>
                               )}
@@ -1719,63 +1674,13 @@ export default function Messages() {
                               </Box>
                             </Stack>
 
-                            <Stack direction="row" spacing={0.75} alignItems="center" sx={{ flexShrink: 0 }}>
-                              <Tooltip title="Conversation actions">
-                                <IconButton size="small" onClick={(e) => setActionMenuAnchor(e.currentTarget)}>
-                                  <MoreOutlined />
-                                </IconButton>
-                              </Tooltip>
-                            </Stack>
-
-                            <Menu
-                              anchorEl={actionMenuAnchor}
-                              open={Boolean(actionMenuAnchor)}
-                              onClose={() => setActionMenuAnchor(null)}
-                              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-                              transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-                            >
-                              {!selectedConversation.isArchived ? (
-                                <MenuItem onClick={handleOpenArchiveConfirm}>
-                                  <InboxOutlined style={{ marginRight: 8 }} />
-                                  Archive conversation
-                                </MenuItem>
-                              ) : (
-                                <MenuItem onClick={handleRestore}>
-                                  <CheckCircleOutlined style={{ marginRight: 8 }} />
-                                  Restore to inbox
-                                </MenuItem>
-                              )}
-                              {(() => {
-                                const t = selectedConversation?.tenantId
-                                  ? tenants?.find((ten) => ten.id === selectedConversation.tenantId)
-                                  : null;
-                                return t ? (
-                                  <MenuItem
-                                    onClick={() => {
-                                      setActionMenuAnchor(null);
-                                      navigate(`/landlord/tenants/${t.id}`);
-                                    }}
-                                  >
-                                    <UserOutlined style={{ marginRight: 8 }} />
-                                    Open tenant profile
-                                  </MenuItem>
-                                ) : null;
-                              })()}
-                              <MenuItem
-                                onClick={() => {
-                                  setActionMenuAnchor(null);
-                                  handleSummarize();
-                                }}
-                                disabled={summaryLoading}
-                              >
-                                <RobotOutlined style={{ marginRight: 8 }} />
-                                {summaryLoading
-                                  ? 'Summarizing...'
-                                  : selectedConversation.aiSummary
-                                    ? 'Refresh AI summary'
-                                    : 'Generate AI summary'}
-                              </MenuItem>
-                            </Menu>
+                            <ActionsDrawer
+                              key={selectedConversation.id}
+                              id="landlord-conversation-actions"
+                              title="Conversation actions"
+                              actions={conversationActions}
+                              iconOnly
+                            />
                           </Stack>
                         );
                       })()}
@@ -1810,7 +1715,7 @@ export default function Messages() {
                         <Alert severity="error">{error}</Alert>
                       ) : visibleMessages.length === 0 ? (
                         <Stack spacing={1} alignItems="center" justifyContent="center" sx={{ textAlign: 'center', p: 3, minHeight: 220 }}>
-                          <MessageOutlined style={{ fontSize: 38, color: theme.palette.text.disabled }} />
+                          <AppIcon name="messages" size={38} style={{ color: theme.palette.text.disabled }} />
                           <Typography variant="subtitle2" fontWeight={700}>
                             Start the conversation
                           </Typography>
@@ -1909,7 +1814,7 @@ export default function Messages() {
                                         >
                                           {!(message.senderProfileImageUrl || message.SenderProfileImageUrl) &&
                                             (isAgentMessage ? (
-                                              <RobotOutlined style={{ fontSize: 18 }} />
+                                              <AppIcon name="flash" size={18} />
                                             ) : (
                                               message.senderName?.charAt(0)?.toUpperCase() || '?'
                                             ))}
@@ -2028,7 +1933,7 @@ export default function Messages() {
                                               '&:hover': { color: 'error.main', bgcolor: 'error.light' }
                                             }}
                                           >
-                                            <CloseOutlined style={{ fontSize: 12 }} />
+                                            <AppIcon name="close" size={12} />
                                           </IconButton>
                                         </Tooltip>
                                         <Box sx={{ flex: 1, minWidth: 0, pr: 3 }}>
@@ -2078,7 +1983,7 @@ export default function Messages() {
                                           <CircularProgress size={12} sx={{ color: 'primary.main', mb: 0.25, flexShrink: 0 }} />
                                         )}
                                         {isOwnMessage && !message._optimistic && latestSentMessageId != null && String(message.id) === String(latestSentMessageId) && (
-                                          <CheckCircleOutlined aria-label="Message sent" style={{ fontSize: 15, color: theme.palette.success.main, marginBottom: 2, flexShrink: 0 }} />
+                                          <Box component="span" role="img" aria-label="Message sent" sx={{ display: 'inline-flex', color: 'success.main', mb: '2px', flexShrink: 0 }}><AppIcon name="checkCircle" size={15} /></Box>
                                         )}
                                       </Stack>
                                     )}
@@ -2101,7 +2006,7 @@ export default function Messages() {
                               >
                                 <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
                                   <Stack direction="row" spacing={0.75} alignItems="center">
-                                    <ThunderboltOutlined style={{ fontSize: 13, color: AGENT_PURPLE }} />
+                                    <AppIcon name="flash" size={13} style={{ color: AGENT_PURPLE }} />
                                     <Typography
                                       variant="caption"
                                       fontWeight={700}
@@ -2111,7 +2016,7 @@ export default function Messages() {
                                     </Typography>
                                   </Stack>
                                   <IconButton size="small" onClick={() => setSuggestedReplyDismissed(true)} sx={{ width: 20, height: 20 }}>
-                                    <CloseOutlined style={{ fontSize: 11, color: AGENT_PURPLE }} />
+                                    <AppIcon name="close" size={11} style={{ color: AGENT_PURPLE }} />
                                   </IconButton>
                                 </Stack>
                                 <Paper
@@ -2186,7 +2091,7 @@ export default function Messages() {
                           justifyContent="space-between"
                         >
                           <Stack direction="row" spacing={1} alignItems="center">
-                            <InboxOutlined style={{ color: theme.palette.text.secondary }} />
+                            <AppIcon name="document" style={{ color: theme.palette.text.secondary }} />
                             <Typography variant="body2" color="text.secondary">
                               This conversation is archived and read-only.
                             </Typography>
@@ -2265,7 +2170,7 @@ export default function Messages() {
                                   {sendingMessage ? (
                                     <CircularProgress size={19} color="inherit" />
                                   ) : (
-                                    <SendOutlined style={{ fontSize: 18 }} />
+                                    <AppIcon name="send" size={18} />
                                   )}
                                 </IconButton>
                               </span>
@@ -2301,7 +2206,7 @@ export default function Messages() {
                   >
                     <Stack spacing={1.5} alignItems="center" sx={{ textAlign: 'center', maxWidth: 360 }}>
                       <Avatar sx={{ width: 64, height: 64, bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main' }}>
-                        <MessageOutlined style={{ fontSize: 28 }} />
+                        <AppIcon name="messages" size={28} />
                       </Avatar>
                       <Typography variant="h5" fontWeight={700}>
                         Your landlord inbox
@@ -2311,7 +2216,7 @@ export default function Messages() {
                       </Typography>
                       <Button
                         variant="contained"
-                        startIcon={<PlusOutlined />}
+                        startIcon={<AppIcon name="add" />}
                         onClick={() => {
                           setIsNewConversation(true);
                           setDraftTenant(null);
@@ -2488,7 +2393,7 @@ export default function Messages() {
                       }}
                     >
                       <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mb: 0.75 }}>
-                        <RobotOutlined style={{ fontSize: 13, color: AGENT_PURPLE }} />
+                        <AppIcon name="flash" size={13} style={{ color: AGENT_PURPLE }} />
                         <Typography
                           variant="caption"
                           fontWeight={700}
@@ -2707,7 +2612,7 @@ export default function Messages() {
                     }}
                   >
                     <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mb: 0.75 }}>
-                      <RobotOutlined style={{ fontSize: 13, color: AGENT_PURPLE }} />
+                      <AppIcon name="flash" size={13} style={{ color: AGENT_PURPLE }} />
                       <Typography
                         variant="caption"
                         fontWeight={700}

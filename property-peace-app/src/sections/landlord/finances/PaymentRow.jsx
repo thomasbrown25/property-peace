@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useId } from 'react';
 import PropTypes from 'prop-types';
-import { DeleteOutlined, DollarOutlined, EditOutlined, MoreOutlined } from '@ant-design/icons';
-import { alpha, Avatar, Box, Chip, IconButton, Menu, MenuItem, Stack, Tooltip, Typography, useTheme } from '@mui/material';
+import { alpha, Avatar, Box, Chip, Stack, Typography, useTheme } from '@mui/material';
 
+import AppIcon from 'components/AppIcon';
+import ActionsDrawer from 'components/drawers/shared/ActionsDrawer';
 import {
   formatPaymentDate,
   getPaymentAmount,
@@ -21,12 +22,22 @@ const money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD
 
 export default function PaymentRow({ payment, onEdit, onDelete }) {
   const theme = useTheme();
-  const [anchorEl, setAnchorEl] = useState(null);
+  const actionsId = useId();
   const status = normalizePaymentStatus(payment);
   const statusView = getPaymentStatusPresentation(status);
   const type = getPaymentType(payment);
   const online = isOnlinePayment(payment);
   const reference = getPaymentReference(payment);
+  const actions = [
+    {
+      label: 'Edit payment', description: 'Update the details of this payment.', icon: 'edit',
+      onSelect: () => onEdit(payment)
+    },
+    {
+      label: 'Delete payment', description: 'Remove this entry from your payment records.', icon: 'trash', destructive: true,
+      onSelect: () => onDelete(payment)
+    }
+  ];
 
   return (
     <Box
@@ -43,7 +54,7 @@ export default function PaymentRow({ payment, onEdit, onDelete }) {
     >
       <Stack direction="row" spacing={1.25} alignItems="center" minWidth={0}>
         <Avatar sx={{ width: 38, height: 38, bgcolor: alpha(theme.palette.success.main, 0.11), color: 'success.main' }}>
-          <DollarOutlined />
+          <AppIcon name="dollarCircle" />
         </Avatar>
         <Box minWidth={0}>
           <Typography fontWeight={700} noWrap>{getPaymentTitle(payment)}</Typography>
@@ -87,13 +98,7 @@ export default function PaymentRow({ payment, onEdit, onDelete }) {
       </Typography>
 
       <Box sx={{ display: 'flex', justifyContent: { xs: 'flex-end', md: 'center' } }}>
-        <Tooltip title="Payment actions">
-          <IconButton size="small" aria-label={`Actions for ${reference}`} onClick={(event) => setAnchorEl(event.currentTarget)}><MoreOutlined /></IconButton>
-        </Tooltip>
-        <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
-          <MenuItem onClick={() => { setAnchorEl(null); onEdit(payment); }}><EditOutlined style={{ marginRight: 10 }} />Edit payment</MenuItem>
-          <MenuItem sx={{ color: 'error.main' }} onClick={() => { setAnchorEl(null); onDelete(payment); }}><DeleteOutlined style={{ marginRight: 10 }} />Delete payment</MenuItem>
-        </Menu>
+        <ActionsDrawer id={actionsId} title="Payment actions" triggerLabel={`Actions for ${reference}`} actions={actions} iconOnly />
       </Box>
     </Box>
   );

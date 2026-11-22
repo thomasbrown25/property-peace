@@ -1,7 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  Alert, Box, Button, Chip, CircularProgress, Divider, Grid, Paper, Stack, Typography, alpha
-} from '@mui/material';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, Box, Button, CircularProgress, Stack } from '@mui/material';
 import { useDispatch } from 'react-redux';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import useAuth from 'hooks/useAuth';
@@ -11,8 +9,9 @@ import { useOrganization } from 'contexts/OrganizationContext';
 import axiosServices from 'utils/axios';
 import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
 import ConversationTimelinePanel from 'components/conversation/ConversationTimelinePanel';
-import MaintenanceActionsPanel from 'components/maintenance/MaintenanceActionsPanel';
+import MaintenanceActions from 'components/maintenance/MaintenanceActions';
 import MaintenanceAssignmentDrawer from 'components/maintenance/MaintenanceAssignmentDrawer';
+import { MaintenanceRequestHeader, MaintenanceRequestReport, MaintenanceWorkDetails } from 'sections/landlord/maintenances/MaintenanceRequestOverview';
 import TaskEditorDrawer from 'sections/landlord/tasks/TaskEditorDrawer';
 import { createTask, fetchTasks } from 'store/task/task.action';
 import { deleteTask as deleteCalendarTask } from 'api/task';
@@ -21,20 +20,6 @@ import {
   maintenanceActorForRoute, maintenanceStatusSelectionCommand, maintenanceUserId, statusLabel, workflowFromMaintenanceDetail
 } from 'utils/maintenanceWorkflow';
 
-const NAVY = '#061e35';
-const priorityLabel = (value) => {
-  const label = String(value || 'Routine').replace(/[-_]/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
-  return `${label} priority`;
-};
-const priorityColor = (value) => {
-  const priority = String(value || '').toLowerCase();
-  if (['emergency', 'high'].includes(priority)) return 'error';
-  if (['urgent', 'medium'].includes(priority)) return 'warning';
-  return 'success';
-};
-function Section({ title, eyebrow, children }) {
-  return <Paper variant="outlined" sx={{ p: { xs: 2, md: 2.5 }, borderRadius: 2, boxShadow: `0 4px 18px ${alpha(NAVY, .045)}` }}><Typography variant="overline" color="text.secondary" fontWeight={800}>{eyebrow}</Typography><Typography variant="h6" fontWeight={800} sx={{ mb: 1.5 }}>{title}</Typography>{children}</Paper>;
-}
 export default function MaintenancePage() {
   const { maintenanceId } = useParams(); const navigate = useNavigate(); const location = useLocation(); const { user } = useAuth();
   const dispatch = useDispatch(); const drawer = useDrawer(); const { properties } = useFetchProperties();
@@ -45,16 +30,26 @@ export default function MaintenancePage() {
   const [error, setError] = useState(''); const [success, setSuccess] = useState('');
   const [dataWarnings, setDataWarnings] = useState([]); const [assignees, setAssignees] = useState([]);
   const [assignmentDrawerOpen, setAssignmentDrawerOpen] = useState(false); const [scheduleDrawerOpen, setScheduleDrawerOpen] = useState(false);
-
+  const loadSequence = useRef(0);
 
   const load = useCallback(async () => {
+    const sequence = ++loadSequence.current;
     setLoading(true); setError('');
     try {
-      const detail = await maintenanceWorkflowAPI.get(maintenanceId); setRequest(detail); setWorkflow(workflowFromMaintenanceDetail(detail));
-    } catch (requestError) { setError(maintenanceProblemMessage(requestError, 'Maintenance request could not be loaded.')); }
-    finally { setLoading(false); }
+      const detail = await maintenanceWorkflowAPI.get(maintenanceId);
+      if (sequence !== loadSequence.current) return;
+      setRequest(detail);
+      setWorkflow(workflowFromMaintenanceDetail(detail));
+    } catch (requestError) {
+      if (sequence === loadSequence.current) setError(maintenanceProblemMessage(requestError, 'Maintenance request could not be loaded.'));
+    } finally {
+      if (sequence === loadSequence.current) setLoading(false);
+    }
   }, [maintenanceId]);
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+    return () => { loadSequence.current += 1; };
+  }, [load]);
   useEffect(() => {
     if (role !== 'manager' || !currentOrganization?.id || !userId) return;
     let active = true;
@@ -73,7 +68,7 @@ export default function MaintenancePage() {
       setAssignees([
         { key: `Self:${userId}`, label: 'Assign to me', type: 'Self', assignedToUserId: userId, vendorId: null },
         ...members.filter((member) => member.isActive !== false && member.userId && String(member.userId) !== String(userId)).map((member) => ({ key: `OrganizationMember:${member.userId}`, label: member.userName || member.userEmail || `Team member ${member.userId}`, type: 'OrganizationMember', assignedToUserId: member.userId, vendorId: null })),
-        ...vendors.filter((vendor) => vendor.isActive !== false && vendor.isReadyForAssignment === true && vendor.id).map((vendor) => ({ key: `Vendor:${vendor.id}`, label: `${vendor.name || `Vendor ${vendor.id}`} · Portal ready`, type: 'Vendor', assignedToUserId: null, vendorId: vendor.id }))
+        ...vendors.filter((vendor) => vendor.isActive !== false && vendor.isReadyForAssignment === true && vendor.id).map((vendor) => ({ key: `Vendor:${vendor.id}`, label: `${vendor.name || `Vendor ${vendor.id}`} · Portal ready`, name: vendor.name, type: 'Vendor', assignedToUserId: null, vendorId: vendor.id }))
       ]);
       if (warnings.length) setDataWarnings((current) => [...new Set([...current, ...warnings])]);
     });
@@ -169,50 +164,69 @@ export default function MaintenancePage() {
   };
 
 
-  if (loading && !request) return <Box sx={{ minHeight: 400, display: 'grid', placeItems: 'center' }}><CircularProgress /></Box>;
-  if (!request) return <Stack spacing={2}><Button onClick={() => navigate('/landlord/maintenances')}>Back to maintenance</Button><Alert severity="error">{error || 'Request not found.'}</Alert></Stack>;
+  const isCurrentRequest = request && String(request.id) === String(maintenanceId);
+  if (loading && !isCurrentRequest) return <Box sx={{ minHeight: 400, display: 'grid', placeItems: 'center' }}><CircularProgress aria-label="Loading maintenance request" /></Box>;
+  if (!isCurrentRequest) return (
+    <Stack spacing={2} alignItems="flex-start">
+      <Button onClick={() => navigate('/landlord/maintenances')}>Back to maintenance</Button>
+      <Alert severity="error" action={<Button color="inherit" size="small" onClick={load}>Retry</Button>}>{error || 'Request not found.'}</Alert>
+    </Stack>
+  );
 
   const selectedProperty = (properties || []).find((item) => String(item.id) === String(request.propertyId));
-  const propertyStreetAddress = request.propertyStreetAddress || selectedProperty?.streetAddress;
+  const assignment = workflow.assignment;
+  const assignee = assignment && assignees.find((option) => assignment.vendorId
+    ? String(option.vendorId) === String(assignment.vendorId)
+    : assignment.assignedToUserId && String(option.assignedToUserId) === String(assignment.assignedToUserId));
+  let assignedTo = 'Unassigned';
+  if (assignment?.vendorId) assignedTo = assignee?.name || `Vendor #${assignment.vendorId}`;
+  else if (userId && String(assignment?.assignedToUserId) === String(userId)) assignedTo = 'You';
+  else if (assignment?.assignedToUserId) assignedTo = assignee?.label || 'Team member';
 
-  return <Box sx={{ pb: 5 }}>
-    <PageBreadcrumbs items={[{ label: 'Dashboard', path: '/landlord/dashboard' }, { label: 'Maintenance', path: '/landlord/maintenances' }, { label: `MR-${request.id}` }]} />
-    <Box sx={{ mt: 2, mb: 3 }}>
-      <Typography variant="h3" sx={{ color: 'text.primary', fontWeight: 800, lineHeight: 1.15 }}>
-        {request.title}
-      </Typography>
-      <Stack direction="row" spacing={1.25} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mt: 1.25 }}>
-        {propertyStreetAddress && <Typography color="text.secondary">{propertyStreetAddress}</Typography>}
-        <Chip label={priorityLabel(request.priority || request.urgency)} color={priorityColor(request.priority || request.urgency)} variant="outlined" />
-      </Stack>
-    </Box>
-    {String(request.urgency).toLowerCase() === 'emergency' && <Alert severity="error" variant="filled" sx={{ mt: 2 }}><b>Emergency escalation:</b> Contact the tenant and dispatch appropriate emergency support now. The deterministic policy has stopped troubleshooting.</Alert>}
-    {error && <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>}{success && <Alert severity="success" onClose={() => setSuccess('')} sx={{ mt: 2 }}>{success}</Alert>}
-    {dataWarnings.map((warning) => <Alert key={warning} severity="warning" sx={{ mt: 2 }}>{warning}</Alert>)}
-    <Grid container spacing={2} sx={{ mt: .25 }}>
-      <Grid size={{ xs: 12, lg: role === 'manager' ? 8 : 12 }} sx={{ order: { xs: 2, lg: 1 } }}><Stack spacing={2}>
-        <Section eyebrow="TRIAGE" title="Decision-ready summary"><Typography sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>{request.landlordSummary || request.description}</Typography><Divider sx={{ my: 2 }} /><Grid container spacing={2}><Grid size={{ xs: 12, sm: 6 }}><Typography variant="caption" color="text.secondary">TENANT DESCRIPTION</Typography><Typography>{request.description}</Typography></Grid><Grid size={{ xs: 12, sm: 6 }}><Typography variant="caption" color="text.secondary">STATUS</Typography><Box sx={{ mt: .5 }}><Chip label={statusLabel(request.status)} variant="outlined" /></Box></Grid></Grid></Section>
-        <ConversationTimelinePanel
-          contextKind="maintenance"
-          contextId={Number(maintenanceId)}
-          title="Maintenance history"
-          defaultExpanded
-        />
-      </Stack></Grid>
+  return <Box sx={{ maxWidth: 1440, mx: 'auto', pb: 5 }}>
+    <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1.5} sx={{ mb: 2, '& .MuiBreadcrumbs-root': { mb: 0, minWidth: 0 } }}>
+      <PageBreadcrumbs items={[{ label: 'Dashboard', path: '/landlord/dashboard' }, { label: 'Maintenance', path: '/landlord/maintenances' }, { label: `MR-${request.id}` }]} />
       {role === 'manager' && (
-        <Grid size={{ xs: 12, lg: 4 }} sx={{ order: { xs: 1, lg: 2 } }}>
-          <MaintenanceActionsPanel
+        <Box sx={{ flexShrink: 0 }}>
+          <MaintenanceActions
+            key={maintenanceId}
             currentStatus={request.status}
             busy={busy}
+            defaultOpen={location.state?.openMaintenanceActions === true}
             onAcknowledge={handleAcknowledge}
             onAssign={() => setAssignmentDrawerOpen(true)}
             onSchedule={() => setScheduleDrawerOpen(true)}
             onAddExpense={handleAddExpense}
             onStatusChange={handleStatusChange}
           />
-        </Grid>
+        </Box>
       )}
-    </Grid>
+    </Stack>
+    <MaintenanceRequestHeader request={request} property={selectedProperty} />
+    <Stack spacing={2} sx={{ mt: 2.5 }}>
+      {String(request.urgency).toLowerCase() === 'emergency' && (
+        <Alert severity="error" variant="filled"><strong>Emergency escalation.</strong> Contact the tenant and dispatch appropriate emergency support now. Troubleshooting has stopped.</Alert>
+      )}
+      {error && <Alert severity="error">{error}</Alert>}
+      {success && <Alert severity="success" onClose={() => setSuccess('')}>{success}</Alert>}
+      {dataWarnings.map((warning) => <Alert key={warning} severity="warning">{warning}</Alert>)}
+      <Box sx={{
+        display: 'grid', alignItems: 'start', gap: 2.5,
+        gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'minmax(0, 2fr) minmax(250px, 1fr)' },
+        gridTemplateRows: { md: 'auto 1fr' },
+        gridTemplateAreas: { xs: '"report" "details" "history"', md: '"report details" "history details"' }
+      }}>
+        <Box sx={{ gridArea: 'report', minWidth: 0 }}>
+          <MaintenanceRequestReport description={request.description} landlordSummary={request.landlordSummary} />
+        </Box>
+        <Box sx={{ gridArea: 'details', minWidth: 0 }}>
+          <MaintenanceWorkDetails request={request} property={selectedProperty} assignedTo={assignedTo} />
+        </Box>
+        <Box sx={{ gridArea: 'history', minWidth: 0 }}>
+          <ConversationTimelinePanel contextKind="maintenance" contextId={Number(maintenanceId)} title="Maintenance history" standalone refreshKey={request.updatedAtUtc} />
+        </Box>
+      </Box>
+    </Stack>
     <MaintenanceAssignmentDrawer
       open={assignmentDrawerOpen}
       onClose={() => setAssignmentDrawerOpen(false)}

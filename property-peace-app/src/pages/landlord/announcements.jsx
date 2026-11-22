@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { alpha, useTheme } from '@mui/material';
 import {
   Alert,
@@ -15,9 +15,7 @@ import {
   DialogTitle,
   Divider,
   Grid,
-  IconButton,
   InputAdornment,
-  Menu,
   MenuItem,
   OutlinedInput,
   Pagination,
@@ -26,24 +24,10 @@ import {
   Tooltip,
   Typography
 } from '@mui/material';
-import {
-  CheckCircleOutlined,
-  ClockCircleOutlined,
-  CloseOutlined,
-  DeleteOutlined,
-  DownOutlined,
-  EditOutlined,
-  EyeOutlined,
-  MailOutlined,
-  MoreOutlined,
-  NotificationOutlined,
-  PlusOutlined,
-  SearchOutlined,
-  SendOutlined,
-  WarningOutlined
-} from '@ant-design/icons';
 import { format } from 'date-fns';
 
+import AppIcon from 'components/AppIcon';
+import ActionsDrawer from 'components/drawers/shared/ActionsDrawer';
 import ManagementPageHeader from 'components/headers/ManagementPageHeader';
 import { creationActionSx } from 'components/headers/managementPageHeaderStyles';
 import { announcementAPI } from 'api';
@@ -53,6 +37,7 @@ import { formatDateAndTime } from 'utils/formatters';
 const PAGE_SIZE = 10;
 const read = (object, camel, pascal) => object?.[camel] ?? object?.[pascal];
 const getId = (announcement) => read(announcement, 'id', 'Id');
+const getDetailsPath = (announcement) => `/landlord/announcements/details?id=${getId(announcement)}`;
 
 function parseIds(value) {
   if (!value) return [];
@@ -140,9 +125,12 @@ function SummaryCard({ label, value, helper, icon, color, active, onClick }) {
   );
 }
 
+function AnnouncementSelectIcon({ className }) {
+  return <AppIcon name="chevronDown" size={16} className={className} />;
+}
+
 function AnnouncementRow({ announcement, onOpen, onEdit, onDelete }) {
   const theme = useTheme();
-  const [anchorEl, setAnchorEl] = useState(null);
   const status = getStatus(announcement);
   const isScheduled = status === 'scheduled';
   const sentCount = Number(read(announcement, 'sentCount', 'SentCount') || 0);
@@ -162,33 +150,46 @@ function AnnouncementRow({ announcement, onOpen, onEdit, onDelete }) {
     pending: { label: 'Pending', color: theme.palette.warning.main }
   }[status];
 
-  const handleKeyDown = (event) => {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      onOpen(announcement);
-    }
-  };
+  const actions = [
+    { label: 'View details', description: 'Read the message and check its delivery status.', icon: 'document', onSelect: () => onOpen(announcement) }
+  ];
+  if (isScheduled) {
+    actions.push({
+      label: 'Edit schedule', description: 'Update this announcement before it sends.', icon: 'edit', onSelect: () => onEdit(announcement)
+    });
+  }
+  actions.push({
+    label: isScheduled ? 'Cancel announcement' : 'Delete announcement',
+    description: isScheduled ? 'Review and confirm cancellation before it sends.' : 'Review and confirm removal of this announcement.',
+    icon: isScheduled ? 'stopCircle' : 'trash',
+    destructive: true,
+    onSelect: () => onDelete(announcement)
+  });
 
   return (
     <Box
-      role="link"
-      tabIndex={0}
-      onClick={() => onOpen(announcement)}
-      onKeyDown={handleKeyDown}
       sx={{
+        position: 'relative',
         px: { xs: 1.5, md: 2 },
         py: { xs: 1.6, md: 1.45 },
         display: { xs: 'block', md: 'grid' },
         gridTemplateColumns: 'minmax(260px, 2fr) minmax(155px, 1fr) minmax(160px, 1fr) minmax(120px, .8fr) 44px',
         gap: { xs: 1.5, md: 2 },
         alignItems: 'center',
-        cursor: 'pointer',
         borderBottom: `1px solid ${alpha(theme.palette.divider, 0.13)}`,
         transition: 'background-color 140ms ease',
-        '&:hover': { bgcolor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.08 : 0.028) },
-        '&:focus-visible': { outline: `2px solid ${alpha(theme.palette.primary.main, 0.45)}`, outlineOffset: -2 }
+        '&:hover': { bgcolor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.08 : 0.028) }
       }}
     >
+      <Box
+        component={RouterLink}
+        to={getDetailsPath(announcement)}
+        aria-label={`View ${title}`}
+        sx={{
+          position: 'absolute', inset: 0, zIndex: 1,
+          '&:focus-visible': { outline: `2px solid ${alpha(theme.palette.primary.main, 0.45)}`, outlineOffset: -2 }
+        }}
+      />
       <Stack direction="row" spacing={1.25} alignItems="flex-start" minWidth={0}>
         <Avatar
           sx={{
@@ -200,7 +201,7 @@ function AnnouncementRow({ announcement, onOpen, onEdit, onDelete }) {
             color: statusConfig.color
           }}
         >
-          {status === 'scheduled' ? <ClockCircleOutlined /> : <SendOutlined />}
+          {status === 'scheduled' ? <AppIcon name="clock" /> : <AppIcon name="send" />}
         </Avatar>
         <Box minWidth={0}>
           <Stack direction="row" alignItems="center" spacing={0.8} minWidth={0}>
@@ -246,12 +247,16 @@ function AnnouncementRow({ announcement, onOpen, onEdit, onDelete }) {
         <Stack direction="row" spacing={0.8} sx={{ mt: 0.7 }}>
           {sendNotification && (
             <Tooltip title="In-app notification">
-              <NotificationOutlined style={{ color: theme.palette.text.secondary, fontSize: 14 }} />
+              <Box component="span" sx={{ position: 'relative', zIndex: 2, display: 'inline-flex', color: 'text.secondary' }}>
+                <AppIcon name="notification" size={14} />
+              </Box>
             </Tooltip>
           )}
           {sendEmail && (
             <Tooltip title="Email">
-              <MailOutlined style={{ color: theme.palette.text.secondary, fontSize: 14 }} />
+              <Box component="span" sx={{ position: 'relative', zIndex: 2, display: 'inline-flex', color: 'text.secondary' }}>
+                <AppIcon name="mail" size={14} />
+              </Box>
             </Tooltip>
           )}
         </Stack>
@@ -267,51 +272,15 @@ function AnnouncementRow({ announcement, onOpen, onEdit, onDelete }) {
       </Box>
 
       <Box sx={{ display: 'flex', justifyContent: { xs: 'flex-end', md: 'center' } }}>
-        <Tooltip title="Announcement actions">
-          <IconButton
-            aria-label={`Actions for ${title}`}
-            size="small"
-            onClick={(event) => {
-              event.stopPropagation();
-              setAnchorEl(event.currentTarget);
-            }}
-          >
-            <MoreOutlined />
-          </IconButton>
-        </Tooltip>
-        <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
-          <MenuItem
-            onClick={(event) => {
-              event.stopPropagation();
-              setAnchorEl(null);
-              onOpen(announcement);
-            }}
-          >
-            <EyeOutlined style={{ marginRight: 10 }} /> View details
-          </MenuItem>
-          {isScheduled && (
-            <MenuItem
-              onClick={(event) => {
-                event.stopPropagation();
-                setAnchorEl(null);
-                onEdit(announcement);
-              }}
-            >
-              <EditOutlined style={{ marginRight: 10 }} /> Edit schedule
-            </MenuItem>
-          )}
-          <MenuItem
-            sx={{ color: 'error.main' }}
-            onClick={(event) => {
-              event.stopPropagation();
-              setAnchorEl(null);
-              onDelete(announcement);
-            }}
-          >
-            {isScheduled ? <CloseOutlined style={{ marginRight: 10 }} /> : <DeleteOutlined style={{ marginRight: 10 }} />}
-            {isScheduled ? 'Cancel announcement' : 'Delete'}
-          </MenuItem>
-        </Menu>
+        <Box sx={{ position: 'relative', zIndex: 2 }}>
+          <ActionsDrawer
+            id={`announcement-actions-${getId(announcement)}`}
+            title="Announcement actions"
+            triggerLabel={`Actions for ${title}`}
+            actions={actions}
+            iconOnly
+          />
+        </Box>
       </Box>
     </Box>
   );
@@ -442,7 +411,7 @@ export default function AnnouncementsPage() {
     setSort('newest');
   };
 
-  const openAnnouncement = (announcement) => navigate(`/landlord/announcements/details?id=${getId(announcement)}`);
+  const openAnnouncement = (announcement) => navigate(getDetailsPath(announcement));
   const editAnnouncement = (announcement) => navigate(`/landlord/announcements/edit?id=${getId(announcement)}`);
 
   const handleDeleteClick = (announcement) => {
@@ -479,14 +448,18 @@ export default function AnnouncementsPage() {
         title="Announcements"
         description="Plan tenant communications, monitor delivery, and keep every important update in one place."
         actions={
-          <Button
-            variant="contained"
-            startIcon={<PlusOutlined />}
-            onClick={() => navigate('/landlord/announcements/selection')}
-            sx={creationActionSx}
-          >
-            New announcement
-          </Button>
+          <ActionsDrawer
+            id="announcements-actions-drawer"
+            title="Announcements actions"
+            actions={[
+              {
+                label: 'New announcement',
+                description: 'Choose recipients and write an update to send now or schedule.',
+                icon: 'add',
+                onSelect: () => navigate('/landlord/announcements/selection')
+              }
+            ]}
+          />
         }
       />
 
@@ -496,7 +469,7 @@ export default function AnnouncementsPage() {
             label="Sent"
             value={metrics.sent}
             helper={`${metrics.delivered} total deliveries`}
-            icon={<CheckCircleOutlined />}
+            icon={<AppIcon name="checkCircle" />}
             color={theme.palette.success.main}
             active={status === 'sent'}
             onClick={() => setStatus((value) => (value === 'sent' ? 'all' : 'sent'))}
@@ -507,7 +480,7 @@ export default function AnnouncementsPage() {
             label="Scheduled"
             value={metrics.scheduled}
             helper="Queued to send later"
-            icon={<ClockCircleOutlined />}
+            icon={<AppIcon name="clock" />}
             color="#0ea5e9"
             active={status === 'scheduled'}
             onClick={() => setStatus((value) => (value === 'scheduled' ? 'all' : 'scheduled'))}
@@ -518,7 +491,7 @@ export default function AnnouncementsPage() {
             label="Needs attention"
             value={metrics.attention}
             helper="Pending or delivery issues"
-            icon={<WarningOutlined />}
+            icon={<AppIcon name="warning" />}
             color={theme.palette.warning.main}
             active={status === 'attention'}
             onClick={() => setStatus((value) => (value === 'attention' ? 'all' : 'attention'))}
@@ -529,7 +502,7 @@ export default function AnnouncementsPage() {
             label="In this view"
             value={metrics.total}
             helper="Within the selected scope"
-            icon={<NotificationOutlined />}
+            icon={<AppIcon name="notification" />}
             color={theme.palette.primary.main}
             active={status === 'all' && !search && delivery === 'all'}
             onClick={clearViewFilters}
@@ -546,7 +519,7 @@ export default function AnnouncementsPage() {
               size="small"
               startAdornment={
                 <InputAdornment position="start">
-                  <SearchOutlined />
+                  <AppIcon name="magnifier" />
                 </InputAdornment>
               }
               sx={{ flex: 1, minWidth: { md: 280 }, borderRadius: 1.75 }}
@@ -556,7 +529,7 @@ export default function AnnouncementsPage() {
                 size="small"
                 value={status}
                 onChange={(event) => setStatus(event.target.value)}
-                IconComponent={DownOutlined}
+                IconComponent={AnnouncementSelectIcon}
                 sx={{ minWidth: 134, borderRadius: 1.75 }}
               >
                 <MenuItem value="all">All statuses</MenuItem>
@@ -569,7 +542,7 @@ export default function AnnouncementsPage() {
                 size="small"
                 value={delivery}
                 onChange={(event) => setDelivery(event.target.value)}
-                IconComponent={DownOutlined}
+                IconComponent={AnnouncementSelectIcon}
                 sx={{ minWidth: 144, borderRadius: 1.75 }}
               >
                 <MenuItem value="all">All channels</MenuItem>
@@ -581,7 +554,7 @@ export default function AnnouncementsPage() {
                 size="small"
                 value={sort}
                 onChange={(event) => setSort(event.target.value)}
-                IconComponent={DownOutlined}
+                IconComponent={AnnouncementSelectIcon}
                 sx={{ minWidth: 160, borderRadius: 1.75 }}
               >
                 <MenuItem value="newest">Sort: Newest</MenuItem>
@@ -634,13 +607,13 @@ export default function AnnouncementsPage() {
             <Typography sx={{ fontSize: '0.82rem', color: 'text.secondary' }}>Loading communications…</Typography>
           </Stack>
         ) : error ? (
-          <Alert severity="error" sx={{ m: 2 }}>
+          <Alert severity="error" icon={<AppIcon name="warning" />} sx={{ m: 2 }}>
             {error}
           </Alert>
         ) : announcements.length === 0 ? (
           <Stack alignItems="center" spacing={1.4} sx={{ py: 7, px: 2, textAlign: 'center' }}>
             <Avatar sx={{ width: 58, height: 58, bgcolor: alpha(theme.palette.primary.main, 0.08), color: theme.palette.primary.main }}>
-              <NotificationOutlined style={{ fontSize: 25 }} />
+              <AppIcon name="notification" size={25} />
             </Avatar>
             <Typography variant="h5" fontWeight={700}>
               No announcements in this scope
@@ -650,7 +623,7 @@ export default function AnnouncementsPage() {
             </Typography>
             <Button
               variant="contained"
-              startIcon={<PlusOutlined />}
+              startIcon={<AppIcon name="add" />}
               onClick={() => navigate('/landlord/announcements/selection')}
               sx={creationActionSx}
             >

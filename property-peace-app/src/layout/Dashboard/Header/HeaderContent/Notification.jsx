@@ -32,7 +32,7 @@ import useAuth from 'hooks/useAuth';
 import { getUnreadRecentNotificationIds } from './notificationDropdown.mjs';
 
 // assets
-import BellOutlined from '@ant-design/icons/BellOutlined';
+import AppIcon from 'components/AppIcon';
 import GiftOutlined from '@ant-design/icons/GiftOutlined';
 import MessageOutlined from '@ant-design/icons/MessageOutlined';
 import SettingOutlined from '@ant-design/icons/SettingOutlined';
@@ -276,7 +276,7 @@ export default function Notification() {
         onClick={handleToggle}
       >
         <Badge badgeContent={unreadCount > 0 ? unreadCount : null} color="primary" max={99}>
-          <BellOutlined />
+          <AppIcon name="notification" />
         </Badge>
       </IconButton>
       <Popper
@@ -350,7 +350,7 @@ export default function Notification() {
                                 bgcolor: notification.isRead ? 'grey.200' : 'primary.lighter'
                               }}
                             >
-                              <BellOutlined />
+                              <AppIcon name="notification" />
                             </Avatar>
                           </ListItemAvatar>
                           <ListItemText

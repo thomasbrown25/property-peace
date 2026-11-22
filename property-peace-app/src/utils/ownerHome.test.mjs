@@ -34,11 +34,24 @@ test('empty, loading and failed property requests cannot claim the portfolio is 
   assert.equal(getOwnerNextStep({ properties: [], propertiesError: true }), null);
   assert.deepEqual(getOwnerNextStep({ properties: [] }), { title: 'Add your first property', label: 'Get started', href: '/landlord/properties/add' });
   assert.deepEqual(getOwnerProperties([{ Id: 'A', Name: 'Oak', Units: [{ Id: 'U', rentalMode: 'shortTerm' }] }]), [
-    { id: 'A', name: 'Oak', address: '', imageUrl: null, original: { Id: 'A', Name: 'Oak', Units: [{ Id: 'U', rentalMode: 'shortTerm' }] }, activeLeaseCount: 0, href: '/landlord/property/A', shortStayHref: '/landlord/property/A/unit/U/short-stay' }
+    { id: 'A', name: 'Oak', address: '', imageUrl: null, original: { Id: 'A', Name: 'Oak', Units: [{ Id: 'U', rentalMode: 'shortTerm' }] }, isSingleUnit: false, activeLeaseCount: 0, href: '/landlord/property/A', shortStayHref: '/landlord/property/A/unit/U/short-stay' }
   ]);
   assert.deepEqual(getOwnerProperties([{ id: 'B', streetAddress: '12 Elm', units: [{ id: 'V', rentalMode: 'LongTerm' }] }]), [
-    { id: 'B', name: '12 Elm', address: '12 Elm', imageUrl: null, original: { id: 'B', streetAddress: '12 Elm', units: [{ id: 'V', rentalMode: 'LongTerm' }] }, activeLeaseCount: 0, href: '/landlord/property/B', shortStayHref: null }
+    { id: 'B', name: '12 Elm', address: '12 Elm', imageUrl: null, original: { id: 'B', streetAddress: '12 Elm', units: [{ id: 'V', rentalMode: 'LongTerm' }] }, isSingleUnit: false, activeLeaseCount: 0, href: '/landlord/property/B', shortStayHref: null }
   ]);
+});
+
+test('today chooses a house for single-unit properties and a building for multifamily properties', () => {
+  const properties = getOwnerProperties([
+    { id: 1, propertyType: 'single-family' },
+    { id: 2, PropertyType: 'SingleFamily' },
+    { id: 3, propertyType: 'MultiFamily', units: [{ id: 1 }] },
+    { id: 4, PropertyType: 'Apartment' },
+    { id: 5 }
+  ]);
+
+  assert.deepEqual(properties.map(({ id, isSingleUnit }) => [id, isSingleUnit]), [[1, true], [2, true], [3, false], [4, false], [5, false]]);
+  assert.match(source('sections/landlord/dashboard/OwnerTodayHome.jsx'), /<AppIcon name=\{property\.isSingleUnit \? 'house' : 'properties'\} size=\{property\.isSingleUnit \? 18 : undefined\}/);
 });
 
 test('today properties put active leases first and sort names alphabetically within each group', () => {
@@ -86,11 +99,10 @@ test('today shows No lease instead of zero figures and a visible gray zero-colle
   assert.match(home, /bgcolor: rent\.paid === 0 \? theme\.palette\.grey\[theme\.palette\.mode === 'dark' \? 700 : 300\]/);
 });
 
-test('today property list includes image, address, rent paid and due date columns', () => {
+test('today property list links the property name and shows rent paid and due date columns', () => {
   const home = source('sections/landlord/dashboard/OwnerTodayHome.jsx');
   const overview = source('pages/landlord/dashboard-overview.jsx');
-  assert.match(home, /property\.imageUrl/);
-  assert.match(home, /property\.address/);
+  assert.match(home, /to=\{property\.href\}[\s\S]*?\{property\.name\}/);
   assert.match(home, /Rent paid/);
   assert.match(home, /LinearProgress/);
   assert.match(home, /Due date/);

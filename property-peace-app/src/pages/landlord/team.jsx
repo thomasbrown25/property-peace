@@ -16,7 +16,6 @@ import {
   FormHelperText,
   IconButton,
   InputAdornment,
-  Menu,
   MenuItem,
   OutlinedInput,
   Select,
@@ -26,22 +25,9 @@ import {
   useMediaQuery,
   useTheme
 } from '@mui/material';
-import {
-  CheckCircleOutlined,
-  CloseOutlined,
-  DeleteOutlined,
-  DownOutlined,
-  EditOutlined,
-  MailOutlined,
-  MoreOutlined,
-  PlusOutlined,
-  ReloadOutlined,
-  SearchOutlined,
-  TeamOutlined
-} from '@ant-design/icons';
-
+import AppIcon from 'components/AppIcon';
+import ActionsDrawer from 'components/drawers/shared/ActionsDrawer';
 import ManagementPageHeader from 'components/headers/ManagementPageHeader';
-import { creationActionSx } from 'components/headers/managementPageHeaderStyles';
 import CreateOrganizationDialog from 'components/organization/CreateOrganizationDialog';
 import useAuth from 'hooks/useAuth';
 import { openSnackbar } from 'api/snackbar';
@@ -144,7 +130,7 @@ function EmptyState({ filtered, onInvite, canManage }) {
   return (
     <Stack alignItems="center" spacing={1.4} sx={{ py: 8, px: 2, textAlign: 'center' }}>
       <Avatar sx={{ width: 52, height: 52, bgcolor: (theme) => alpha(theme.palette.success.main, 0.1), color: 'success.main' }}>
-        <TeamOutlined />
+        <AppIcon name="team" />
       </Avatar>
       <Typography variant="h5" fontWeight={750}>
         {filtered ? 'No team members match this view' : 'You haven’t added any team members yet.'}
@@ -158,7 +144,7 @@ function EmptyState({ filtered, onInvite, canManage }) {
         <Button
           variant="contained"
           color="success"
-          startIcon={<PlusOutlined />}
+          startIcon={<AppIcon name="add" />}
           onClick={onInvite}
           sx={{ mt: 0.5, textTransform: 'none', fontWeight: 700 }}
         >
@@ -169,12 +155,28 @@ function EmptyState({ filtered, onInvite, canManage }) {
   );
 }
 
+function TeamSelectIcon({ className }) {
+  return <AppIcon name="chevronDown" className={className} size={16} />;
+}
+
 function TeamRow({ item, canManage, isCurrentUser, onEdit, onRemove, onResend, onCancel }) {
   const theme = useTheme();
-  const [anchorEl, setAnchorEl] = useState(null);
   const isInvite = item.kind === 'invite';
   const name = isInvite ? item.email : item.name;
   const secondary = isInvite ? `Invited ${formatDate(item.createdAt)}` : item.email;
+  const actions = isInvite ? [
+    { label: 'Resend invitation', description: 'Email a fresh invitation link.', icon: 'send', onSelect: () => onResend(item) },
+    {
+      label: 'Revoke invitation', description: 'Invalidate the current invitation link.', icon: 'trash', destructive: true,
+      onSelect: () => onCancel(item)
+    }
+  ] : [
+    { label: 'Change role', description: 'Update this member’s access to the organization.', icon: 'edit', onSelect: () => onEdit(item) },
+    {
+      label: 'Remove team member', description: 'Review and confirm removal of this member’s access.', icon: 'trash', destructive: true,
+      onSelect: () => onRemove(item)
+    }
+  ];
 
   return (
     <Box
@@ -200,7 +202,7 @@ function TeamRow({ item, canManage, isCurrentUser, onEdit, onRemove, onResend, o
             color: isInvite ? 'warning.dark' : 'primary.main'
           }}
         >
-          {isInvite ? <MailOutlined /> : getInitials(name, item.email)}
+          {isInvite ? <AppIcon name="mail" /> : getInitials(name, item.email)}
         </Avatar>
         <Box minWidth={0}>
           <Stack direction="row" spacing={0.7} alignItems="center">
@@ -222,7 +224,7 @@ function TeamRow({ item, canManage, isCurrentUser, onEdit, onRemove, onResend, o
       <Box>
         <Chip
           size="small"
-          icon={isInvite ? <MailOutlined /> : <CheckCircleOutlined />}
+          icon={isInvite ? <AppIcon name="mail" /> : <AppIcon name="checkCircle" />}
           label={isInvite ? 'Invitation pending' : 'Active team member'}
           color={isInvite ? 'warning' : 'success'}
           variant="outlined"
@@ -241,62 +243,13 @@ function TeamRow({ item, canManage, isCurrentUser, onEdit, onRemove, onResend, o
 
       <Box sx={{ display: 'flex', justifyContent: { xs: 'flex-end', md: 'center' } }}>
         {canManage && !(isCurrentUser && item.role === 'Owner') && (
-          <>
-            <Tooltip title="Team member actions">
-              <IconButton size="small" aria-label={`Actions for ${name}`} onClick={(event) => setAnchorEl(event.currentTarget)}>
-                <MoreOutlined />
-              </IconButton>
-            </Tooltip>
-            <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
-              {isInvite
-                ? [
-                    <MenuItem
-                      key="resend"
-                      onClick={() => {
-                        setAnchorEl(null);
-                        onResend(item);
-                      }}
-                    >
-                      <ReloadOutlined style={{ marginRight: 10 }} />
-                      Resend invitation
-                    </MenuItem>,
-                    <MenuItem
-                      key="cancel"
-                      onClick={() => {
-                        setAnchorEl(null);
-                        onCancel(item);
-                      }}
-                      sx={{ color: 'error.main' }}
-                    >
-                      <DeleteOutlined style={{ marginRight: 10 }} />
-                      Revoke invitation
-                    </MenuItem>
-                  ]
-                : [
-                    <MenuItem
-                      key="edit"
-                      onClick={() => {
-                        setAnchorEl(null);
-                        onEdit(item);
-                      }}
-                    >
-                      <EditOutlined style={{ marginRight: 10 }} />
-                      Change role
-                    </MenuItem>,
-                    <MenuItem
-                      key="remove"
-                      onClick={() => {
-                        setAnchorEl(null);
-                        onRemove(item);
-                      }}
-                      sx={{ color: 'error.main' }}
-                    >
-                      <DeleteOutlined style={{ marginRight: 10 }} />
-                      Remove team member
-                    </MenuItem>
-                  ]}
-            </Menu>
-          </>
+          <ActionsDrawer
+            id={`team-actions-${item.kind}-${item.id}`}
+            title={isInvite ? 'Invitation actions' : 'Team member actions'}
+            triggerLabel={`Actions for ${name || item.email}`}
+            actions={actions}
+            iconOnly
+          />
         )}
       </Box>
     </Box>
@@ -353,12 +306,12 @@ function InviteDialog({ open, organization, onClose, onCreated }) {
             </Typography>
           </Box>
           <IconButton onClick={onClose} disabled={submitting} aria-label="Close">
-            <CloseOutlined />
+            <AppIcon name="close" />
           </IconButton>
         </Stack>
       </DialogTitle>
       <DialogContent>
-        <Alert severity="info" icon={<MailOutlined />} sx={{ mb: 2.5, '& .MuiAlert-message': { width: '100%' } }}>
+        <Alert severity="info" icon={<AppIcon name="mail" />} sx={{ mb: 2.5, '& .MuiAlert-message': { width: '100%' } }}>
           <Typography fontWeight={700} sx={{ fontSize: '0.8rem' }}>
             We email them a secure invitation link
           </Typography>
@@ -383,7 +336,7 @@ function InviteDialog({ open, organization, onClose, onCreated }) {
               placeholder="team.member@company.com"
               startAdornment={
                 <InputAdornment position="start">
-                  <MailOutlined />
+                  <AppIcon name="mail" />
                 </InputAdornment>
               }
               onKeyDown={(event) => {
@@ -396,7 +349,7 @@ function InviteDialog({ open, organization, onClose, onCreated }) {
           <Box>
             <Typography sx={{ mb: 0.65, fontWeight: 700, fontSize: '0.78rem' }}>Organization role</Typography>
             <FormControl fullWidth>
-              <Select value={role} onChange={(event) => setRole(event.target.value)} IconComponent={DownOutlined}>
+              <Select value={role} onChange={(event) => setRole(event.target.value)} IconComponent={TeamSelectIcon}>
                 {['Manager', 'Viewer', 'Owner'].map((option) => (
                   <MenuItem key={option} value={option}>
                     <Stack>
@@ -412,7 +365,7 @@ function InviteDialog({ open, organization, onClose, onCreated }) {
             <Stack spacing={0.55} sx={{ mt: 1.2, p: 1.4, borderRadius: 1.5, bgcolor: (theme) => alpha(theme.palette.primary.main, 0.035) }}>
               {roleDetail(role).permissions.map((permission) => (
                 <Stack key={permission} direction="row" spacing={0.8} alignItems="center">
-                  <CheckCircleOutlined style={{ color: '#41a541', fontSize: 13 }} />
+                  <AppIcon name="checkCircle" size={13} style={{ color: '#41a541' }} />
                   <Typography sx={{ fontSize: '0.73rem' }}>{permission}</Typography>
                 </Stack>
               ))}
@@ -427,7 +380,7 @@ function InviteDialog({ open, organization, onClose, onCreated }) {
         <Button
           variant="contained"
           color="success"
-          startIcon={submitting ? <CircularProgress size={16} color="inherit" /> : <MailOutlined />}
+          startIcon={submitting ? <CircularProgress size={16} color="inherit" /> : <AppIcon name="mail" />}
           onClick={submit}
           disabled={submitting}
           sx={{ textTransform: 'none', fontWeight: 700, boxShadow: 'none' }}
@@ -474,7 +427,7 @@ function RoleDialog({ member, open, onClose, onSaved }) {
         <Typography sx={{ mt: 0.5, color: 'text.secondary', fontSize: '0.8rem' }}>{member?.name}</Typography>
       </DialogTitle>
       <DialogContent>
-        <Select fullWidth value={role} onChange={(event) => setRole(event.target.value)}>
+        <Select fullWidth value={role} onChange={(event) => setRole(event.target.value)} IconComponent={TeamSelectIcon}>
           {['Manager', 'Viewer', 'Owner'].map((option) => (
             <MenuItem key={option} value={option}>
               <Stack>
@@ -484,7 +437,7 @@ function RoleDialog({ member, open, onClose, onSaved }) {
             </MenuItem>
           ))}
         </Select>
-        <Alert severity="warning" sx={{ mt: 2, display: role === 'Owner' ? 'flex' : 'none' }}>
+        <Alert severity="warning" icon={<AppIcon name="warning" />} sx={{ mt: 2, display: role === 'Owner' ? 'flex' : 'none' }}>
           Owners can manage billing, team members, and every organization setting.
         </Alert>
       </DialogContent>
@@ -579,6 +532,22 @@ export default function Team() {
     user?.CurrentOrganizationRole ||
     currentMember?.role;
   const canManage = currentRole === 'Owner' || currentMember?.canManageMembers;
+  const teamActions = [
+    {
+      label: 'Create organization',
+      description: 'Set up a separate organization for another company, portfolio, or team.',
+      icon: 'properties',
+      onSelect: () => setCreateOrganizationOpen(true)
+    }
+  ];
+  if (canManage) {
+    teamActions.unshift({
+      label: 'Add team member',
+      description: 'Send an invitation and choose the new member’s role.',
+      icon: 'team',
+      onSelect: () => setInviteOpen(true)
+    });
+  }
   const allPeople = useMemo(() => [...normalizedMembers, ...normalizedInvites], [normalizedMembers, normalizedInvites]);
 
   const visiblePeople = useMemo(() => {
@@ -620,32 +589,11 @@ export default function Team() {
       <ManagementPageHeader
         title="Team members"
         description={`Add team members, assign roles, and control what they can access in ${organization?.name || 'your organization'}.`}
-        actions={
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-            <Button
-              variant="contained"
-              startIcon={<PlusOutlined />}
-              onClick={() => setCreateOrganizationOpen(true)}
-              sx={creationActionSx}
-            >
-              Create organization
-            </Button>
-            {canManage && (
-              <Button
-                variant="contained"
-                startIcon={<PlusOutlined />}
-                onClick={() => setInviteOpen(true)}
-                sx={creationActionSx}
-              >
-                Add team member
-              </Button>
-            )}
-          </Stack>
-        }
+        actions={<ActionsDrawer id="team-actions-drawer" title="Team actions" actions={teamActions} />}
       />
 
       {!canManage && !loading && (
-        <Alert severity="info" sx={{ mb: 2 }}>
+        <Alert severity="info" icon={<AppIcon name="help" />} sx={{ mb: 2 }}>
           You can view team members. An owner or team member with management access can send invitations and change roles.
         </Alert>
       )}
@@ -659,7 +607,7 @@ export default function Team() {
               size="small"
               startAdornment={
                 <InputAdornment position="start">
-                  <SearchOutlined />
+                  <AppIcon name="magnifier" />
                 </InputAdornment>
               }
               sx={{ flex: 1, minWidth: { md: 260 }, borderRadius: 1.75 }}
@@ -669,7 +617,7 @@ export default function Team() {
                 size="small"
                 value={status}
                 onChange={(event) => setStatus(event.target.value)}
-                IconComponent={DownOutlined}
+                IconComponent={TeamSelectIcon}
                 sx={{ minWidth: 140, borderRadius: 1.75 }}
               >
                 <MenuItem value="all">All statuses</MenuItem>
@@ -680,7 +628,7 @@ export default function Team() {
                 size="small"
                 value={roleFilter}
                 onChange={(event) => setRoleFilter(event.target.value)}
-                IconComponent={DownOutlined}
+                IconComponent={TeamSelectIcon}
                 sx={{ minWidth: 126, borderRadius: 1.75 }}
               >
                 <MenuItem value="all">All roles</MenuItem>
@@ -691,7 +639,7 @@ export default function Team() {
               <Tooltip title="Refresh team">
                 <span>
                   <IconButton onClick={() => loadData(true)} disabled={refreshing} aria-label="Refresh team">
-                    {refreshing ? <CircularProgress size={18} /> : <ReloadOutlined />}
+                    {refreshing ? <CircularProgress size={18} /> : <AppIcon name="reopen" />}
                   </IconButton>
                 </span>
               </Tooltip>

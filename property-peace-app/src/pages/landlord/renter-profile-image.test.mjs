@@ -14,10 +14,18 @@ test('Add charge uses the same primary fill as the property Actions button', () 
 
 test('renter avatar has accessible pencil upload action and persists the selected image', () => {
   assert.match(page, /aria-label="Upload renter photo"/);
-  assert.match(page, /<EditOutlined\s*\/>/);
+  assert.match(page, /uploadingPhoto \? <CircularProgress[^>]*\/> : <AppIcon name="edit" size=\{19\}/);
   assert.match(page, /accept="image\/png,image\/jpeg,image\/webp"/);
   assert.match(page, /\/api\/tenant\/\$\{numericRenterId\}\/photo/);
   assert.match(page, /read\(renter, 'profileImageUrl', 'ProfileImageUrl'\)/);
+});
+
+test('renter actions use the filled Iconsax bolt and matching menu icons', () => {
+  assert.match(page, /aria-label="Renter actions" aria-haspopup="menu"[\s\S]*?<AppIcon name="flash" variant="bold"/);
+  const menu = page.match(/<Menu id="renter-actions-menu"[\s\S]*?<\/Menu>/)?.[0];
+  assert.ok(menu);
+  assert.match(menu, /<AppIcon name="edit"[^>]*\/>Edit renter/);
+  assert.match(menu, /!portalConnected && renterEmail[\s\S]*?<AppIcon name="send"[^>]*\/>[\s\S]*?Invite to portal/);
 });
 
 test('renter avatar is larger with a bare pencil at its top right', () => {

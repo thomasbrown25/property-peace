@@ -1,22 +1,29 @@
-import { useState } from 'react';
-import { DownloadOutlined, PlusOutlined } from '@ant-design/icons';
-import KeyboardArrowDown from '@mui/icons-material/KeyboardArrowDown';
-import { Button, Menu, MenuItem, Stack, Tooltip } from '@mui/material';
+import { Button, Stack, Tooltip } from '@mui/material';
 
+import AppIcon from 'components/AppIcon';
+import ActionsDrawer from 'components/drawers/shared/ActionsDrawer';
 import ManagementPageHeader from 'components/headers/ManagementPageHeader';
-import { creationActionSx, managementPageHeaderActionSx } from 'components/headers/managementPageHeaderStyles';
+import { managementPageHeaderActionSx } from 'components/headers/managementPageHeaderStyles';
 
 export default function FinancesHeader({ onAddExpense, onRecordPayment, exportState }) {
-  const [anchorEl, setAnchorEl] = useState(null);
-  const addMenuOpen = Boolean(anchorEl);
   const exportLabel = exportState?.label || 'Export';
   const exportDisabled = !exportState?.onExport || Boolean(exportState?.disabled || exportState?.busy);
   const exportReason = exportState?.disabledReason || '';
 
-  const runAddAction = (action) => {
-    setAnchorEl(null);
-    action();
-  };
+  const actions = [
+    {
+      label: 'Add expense',
+      description: 'Record a property cost and attach a receipt.',
+      icon: 'document',
+      onSelect: onAddExpense
+    },
+    {
+      label: 'Record payment',
+      description: 'Log rent, a fee, or a deposit you received.',
+      icon: 'moneys',
+      onSelect: onRecordPayment
+    }
+  ];
 
   return (
     <ManagementPageHeader
@@ -31,7 +38,7 @@ export default function FinancesHeader({ onAddExpense, onRecordPayment, exportSt
             >
               <Button
                 variant="outlined"
-                startIcon={<DownloadOutlined />}
+                startIcon={<AppIcon name="downloadDocument" />}
                 onClick={exportState?.onExport}
                 disabled={exportDisabled}
                 aria-label={exportDisabled && exportReason ? `${exportLabel}. ${exportReason}` : exportLabel}
@@ -41,26 +48,7 @@ export default function FinancesHeader({ onAddExpense, onRecordPayment, exportSt
               </Button>
             </span>
           </Tooltip>
-          <Button
-            variant="contained"
-            startIcon={<PlusOutlined />}
-            endIcon={<KeyboardArrowDown />}
-            aria-haspopup="menu"
-            aria-expanded={addMenuOpen ? 'true' : undefined}
-            onClick={(event) => setAnchorEl(event.currentTarget)}
-            sx={creationActionSx}
-          >
-            Add
-          </Button>
-          <Menu
-            anchorEl={anchorEl}
-            open={addMenuOpen}
-            onClose={() => setAnchorEl(null)}
-            MenuListProps={{ 'aria-label': 'Add a financial record' }}
-          >
-            <MenuItem onClick={() => runAddAction(onAddExpense)}>Add expense</MenuItem>
-            <MenuItem onClick={() => runAddAction(onRecordPayment)}>Record payment</MenuItem>
-          </Menu>
+          <ActionsDrawer id="finances-actions-drawer" title="Finances actions" actions={actions} />
         </Stack>
       }
     />

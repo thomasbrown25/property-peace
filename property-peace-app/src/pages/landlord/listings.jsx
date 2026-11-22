@@ -10,10 +10,8 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  IconButton,
   InputAdornment,
   LinearProgress,
-  Menu,
   MenuItem,
   OutlinedInput,
   Pagination,
@@ -21,21 +19,15 @@ import {
   Stack,
   Tab,
   Tabs,
-  Tooltip,
   Typography,
   useTheme
 } from '@mui/material';
-import {
-  CameraOutlined,
-  DownOutlined,
-  MoreOutlined,
-  PlusOutlined,
-  SearchOutlined
-} from '@ant-design/icons';
 import { useDispatch, useSelector } from 'react-redux';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link as RouterLink, useNavigate, useSearchParams } from 'react-router-dom';
 import useSWR from 'swr';
 
+import AppIcon from 'components/AppIcon';
+import ActionsDrawer from 'components/drawers/shared/ActionsDrawer';
 import ManagementPageHeader from 'components/headers/ManagementPageHeader';
 import { creationActionSx } from 'components/headers/managementPageHeaderStyles';
 import ListingAddWorkflowDrawer from 'components/drawers/ListingAddWorkflowDrawer';
@@ -55,6 +47,7 @@ const PAGE_SIZE = 10;
 
 const read = (object, camel, pascal) => object?.[camel] ?? object?.[pascal];
 const getId = (listing) => read(listing, 'id', 'Id');
+const getListingPath = (listing) => `/landlord/listings/${getId(listing)}`;
 const getDisplayStatus = (listing) => (isActiveListing(listing) ? 'Active' : 'Draft');
 const getTitle = (listing) => {
   const propertyName = read(listing, 'propertyName', 'PropertyName') || 'Untitled listing';
@@ -142,42 +135,44 @@ function ListingMarketRent({ listing }) {
   return <Typography sx={{ mt: 0.25, fontSize: '0.7rem', color: 'text.secondary' }}>{label}</Typography>;
 }
 
+function ListingSelectIcon({ className }) {
+  return <AppIcon name="chevronDown" size={16} className={className} />;
+}
+
 function ListingRow({ listing, onOpen, onDelete }) {
   const theme = useTheme();
-  const [anchorEl, setAnchorEl] = useState(null);
   const title = getTitle(listing);
   const rent = getRent(listing);
   const available = getAvailableDate(listing);
   const updated = getUpdatedDate(listing);
   const active = isActiveListing(listing);
 
-  const handleKeyDown = (event) => {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      onOpen(listing);
-    }
-  };
+  const rowTriggerProps = active
+    ? { component: RouterLink, to: getListingPath(listing), 'aria-label': `Open ${title}` }
+    : { component: 'button', type: 'button', onClick: () => onOpen(listing), 'aria-label': `Continue draft for ${title}` };
 
   return (
     <Box
-      role="link"
-      tabIndex={0}
-      onClick={() => onOpen(listing)}
-      onKeyDown={handleKeyDown}
       sx={{
+        position: 'relative',
         px: { xs: 1.5, md: 2 },
         py: { xs: 1.5, md: 1.35 },
         display: { xs: 'block', md: 'grid' },
         gridTemplateColumns: 'minmax(245px, 1.8fr) minmax(105px, .7fr) minmax(90px, .65fr) minmax(125px, .85fr) minmax(160px, 1fr) 44px',
         gap: { xs: 1.5, md: 2 },
         alignItems: 'center',
-        cursor: 'pointer',
         borderBottom: `1px solid ${alpha(theme.palette.divider, 0.13)}`,
         transition: 'background-color 140ms ease',
-        '&:hover': { bgcolor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.08 : 0.028) },
-        '&:focus-visible': { outline: `2px solid ${alpha(theme.palette.primary.main, 0.45)}`, outlineOffset: -2 }
+        '&:hover': { bgcolor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.08 : 0.028) }
       }}
     >
+      <Box
+        {...rowTriggerProps}
+        sx={{
+          position: 'absolute', inset: 0, zIndex: 1, p: 0, border: 0, bgcolor: 'transparent', cursor: 'pointer',
+          '&:focus-visible': { outline: `2px solid ${alpha(theme.palette.primary.main, 0.45)}`, outlineOffset: -2 }
+        }}
+      />
       <Stack direction="row" spacing={1.4} alignItems="center" minWidth={0}>
         <Box
           component="img"
@@ -229,38 +224,29 @@ function ListingRow({ listing, onOpen, onDelete }) {
       <Readiness listing={listing} />
 
       <Box sx={{ display: 'flex', justifyContent: { xs: 'flex-end', md: 'center' } }}>
-        <Tooltip title="Listing actions">
-          <IconButton
-            size="small"
-            aria-label={`Actions for ${title}`}
-            onClick={(event) => {
-              event.stopPropagation();
-              setAnchorEl(event.currentTarget);
-            }}
-          >
-            <MoreOutlined />
-          </IconButton>
-        </Tooltip>
-        <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)} onClick={(event) => event.stopPropagation()}>
-          <MenuItem
-            onClick={(event) => {
-              event.stopPropagation();
-              setAnchorEl(null);
-              onOpen(listing);
-            }}
-          >
-            {active ? 'Open listing' : 'Continue draft'}
-          </MenuItem>
-          <MenuItem
-            onClick={() => {
-              setAnchorEl(null);
-              onDelete(listing);
-            }}
-            sx={{ color: 'error.main' }}
-          >
-            Delete listing
-          </MenuItem>
-        </Menu>
+        <Box sx={{ position: 'relative', zIndex: 2 }}>
+          <ActionsDrawer
+            id={`listing-actions-${getId(listing)}`}
+            title="Listing actions"
+            triggerLabel={`Actions for ${title}`}
+            iconOnly
+            actions={[
+              {
+                label: active ? 'Open listing' : 'Continue draft',
+                description: active ? 'View listing details and marketing settings.' : 'Resume setting up this listing.',
+                icon: active ? 'document' : 'edit',
+                onSelect: () => onOpen(listing)
+              },
+              {
+                label: 'Delete listing',
+                description: 'Review and confirm removal of this listing.',
+                icon: 'trash',
+                destructive: true,
+                onSelect: () => onDelete(listing)
+              }
+            ]}
+          />
+        </Box>
       </Box>
     </Box>
   );
@@ -351,7 +337,7 @@ function ListingsTab() {
       drawer.openListingAddDrawer(listing);
       return;
     }
-    navigate(`/landlord/listings/${getId(listing)}`);
+    navigate(getListingPath(listing));
   };
 
   const confirmDelete = async () => {
@@ -384,7 +370,7 @@ function ListingsTab() {
               size="small"
               startAdornment={
                 <InputAdornment position="start">
-                  <SearchOutlined />
+                  <AppIcon name="magnifier" />
                 </InputAdornment>
               }
               sx={{ flex: 1, minWidth: { md: 260 }, borderRadius: 1.75 }}
@@ -394,7 +380,7 @@ function ListingsTab() {
                 size="small"
                 value={status}
                 onChange={(event) => setStatus(event.target.value)}
-                IconComponent={DownOutlined}
+                IconComponent={ListingSelectIcon}
                 sx={{ minWidth: 126, borderRadius: 1.75 }}
               >
                 <MenuItem value="all">All status</MenuItem>
@@ -405,7 +391,7 @@ function ListingsTab() {
                 size="small"
                 value={readiness}
                 onChange={(event) => setReadiness(event.target.value)}
-                IconComponent={DownOutlined}
+                IconComponent={ListingSelectIcon}
                 sx={{ minWidth: 160, borderRadius: 1.75 }}
               >
                 <MenuItem value="all">All readiness</MenuItem>
@@ -420,7 +406,7 @@ function ListingsTab() {
                 size="small"
                 value={availability}
                 onChange={(event) => setAvailability(event.target.value)}
-                IconComponent={DownOutlined}
+                IconComponent={ListingSelectIcon}
                 sx={{ minWidth: 156, borderRadius: 1.75 }}
               >
                 <MenuItem value="all">All availability</MenuItem>
@@ -432,7 +418,7 @@ function ListingsTab() {
                 size="small"
                 value={sort}
                 onChange={(event) => setSort(event.target.value)}
-                IconComponent={DownOutlined}
+                IconComponent={ListingSelectIcon}
                 sx={{ minWidth: 158, borderRadius: 1.75 }}
               >
                 <MenuItem value="updated">Sort: Recently updated</MenuItem>
@@ -495,7 +481,7 @@ function ListingsTab() {
         ) : listings.length === 0 ? (
           <Stack alignItems="center" spacing={1.5} sx={{ py: 7, px: 2, textAlign: 'center' }}>
             <Avatar sx={{ width: 54, height: 54, bgcolor: alpha(theme.palette.success.main, 0.1), color: 'success.main' }}>
-              <CameraOutlined />
+              <AppIcon name="house" />
             </Avatar>
             <Typography variant="h5" fontWeight={700}>
               Create your first listing
@@ -505,7 +491,7 @@ function ListingsTab() {
             </Typography>
             <Button
               variant="contained"
-              startIcon={<PlusOutlined />}
+              startIcon={<AppIcon name="add" />}
               onClick={() => navigate('/landlord/listings/add')}
               sx={creationActionSx}
             >
@@ -564,6 +550,15 @@ export default function ListingsPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') === 'applications' ? 'applications' : 'listings';
+  const createAction = activeTab === 'applications'
+    ? {
+        label: 'New application', description: 'Start a rental application or invite an applicant.',
+        icon: 'document', onSelect: () => drawer.openApplicationAddDrawer()
+      }
+    : {
+        label: 'Add listing', description: 'Create a listing to market an available rental.',
+        icon: 'house', onSelect: () => navigate('/landlord/listings/add')
+      };
 
   const handleTabChange = (_, nextTab) => {
     const next = new URLSearchParams(searchParams);
@@ -582,17 +577,12 @@ export default function ListingsPage() {
         title="Listings & Applications"
         showBreadcrumbs={false}
         actions={
-          <Button
-            variant="contained"
-            color={activeTab === 'applications' ? 'primary' : undefined}
-            startIcon={<PlusOutlined />}
-            onClick={() =>
-              activeTab === 'applications' ? drawer.openApplicationAddDrawer() : navigate('/landlord/listings/add')
-            }
-            sx={creationActionSx}
-          >
-            {activeTab === 'applications' ? 'New application' : 'Add listing'}
-          </Button>
+          <ActionsDrawer
+            key={activeTab}
+            id="listings-applications-actions"
+            title={activeTab === 'applications' ? 'Applications actions' : 'Listings actions'}
+            actions={[createAction]}
+          />
         }
       />
 

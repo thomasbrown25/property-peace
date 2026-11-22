@@ -1,5 +1,5 @@
 import { Box, useTheme } from '@mui/material';
-import { CloseOutlined } from '@ant-design/icons';
+import AppIcon from 'components/AppIcon';
 
 /**
  * FilterDeleteIcon - A circular blue icon with a white X for filter chips
@@ -23,9 +23,10 @@ export default function FilterDeleteIcon({ fontSize = 14, ...props }) {
         ...props.sx
       }}
     >
-      <CloseOutlined 
+      <AppIcon
+        name="close"
+        size={fontSize}
         style={{ 
-          fontSize: fontSize, 
           color: '#ffffff',
           lineHeight: 1
         }} 

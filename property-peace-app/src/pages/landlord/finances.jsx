@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { PlusOutlined } from '@ant-design/icons';
 import { Alert, alpha, Box, Button, FormControl, Grid, InputLabel, MenuItem, Select, Stack, Tab, Tabs, TextField, Typography, useTheme } from '@mui/material';
 import { Link as RouterLink, useLocation, useSearchParams } from 'react-router-dom';
 
+import AppIcon from 'components/AppIcon';
 import PropertySelect from 'components/PropertySelect';
 import { useDrawer } from 'contexts/DrawerContext';
 import { useDashboardLoading } from 'contexts/DashboardLoadingContext';
@@ -188,7 +188,6 @@ export default function FinancesPage() {
   return (
     <Box sx={{ pb: 4 }}>
       <FinancesHeader
-        activeTab={activeTab}
         onAddExpense={() => drawer.openExpenseAddDrawer()}
         onRecordPayment={() => drawer.openPaymentAddDrawer()}
         exportState={activeExport}
@@ -410,7 +409,7 @@ export default function FinancesPage() {
               <Typography sx={{ mt: 0.6, fontSize: '0.78rem', color: 'text.secondary', lineHeight: 1.55 }}>
                 Attach receipts while the details are fresh, and mark deductible expenses so reports need less cleanup later.
               </Typography>
-              <Button component={RouterLink} to="/landlord/accounting/tax-center" size="small" startIcon={<PlusOutlined />} sx={{ mt: 1.2, px: 0, textTransform: 'none' }}>
+              <Button component={RouterLink} to="/landlord/accounting/tax-center" size="small" startIcon={<AppIcon name="reports" />} sx={{ mt: 1.2, px: 0, textTransform: 'none' }}>
                 Open Tax Center
               </Button>
             </Box>

@@ -1,15 +1,16 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
+import { iconsaxIcons } from '../../shared/iconsax-icons.js';
 
 let visibleMainTabsForAudience;
-let mainTabIconNames;
+let mainTabIconName;
 let resolveVisibleMainTabs;
 let dockSplitIndex;
 let loadError;
 
 try {
-  ({ visibleMainTabsForAudience, mainTabIconNames, resolveVisibleMainTabs, dockSplitIndex } = await import(
+  ({ visibleMainTabsForAudience, mainTabIconName, resolveVisibleMainTabs, dockSplitIndex } = await import(
     '../src/navigation/mainTabModel.ts'
   ));
 } catch (error) {
@@ -21,8 +22,8 @@ test('landlord dock contains Home, Team, Checklists, Reports, Messages in order'
   const tabs = visibleMainTabsForAudience('landlord');
   assert.deepEqual(tabs.map((tab) => tab.name), ['Dashboard', 'Team', 'Checklists', 'Reports', 'Messages']);
   assert.equal(tabs[0].label, 'Home');
-  assert.deepEqual(mainTabIconNames('Team'), { active: 'people', inactive: 'people-outline' });
-  assert.deepEqual(mainTabIconNames('Reports'), { active: 'bar-chart', inactive: 'bar-chart-outline' });
+  assert.equal(mainTabIconName('Team'), 'team');
+  assert.equal(mainTabIconName('Reports'), 'reports');
 });
 
 test('tenant navigation does not show the landlord Checklists tab', () => {
@@ -32,7 +33,7 @@ test('tenant navigation does not show the landlord Checklists tab', () => {
     visibleMainTabsForAudience('tenant').map((tab) => tab.name),
     ['Payments', 'Leases', 'Maintenance', 'Messages', 'Settings'],
   );
-  assert.deepEqual(mainTabIconNames('Leases'), { active: 'document-text', inactive: 'document-text-outline' });
+  assert.equal(mainTabIconName('Leases'), 'leases');
 });
 
 test('every visible native-stack back button hides its previous-screen title', async () => {
@@ -57,12 +58,19 @@ test('unsupported roles do not receive an empty tab navigator', () => {
   assert.deepEqual(visibleMainTabsForAudience('unsupported'), []);
 });
 
-test('Checklists uses clipboard icons in active and inactive states', () => {
+test('all visible tabs have distinct Linear and Bold Iconsax drawings', async () => {
   assert.equal(loadError, undefined);
-  assert.deepEqual(mainTabIconNames('Checklists'), {
-    active: 'clipboard',
-    inactive: 'clipboard-outline',
-  });
+  assert.equal(mainTabIconName('Checklists'), 'checklists');
+  for (const audience of ['landlord', 'tenant']) {
+    for (const { name } of visibleMainTabsForAudience(audience)) {
+      const icon = iconsaxIcons[mainTabIconName(name)];
+      assert.ok(icon?.linear.paths.length, `${name} requires a Linear drawing`);
+      assert.ok(icon?.bold?.paths.length, `${name} requires a Bold drawing`);
+      assert.notDeepEqual(icon.linear.paths, icon.bold.paths, `${name} requires distinct drawings`);
+    }
+  }
+  const tabBar = await readFile(new URL('../src/navigation/QuickActionsTabBar.tsx', import.meta.url), 'utf8');
+  assert.match(tabBar, /<AppIcon name=\{icon\} variant=\{selected \? 'bold' : 'linear'\}/);
 });
 
 test('landlord dock resolves all five animated destination components', () => {

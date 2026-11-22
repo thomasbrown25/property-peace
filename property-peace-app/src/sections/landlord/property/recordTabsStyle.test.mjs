@@ -11,9 +11,7 @@ test('shared landlord page tabs retain the property tab design in light and dark
   }
 });
 
-test('lease actions use the property contained button and lease, tenant, and payments use the record tab strip', () => {
-  const lease = read('../leases/LeaseDetailView.jsx');
-  assert.match(lease, /variant="contained"\s+startIcon=\{<ThunderboltOutlined \/>\}\s+aria-label="Lease actions"/);
+test('lease, tenant, payments, and tools use the record tab strip', () => {
   for (const path of ['../leases/LeaseDetailView.jsx', '../../../pages/landlord/tenant.jsx', '../../../pages/landlord/online-payments.jsx', '../../../pages/landlord/tools-tabs.jsx']) {
     assert.match(read(path), /<Box sx=\{recordTabsSx\}>/, path);
   }

@@ -1,41 +1,28 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link as RouterLink, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   alpha,
   Alert,
   Avatar,
   Box,
   Button,
-  Chip,
   CircularProgress,
-  FormControl,
   Grid,
-  IconButton,
   InputAdornment,
-  Menu,
+  Link,
   MenuItem,
   OutlinedInput,
   Pagination,
   Select,
   Stack,
-  Tooltip,
   Typography,
   useTheme
 } from '@mui/material';
-import {
-  ClockCircleOutlined,
-  ExclamationCircleOutlined,
-  EyeOutlined,
-  MoreOutlined,
-  SearchOutlined,
-  PlusOutlined,
-  ShopOutlined,
-  ToolOutlined,
-  UserOutlined
-} from '@ant-design/icons';
-import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
+import AppIcon from 'components/AppIcon';
 import LandlordMaintenanceDrawer from 'components/drawers/LandlordMaintenanceDrawer';
+import ActionsDrawer from 'components/drawers/shared/ActionsDrawer';
+import { creationActionSx, managementPageHeaderActionSx, managementPageHeaderTitleSx } from 'components/headers/managementPageHeaderStyles';
 import { useDashboardLoading } from 'contexts/DashboardLoadingContext';
 import { useDrawer } from 'contexts/DrawerContext';
 import useFetchMaintenances from 'hooks/useFetchMaintenances';
@@ -48,10 +35,10 @@ import {
 } from 'store/maintenance/maintenance.selector';
 import { setProperty } from 'store/property/property.action';
 import { selectProperties, selectProperty } from 'store/property/property.selector';
-import { maintenanceFilterControlSx, maintenanceFilterGridSx, maintenanceFilterSummarySx } from 'utils/maintenanceListLayout';
+import { getManagementGridTableStyles } from 'themes/tableStyles';
+import { maintenanceFilterControlSx, maintenanceFilterGridSx, maintenanceRequestColumns, maintenanceSearchControlSx } from 'utils/maintenanceListLayout';
 import { clearMaintenanceListFilters, maintenanceListEmptyMessage, maintenanceScopeFromStatus } from 'utils/maintenanceWorkflow';
 
-const NAVY = '#061e35';
 const PAGE_SIZE = 10;
 const ACTIVE_STATUSES = ['reported', 'acknowledged', 'awaitingapproval', 'assigned', 'scheduled', 'inprogress', 'awaitingtenant'];
 const BOARD_COLUMNS = [
@@ -65,6 +52,7 @@ const BOARD_COLUMNS = [
   { key: 'resolved', label: 'Resolved', color: '#41a541' }
 ];
 const PRIORITY_OPTIONS = ['high', 'medium', 'low'];
+const SCOPES = [{ key: 'active', label: 'Active' }, { key: 'resolved', label: 'Resolved' }, { key: 'all', label: 'All requests' }];
 
 const normalizeToken = (value) => String(value ?? '').trim().toLowerCase().replace(/[-_\s]/g, '');
 
@@ -92,28 +80,21 @@ function titleCase(value) {
 }
 
 function getAssignment(request) {
-  const memberAssigned = Number(request?.assignedToType) === 4 || Boolean(request?.assignedToUserId);
-  if (memberAssigned && request?.assignedContactName) return { name: request.assignedContactName, type: 'Team member' };
-  if (request?.vendorName) return { name: request.vendorName, type: 'Vendor' };
+  const { vendorId, assignedToUserId } = request.assignment || request;
+  if (vendorId || (!request.assignment && request.vendorName)) return { name: request.vendorName || `Vendor #${vendorId}`, type: 'Vendor' };
+  if (assignedToUserId || (Number(request.assignedToType) === 4 && request.assignedContactName)) {
+    return { name: request.assignedContactName || `Team member #${assignedToUserId}`, type: 'Team member' };
+  }
   if (request?.assignedContactName) return { name: request.assignedContactName, type: 'Assigned' };
   return null;
 }
 
-function getPropertyLabel(request, properties) {
-  const property = properties?.find((item) => Number(item.id) === Number(request?.propertyId));
-  const propertyName = property?.name?.trim() || property?.streetAddress?.trim() || request?.propertyName || 'Property not set';
-  return request?.unitName ? `${propertyName} · ${request.unitName}` : propertyName;
+function getRequestLocation(request, property) {
+  const unit = request.unitId && property?.units?.find((item) => String(item.id) === String(request.unitId));
+  return [property?.name?.trim() || property?.streetAddress?.trim() || request.propertyName || 'Property not set', request.unitName || unit?.name].filter(Boolean).join(' · ');
 }
 
-function getAge(value) {
-  if (!value) return 'Date not set';
-  const created = new Date(value);
-  if (Number.isNaN(created.getTime())) return 'Date not set';
-  const days = Math.max(0, Math.floor((Date.now() - created.getTime()) / 86400000));
-  if (days === 0) return 'Reported today';
-  if (days === 1) return 'Reported 1 day ago';
-  return `Reported ${days} days ago`;
-}
+const reportedAt = (request) => request.createdAtUtc || request.createdAt;
 
 function formatDate(value) {
   if (!value) return null;
@@ -123,6 +104,7 @@ function formatDate(value) {
 }
 
 function statusPresentation(status) {
+  if (['cancelled', 'canceled'].includes(normalizeToken(status))) return { label: 'Cancelled', color: '#64748b' };
   const normalized = normalizeStatus(status);
   return BOARD_COLUMNS.find((column) => column.key === normalized) || BOARD_COLUMNS[0];
 }
@@ -131,18 +113,13 @@ function priorityColor(priority, theme) {
   const normalized = normalizeToken(priority);
   if (normalized === 'high') return theme.palette.error.main;
   if (normalized === 'medium') return theme.palette.warning.main;
-  return theme.palette.success.main;
+  return theme.palette.text.secondary;
 }
 
 function StatusChip({ status }) {
-  const theme = useTheme();
   const view = statusPresentation(status);
   return (
-    <Chip
-      label={view.label}
-      size="small"
-      sx={{ height: 23, fontWeight: 700, fontSize: '0.68rem', bgcolor: alpha(view.color, 0.1), color: view.color, border: `1px solid ${alpha(view.color, 0.22)}` }}
-    />
+    <RequestPill color={view.color}>{view.label}</RequestPill>
   );
 }
 
@@ -150,86 +127,108 @@ function PriorityChip({ priority }) {
   const theme = useTheme();
   const color = priorityColor(priority, theme);
   return (
-    <Chip
-      label={titleCase(priority || 'Low')}
-      size="small"
-      sx={{ height: 23, fontWeight: 700, fontSize: '0.68rem', bgcolor: alpha(color, 0.1), color, border: `1px solid ${alpha(color, 0.22)}` }}
-    />
+    <RequestPill color={color}>{priority ? `${titleCase(priority)} priority` : 'Priority not set'}</RequestPill>
   );
 }
 
-function MetricCard({ label, value, helper, icon, color, active, onClick }) {
-  const theme = useTheme();
+function RequestPill({ children, color }) {
+  return (
+    <Typography component="span" variant="caption" sx={{
+      display: 'inline-flex', alignItems: 'center', gap: 0.6, px: 0.85, py: 0.3, borderRadius: 10,
+      bgcolor: alpha(color, 0.09), border: `1px solid ${alpha(color, 0.24)}`, fontWeight: 650, lineHeight: 1.4
+    }}>
+      <Box component="span" sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: color }} />
+      {children}
+    </Typography>
+  );
+}
+
+function MetricCard({ label, value, icon, tone, active, onClick }) {
   return (
     <Box
       component="button"
       type="button"
+      aria-pressed={active}
       onClick={onClick}
-      sx={{
-        width: '100%', minHeight: 112, p: 2, borderRadius: 2.5, font: 'inherit', color: 'text.primary', textAlign: 'left', cursor: 'pointer',
-        border: `1px solid ${active ? alpha(color, 0.5) : alpha(theme.palette.divider, 0.16)}`,
-        bgcolor: active ? alpha(color, theme.palette.mode === 'dark' ? 0.14 : 0.055) : 'background.paper',
-        boxShadow: active ? `0 8px 24px ${alpha(color, 0.12)}` : `0 4px 18px ${alpha(NAVY, 0.05)}`,
-        transition: 'transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease',
-        '&:hover': { transform: 'translateY(-2px)', borderColor: alpha(color, 0.4), boxShadow: `0 10px 28px ${alpha(color, 0.12)}` },
-        '&:focus-visible': { outline: `3px solid ${alpha(color, 0.25)}`, outlineOffset: 2 }
-      }}
+      sx={(theme) => ({
+        display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 1.5 }, width: '100%', height: '100%', minHeight: 76,
+        p: { xs: 1.25, sm: 1.75 }, borderRadius: 2.5, font: 'inherit', color: 'text.primary', textAlign: 'left', cursor: 'pointer',
+        border: '1px solid', borderColor: active ? 'primary.main' : 'divider',
+        bgcolor: active ? 'surface.nested' : 'background.paper',
+        '&:hover': { borderColor: 'primary.main', bgcolor: 'surface.nested' },
+        '&:focus-visible': { outline: `2px solid ${theme.palette.primary.main}`, outlineOffset: 2 }
+      })}
     >
-      <Stack direction="row" justifyContent="space-between" spacing={1.5}>
-        <Box minWidth={0}>
-          <Typography sx={{ fontSize: '0.72rem', fontWeight: 750, letterSpacing: 0.65, textTransform: 'uppercase', color: 'text.secondary' }}>{label}</Typography>
-          <Typography sx={{ mt: 0.5, fontSize: '1.5rem', lineHeight: 1.15, fontWeight: 800 }}>{value}</Typography>
-          <Typography sx={{ mt: 0.55, fontSize: '0.75rem', color: 'text.secondary' }}>{helper}</Typography>
-        </Box>
-        <Avatar sx={{ width: 38, height: 38, bgcolor: alpha(color, 0.12), color }}>{icon}</Avatar>
-      </Stack>
+      <Box component="span" sx={(theme) => ({
+        display: 'grid', placeItems: 'center', flexShrink: 0, width: { xs: 30, sm: 38 }, height: { xs: 30, sm: 38 }, borderRadius: 1.25,
+        bgcolor: alpha(theme.palette[tone].main, 0.12), color: `${tone}.main`
+      })}><AppIcon name={icon} size={18} /></Box>
+      <Box component="span" minWidth={0}>
+        <Typography component="span" variant="body2" sx={{ display: 'block', fontWeight: 650, color: 'text.secondary', lineHeight: 1.3 }}>{label}</Typography>
+        <Typography component="span" sx={{ display: 'block', mt: 0.25, fontSize: '1.4rem', lineHeight: 1.15, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>{value}</Typography>
+      </Box>
     </Box>
   );
 }
 
-function MaintenanceRow({ request, properties, onOpen, onActions }) {
-  const theme = useTheme();
+function FilterSelect({ label, children, ...props }) {
+  return (
+    <Select size="small" SelectDisplayProps={{ 'aria-label': label }} sx={maintenanceFilterControlSx} {...props}>
+      {children}
+    </Select>
+  );
+}
+
+function MaintenanceRow({ request, property, rowSx }) {
+  const navigate = useNavigate();
   const assignment = getAssignment(request);
   const scheduled = formatDate(request.scheduledDate);
+  const reported = formatDate(reportedAt(request));
+  const requestPath = `/landlord/maintenance/${request.id}`;
+  const title = request.title || 'Untitled maintenance request';
+  const actions = [
+    { label: 'Open request details', description: 'View the request summary and maintenance history.', icon: 'document', onSelect: () => navigate(requestPath) },
+    { label: 'Open workflow actions', description: 'Go directly to assignment, scheduling, and status controls.', icon: 'maintenance', onSelect: () => navigate(requestPath, { state: { openMaintenanceActions: true } }) }
+  ];
   return (
-    <Box
-      component="button"
-      type="button"
-      onClick={() => onOpen(request)}
-      sx={{
-        width: '100%', px: { xs: 1.5, md: 2 }, py: { xs: 1.55, md: 1.35 }, border: 0, bgcolor: 'transparent', color: 'text.primary', textAlign: 'left', font: 'inherit', cursor: 'pointer',
-        display: { xs: 'block', md: 'grid' }, gridTemplateColumns: 'minmax(250px, 1.35fr) minmax(190px, 1fr) minmax(145px, .72fr) minmax(150px, .78fr) 44px',
-        gap: { xs: 1.15, md: 2 }, alignItems: 'center', borderBottom: `1px solid ${alpha(theme.palette.divider, 0.13)}`,
-        '&:hover': { bgcolor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.07 : 0.025) },
-        '&:focus-visible': { outline: `2px solid ${alpha(theme.palette.primary.main, 0.4)}`, outlineOffset: -2 }
-      }}
-    >
-      <Stack direction="row" spacing={1.2} alignItems="center" minWidth={0}>
-        <Avatar sx={{ width: 39, height: 39, bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main' }}><ToolOutlined /></Avatar>
+    <Box component="li" sx={{
+      ...rowSx,
+      position: 'relative', display: 'grid',
+      gridTemplateColumns: { xs: 'minmax(0, 1fr) minmax(0, 1fr) 36px', md: maintenanceRequestColumns },
+      gridTemplateAreas: { xs: '"request request action" "status status status" "property assigned assigned"', md: '"request property status assigned action"' },
+      gap: { xs: 1.2, md: 2 }, alignItems: { xs: 'start', md: 'center' }
+    }}>
+      <Stack direction="row" spacing={1.2} alignItems="center" sx={{ gridArea: 'request', minWidth: 0 }}>
+        <Avatar variant="rounded" sx={{ display: { xs: 'none', sm: 'flex' }, width: 38, height: 38, bgcolor: 'surface.nested', color: 'primary.main' }}><AppIcon name="maintenance" size={20} /></Avatar>
         <Box minWidth={0}>
-          <Stack direction="row" spacing={0.75} alignItems="center">
-            <Typography sx={{ fontSize: '0.69rem', fontWeight: 750, color: 'primary.main' }}>{request.orderNumber || `MR-${request.id}`}</Typography>
-            <Typography sx={{ fontSize: '0.68rem', color: 'text.disabled' }}>· {titleCase(getCategory(request))}</Typography>
-          </Stack>
-          <Typography fontWeight={720} noWrap>{request.title || 'Untitled maintenance request'}</Typography>
+          <Link component={RouterLink} to={requestPath} color="text.primary" underline="hover" sx={{
+            fontWeight: 750, lineHeight: 1.4, overflowWrap: 'anywhere',
+            '&::after': { content: '""', position: 'absolute', inset: 0 },
+            '&:focus-visible::after': { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: -2 }
+          }}>{title}</Link>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25, overflowWrap: 'anywhere' }}>
+            {request.orderNumber || `MR-${request.id}`} · {titleCase(getCategory(request))}
+          </Typography>
         </Box>
       </Stack>
-      <Box minWidth={0}>
-        <Typography sx={{ fontSize: '0.82rem', fontWeight: 650 }} noWrap>{getPropertyLabel(request, properties)}</Typography>
-        <Typography sx={{ mt: 0.25, fontSize: '0.72rem', color: 'text.secondary' }}>{getAge(request.createdAt)}</Typography>
+      <Box sx={{ gridArea: 'property', minWidth: 0, overflowWrap: 'anywhere' }}>
+        <Typography variant="caption" color="text.secondary" sx={{ display: { md: 'none' } }}>Property</Typography>
+        <Typography variant="body2" fontWeight={650}>{getRequestLocation(request, property)}</Typography>
+        {reported && <Typography variant="caption" color="text.secondary">Reported {reported}</Typography>}
       </Box>
-      <Stack direction="row" spacing={0.65} flexWrap="wrap" useFlexGap><PriorityChip priority={request.priority} /><StatusChip status={request.status} /></Stack>
-      <Box minWidth={0}>
+      <Stack direction="row" spacing={0.65} flexWrap="wrap" useFlexGap sx={{ gridArea: 'status' }}><StatusChip status={request.status} /><PriorityChip priority={request.priority} /></Stack>
+      <Box sx={{ gridArea: 'assigned', minWidth: 0, overflowWrap: 'anywhere' }}>
+        <Typography variant="caption" color="text.secondary" sx={{ display: { md: 'none' } }}>Assigned to</Typography>
         {assignment ? (
-          <Stack direction="row" spacing={0.8} alignItems="center">
-            <Avatar sx={{ width: 25, height: 25, fontSize: '0.7rem', bgcolor: alpha(theme.palette.info.main, 0.12), color: 'info.main' }}>{assignment.name[0]?.toUpperCase()}</Avatar>
-            <Box minWidth={0}><Typography sx={{ fontSize: '0.78rem', fontWeight: 650 }} noWrap>{assignment.name}</Typography><Typography sx={{ fontSize: '0.68rem', color: 'text.secondary' }}>{assignment.type}</Typography></Box>
+          <Stack gap={0.1}>
+            <Typography variant="body2" fontWeight={650}>{assignment.name}</Typography>
+            <Typography variant="caption" color="text.secondary">{assignment.type}</Typography>
           </Stack>
-        ) : <Typography sx={{ fontSize: '0.76rem', fontWeight: 650, color: 'warning.dark' }}>Unassigned</Typography>}
-        {scheduled && <Typography sx={{ mt: 0.3, fontSize: '0.68rem', color: 'text.secondary' }}>Scheduled {scheduled}</Typography>}
+        ) : <Typography variant="body2" fontWeight={650}>Unassigned</Typography>}
+        {scheduled && <Typography variant="caption" color="text.secondary">Scheduled {scheduled}</Typography>}
       </Box>
-      <Box sx={{ display: 'flex', justifyContent: { xs: 'flex-end', md: 'center' } }}>
-        <Tooltip title="Request actions"><IconButton size="small" aria-label={`Actions for ${request.title || 'maintenance request'}`} onClick={(event) => { event.stopPropagation(); onActions(event, request); }}><MoreOutlined /></IconButton></Tooltip>
+      <Box sx={{ gridArea: 'action', justifySelf: 'end', position: 'relative', zIndex: 1 }}>
+        <ActionsDrawer id={`maintenance-request-actions-${request.id}`} title="Request actions" triggerLabel={`Actions for ${title}`} actions={actions} iconOnly />
       </Box>
     </Box>
   );
@@ -259,8 +258,6 @@ export default function Maintenances() {
   const [sort, setSort] = useState('priority');
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [actionAnchor, setActionAnchor] = useState(null);
-  const [actionRequest, setActionRequest] = useState(null);
 
   const busy = loading || propertiesLoading || maintenanceLoading;
 
@@ -289,6 +286,7 @@ export default function Maintenances() {
     [...requests, ...historyRequests].forEach((request) => map.set(String(request.id), request));
     return [...map.values()];
   }, [requests, historyRequests]);
+  const propertiesById = useMemo(() => new Map(properties.map((property) => [String(property.id), property])), [properties]);
 
   const kpis = useMemo(() => {
     const active = allRequests.filter((request) => ACTIVE_STATUSES.includes(normalizeStatus(request.status)));
@@ -320,21 +318,23 @@ export default function Maintenances() {
       if (metric === 'unassigned' && assignment) return false;
       if (metric === 'high' && normalizeToken(request.priority) !== 'high') return false;
       if (query) {
-        const haystack = [request.orderNumber, request.title, request.description, request.propertyName, request.unitName, getCategory(request), assignment?.name].filter(Boolean).join(' ').toLowerCase();
+        const property = propertiesById.get(String(request.propertyId));
+        const haystack = [request.orderNumber || `MR-${request.id}`, request.title, request.description,
+          getRequestLocation(request, property), property?.streetAddress, getCategory(request), assignment?.name].filter(Boolean).join(' ').toLowerCase();
         if (!haystack.includes(query)) return false;
       }
       return true;
     });
     const priorityRank = { high: 0, medium: 1, low: 2 };
-    const statusRank = { reported: 0, acknowledged: 1, scheduled: 2, inprogress: 3, resolved: 4 };
     return filtered.sort((a, b) => {
-      if (sort === 'newest') return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
-      if (sort === 'oldest') return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
-      if (sort === 'status') return statusRank[normalizeStatus(a.status)] - statusRank[normalizeStatus(b.status)];
+      const oldestFirst = (Date.parse(reportedAt(a)) || 0) - (Date.parse(reportedAt(b)) || 0);
+      if (sort === 'newest') return -oldestFirst;
+      if (sort === 'oldest') return oldestFirst;
+      if (sort === 'status') return BOARD_COLUMNS.findIndex(({ key }) => key === normalizeStatus(a.status)) - BOARD_COLUMNS.findIndex(({ key }) => key === normalizeStatus(b.status)) || oldestFirst;
       const priorityDifference = (priorityRank[normalizeToken(a.priority)] ?? 9) - (priorityRank[normalizeToken(b.priority)] ?? 9);
-      return priorityDifference || new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
+      return priorityDifference || oldestFirst;
     });
-  }, [allRequests, assignmentFilter, categoryFilter, metric, priorityFilter, scope, search, selectedProperty, sort]);
+  }, [allRequests, assignmentFilter, categoryFilter, metric, priorityFilter, propertiesById, scope, search, selectedProperty, sort]);
 
   useEffect(() => setPage(1), [assignmentFilter, categoryFilter, metric, priorityFilter, scope, search, selectedProperty, sort]);
 
@@ -353,12 +353,8 @@ export default function Maintenances() {
     dispatch(setProperty(null));
   };
 
-  const openActions = (event, request) => { setActionAnchor(event.currentTarget); setActionRequest(request); };
-  const closeActions = () => { setActionAnchor(null); };
-  const runAction = (callback) => { closeActions(); callback(); };
-
-  const activeFilterCount = [priorityFilter, categoryFilter, assignmentFilter].filter((value) => value !== 'all').length + (selectedProperty ? 1 : 0);
-  const hasRefinements = activeFilterCount > 0 || Boolean(search) || metric !== 'open';
+  const hasRefinements = Boolean(selectedProperty || search || metric !== 'open')
+    || [priorityFilter, categoryFilter, assignmentFilter].some((value) => value !== 'all');
   const hasResolvedRequests = allRequests.some((request) => !ACTIVE_STATUSES.includes(normalizeStatus(request.status)));
   const emptyMessage = maintenanceListEmptyMessage({
     hasRequests: allRequests.length > 0,
@@ -368,75 +364,116 @@ export default function Maintenances() {
   });
   const pageStart = visibleRequests.length ? (page - 1) * PAGE_SIZE + 1 : 0;
   const pageEnd = Math.min(page * PAGE_SIZE, visibleRequests.length);
+  const tableStyles = getManagementGridTableStyles(theme);
 
   return (
-    <Box>
-      {loadError && <Alert severity="warning" sx={{ mb: 2 }}>{loadError} Existing maintenance data has been left visible.</Alert>}
-      <PageBreadcrumbs items={[{ label: 'Dashboard', path: '/landlord/dashboard' }, { label: 'Maintenance' }]} />
-
-      <Box sx={{ mt: 2, mb: 3 }}>
-        <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', md: 'center' }} spacing={2.5}>
-          <Box>
-            <Typography variant="h3" sx={{ fontWeight: 780 }}>Maintenance</Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-              Triage requests, coordinate vendors, and keep repairs moving across your portfolio.
-            </Typography>
-          </Box>
-          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-            <Button variant="outlined" startIcon={<ShopOutlined />} onClick={() => navigate('/landlord/vendors')} sx={{ textTransform: 'none' }}>Vendors</Button>
-            <Button variant="contained" startIcon={<PlusOutlined />} onClick={() => drawer.openMaintenanceAddDrawer()} sx={{ bgcolor: theme.palette.brand.forest, color: '#fff', '&:hover': { bgcolor: theme.palette.primary.dark }, textTransform: 'none', fontWeight: 700 }}>New request</Button>
-          </Stack>
+    <Box sx={{ maxWidth: 1440, mx: 'auto', pb: 4 }}>
+      <Stack
+        component="header" direction={{ xs: 'column', md: 'row' }} justifyContent="space-between"
+        alignItems={{ xs: 'flex-start', md: 'center' }} gap={2}
+        sx={{ mb: 2.5, bgcolor: 'transparent' }}
+      >
+        <Typography component="h1" variant="h3" sx={{ ...managementPageHeaderTitleSx, fontWeight: 750, letterSpacing: -0.4 }}>Maintenance</Typography>
+        <Stack direction="row" gap={1} flexWrap="wrap">
+          <Button variant="outlined" startIcon={<AppIcon name="shop" />} onClick={() => navigate('/landlord/vendors')}
+            sx={managementPageHeaderActionSx}>Vendors</Button>
+          <Button variant="contained" color="primary" startIcon={<AppIcon name="add" />} onClick={() => drawer.openMaintenanceAddDrawer()}
+            sx={creationActionSx}>New request</Button>
         </Stack>
-      </Box>
+      </Stack>
 
-      <Grid container spacing={2} sx={{ mb: 3 }}>
+      {loadError && <Alert severity="warning" action={<Button onClick={refetch} color="inherit" size="small">Retry</Button>} sx={{ mb: 2.5 }}>{loadError}</Alert>}
+
+      <Grid container spacing={1.25} sx={{ mb: 3 }}>
         {[
-          { key: 'open', label: 'Open requests', value: kpis.open, helper: 'All work still in motion', icon: <ToolOutlined />, color: theme.palette.primary.main },
-          { key: 'triage', label: 'Needs triage', value: kpis.triage, helper: 'Recently submitted requests', icon: <ClockCircleOutlined />, color: theme.palette.warning.main },
-          { key: 'unassigned', label: 'Unassigned', value: kpis.unassigned, helper: 'Needs a vendor or team member', icon: <UserOutlined />, color: theme.palette.info.main },
-          { key: 'high', label: 'High priority', value: kpis.high, helper: 'Active urgent requests', icon: <ExclamationCircleOutlined />, color: theme.palette.error.main }
-        ].map(({ key, ...cardProps }) => <Grid key={key} size={{ xs: 12, sm: 6, lg: 3 }}><MetricCard {...cardProps} active={metric === key && scope === 'active'} onClick={() => { setScope('active'); setMetric(key); }} /></Grid>)}
+          { key: 'open', label: 'Open requests', icon: 'maintenance', tone: 'primary' },
+          { key: 'triage', label: 'Needs triage', icon: 'activity', tone: 'warning' },
+          { key: 'unassigned', label: 'Unassigned', icon: 'team', tone: 'info' },
+          { key: 'high', label: 'High priority', icon: 'warning', tone: 'error' }
+        ].map(({ key, ...cardProps }) => (
+          <Grid key={key} size={{ xs: 6, sm: 3 }}>
+            <MetricCard {...cardProps} value={kpis[key]} active={metric === key && scope === 'active'} onClick={() => { setScope('active'); setMetric(key); }} />
+          </Grid>
+        ))}
       </Grid>
 
-      <Box data-testid="maintenance-filters" sx={{ mb: 2 }}>
+      <Box component="section" aria-labelledby="maintenance-requests-heading">
+        <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ xs: 'flex-start', sm: 'center' }} justifyContent="space-between" gap={1.25} sx={{ mb: 1.5 }}>
+          <Typography id="maintenance-requests-heading" component="h2" variant="h5" fontWeight={750}>Requests</Typography>
+          <Stack role="group" aria-label="Request scope" direction="row" spacing={0.4}
+            sx={{ p: 0.4, maxWidth: '100%', border: '1px solid', borderColor: 'divider', borderRadius: 2, bgcolor: 'background.paper' }}>
+            {SCOPES.map(({ key, label }) => (
+              <Button key={key} color="inherit" size="small" aria-pressed={scope === key}
+                onClick={() => { setScope(key); setMetric('open'); }}
+                sx={{ px: 1.25, textTransform: 'none', whiteSpace: 'nowrap', bgcolor: scope === key ? 'action.selected' : 'transparent', color: scope === key ? 'primary.main' : 'text.secondary' }}>
+                {label}
+              </Button>
+            ))}
+          </Stack>
+        </Stack>
+
+        <Box data-testid="maintenance-filters" sx={{ mb: 1.5 }}>
           <Box sx={maintenanceFilterGridSx}>
-            <OutlinedInput size="small" placeholder="Search requests, properties, vendors..." value={search} onChange={(event) => setSearch(event.target.value)} startAdornment={<InputAdornment position="start"><SearchOutlined /></InputAdornment>} sx={maintenanceFilterControlSx} />
-            <FormControl size="small" sx={maintenanceFilterControlSx}><Select value={selectedProperty?.id || ''} displayEmpty onChange={(event) => dispatch(setProperty(properties.find((property) => Number(property.id) === Number(event.target.value)) || null))}><MenuItem value="">All properties</MenuItem>{properties.map((property) => <MenuItem key={property.id} value={property.id}>{property.name?.trim() || property.streetAddress?.trim() || `Property ${property.id}`}</MenuItem>)}</Select></FormControl>
-            <FormControl size="small" sx={maintenanceFilterControlSx}><Select value={scope} onChange={(event) => { setScope(event.target.value); setMetric('open'); }}><MenuItem value="active">Active</MenuItem><MenuItem value="resolved">Resolved</MenuItem><MenuItem value="all">All requests</MenuItem></Select></FormControl>
-            <FormControl size="small" sx={maintenanceFilterControlSx}><Select value={priorityFilter} onChange={(event) => setPriorityFilter(event.target.value)}><MenuItem value="all">All priorities</MenuItem>{PRIORITY_OPTIONS.map((priority) => <MenuItem key={priority} value={priority}>{titleCase(priority)}</MenuItem>)}</Select></FormControl>
-            <FormControl size="small" sx={maintenanceFilterControlSx}><Select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}><MenuItem value="all">All categories</MenuItem>{categories.map((category) => <MenuItem key={category} value={category}>{titleCase(category)}</MenuItem>)}</Select></FormControl>
-            <FormControl size="small" sx={maintenanceFilterControlSx}><Select value={assignmentFilter} onChange={(event) => setAssignmentFilter(event.target.value)}><MenuItem value="all">All assignments</MenuItem><MenuItem value="unassigned">Unassigned</MenuItem><MenuItem value="vendor">Vendor</MenuItem><MenuItem value="team">Team member</MenuItem></Select></FormControl>
-            <FormControl size="small" sx={maintenanceFilterControlSx}><Select value={sort} onChange={(event) => setSort(event.target.value)}><MenuItem value="priority">Priority · oldest</MenuItem><MenuItem value="oldest">Oldest first</MenuItem><MenuItem value="newest">Newest first</MenuItem><MenuItem value="status">Workflow status</MenuItem></Select></FormControl>
-            <Box sx={maintenanceFilterSummarySx}>
-              <Typography sx={{ fontSize: '0.74rem', color: 'text.secondary' }}>{visibleRequests.length} {visibleRequests.length === 1 ? 'request' : 'requests'}{activeFilterCount ? ` · ${activeFilterCount} ${activeFilterCount === 1 ? 'filter' : 'filters'} active` : ''}</Typography>
-              {hasRefinements && <Button size="small" onClick={clearFilters} sx={{ textTransform: 'none' }}>Clear filters</Button>}
-            </Box>
+            <OutlinedInput
+              size="small" placeholder="Search maintenance requests" value={search}
+              onChange={(event) => setSearch(event.target.value)} inputProps={{ 'aria-label': 'Search maintenance requests, properties, or vendors' }}
+              startAdornment={<InputAdornment position="start"><AppIcon name="magnifier" /></InputAdornment>} sx={maintenanceSearchControlSx}
+            />
+            <FilterSelect label="Property" value={selectedProperty?.id || ''} displayEmpty
+              onChange={(event) => dispatch(setProperty(propertiesById.get(String(event.target.value)) || null))}>
+              <MenuItem value="">All properties</MenuItem>
+              {properties.map((property) => <MenuItem key={property.id} value={property.id}>{property.name?.trim() || property.streetAddress?.trim() || `Property ${property.id}`}</MenuItem>)}
+            </FilterSelect>
+            <FilterSelect label="Priority" value={priorityFilter} onChange={(event) => setPriorityFilter(event.target.value)}>
+              <MenuItem value="all">All priorities</MenuItem>
+              {PRIORITY_OPTIONS.map((priority) => <MenuItem key={priority} value={priority}>{titleCase(priority)}</MenuItem>)}
+            </FilterSelect>
+            <FilterSelect label="Category" value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}>
+              <MenuItem value="all">All categories</MenuItem>
+              {categories.map((category) => <MenuItem key={category} value={category}>{titleCase(category)}</MenuItem>)}
+            </FilterSelect>
+            <FilterSelect label="Assignment" value={assignmentFilter} onChange={(event) => setAssignmentFilter(event.target.value)}>
+              <MenuItem value="all">All assignments</MenuItem><MenuItem value="unassigned">Unassigned</MenuItem>
+              <MenuItem value="vendor">Vendor</MenuItem><MenuItem value="team">Team member</MenuItem>
+            </FilterSelect>
+            <FilterSelect label="Sort requests" value={sort} onChange={(event) => setSort(event.target.value)}>
+              <MenuItem value="priority">Priority · oldest</MenuItem><MenuItem value="oldest">Oldest first</MenuItem>
+              <MenuItem value="newest">Newest first</MenuItem><MenuItem value="status">Workflow status</MenuItem>
+            </FilterSelect>
           </Box>
-      </Box>
-
-      <Box data-testid="maintenance-table" sx={{ border: `1px solid ${alpha(theme.palette.divider, 0.16)}`, borderRadius: 3, bgcolor: 'background.paper', boxShadow: `0 6px 24px ${alpha(NAVY, 0.055)}`, overflow: 'hidden' }}>
-        {busy ? <Box sx={{ minHeight: 360, display: 'grid', placeItems: 'center' }}><CircularProgress /></Box> : visibleRequests.length === 0 ? (
-          <Box sx={{ py: 8, px: 2, textAlign: 'center' }}>
-            <Avatar sx={{ mx: 'auto', mb: 1.5, width: 52, height: 52, bgcolor: alpha(theme.palette.primary.main, 0.09), color: 'primary.main' }}><ToolOutlined /></Avatar>
-            <Typography variant="h6">No matching maintenance requests</Typography>
-            <Typography sx={{ mt: 0.6, color: 'text.secondary', fontSize: '0.82rem' }}>
-              {emptyMessage}
+          <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1} sx={{ pt: 0.75, minHeight: 34 }}>
+            <Typography variant="body2" color="text.secondary" role="status">
+              {busy ? 'Loading requests…' : `${visibleRequests.length} ${visibleRequests.length === 1 ? 'request' : 'requests'}`}
             </Typography>
-            {hasRefinements && <Button variant="contained" startIcon={<SearchOutlined />} onClick={clearFilters} sx={{ mt: 2, textTransform: 'none' }}>Clear filters</Button>}
-          </Box>
-        ) : (
-          <>
-            <Box sx={{ display: { xs: 'none', md: 'grid' }, gridTemplateColumns: 'minmax(250px, 1.35fr) minmax(190px, 1fr) minmax(145px, .72fr) minmax(150px, .78fr) 44px', gap: 2, px: 2, py: 1, bgcolor: alpha(theme.palette.background.default, 0.55), borderBottom: `1px solid ${alpha(theme.palette.divider, 0.12)}` }}>{['Request', 'Property & timing', 'Priority & status', 'Assigned to', ''].map((label) => <Typography key={label} sx={{ fontSize: '0.66rem', fontWeight: 800, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.55 }}>{label}</Typography>)}</Box>
-            {paginated.map((request) => <MaintenanceRow key={request.id} request={request} properties={properties} onOpen={(item) => navigate(`/landlord/maintenance/${item.id}`)} onActions={openActions} />)}
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} justifyContent="space-between" alignItems="center" sx={{ p: 2 }}><Typography sx={{ fontSize: '0.74rem', color: 'text.secondary' }}>Showing {pageStart}–{pageEnd} of {visibleRequests.length}</Typography><Pagination count={pageCount} page={page} onChange={(_, value) => setPage(value)} size="small" color="primary" /></Stack>
-          </>
-        )}
-      </Box>
+            {hasRefinements && <Button size="small" onClick={clearFilters} sx={{ textTransform: 'none' }}>Clear filters</Button>}
+          </Stack>
+        </Box>
 
-      <Menu anchorEl={actionAnchor} open={Boolean(actionAnchor)} onClose={closeActions}>
-        <MenuItem onClick={() => runAction(() => navigate(`/landlord/maintenance/${actionRequest.id}`))}><EyeOutlined style={{ marginRight: 10 }} />Open request details</MenuItem>
-        <MenuItem onClick={() => runAction(() => navigate(`/landlord/maintenance/${actionRequest.id}`))}><ToolOutlined style={{ marginRight: 10 }} />Open workflow actions</MenuItem>
-      </Menu>
+        <Box data-testid="maintenance-table" sx={tableStyles.container} aria-busy={busy}>
+          {busy ? <Box sx={{ minHeight: 200, display: 'grid', placeItems: 'center' }}><CircularProgress size={28} aria-label="Loading maintenance requests" /></Box> : visibleRequests.length === 0 ? (
+            <Box sx={{ py: 5, px: 2, textAlign: 'center' }}>
+              <Avatar variant="rounded" sx={{ mx: 'auto', mb: 1.25, width: 44, height: 44, bgcolor: 'surface.nested', color: 'primary.main' }}><AppIcon name="maintenance" size={22} /></Avatar>
+              <Typography component="h3" variant="h6">{hasRefinements ? 'No matching requests' : 'No requests to show'}</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{emptyMessage}</Typography>
+            </Box>
+          ) : (
+            <>
+              <Box aria-hidden="true" sx={{ ...tableStyles.header, gridTemplateColumns: maintenanceRequestColumns }}>
+                {['Request', 'Property & timing', 'Status & priority', 'Assigned to'].map((label) => <Typography key={label} sx={tableStyles.heading}>{label}</Typography>)}
+              </Box>
+              <Box component="ul" sx={{ listStyle: 'none', p: 0, m: 0 }}>
+                {paginated.map((request) => <MaintenanceRow key={request.id} request={request} property={propertiesById.get(String(request.propertyId))} rowSx={tableStyles.row} />)}
+              </Box>
+              {pageCount > 1 && (
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} justifyContent="space-between" alignItems="center" sx={{ p: 2 }}>
+                  <Typography sx={{ fontSize: '0.76rem', color: 'text.secondary' }}>Showing {pageStart}–{pageEnd} of {visibleRequests.length}</Typography>
+                  <Pagination count={pageCount} page={page} onChange={(_, value) => setPage(value)} color="primary" shape="rounded" />
+                </Stack>
+              )}
+            </>
+          )}
+        </Box>
+      </Box>
 
       <LandlordMaintenanceDrawer onAddSuccess={refetch} />
     </Box>

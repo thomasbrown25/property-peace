@@ -158,7 +158,7 @@ function PropertyLeasingRecords({ kind, propertyId, showUnitColumn, onAdd }) {
     emptyMessage={`No ${kind} for this property.`} loading={!!propertyId && (!current || result.loading)} error={current ? result.error : ''} />;
 }
 
-export default function PropertyRecordsTabs({ property, propertyId, rentRecords, rentLoading, rentError, maintenances, historyMaintenances, maintenanceError, tab, onTabChange, onLeaseDeleted }) {
+export default function PropertyRecordsTabs({ property, propertyId, maintenances, historyMaintenances, maintenanceError, tab, onTabChange, onLeaseDeleted, onUploadDocument, documentsVersion }) {
   const showUnitColumn = !isDetachedSingleUnitType(read(property, 'propertyType'));
   const dispatch = useDispatch();
   const drawer = useDrawer();
@@ -258,7 +258,7 @@ export default function PropertyRecordsTabs({ property, propertyId, rentRecords,
             initial={reduceMotion ? false : 'enter'} animate="center" exit={reduceMotion ? { opacity: 0, position: 'absolute', top: 0, left: 0, right: 0, pointerEvents: 'none' } : 'exit'}
             transition={{ duration: reduceMotion ? 0 : 0.22, ease: 'easeInOut' }}
             role="tabpanel" aria-label={`${active[0].toUpperCase()}${active.slice(1)}`}>
-      {active === 'overview' && <PropertyOverview property={property} propertyId={propertyId} rentRecords={rentRecords} />}
+      {active === 'overview' && <PropertyOverview property={property} propertyId={propertyId} />}
       {active === 'leases' && <RecordsTable label="Leases" showUnitColumn={showUnitColumn} onAdd={() => addRecord('leases')} addLabel="Create lease" rows={leases} columns={propertyLeaseColumns} searchFields={row => [propertyLeaseDisplayName(row, property), read(row, 'unitName'), read(row, 'id')]} getStatus={leaseStatus} emptyMessage="No leases for this property." loading={leaseLoading} error={leaseError} />}
       {active === 'tenants' && <RecordsTable label="Tenants" showUnitColumn={showUnitColumn} onAdd={() => addRecord('tenants')} addLabel="Add tenant" rows={scopedTenants} columns={tenantColumns} searchFields={row => [tenantName(row), read(row, 'email'), read(row, 'unitName')]} getStatus={row => read(row, 'isActive') === false ? 'Inactive' : 'Active'} emptyMessage="No tenants for this property." loading={tenantsLoading} />}
       {active === 'maintenances' && <RecordsTable label="Maintenance" onAdd={() => addRecord('maintenances')} addLabel="Add maintenance" rows={scopedMaintenance} columns={maintenanceTableColumns(property)} searchFields={row => [read(row, 'title'), maintenanceUnitName(row, property), read(row, 'priority')]} getStatus={row => read(row, 'status')} emptyMessage="No maintenance requests for this property." error={maintenanceError} />}
@@ -267,7 +267,7 @@ export default function PropertyRecordsTabs({ property, propertyId, rentRecords,
       {active === 'occupancy' && <PropertyOccupancyTab propertyId={propertyId} property={property} />}
       {active === 'payments' && <PaymentsTab propertyId={propertyId} property={property} />}
       {active === 'expenses' && <ExpensesTab propertyId={propertyId} property={property} />}
-      {active === 'documents' && <DocumentsTab property={property} />}
+      {active === 'documents' && <DocumentsTab property={property} onUploadDocument={onUploadDocument} documentsVersion={documentsVersion} />}
       {active === 'settings' && <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ sm: 'center' }} justifyContent="space-between">
           <Box>

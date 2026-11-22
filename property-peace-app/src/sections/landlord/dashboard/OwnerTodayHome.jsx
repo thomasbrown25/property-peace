@@ -4,15 +4,14 @@ import useAuth from 'hooks/useAuth';
 import { getRecentPropertyStorageKey, PROPERTY_VISITED_EVENT, readPropertyVisitDates, sortPropertiesByLastVisit } from 'utils/recentlyViewedProperties';
 import { Link as RouterLink } from 'react-router-dom';
 import { format } from 'date-fns';
-import { ArrowRightOutlined } from '@ant-design/icons';
-import placeholderImage from 'assets/images/placeholder-house.png';
+import AppIcon from 'components/AppIcon';
 import { getTableStyles } from 'themes/tableStyles';
 import OwnerHomeSidebar from './OwnerHomeSidebar';
 import { dashboardEntranceDelay, dashboardSlideDownSx } from './dashboardEntrance.mjs';
 import { getOwnerNextStep, getOwnerProperties, getPropertyMonthRent, getPropertyOverdueRent, getPropertyRentDueDate } from 'utils/ownerHome';
 
 const money = (value) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(value);
-const columns = 'minmax(190px, 1.3fr) minmax(140px, 1fr) minmax(110px, .8fr) minmax(150px, 1fr)';
+const columns = 'minmax(190px, 1.3fr) minmax(220px, 1.75fr) minmax(110px, .8fr) minmax(150px, 1fr)';
 
 export default function OwnerTodayHome({ reminders = [], properties = [], propertiesLoading = false, propertiesError = false, rentRecords = [], rentLoading = false, rentError = false, rentReady = false }) {
   const theme = useTheme();
@@ -48,10 +47,7 @@ export default function OwnerTodayHome({ reminders = [], properties = [], proper
           {firstName ? `Welcome back, ${firstName}!` : 'Welcome back!'}
         </Typography>
       </Box>
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: '280px minmax(0, 1fr)' }, gap: { xs: 0, lg: 6 }, alignItems: 'start' }}>
-        <Box sx={{ pt: { xs: 3, md: 4 }, pb: { xs: 1, lg: 0 }, minWidth: 0 }}>
-          <OwnerHomeSidebar />
-        </Box>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: 'minmax(0, 1fr) 280px' }, gap: { xs: 0, lg: 6 }, alignItems: 'start' }}>
         <Box sx={{ minWidth: 0 }}>
       <Box component="section" aria-labelledby="owner-next-heading" sx={{ py: { xs: 3, md: 4 }, borderBottom: '1px solid', borderColor: 'divider' }}>
         <Typography id="owner-next-heading" component="h2" variant="h5" sx={{ mb: 1.5, fontWeight: 700 }}>Tasks</Typography>
@@ -61,7 +57,7 @@ export default function OwnerTodayHome({ reminders = [], properties = [], proper
               <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>{next.label}</Typography>
               <Typography variant="h5" sx={{ mt: 0.5, overflowWrap: 'anywhere', color: 'text.primary' }}>{next.title}</Typography>
             </Box>
-            <Button component={RouterLink} to={next.href} variant="contained" endIcon={<ArrowRightOutlined />} sx={{ flexShrink: 0, textTransform: 'none' }}>Open</Button>
+            <Button component={RouterLink} to={next.href} variant="contained" endIcon={<AppIcon name="arrowRight" />} sx={{ flexShrink: 0, textTransform: 'none' }}>Open</Button>
           </Box>
         ) : (
           <Typography color="text.secondary" sx={{ py: 2 }}>
@@ -91,17 +87,22 @@ export default function OwnerTodayHome({ reminders = [], properties = [], proper
               return (
                 <Box key={property.id} style={{ '--dashboard-deal-delay': dashboardEntranceDelay(index) }} sx={{ ...dashboardSlideDownSx, display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', xl: columns }, alignItems: 'center', gap: { xs: 1.5, xl: 2 }, px: 2, py: 1.5, borderTop: index ? '1px solid' : 0, borderColor: 'divider' }}>
                   <Stack component={RouterLink} to={property.href} direction="row" spacing={1.4} alignItems="center" sx={{ minWidth: 0, color: 'inherit', textDecoration: 'none', '&:hover .owner-property-name': { textDecoration: 'underline' }, '&:focus-visible': { outline: `2px solid ${theme.palette.primary.main}`, outlineOffset: 2 } }}>
-                    <Box component="img" src={property.imageUrl || placeholderImage} alt="" sx={{ width: 58, height: 58, borderRadius: 1.8, objectFit: 'cover', bgcolor: alpha(theme.palette.primary.main, 0.08), flexShrink: 0 }} />
-                    <Box sx={{ minWidth: 0 }}>
-                      <Typography className="owner-property-name" sx={{ fontWeight: 700, color: 'text.primary', overflowWrap: 'anywhere', lineHeight: 1.3 }}>{property.name}</Typography>
-                      <Typography sx={{ mt: 0.3, fontSize: '0.77rem', color: 'text.secondary', overflowWrap: 'anywhere' }}>{property.address || 'Address not added'}</Typography>
+                    <Box aria-hidden="true" sx={{ display: 'grid', placeItems: 'center', width: 30, height: 30, flexShrink: 0, borderRadius: 1, fontSize: 15, color: 'primary.main', bgcolor: alpha(theme.palette.primary.main, 0.08) }}>
+                      <AppIcon name={property.isSingleUnit ? 'house' : 'properties'} size={property.isSingleUnit ? 18 : undefined} />
                     </Box>
+                    <Typography className="owner-property-name" sx={{ minWidth: 0, fontWeight: 700, color: 'text.primary', overflowWrap: 'anywhere', lineHeight: 1.3 }}>{property.name}</Typography>
                   </Stack>
                   <Box>
                     <Typography sx={{ display: { xs: 'block', xl: 'none' }, mb: 0.5, fontSize: '0.66rem', fontWeight: 750, textTransform: 'uppercase', color: 'text.secondary' }}>Rent paid</Typography>
                     {property.activeLeaseCount === 0 ? <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>No lease</Typography> : rentLoading && !rentReady ? <Typography sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>Loading rent…</Typography> : rent ? (
                       <>
-                        <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
+                        <Stack
+                          direction="row"
+                          justifyContent="space-between"
+                          alignItems="baseline"
+                          spacing={1}
+                          sx={{ whiteSpace: 'nowrap', overflowX: 'auto' }}
+                        >
                           <Typography sx={{ fontSize: '0.8rem', fontWeight: 650 }}>{money(rent.paid)} of {money(rent.expected)}</Typography>
                           <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary' }}>{Math.round(rent.percent)}%</Typography>
                         </Stack>
@@ -128,6 +129,9 @@ export default function OwnerTodayHome({ reminders = [], properties = [], proper
           </Box>
         ) : <Typography color="text.secondary">No properties yet. Add one to start organizing your portfolio.</Typography>}
       </Box>
+        </Box>
+        <Box sx={{ pt: { xs: 3, md: 4 }, pb: { xs: 1, lg: 0 }, minWidth: 0 }}>
+          <OwnerHomeSidebar />
         </Box>
       </Box>
     </Box>
