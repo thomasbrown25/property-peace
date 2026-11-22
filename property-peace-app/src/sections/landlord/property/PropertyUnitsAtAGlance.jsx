@@ -3,7 +3,8 @@ import {
   alpha, Avatar, Box, Button, Divider,
   InputAdornment, OutlinedInput, Stack, Typography, useTheme
 } from '@mui/material';
-import { ApartmentOutlined, PlusOutlined, SearchOutlined, ArrowRightOutlined } from '@ant-design/icons';
+import { PlusOutlined, SearchOutlined, ArrowRightOutlined } from '@ant-design/icons';
+import AppIcon from 'components/AppIcon';
 import MainCard from 'components/MainCard';
 import { formatCurrency } from 'utils/formatters';
 import { getUnitStatusPresentation } from 'utils/unitPresentation';
@@ -165,7 +166,7 @@ export default function PropertyUnitsAtAGlance({ property }) {
                         border: (t) => `1px solid ${alpha(t.palette.primary.main, t.palette.mode === 'dark' ? 0.32 : 0.14)}`
                       }}
                     >
-                      <ApartmentOutlined style={{ fontSize: 20 }} />
+                      <AppIcon name="properties" size={20} />
                     </Box>
 
                     {/* Unit name, status, and specs */}

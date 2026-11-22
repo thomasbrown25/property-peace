@@ -15,12 +15,7 @@ import {
   alpha,
   CircularProgress,
   Alert,
-  Divider,
   Button,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   Table,
   TableBody,
   TableCell,
@@ -29,7 +24,6 @@ import {
   TableRow,
   TablePagination,
   Paper,
-  useTheme,
   Checkbox
 } from '@mui/material';
 import {
@@ -41,8 +35,7 @@ import {
   SearchOutlined,
   FilterOutlined,
   PlusOutlined,
-  UploadOutlined,
-  CloseOutlined
+  UploadOutlined
 } from '@ant-design/icons';
 import MainCard from 'components/MainCard';
 import useAuth from 'hooks/useAuth';
@@ -56,24 +49,13 @@ import useFetchTenants from 'hooks/useFetchTenants';
 import axiosServices from 'utils/axios';
 import { documentCategory, documentTypeLabel, propertyDocumentContext } from './propertyDocuments.mjs';
 
-// Document category options for filter
-const UPLOAD_CATEGORY_OPTIONS = [
-  { value: 'all', label: 'All Categories' },
-  { value: 1, label: 'Landlord Insurance Policy' },
-  { value: 2, label: 'Utility & Maintenance' },
-  { value: 3, label: 'Loan & Financial Documents' },
-  { value: 4, label: 'Other Documents' }
-];
-
-export default function DocumentsTab({ property, onRefresh }) {
+export default function DocumentsTab({ property, onUploadDocument, documentsVersion }) {
   const { user } = useAuth();
   const { currentOrganization } = useOrganization();
   const organizationId = currentOrganization?.id ?? currentOrganization?.Id;
   const scope = `${organizationId}:${user?.id}:${property?.id}`;
   const [loadedScope, setLoadedScope] = useState(null);
   const { tenants } = useFetchTenants();
-
-  const theme = useTheme();
 
   const [documents, setDocuments] = useState([]);
   const [leases, setLeases] = useState([]);
@@ -87,26 +69,10 @@ export default function DocumentsTab({ property, onRefresh }) {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [documentToDelete, setDocumentToDelete] = useState(null);
-  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [propertyFiles, setPropertyFiles] = useState([]);
   const [selectedDocuments, setSelectedDocuments] = useState([]);
   const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
-  const fileInputRef = useRef(null);
-  
-  // Upload form state
-  const [uploadForm, setUploadForm] = useState({
-    files: [],
-    title: '',
-    categoryId: 4 // Default to 'Other Documents'
-  });
-  const [isDragging, setIsDragging] = useState(false);
-  const [uploadErrors, setUploadErrors] = useState({
-    files: false,
-    title: false
-  });
-
   // Get all units for this property
   const propertyUnits = useMemo(() => {
     if (!property?.units) return [];
@@ -152,7 +118,7 @@ export default function DocumentsTab({ property, onRefresh }) {
   useEffect(() => {
     refreshDocuments();
     return () => { requestId.current += 1; };
-  }, [onRefresh, refreshDocuments]);
+  }, [documentsVersion, refreshDocuments]);
 
   const propertyDocuments = useMemo(() => {
     if (loadedScope !== scope) return [];
@@ -399,125 +365,7 @@ export default function DocumentsTab({ property, onRefresh }) {
     }
   };
 
-  const handleFileChange = (event) => {
-    const files = Array.from(event.target.files);
-    setUploadForm({ ...uploadForm, files });
-    if (uploadErrors.files && files.length > 0) {
-      setUploadErrors({ ...uploadErrors, files: false });
-    }
-  };
-
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-    
-    const files = Array.from(e.dataTransfer.files);
-    setUploadForm({ ...uploadForm, files });
-    if (uploadErrors.files && files.length > 0) {
-      setUploadErrors({ ...uploadErrors, files: false });
-    }
-  };
-
-  const handleUpload = async () => {
-    // Validate and set errors
-    const errors = {
-      files: !uploadForm.files || uploadForm.files.length === 0,
-      title: !uploadForm.title || uploadForm.title.trim() === ''
-    };
-    
-    setUploadErrors(errors);
-
-    // If there are validation errors, show them and return
-    if (errors.files || errors.title) {
-      if (errors.files) {
-        openSnackbar({
-          open: true,
-          message: 'Please select at least one file',
-          variant: 'alert',
-          alert: { color: 'warning' }
-        });
-      }
-      if (errors.title) {
-        openSnackbar({
-          open: true,
-          message: 'Please enter a title',
-          variant: 'alert',
-          alert: { color: 'warning' }
-        });
-      }
-      return;
-    }
-
-    if (!property?.id) {
-      openSnackbar({
-        open: true,
-        message: 'Property ID is missing',
-        variant: 'alert',
-        alert: { color: 'error' }
-      });
-      return;
-    }
-
-    setUploading(true);
-    try {
-      const response = await fileAPI.uploadFiles(uploadForm.files, {
-        title: uploadForm.title,
-        propertyId: property.id,
-        categoryId: uploadForm.categoryId || null
-      });
-
-      if (response.success) {
-        // Reset form immediately
-        setUploadForm({
-          files: [],
-          title: '',
-          categoryId: 4
-        });
-        setUploadErrors({
-          files: false,
-          title: false
-        });
-        setUploadDialogOpen(false);
-        
-        // Refresh documents after successful upload
-        await refreshDocuments();
-
-        openSnackbar({
-          open: true,
-          message: 'Documents uploaded successfully',
-          variant: 'alert',
-          alert: { color: 'success' }
-        });
-      } else {
-        throw new Error(response.message || 'Upload failed');
-      }
-    } catch (error) {
-      console.error('Error uploading documents:', error);
-      openSnackbar({
-        open: true,
-        message: error.response?.data?.message || error.message || 'Failed to upload documents',
-        variant: 'alert',
-        alert: { color: 'error' }
-      });
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const isOperationInProgress = uploading || deleting;
+  const isOperationInProgress = deleting;
 
   if (loading && !isOperationInProgress) {
     return (
@@ -549,7 +397,7 @@ export default function DocumentsTab({ property, onRefresh }) {
           <Stack spacing={2} alignItems="center">
             <CircularProgress size={40} />
             <Typography variant="body2" color="text.secondary">
-              {uploading ? 'Uploading documents...' : 'Deleting document...'}
+              Deleting document...
             </Typography>
           </Stack>
         </Box>
@@ -627,7 +475,7 @@ export default function DocumentsTab({ property, onRefresh }) {
               <Button
                 variant="contained"
                 startIcon={<UploadOutlined />}
-                onClick={() => setUploadDialogOpen(true)}
+                onClick={onUploadDocument}
                 disabled={isOperationInProgress}
               >
                 Upload Document
@@ -867,171 +715,6 @@ export default function DocumentsTab({ property, onRefresh }) {
             rowsPerPage={rowsPerPage} onRowsPerPageChange={event => { setRowsPerPage(Number(event.target.value)); setPage(0); }} rowsPerPageOptions={[10, 25, 50]} />
           </MainCard>
       )}
-
-      {/* Upload Dialog */}
-      <Dialog 
-        open={uploadDialogOpen} 
-        onClose={() => !uploading && setUploadDialogOpen(false)} 
-        maxWidth="xs"
-        PaperProps={{
-          sx: {
-            maxWidth: 480
-          }
-        }}
-      >
-        <DialogTitle sx={{ position: 'relative', pr: 5 }}>
-          Upload Document
-          <IconButton
-            aria-label="close"
-            onClick={() => !uploading && setUploadDialogOpen(false)}
-            disabled={uploading}
-            sx={{
-              position: 'absolute',
-              right: 8,
-              top: 8,
-              color: (theme) => theme.palette.grey[500]
-            }}
-          >
-            <CloseOutlined />
-          </IconButton>
-        </DialogTitle>
-        <DialogContent>
-          <Stack spacing={3} sx={{ mt: 1 }}>
-            {/* Drag and Drop Upload Area */}
-            <Box
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              onClick={() => !uploading && fileInputRef.current?.click()}
-              sx={{
-                border: '2px dashed',
-                borderColor: uploadErrors.files 
-                  ? 'error.main' 
-                  : isDragging 
-                    ? 'primary.main' 
-                    : 'divider',
-                borderRadius: 2,
-                p: 4,
-                textAlign: 'center',
-                cursor: uploading ? 'not-allowed' : 'pointer',
-                bgcolor: uploadErrors.files
-                  ? alpha(theme.palette.error.main, 0.05)
-                  : isDragging 
-                    ? alpha(theme.palette.primary.main, 0.05) 
-                    : 'transparent',
-                transition: 'all 0.2s ease-in-out',
-                '&:hover': {
-                  borderColor: uploading 
-                    ? 'divider' 
-                    : uploadErrors.files
-                      ? 'error.main'
-                      : 'primary.main',
-                  bgcolor: uploading 
-                    ? 'transparent' 
-                    : uploadErrors.files
-                      ? alpha(theme.palette.error.main, 0.08)
-                      : alpha(theme.palette.primary.main, 0.02)
-                }
-              }}
-            >
-              <input
-                accept="*/*"
-                style={{ display: 'none' }}
-                id="file-upload-input"
-                type="file"
-                multiple
-                ref={fileInputRef}
-                onChange={handleFileChange}
-                disabled={uploading}
-              />
-              {uploadForm.files.length === 0 ? (
-                <Stack spacing={2} alignItems="center">
-                  <Box
-                    sx={{
-                      width: 64,
-                      height: 64,
-                      borderRadius: '50%',
-                      bgcolor: alpha(theme.palette.primary.main, 0.1),
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}
-                  >
-                    <UploadOutlined style={{ fontSize: 32, color: theme.palette.primary.main }} />
-                  </Box>
-                  <Typography variant="h6" fontWeight={600} color="primary.main">
-                    There's nothing here yet
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Click or drag to upload
-                  </Typography>
-                </Stack>
-              ) : (
-                <Stack spacing={1} alignItems="center">
-                  <UploadOutlined style={{ fontSize: 32, color: theme.palette.primary.main }} />
-                  <Typography variant="body1" fontWeight={500}>
-                    {uploadForm.files.length} file(s) selected
-                  </Typography>
-                  {uploadForm.files.map((file, index) => (
-                    <Typography key={index} variant="body2" color="text.secondary">
-                      • {file.name}
-                    </Typography>
-                  ))}
-                </Stack>
-              )}
-            </Box>
-            {uploadErrors.files && (
-              <Typography variant="caption" color="error" sx={{ mt: -2, mb: -1 }}>
-                Please select at least one file
-              </Typography>
-            )}
-
-            <TextField
-              fullWidth
-              label="Title"
-              required
-              value={uploadForm.title}
-              onChange={(e) => {
-                setUploadForm({ ...uploadForm, title: e.target.value });
-                if (uploadErrors.title && e.target.value.trim()) {
-                  setUploadErrors({ ...uploadErrors, title: false });
-                }
-              }}
-              placeholder="Enter a title for these documents..."
-              disabled={uploading}
-              error={uploadErrors.title}
-              helperText={uploadErrors.title ? 'Title is required' : ''}
-            />
-
-            <FormControl fullWidth>
-              <InputLabel>Category</InputLabel>
-              <Select
-                value={uploadForm.categoryId}
-                label="Category"
-                onChange={(e) => setUploadForm({ ...uploadForm, categoryId: e.target.value })}
-                disabled={uploading}
-              >
-                {UPLOAD_CATEGORY_OPTIONS.filter(opt => opt.value !== 'all').map((option) => (
-                  <MenuItem key={option.value} value={option.value}>
-                    {option.label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Stack>
-        </DialogContent>
-        <DialogActions sx={{ justifyContent: 'center', pb: 3 }}>
-          <Button 
-            variant="contained" 
-            onClick={handleUpload} 
-            disabled={uploading}
-            startIcon={uploading ? <CircularProgress size={16} /> : <UploadOutlined />}
-            sx={{ minWidth: 150 }}
-          >
-            {uploading ? 'Uploading...' : 'Upload'}
-          </Button>
-        </DialogActions>
-      </Dialog>
 
       {/* Delete Confirmation Dialog */}
       <ConfirmationDialog

@@ -1,3 +1,35 @@
 * {
   -webkit-tap-highlight-color: transparent;
 }
+
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  /* Reset the effect at each control so nested controls manage their own icons. */
+  :where(button, a[href], .MuiButtonBase-root, [role='button'], [role='link'], [role='menuitem'], [role='tab']) {
+    --app-icon-animation: none;
+  }
+
+  :where(button, a[href], .MuiButtonBase-root, [role='button'], [role='link'], [role='menuitem'], [role='tab']):is(:hover, :focus-visible):not(:disabled, .Mui-disabled, [aria-disabled='true']) {
+    --app-icon-animation: app-icon-wiggle 320ms ease-in-out;
+  }
+
+  [data-app-icon] {
+    animation: var(--app-icon-animation, none);
+  }
+}
+
+@keyframes app-icon-wiggle {
+  25% {
+    translate: -1.5px 0;
+    rotate: -14deg;
+  }
+
+  50% {
+    translate: 1.5px 0;
+    rotate: 14deg;
+  }
+
+  75% {
+    translate: -0.75px 0;
+    rotate: -7deg;
+  }
+}

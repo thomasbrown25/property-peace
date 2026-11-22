@@ -8,11 +8,18 @@ test('lease checklist card opens a lease-scoped creation route only when no matc
   const lease = source('../pages/landlord/lease.jsx');
   const detail = source('../sections/landlord/leases/LeaseDetailView.jsx');
   const routes = source('../routes/MainRoutes.jsx');
-  assert.match(lease, /leaseChecklists\?\.find\(\(item\) => String\(item\.leaseId/);
-  assert.match(lease, /navigate\(buildChecklistWorkspacePath\(existing\)\)/);
-  assert.match(lease, /navigate\(`\/landlord\/leases\/\$\{leaseId\}\/checklists\/\$\{type\}\/new\?\$\{params\}`/);
+  const openChecklist = lease.match(/onViewChecklists=\{async\b[\s\S]*?\n\s*\}\}/)?.[0];
+  assert.ok(openChecklist, 'Lease detail should receive a checklist navigation handler');
+  const [lookup, creation] = openChecklist.split('const params = new URLSearchParams');
+  assert.ok(creation, 'Checklist creation should pass lease property context');
+  assert.match(lookup, /await getChecklistsByLease\(leaseId\)/);
+  assert.match(lookup, /if \(!response\?\.success \|\| !Array\.isArray\(response\.data\)\) throw/);
+  assert.match(lookup, /findLinkedChecklist\(response\.data, leaseId, type\)/);
+  assert.match(lookup, /if \(existing\) \{\s*navigate\(buildChecklistWorkspacePath\(\{[\s\S]*?\}\)\);\s*return;\s*\}/);
+  assert.match(creation, /navigate\(`\/landlord\/leases\/\$\{leaseId\}\/checklists\/\$\{type\}\/new\?\$\{params\}`/);
   assert.match(detail, /onClick=\{cardAction\}/);
   assert.match(detail, /onViewChecklists\('move-in'\)/);
+  assert.match(detail, /onViewChecklists\('move-out'\)/);
   assert.match(routes, /path: 'landlord\/leases\/:leaseId\/checklists\/:createType\/new'/);
 });
 

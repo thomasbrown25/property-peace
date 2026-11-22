@@ -29,5 +29,5 @@ test('lease header has a photographic home panel, rent snapshot and contextual s
   assert.match(view, /Monthly rent[\s\S]*?formatCurrency\(rentAmount\)/);
   assert.match(view, /needsLeaseSignatures\(moveInReadiness, isDraftLease\)/);
   assert.match(view, /Signatures needed[\s\S]*?Open signatures[\s\S]*?onOpenSignature/);
-  assert.match(view, /aria-label="Lease actions"/);
+  assert.match(view, /<ActionsDrawer\b[^>]*triggerLabel="Lease actions"/);
 });

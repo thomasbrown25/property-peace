@@ -17,7 +17,7 @@ import {
   useMediaQuery,
   useTheme
 } from '@mui/material';
-import { CloseOutlined, DeleteOutlined } from '@ant-design/icons';
+import AppIcon from 'components/AppIcon';
 
 import { openSnackbar } from 'api/snackbar';
 import { removeMember } from 'api/organizationMember';
@@ -75,7 +75,7 @@ export default function RemoveTeamMemberDialog({ member, organization, open, onC
         <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={2}>
           <Stack direction="row" alignItems="center" spacing={1.4}>
             <Avatar sx={{ width: 44, height: 44, bgcolor: alpha(theme.palette.error.main, 0.1), color: 'error.main' }}>
-              <DeleteOutlined />
+              <AppIcon name="trash" />
             </Avatar>
             <Box>
               <Typography variant="h4" fontWeight={750}>
@@ -87,7 +87,7 @@ export default function RemoveTeamMemberDialog({ member, organization, open, onC
             </Box>
           </Stack>
           <IconButton onClick={onClose} disabled={removing} aria-label="Close remove team member dialog" size="small">
-            <CloseOutlined />
+            <AppIcon name="close" />
           </IconButton>
         </Stack>
       </DialogTitle>
@@ -136,14 +136,14 @@ export default function RemoveTeamMemberDialog({ member, organization, open, onC
             />
           </Stack>
 
-          <Alert severity="warning" sx={{ alignItems: 'flex-start', '& .MuiAlert-message': { width: '100%' } }}>
+          <Alert severity="warning" icon={<AppIcon name="warning" />} sx={{ alignItems: 'flex-start', '& .MuiAlert-message': { width: '100%' } }}>
             <Typography fontWeight={700} sx={{ fontSize: '0.8rem' }}>
               {model.consequence}
             </Typography>
             <Typography sx={{ mt: 0.4, fontSize: '0.74rem' }}>The organization and its other team members will not be affected.</Typography>
           </Alert>
 
-          {error && <Alert severity="error">{error}</Alert>}
+          {error && <Alert severity="error" icon={<AppIcon name="warning" />}>{error}</Alert>}
         </Stack>
       </DialogContent>
 
@@ -173,7 +173,7 @@ export default function RemoveTeamMemberDialog({ member, organization, open, onC
           variant="contained"
           color="error"
           fullWidth={fullScreen}
-          startIcon={removing ? <CircularProgress size={16} color="inherit" /> : <DeleteOutlined />}
+          startIcon={removing ? <CircularProgress size={16} color="inherit" /> : <AppIcon name="trash" />}
           sx={{ textTransform: 'none', fontWeight: 750, boxShadow: 'none' }}
         >
           {removing ? 'Removing…' : model.confirmLabel}

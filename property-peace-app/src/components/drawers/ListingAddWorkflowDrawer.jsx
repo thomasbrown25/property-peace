@@ -1,6 +1,6 @@
 import ThemeAdaptiveDrawer from 'components/drawers/shared/ThemeAdaptiveDrawer';
 import { Box, IconButton, Stack, Typography, alpha, useTheme } from '@mui/material';
-import { CloseOutlined, RocketOutlined } from '@ant-design/icons';
+import AppIcon from 'components/AppIcon';
 import { useDrawer } from 'contexts/DrawerContext';
 import ListingAddWorkflow from 'pages/landlord/listing-add-workflow';
 
@@ -37,14 +37,14 @@ export default function ListingAddWorkflowDrawer() {
       >
         <Stack direction="row" spacing={1.5} alignItems="center" sx={{ flex: 1 }}>
           <Box sx={{ p: 0.75, borderRadius: 1, bgcolor: alpha(theme.palette.primary.main, 0.1), display: 'flex' }}>
-            <RocketOutlined style={{ fontSize: 18, color: theme.palette.primary.main }} />
+            <AppIcon name="house" size={18} style={{ color: theme.palette.primary.main }} />
           </Box>
           <Typography variant="h6" fontWeight={600}>
             Create Listing
           </Typography>
         </Stack>
-        <IconButton onClick={drawer.closeListingAddDrawer} size="small">
-          <CloseOutlined />
+        <IconButton onClick={drawer.closeListingAddDrawer} size="small" aria-label="Close listing form">
+          <AppIcon name="close" />
         </IconButton>
       </Box>
 

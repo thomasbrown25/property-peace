@@ -265,6 +265,18 @@ test('landlord maintenance list opens the AI-first maintenance drawer without le
   assert.match(list, /Open request details/);
 });
 
+test('maintenance list and detail share Actions drawers with a direct workflow link', async () => {
+  const list = await readFile(new URL('../pages/landlord/maintenances.jsx', import.meta.url), 'utf8');
+  const detail = await readFile(new URL('../pages/landlord/maintenance.jsx', import.meta.url), 'utf8');
+  const workflow = await readFile(new URL('../components/maintenance/MaintenanceActions.jsx', import.meta.url), 'utf8');
+  assert.match(list, /<ActionsDrawer[^>]*iconOnly/);
+  assert.match(list, /label: 'Open workflow actions',[^\n]*state: \{ openMaintenanceActions: true \}/);
+  assert.match(detail, /role === 'manager'[\s\S]*?<MaintenanceActions[\s\S]*?defaultOpen=\{location\.state\?\.openMaintenanceActions === true\}/);
+  assert.match(workflow, /<ActionsDrawer id="maintenance-actions-drawer"[^>]*defaultOpen=\{defaultOpen\}/);
+  const entries = [...workflow.matchAll(/label: '([^']+)', description: '([^']+)'[^\n]*icon: '(\w+)'/g)];
+  assert.equal(entries.length, 8);
+});
+
 test('landlord AI maintenance drawer falls back safely without stale settings or duplicate-create risk', async () => {
   const router = await readFile(new URL('../components/drawers/LandlordMaintenanceDrawer.jsx', import.meta.url), 'utf8');
   const agent = await readFile(new URL('../pages/tenant/MaintenanceAgentDrawer.jsx', import.meta.url), 'utf8');

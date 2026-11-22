@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useId } from 'react';
 import PropTypes from 'prop-types';
-import { CheckCircleOutlined, DeleteOutlined, EditOutlined, MoreOutlined, TagsOutlined } from '@ant-design/icons';
-import { alpha, Avatar, Box, Chip, IconButton, Menu, MenuItem, Stack, Tooltip, Typography, useTheme } from '@mui/material';
+import { alpha, Avatar, Box, Chip, Stack, Typography, useTheme } from '@mui/material';
 
+import AppIcon from 'components/AppIcon';
+import ActionsDrawer from 'components/drawers/shared/ActionsDrawer';
 import {
   formatExpenseDate,
   getExpenseAmount,
@@ -15,7 +16,7 @@ const money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD
 
 export default function ExpenseRow({ expense, onEdit, onMarkPaid, onDelete }) {
   const theme = useTheme();
-  const [anchorEl, setAnchorEl] = useState(null);
+  const actionsId = useId();
   const name = readExpense(expense, 'name', 'Name') || 'Untitled expense';
   const category = readExpense(expense, 'category', 'Category') || 'Uncategorized';
   const propertyName = readExpense(expense, 'propertyName', 'PropertyName') || 'No property';
@@ -23,6 +24,22 @@ export default function ExpenseRow({ expense, onEdit, onMarkPaid, onDelete }) {
   const vendor = readExpense(expense, 'vendor', 'Vendor');
   const date = readExpense(expense, 'paidDate', 'PaidDate') || readExpense(expense, 'expenseDate', 'ExpenseDate');
   const paid = isExpensePaid(expense);
+  const actions = [
+    {
+      label: 'Edit expense', description: 'Update the details of this expense.', icon: 'edit',
+      onSelect: () => onEdit(expense)
+    },
+    {
+      label: 'Delete expense', description: 'Remove this expense from your records.', icon: 'trash', destructive: true,
+      onSelect: () => onDelete(expense)
+    }
+  ];
+  if (!paid) {
+    actions.unshift({
+      label: 'Mark as paid', description: 'Record that this expense has been paid.', icon: 'checkCircle',
+      onSelect: () => onMarkPaid(expense)
+    });
+  }
 
   return (
     <Box
@@ -39,7 +56,7 @@ export default function ExpenseRow({ expense, onEdit, onMarkPaid, onDelete }) {
     >
       <Stack direction="row" spacing={1.25} alignItems="center" minWidth={0}>
         <Avatar sx={{ width: 38, height: 38, bgcolor: alpha(theme.palette.error.main, 0.1), color: 'error.main' }}>
-          <TagsOutlined />
+          <AppIcon name="tag" />
         </Avatar>
         <Box minWidth={0}>
           <Typography fontWeight={700} noWrap>{name}</Typography>
@@ -70,14 +87,7 @@ export default function ExpenseRow({ expense, onEdit, onMarkPaid, onDelete }) {
       </Typography>
 
       <Box sx={{ display: 'flex', justifyContent: { xs: 'flex-end', md: 'center' } }}>
-        <Tooltip title="Expense actions">
-          <IconButton size="small" aria-label={`Actions for ${name}`} onClick={(event) => setAnchorEl(event.currentTarget)}><MoreOutlined /></IconButton>
-        </Tooltip>
-        <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
-          {!paid && <MenuItem onClick={() => { setAnchorEl(null); onMarkPaid(expense); }}><CheckCircleOutlined style={{ marginRight: 10 }} />Mark as paid</MenuItem>}
-          <MenuItem onClick={() => { setAnchorEl(null); onEdit(expense); }}><EditOutlined style={{ marginRight: 10 }} />Edit expense</MenuItem>
-          <MenuItem sx={{ color: 'error.main' }} onClick={() => { setAnchorEl(null); onDelete(expense); }}><DeleteOutlined style={{ marginRight: 10 }} />Delete expense</MenuItem>
-        </Menu>
+        <ActionsDrawer id={actionsId} title="Expense actions" triggerLabel={`Actions for ${name}`} actions={actions} iconOnly />
       </Box>
     </Box>
   );

@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import ExpandMore from '@mui/icons-material/ExpandMore';
-import InfoOutlined from '@mui/icons-material/InfoOutlined';
 import { Alert, Box, Button, Collapse, Divider, Stack, Typography } from '@mui/material';
 
+import AppIcon from 'components/AppIcon';
 export default function CalculationDisclosure({
   overview,
   itemsResponse,
@@ -54,7 +53,7 @@ export default function CalculationDisclosure({
         <Button
           aria-controls="finances-calculation-details"
           aria-expanded={expanded}
-          endIcon={<ExpandMore sx={{ transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 150ms ease' }} />}
+          endIcon={<AppIcon name="chevronDown" style={{ transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 150ms ease' }} />}
           onClick={() => setExpanded((value) => !value)}
           sx={{ textTransform: 'none', fontWeight: 700 }}
         >
@@ -67,7 +66,7 @@ export default function CalculationDisclosure({
               <Alert severity="warning">Calculation explanations are unavailable. No explanation has been inferred.</Alert>
             ) : explanations.map((explanation) => (
               <Stack key={explanation} direction="row" spacing={1} alignItems="flex-start">
-                <InfoOutlined color="primary" fontSize="small" />
+                <Box component="span" sx={{ color: 'primary.main', fontSize: 20, display: 'inline-flex' }}><AppIcon name="help" /></Box>
                 <Typography variant="body2">{explanation}</Typography>
               </Stack>
             ))}

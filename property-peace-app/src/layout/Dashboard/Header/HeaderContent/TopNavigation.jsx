@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Box, Divider, ListSubheader, Menu, MenuItem } from '@mui/material';
-import DownOutlined from '@ant-design/icons/DownOutlined';
+import AppIcon from 'components/AppIcon';
 import { useSubscriptionStatus } from 'hooks/useSubscription';
 import pages from 'menu-items/pages';
 import { landlordPagesForInventory } from 'menu-items/landlordInventory';
@@ -66,7 +66,7 @@ export default function TopNavigation() {
             gap: 0.5
           }}
         >
-          More <DownOutlined style={{ fontSize: 11 }} />
+          More <AppIcon name="chevronDown" size={11} />
         </Box>
       </Box>
       <Menu

@@ -17,7 +17,7 @@ test('unified Finances shell keeps the approved navigation, actions, and right r
   ]);
   const combined = [page, header, metrics, accountActivity, disclosure].join('\n');
 
-  assert.match(header, />Finances<\/Typography>/);
+  assert.match(header, /<ManagementPageHeader\s+title="Finances"/);
   assert.match(
     page,
     /const FINANCES_TAB_LABELS = \[\s*\['review', 'Needs review'\],\s*\['activity', 'Activity'\],\s*\['expenses', 'Expenses'\],\s*\['payments', 'Payments'\],\s*\['upcoming', 'Upcoming'\]\s*\];/
@@ -27,8 +27,9 @@ test('unified Finances shell keeps the approved navigation, actions, and right r
   assert.match(metrics, /label: 'Net cash flow'/);
   assert.match(metrics, /label: 'Collected this month'/);
 
-  assert.match(header, />Add expense<\/MenuItem>/);
-  assert.match(header, />Record payment<\/MenuItem>/);
+  assert.match(header, /<ActionsDrawer[^>]*title="Finances actions"[^>]*actions=\{actions\}/);
+  assert.match(header, /label: 'Add expense',\s*description: '[^']+',\s*icon: 'document',\s*onSelect: onAddExpense/);
+  assert.match(header, /label: 'Record payment',\s*description: '[^']+',\s*icon: 'moneys',\s*onSelect: onRecordPayment/);
   assert.match(header, /tabIndex=\{exportDisabled \? 0 : undefined\}/);
   assert.match(page, /onAddExpense=\{\(\) => drawer\.openExpenseAddDrawer\(\)\}/);
   assert.match(page, /onRecordPayment=\{\(\) => drawer\.openPaymentAddDrawer\(\)\}/);

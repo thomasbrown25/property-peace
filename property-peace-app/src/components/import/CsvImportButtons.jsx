@@ -19,7 +19,7 @@ import {
   TextField,
   Typography
 } from '@mui/material';
-import { ImportOutlined } from '@ant-design/icons';
+import AppIcon from 'components/AppIcon';
 import { useDispatch } from 'react-redux';
 import axiosServices from 'utils/axios';
 import { openSnackbar } from 'api/snackbar';
@@ -333,7 +333,7 @@ function EditablePreviewTable({ columns, items, onValueChange }) {
   );
 }
 
-function CsvImportButton({ entityType, label, buttonProps = {}, columns, buildItems, onConfirmImport }) {
+function CsvImportButton({ entityType, label, buttonProps = {}, renderTrigger, columns, buildItems, onConfirmImport }) {
   const inputRef = useRef(null);
   const [fileName, setFileName] = useState('');
   const [open, setOpen] = useState(false);
@@ -438,16 +438,18 @@ function CsvImportButton({ entityType, label, buttonProps = {}, columns, buildIt
   return (
     <>
       <input ref={inputRef} type="file" accept=".csv" onChange={handleFileSelected} style={{ display: 'none' }} />
-      <Button
-        size="small"
-        variant="outlined"
-        startIcon={preparing ? <CircularProgress size={14} color="inherit" /> : <ImportOutlined />}
-        onClick={openImportModal}
-        disabled={preparing || importing || buttonProps.disabled}
-        {...buttonProps}
-      >
-        {preparing ? 'Reading CSV...' : 'Import'}
-      </Button>
+      {renderTrigger ? renderTrigger({ openImport: openImportModal, disabled: preparing || importing }) : (
+        <Button
+          size="small"
+          variant="outlined"
+          startIcon={preparing ? <CircularProgress size={14} color="inherit" /> : <AppIcon name="uploadDocument" />}
+          onClick={openImportModal}
+          disabled={preparing || importing || buttonProps.disabled}
+          {...buttonProps}
+        >
+          {preparing ? 'Reading CSV...' : 'Import'}
+        </Button>
+      )}
 
       <Dialog
         open={open}
@@ -469,7 +471,7 @@ function CsvImportButton({ entityType, label, buttonProps = {}, columns, buildIt
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ xs: 'stretch', sm: 'center' }}>
               <Button
                 variant="contained"
-                startIcon={preparing ? <CircularProgress size={16} color="inherit" /> : <ImportOutlined />}
+                startIcon={preparing ? <CircularProgress size={16} color="inherit" /> : <AppIcon name="uploadDocument" />}
                 onClick={() => inputRef.current?.click()}
                 disabled={preparing || importing}
                 sx={{ textTransform: 'none' }}
@@ -506,7 +508,7 @@ function CsvImportButton({ entityType, label, buttonProps = {}, columns, buildIt
             variant="contained"
             onClick={handleConfirm}
             disabled={importing || !canConfirm}
-            startIcon={importing ? <CircularProgress size={16} color="inherit" /> : <ImportOutlined />}
+            startIcon={importing ? <CircularProgress size={16} color="inherit" /> : <AppIcon name="uploadDocument" />}
             sx={{ textTransform: 'none' }}
           >
             {importing ? 'Importing...' : `Confirm Import (${items.length || 0})`}
@@ -552,7 +554,7 @@ export function TenantCsvImportButton({ buttonProps }) {
   );
 }
 
-export function VendorCsvImportButton({ buttonProps }) {
+export function VendorCsvImportButton({ buttonProps, renderTrigger }) {
   const dispatch = useDispatch();
   const { user } = useAuth();
   const landlordId = user?.id ?? user?.Id;
@@ -569,6 +571,7 @@ export function VendorCsvImportButton({ buttonProps }) {
       entityType="vendors"
       label="Vendor"
       buttonProps={buttonProps}
+      renderTrigger={renderTrigger}
       columns={columns}
       buildItems={(rows) => rows.map((row, index) => vendorRowFromMapped(row, index + 2, landlordId))}
       onConfirmImport={async (items) => {

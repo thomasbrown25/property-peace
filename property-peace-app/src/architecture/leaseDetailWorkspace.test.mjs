@@ -102,9 +102,9 @@ test('lease header pairs the named agreement and home photo with a compact term 
 });
 
 test('lease header keeps upload in actions without a renew shortcut', () => {
-  const headerActions = between('id="lease-actions-menu"', '</Menu>');
-  assert.match(headerActions, />\s*Upload document\s*</);
-  assert.doesNotMatch(headerActions, />\s*Renew\s*</);
+  const headerActions = between('const leaseActions = [', '].filter(Boolean)');
+  assert.match(headerActions, /label: 'Upload a document'/);
+  assert.doesNotMatch(headerActions, /label: 'Renew/);
 });
 
 test('tenant, payment, and document tabs expose the requested controls and sections', () => {

@@ -8,6 +8,76 @@ namespace brownstone_hub_api.Tests.Services.RentCollection;
 
 public sealed class RentPaymentSummaryTests
 {
+    [Fact]
+    public void CurrentBillingPeriodRent_MonthlySkipsPaidDueDatesAndClampsShortMonths()
+    {
+        var start = new DateTime(2027, 1, 1);
+        var lease = ActiveMonthlyLease(start, new DateTime(2027, 3, 31), 1_200m);
+        lease.RentDueDay = 31;
+        var payments = new List<LoadPaymentDto>
+        {
+            new() { LeaseId = lease.Id, Amount = 1_200m, Status = "Completed" },
+            new() { LeaseId = lease.Id, Amount = 1_200m, Status = "Processing" }
+        };
+        var dueToday = new DateTime(2027, 1, 31);
+
+        RentCalculator.GetCurrentBillingPeriodRent(lease, payments, dueToday)!.NextUnpaidDueDate.Should().Be(new DateOnly(2027, 2, 28));
+        payments[0].Amount = 2_399m;
+        RentCalculator.GetCurrentBillingPeriodRent(lease, payments, dueToday)!.NextUnpaidDueDate.Should().Be(new DateOnly(2027, 2, 28));
+        payments[0].Amount = 2_400m;
+        RentCalculator.GetCurrentBillingPeriodRent(lease, payments, dueToday)!.NextUnpaidDueDate.Should().Be(new DateOnly(2027, 3, 31));
+        payments[0].Amount = 3_600m;
+        var prepaid = RentCalculator.GetCurrentBillingPeriodRent(lease, payments, dueToday)!;
+        prepaid.NextUnpaidDueDate.Should().BeNull();
+        prepaid.PaidInFull.Should().BeTrue();
+
+        lease.RentDueDay = 1;
+        payments[0].Amount = 3_599m;
+        var noneUpcoming = RentCalculator.GetCurrentBillingPeriodRent(lease, payments, new DateTime(2027, 3, 2))!;
+        noneUpcoming.NextUnpaidDueDate.Should().BeNull();
+        noneUpcoming.PaidInFull.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("Weekly", 300, 7)]
+    [InlineData("Yearly", 12000, 365)]
+    public void CurrentBillingPeriodRent_UsesOnlyPeriodsThroughToday(string frequency, int rent, int cycleDays)
+    {
+        var start = new DateTime(2026, 11, 1);
+        var lease = ActiveMonthlyLease(start, start.AddYears(2).AddDays(-1), rent);
+        lease.RentFrequency = frequency;
+        var payments = new List<LoadPaymentDto>
+        {
+            new() { LeaseId = lease.Id, Amount = rent, Status = "Completed" },
+            new() { LeaseId = lease.Id, Amount = rent, Status = "Processing" }
+        };
+
+        RentCalculator.GetCurrentBillingPeriodRent(lease, payments, start.AddDays(-1)).Should().BeNull();
+        var paid = RentCalculator.GetCurrentBillingPeriodRent(lease, payments, start.AddDays(cycleDays - 1))!;
+        paid.Expected.Should().Be(rent);
+        paid.Collected.Should().Be(rent);
+        paid.Due.Should().Be(0m);
+        paid.NextUnpaidDueDate.Should().Be(DateOnly.FromDateTime(start.AddDays(cycleDays)));
+
+        var next = RentCalculator.GetCurrentBillingPeriodRent(lease, payments, start.AddDays(cycleDays))!;
+        next.Expected.Should().Be(rent);
+        next.Collected.Should().Be(0m);
+        next.Due.Should().Be(rent);
+        next.NextUnpaidDueDate.Should().Be(DateOnly.FromDateTime(start.AddDays(cycleDays)));
+
+        var dueToday = RentCalculator.GetCurrentBillingPeriodRent(lease, payments, start)!;
+        dueToday.NextUnpaidDueDate.Should().Be(DateOnly.FromDateTime(start.AddDays(cycleDays)));
+
+        payments[0].Amount = rent * 2;
+        var prepaid = RentCalculator.GetCurrentBillingPeriodRent(lease, payments, start)!;
+        DateOnly? expectedNextDue = frequency == "Weekly" ? DateOnly.FromDateTime(start.AddDays(14)) : null;
+        prepaid.NextUnpaidDueDate.Should().Be(expectedNextDue);
+        prepaid.PaidInFull.Should().Be(expectedNextDue is null);
+
+        lease.EndDate = start.AddDays(cycleDays - 1);
+        RentCalculator.GetCurrentBillingPeriodRent(lease, payments, start)!.PaidInFull.Should().BeTrue();
+    }
+
     [Theory]
     [InlineData(6, 1190, 0, 1190, false)]
     [InlineData(7, 0, 1190, 1190, true)]

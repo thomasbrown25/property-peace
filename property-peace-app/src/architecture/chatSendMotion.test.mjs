@@ -29,7 +29,7 @@ test('tenant chat matches the compact landlord inbox and offers participant-scop
   assert.match(tenantChat, /aria-pressed=\{unreadOnly\}/);
   assert.match(tenantChat, /aria-expanded=\{showMessageSearch\}/);
   assert.match(tenantChat, /width: 30, height: 30/);
-  assert.match(tenantChat, /Mark as unread/);
+  assert.match(tenantChat, /<ChatRowActions[\s\S]*?onMarkUnread=\{\(\) => handleMarkUnread\(conversation\.id\)\}/);
   assert.match(tenantChat, /\/api\/Message\/conversation\/\$\{conversationId\}\/unread/);
   assert.doesNotMatch(tenantChat, /archiveConversation|\/archive`/);
 });

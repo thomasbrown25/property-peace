@@ -10,12 +10,13 @@ const section = (start, end) => {
   return source.slice(from, to);
 };
 
-test('lease header offers red outlined Delete next to Edit instead of a three-dot menu', () => {
-  const actions = section('sx={{ flexShrink: 0, pl:', '</Stack>');
-  assert.match(actions, /Edit lease\s*<\/Button>[\s\S]*?variant="outlined" color="error"[\s\S]*?Delete\s*<\/Button>/);
-  assert.doesNotMatch(actions, /More lease actions|actionsAnchor/);
-  assert.match(actions, /End lease early/);
-  assert.match(actions, /Reopen lease/);
+test('lease Actions drawer opens the existing delete confirmation', () => {
+  const actions = section('const leaseActions = [', '].filter(Boolean)');
+  const openConfirmation = section('const openDeleteLease = () => {', 'const leaseActions = [');
+  assert.match(source, /<ActionsDrawer id="lease-actions-drawer"[^>]*actions=\{leaseActions\}/);
+  assert.match(actions, /label: 'Delete lease',[^}]*destructive: true,\s*onSelect: openDeleteLease\b/);
+  assert.match(openConfirmation, /setDeleteLeaseOpen\(true\)/);
+  assert.match(source, /<Dialog open=\{deleteLeaseOpen\}/);
 });
 
 test('confirmation defaults related data to selected and permits independent toggling', () => {

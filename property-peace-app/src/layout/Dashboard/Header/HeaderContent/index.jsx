@@ -1,7 +1,7 @@
 import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
-import { MenuOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 import { Box, Divider, IconButton, Tooltip, useMediaQuery, useTheme } from '@mui/material';
+import AppIcon from 'components/AppIcon';
 import Message from './Message';
 import Profile from './Profile';
 import Notification from './Notification';
@@ -28,9 +28,15 @@ export default function HeaderContent({ adminPortal = false, landlordPortal = fa
     <Box sx={{
       display: tenantPortal ? 'grid' : 'flex',
       alignItems: 'center',
-      columnGap: { xs: 1, sm: 2 },
+      columnGap: { xs: landlordPortal ? 0.5 : 1, sm: 2 },
       width: '100%',
       minWidth: 0,
+      ...(landlordPortal && {
+        display: { xs: 'flex', lg: 'grid' },
+        // Center the links beside the property rail when both sides have room.
+        gridTemplateColumns: 'minmax(0, 1fr) auto minmax(max-content, 1fr)',
+        gridTemplateAreas: '". navigation actions"'
+      }),
       ...(tenantPortal && {
         height: '100%',
         gridTemplateColumns: { xs: 'minmax(0, 1fr) auto', md: 'minmax(0, 1fr) auto minmax(0, 1fr)' },
@@ -41,12 +47,12 @@ export default function HeaderContent({ adminPortal = false, landlordPortal = fa
       <Box sx={{ display: landlordPortal ? { xs: 'flex', lg: 'none' } : 'flex', alignItems: 'center', gap: { xs: 1, sm: 2 }, minWidth: 0, ...(tenantPortal && { gridArea: 'logo' }) }}>
       {adminPortal && (
         <IconButton aria-label="Open admin navigation" onClick={onAdminMenuOpen} sx={{ display: { xs: 'inline-flex', lg: 'none' }, color: 'inherit' }}>
-          <MenuOutlined />
+          <AppIcon name="menu" />
         </IconButton>
       )}
       {landlordPortal && (
         <IconButton aria-label="Open landlord navigation" onClick={onLandlordMenuOpen} sx={{ display: { xs: 'inline-flex', lg: 'none' }, color: 'inherit' }}>
-          <MenuOutlined />
+          <AppIcon name="menu" />
         </IconButton>
       )}
       <Logo
@@ -62,32 +68,38 @@ export default function HeaderContent({ adminPortal = false, landlordPortal = fa
       {tenantPortal ? <TenantPrimaryNavigation /> : <Box sx={{
         flex: 1,
         minWidth: 0,
-        display: 'flex',
+        display: landlordPortal ? { xs: 'none', lg: 'flex' } : 'flex',
         justifyContent: 'center',
         height: 60,
-        // On roomy screens, center the links in the area beside the property rail,
-        // rather than in the space left over after the header actions.
-        ...(landlordPortal && {
-          ml: { lg: 8 },
-          '@media (min-width: 1280px)': { ml: 0, position: 'absolute', left: '50%', transform: 'translateX(-50%)' }
-        })
+        ...(landlordPortal && { gridArea: 'navigation' })
       }}>
         {landlordPortal && <LandlordPrimaryNavigation />}
       </Box>}
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: { xs: 1, sm: 2 }, flexShrink: 0, ...(tenantPortal && { gridArea: 'actions' }), ...(landlordPortal && { '@media (min-width: 1280px)': { ml: 'auto' } }) }}>
+      <Box sx={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'flex-end',
+        gap: landlordPortal ? { xs: 0.5, sm: 0.75, xl: 1.25 } : { xs: 1, sm: 2 },
+        flexShrink: 0,
+        ...((landlordPortal || tenantPortal) && { gridArea: 'actions' }),
+        ...(landlordPortal && {
+          ml: { xs: 'auto', lg: 0 },
+          '& > .MuiBox-root': { ml: 0 }
+        })
+      }}>
         {!hasTenantRole && <MobileSearch />}
         <Message />
         <Notification />
         {tenantPortal && (
           <Tooltip title="Support">
             <IconButton component={Link} to="/tenant/help" aria-label="Support" sx={{ color: 'text.primary' }}>
-              <QuestionCircleOutlined aria-hidden="true" />
+              <AppIcon name="help" />
             </IconButton>
           </Tooltip>
         )}
         {!downMD && (
           <>
-            <Divider orientation="vertical" flexItem sx={{ height: 28, alignSelf: 'center', mx: 1, borderColor: 'divider' }} />
+            <Divider orientation="vertical" flexItem sx={{ height: 28, alignSelf: 'center', mx: landlordPortal ? 0.25 : 1, borderColor: 'divider' }} />
             <Profile />
           </>
         )}

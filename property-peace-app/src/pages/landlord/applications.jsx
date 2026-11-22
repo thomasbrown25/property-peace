@@ -15,39 +15,21 @@ import {
   Divider,
   FormControl,
   Grid,
-  IconButton,
   InputAdornment,
   InputLabel,
-  Menu,
   MenuItem,
   OutlinedInput,
   Pagination,
   Select,
   Stack,
   TextField,
-  Tooltip,
   Typography,
   useTheme,
   Alert
 } from '@mui/material';
-import {
-  PlusOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  ClockCircleOutlined,
-  FileTextOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  DownloadOutlined,
-  FilePdfOutlined,
-  ReloadOutlined,
-  SendOutlined,
-  MoreOutlined,
-  SearchOutlined,
-  DownOutlined
-} from '@ant-design/icons';
+import AppIcon from 'components/AppIcon';
+import ActionsDrawer from 'components/drawers/shared/ActionsDrawer';
 import ManagementPageHeader from 'components/headers/ManagementPageHeader';
-import { managementPageHeaderActionSx } from 'components/headers/managementPageHeaderStyles';
 import { useSearchParams } from 'react-router-dom';
 import { useSWRConfig } from 'swr';
 import useAuth from 'hooks/useAuth';
@@ -130,14 +112,26 @@ const normalizeStatus = (status) => {
   return null;
 };
 
+function ApplicationSelectIcon({ className }) {
+  return <AppIcon name="chevronDown" size={16} className={className} />;
+}
+
 function ApplicationRow({ application, getStatusChip, onView, onStatus, onResend, onDelete }) {
   const theme = useTheme();
-  const [anchorEl, setAnchorEl] = useState(null);
   const name = `${application.firstName || ''} ${application.lastName || ''}`.trim() || 'Unnamed applicant';
-  const runAction = (action) => {
-    setAnchorEl(null);
-    action();
-  };
+  const actions = [
+    { label: 'View details', description: 'Review applicant information and screening progress.', icon: 'document', onSelect: () => onView(application) },
+    { label: 'Update status', description: 'Record the next step or decision for this application.', icon: 'edit', onSelect: () => onStatus(application) }
+  ];
+  if (normalizeStatus(application.status) === 8) {
+    actions.push({
+      label: 'Resend invite', description: 'Send the applicant another invitation email.', icon: 'send', onSelect: () => onResend(application)
+    });
+  }
+  actions.push({
+    label: 'Delete application', description: 'Review and confirm removal of this application.', icon: 'trash', destructive: true,
+    onSelect: () => onDelete(application)
+  });
   const handleKeyDown = (event) => {
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
@@ -231,28 +225,13 @@ function ApplicationRow({ application, getStatusChip, onView, onStatus, onResend
       <Box
         sx={{ position: { xs: 'absolute', lg: 'static' }, top: { xs: 12 }, right: { xs: 12 }, display: 'flex', justifyContent: 'center' }}
       >
-        <Tooltip title="Application actions">
-          <IconButton size="small" aria-label={`Actions for ${name}`} onClick={(event) => setAnchorEl(event.currentTarget)}>
-            <MoreOutlined />
-          </IconButton>
-        </Tooltip>
-        <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
-          <MenuItem onClick={() => runAction(() => onView(application))}>View details</MenuItem>
-          <MenuItem onClick={() => runAction(() => onStatus(application))}>
-            <EditOutlined style={{ marginRight: 10 }} />
-            Update status
-          </MenuItem>
-          {normalizeStatus(application.status) === 8 && (
-            <MenuItem onClick={() => runAction(() => onResend(application))}>
-              <SendOutlined style={{ marginRight: 10 }} />
-              Resend invite
-            </MenuItem>
-          )}
-          <MenuItem sx={{ color: 'error.main' }} onClick={() => runAction(() => onDelete(application))}>
-            <DeleteOutlined style={{ marginRight: 10 }} />
-            Delete
-          </MenuItem>
-        </Menu>
+        <ActionsDrawer
+          id={`application-actions-${application.id ?? application.Id}`}
+          title="Application actions"
+          triggerLabel={`Actions for ${name}`}
+          actions={actions}
+          iconOnly
+        />
       </Box>
     </Box>
   );
@@ -898,21 +877,24 @@ export default function ApplicationsPage({ hideHeader = false }) {
           title="Applications"
           description="Review applicants, screening progress, and leasing decisions from one focused workspace."
           actions={
-            <Button
-              variant="contained"
-              color="success"
-              startIcon={<PlusOutlined />}
-              onClick={() => drawer.openApplicationAddDrawer()}
-              sx={managementPageHeaderActionSx}
-            >
-              New application
-            </Button>
+            <ActionsDrawer
+              id="applications-actions"
+              title="Applications actions"
+              actions={[
+                {
+                  label: 'New application',
+                  description: 'Start a rental application or invite an applicant.',
+                  icon: 'document',
+                  onSelect: () => drawer.openApplicationAddDrawer()
+                }
+              ]}
+            />
           }
         />
       )}
 
       {applicationNotFound && (
-        <Alert severity="warning" onClose={() => setApplicationNotFound(false)} sx={{ mb: 2 }}>
+        <Alert severity="warning" icon={<AppIcon name="warning" />} onClose={() => setApplicationNotFound(false)} sx={{ mb: 2 }}>
           The requested application was not found or is not available to this account.
         </Alert>
       )}
@@ -931,7 +913,7 @@ export default function ApplicationsPage({ hideHeader = false }) {
               size="small"
               startAdornment={
                 <InputAdornment position="start">
-                  <SearchOutlined />
+                  <AppIcon name="magnifier" />
                 </InputAdornment>
               }
               sx={{ flex: 1, minWidth: { lg: 245 }, borderRadius: 1.75 }}
@@ -957,7 +939,7 @@ export default function ApplicationsPage({ hideHeader = false }) {
                 value={statusFilter}
                 onChange={(event) => setStatusFilter(event.target.value)}
                 inputProps={{ 'aria-label': 'Filter applications by status' }}
-                IconComponent={DownOutlined}
+                IconComponent={ApplicationSelectIcon}
                 sx={{ minWidth: 160, borderRadius: 1.75 }}
               >
                 <MenuItem value="all">All statuses</MenuItem>
@@ -973,7 +955,7 @@ export default function ApplicationsPage({ hideHeader = false }) {
                 value={sort}
                 onChange={(event) => setSort(event.target.value)}
                 inputProps={{ 'aria-label': 'Sort applications' }}
-                IconComponent={DownOutlined}
+                IconComponent={ApplicationSelectIcon}
                 sx={{ minWidth: 170, borderRadius: 1.75 }}
               >
                 <MenuItem value="newest">Sort: Newest</MenuItem>
@@ -1044,7 +1026,7 @@ export default function ApplicationsPage({ hideHeader = false }) {
         ) : scopedApplications.length === 0 ? (
           <Stack alignItems="center" spacing={1.5} sx={{ py: 7, px: 2, textAlign: 'center' }}>
             <Avatar sx={{ width: 54, height: 54, bgcolor: alpha(theme.palette.success.main, 0.1), color: 'success.main' }}>
-              <FileTextOutlined />
+              <AppIcon name="document" />
             </Avatar>
             <Typography variant="h5" fontWeight={700}>
               Create your first application
@@ -1055,7 +1037,7 @@ export default function ApplicationsPage({ hideHeader = false }) {
             <Button
               variant="contained"
               color="primary"
-              startIcon={<PlusOutlined />}
+              startIcon={<AppIcon name="add" />}
               onClick={() => drawer.openApplicationAddDrawer()}
               sx={{ textTransform: 'none', fontWeight: 700 }}
             >
@@ -1099,6 +1081,7 @@ export default function ApplicationsPage({ hideHeader = false }) {
                 value={itemsPerPage}
                 onChange={(event) => setItemsPerPage(Number(event.target.value))}
                 inputProps={{ 'aria-label': 'Applications per page' }}
+                IconComponent={ApplicationSelectIcon}
                 sx={{ height: 32, minWidth: 70 }}
               >
                 <MenuItem value={10}>10</MenuItem>
@@ -1240,7 +1223,7 @@ export default function ApplicationsPage({ hideHeader = false }) {
                     <Button
                       size="small"
                       variant="outlined"
-                      startIcon={<ReloadOutlined />}
+                      startIcon={<AppIcon name="reopen" />}
                       onClick={handleRefreshBackgroundCheck}
                       disabled={backgroundCheckLoading}
                     >
@@ -1258,7 +1241,7 @@ export default function ApplicationsPage({ hideHeader = false }) {
                         </Typography>
                         <Button
                           variant="contained"
-                          startIcon={<FileTextOutlined />}
+                          startIcon={<AppIcon name="document" />}
                           onClick={() => handleRequestBackgroundCheck(selectedApplication?.id ?? selectedApplication?.Id)}
                           disabled={
                             backgroundCheckLoading ||
@@ -1312,12 +1295,12 @@ export default function ApplicationsPage({ hideHeader = false }) {
                             size="small"
                             icon={
                               selectedApplication.backgroundCheckStatus === 'completed' ? (
-                                <CheckCircleOutlined />
+                                <AppIcon name="checkCircle" />
                               ) : selectedApplication.backgroundCheckStatus === 'in_progress' ||
                                 selectedApplication.backgroundCheckStatus === 'pending' ? (
-                                <ClockCircleOutlined />
+                                <AppIcon name="clock" />
                               ) : selectedApplication.backgroundCheckStatus === 'failed' ? (
-                                <CloseCircleOutlined />
+                                <AppIcon name="close" />
                               ) : null
                             }
                           />
@@ -1347,7 +1330,7 @@ export default function ApplicationsPage({ hideHeader = false }) {
                                     color={selectedApplication.backgroundCheckOverallPass ? 'success' : 'error'}
                                     size="small"
                                     icon={
-                                      selectedApplication.backgroundCheckOverallPass ? <CheckCircleOutlined /> : <CloseCircleOutlined />
+                                      selectedApplication.backgroundCheckOverallPass ? <AppIcon name="checkCircle" /> : <AppIcon name="close" />
                                     }
                                   />
                                 </Box>
@@ -1448,7 +1431,7 @@ export default function ApplicationsPage({ hideHeader = false }) {
                                   <Button
                                     variant="outlined"
                                     size="small"
-                                    startIcon={<FileTextOutlined />}
+                                    startIcon={<AppIcon name="document" />}
                                     href={selectedApplication.backgroundCheckReportUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
@@ -1476,7 +1459,7 @@ export default function ApplicationsPage({ hideHeader = false }) {
                         {/* Failed */}
                         {selectedApplication.backgroundCheckStatus === 'failed' && (
                           <Box sx={{ textAlign: 'center', py: 2 }}>
-                            <CloseCircleOutlined style={{ fontSize: 48, color: '#f44336', marginBottom: 8 }} />
+                            <AppIcon name="close" size={48} style={{ color: '#f44336', marginBottom: 8 }} />
                             <Typography variant="body2" color="error">
                               Background check failed. Please try again or contact support.
                             </Typography>
@@ -1516,7 +1499,7 @@ export default function ApplicationsPage({ hideHeader = false }) {
                 <>
                   <Button
                     variant="outlined"
-                    startIcon={<FilePdfOutlined />}
+                    startIcon={<AppIcon name="document" />}
                     onClick={handleViewPdf}
                     disabled={loading}
                     sx={{ flex: { xs: 1, md: 'initial' } }}
@@ -1525,7 +1508,7 @@ export default function ApplicationsPage({ hideHeader = false }) {
                   </Button>
                   <Button
                     variant="outlined"
-                    startIcon={<DownloadOutlined />}
+                    startIcon={<AppIcon name="downloadDocument" />}
                     onClick={handleDownloadPdf}
                     disabled={loading}
                     sx={{ flex: { xs: 1, md: 'initial' } }}
@@ -1549,7 +1532,7 @@ export default function ApplicationsPage({ hideHeader = false }) {
                 <Button
                   variant="contained"
                   color="success"
-                  startIcon={<SendOutlined />}
+                  startIcon={<AppIcon name="send" />}
                   onClick={() => handleResendInvite(selectedApplication)}
                   disabled={!selectedApplication?.id}
                 >
@@ -1591,6 +1574,7 @@ export default function ApplicationsPage({ hideHeader = false }) {
               <InputLabel id="application-status-label">Status</InputLabel>
               <Select
                 labelId="application-status-label"
+                IconComponent={ApplicationSelectIcon}
                 value={statusUpdate.status ?? ''}
                 onChange={(e) => setStatusUpdate({ ...statusUpdate, status: e.target.value })}
                 label="Status"

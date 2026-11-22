@@ -2,9 +2,9 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import PropTypes from 'prop-types';
 import { useDispatch, useSelector } from 'react-redux';
 import { CSVLink } from 'react-csv';
-import { CalendarOutlined } from '@ant-design/icons';
 import { Alert, alpha, Avatar, Box, Button, CircularProgress, Stack, Typography, useTheme } from '@mui/material';
 
+import AppIcon from 'components/AppIcon';
 import { openSnackbar } from 'api/snackbar';
 import ConfirmationDialog from 'components/dialogs/ConfirmationDialog';
 import TransactionFilterToolbar from 'components/filters/TransactionFilterToolbar';
@@ -448,7 +448,7 @@ export default function UpcomingTab({ propertyId, mutationVersion, onMutation, r
       ) : !loadError && filteredEntries.length === 0 ? (
         <Box role="status" aria-live="polite" sx={{ px: 3, py: 7, textAlign: 'center' }}>
           <Avatar sx={{ width: 52, height: 52, mx: 'auto', bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main' }}>
-            <CalendarOutlined />
+            <AppIcon name="calendar" />
           </Avatar>
           <Typography variant="h6" sx={{ mt: 1.5 }}>
             {hasFilters ? 'No upcoming expenses match these filters' : 'No upcoming expenses are scheduled'}

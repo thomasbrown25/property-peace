@@ -28,7 +28,10 @@ test('single-home lease actions are shown only for long-term units and mixed tab
   assert.match(overview, /<PropertyStory/);
   assert.doesNotMatch(overview, /PropertyMarketRent|PropertyLeasingPipeline/);
   assert.match(actions, /const canCreateLease = hasLongTermUnits \|\| \(units\.length === 0 && isDetachedSingleUnitType\(property\?\.propertyType\)\)/);
-  assert.match(actions, /<MenuItem\s+disabled=\{!canCreateLease\}[^>]*>[\s\S]*?Create a lease\s*<\/MenuItem>/);
+  assert.match(actions, /label: 'Create a lease',\s+description: '[^']+',\s+icon: '\w+',\s+disabled: !canCreateLease/);
+  assert.match(actions, /label: 'Record a payment',\s+description: '[^']+',\s+icon: '\w+',\s+disabled: !hasLongTermUnits/);
+  const actionsDrawer = await read('../../components/drawers/shared/ActionsDrawer.jsx');
+  assert.match(actionsDrawer, /<ListItemButton[^>]*disabled=\{disabled\}/);
   assert.match(actions, /units\.some\(\(?unit\)? => rentalMode\(unit\) !== 'shortTerm'\)/);
   assert.equal(propertyModeLabel({ units: [{ rentalMode: 'shortTerm' }, { rentalMode: 'longTerm' }] }), 'Mixed');
   assert.equal(rentalMode({}), 'longTerm');

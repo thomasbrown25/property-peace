@@ -7,7 +7,6 @@ for (const role of ['tenant', 'landlord']) {
     const source = fs.readFileSync(new URL(`../pages/${role}/messages.jsx`, import.meta.url), 'utf8');
     assert.match(source, /latestConfirmedSentMessageId\(visibleMessages, userId\)/);
     assert.match(source, /String\(message\.id\) === String\(latestSentMessageId\)/);
-    assert.match(source, /CheckCircleOutlined[^>]*color: theme\.palette\.success\.main/);
-    assert.match(source, /aria-label="Message sent"/);
+    assert.match(source, /role="img" aria-label="Message sent"[^>]*color: 'success\.main'[^>]*>\s*<AppIcon name="checkCircle"/);
   });
 }

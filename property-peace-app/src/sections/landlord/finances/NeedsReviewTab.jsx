@@ -2,8 +2,8 @@ import { useCallback, useLayoutEffect, useMemo, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { CSVLink } from 'react-csv';
 import { Alert, alpha, Box, Button, Chip, Skeleton, Stack, Typography, useTheme } from '@mui/material';
-import { CheckCircleOutline, ErrorOutline } from '@mui/icons-material';
 
+import AppIcon from 'components/AppIcon';
 import { buildReviewCsvRows } from 'utils/finances';
 import { formatMoneyCenterDate } from 'utils/moneyCenter';
 
@@ -69,7 +69,7 @@ export default function NeedsReviewTab({ items = [],
       ) : error ? (
         <Alert
           severity="warning"
-          icon={<ErrorOutline />}
+          icon={<AppIcon name="warning" />}
           action={<Button color="inherit" onClick={onRetry}>Try again</Button>}
         >
           <Typography fontWeight={700}>Review records could not be loaded</Typography>
@@ -77,7 +77,7 @@ export default function NeedsReviewTab({ items = [],
         </Alert>
       ) : items.length === 0 ? (
         <Box role="status" aria-live="polite" sx={{ py: { xs: 5, md: 7 }, px: 2, textAlign: 'center' }}>
-          <CheckCircleOutline color="success" sx={{ fontSize: 44 }} />
+          <Box sx={{ color: 'success.main' }}><AppIcon name="checkCircle" size={44} /></Box>
           <Typography variant="h6" sx={{ mt: 1.25 }}>
             {partial ? 'No review records in the loaded subset.' : 'Your books are caught up.'}
           </Typography>

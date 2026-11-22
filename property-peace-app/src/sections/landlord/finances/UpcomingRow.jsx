@@ -1,14 +1,7 @@
 import PropTypes from 'prop-types';
-import {
-  CheckCircleOutlined,
-  ClockCircleOutlined,
-  DeleteOutlined,
-  PauseCircleOutlined,
-  PlayCircleOutlined,
-  ReloadOutlined
-} from '@ant-design/icons';
 import { alpha, Avatar, Box, Chip, IconButton, Stack, Tooltip, Typography, useTheme } from '@mui/material';
 
+import AppIcon from 'components/AppIcon';
 const money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 });
 
 const formatDate = (value) => {
@@ -44,7 +37,7 @@ export default function UpcomingRow({ entry, onRecord, onToggle, onDelete, busy 
     >
       <Stack direction="row" spacing={1.2} alignItems="center" minWidth={0}>
         <Avatar sx={{ width: 38, height: 38, bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main' }}>
-          {recurring ? <ReloadOutlined /> : <ClockCircleOutlined />}
+          {recurring ? <AppIcon name="reopen" /> : <AppIcon name="clock" />}
         </Avatar>
         <Box minWidth={0}>
           <Typography fontWeight={700} noWrap>
@@ -115,7 +108,7 @@ export default function UpcomingRow({ entry, onRecord, onToggle, onDelete, busy 
         <Tooltip title={recordLabel}>
           <span>
             <IconButton size="small" color="success" disabled={busy} aria-label={`${recordLabel}: ${name}`} onClick={() => onRecord(entry)}>
-              {cleanupPending ? <ReloadOutlined /> : <CheckCircleOutlined />}
+              {cleanupPending ? <AppIcon name="reopen" /> : <AppIcon name="checkCircle" />}
             </IconButton>
           </span>
         </Tooltip>
@@ -123,7 +116,7 @@ export default function UpcomingRow({ entry, onRecord, onToggle, onDelete, busy 
           <Tooltip title={toggleLabel}>
             <span>
               <IconButton size="small" disabled={busy} aria-label={`${toggleLabel} for ${name}`} onClick={() => onToggle(entry)}>
-                {entry.isPaused ? <PlayCircleOutlined /> : <PauseCircleOutlined />}
+                {entry.isPaused ? <AppIcon name="playCircle" /> : <AppIcon name="stopCircle" />}
               </IconButton>
             </span>
           </Tooltip>
@@ -131,7 +124,7 @@ export default function UpcomingRow({ entry, onRecord, onToggle, onDelete, busy 
         <Tooltip title={deleteLabel}>
           <span>
             <IconButton size="small" color="error" disabled={busy} aria-label={`${deleteLabel}: ${name}`} onClick={() => onDelete(entry)}>
-              <DeleteOutlined />
+              <AppIcon name="trash" />
             </IconButton>
           </span>
         </Tooltip>

@@ -1,8 +1,6 @@
+import AppIcon from 'components/AppIcon';
 import { useId, useState } from 'react';
 import { Alert, Avatar, Box, Chip, CircularProgress, IconButton, List, ListItem, ListItemButton, Stack, TextField, Typography, alpha, useTheme } from '@mui/material';
-import CloseOutlined from '@ant-design/icons/CloseOutlined';
-import MessageOutlined from '@ant-design/icons/MessageOutlined';
-import SendOutlined from '@ant-design/icons/SendOutlined';
 import { getChatStyles } from 'themes/chatStyles';
 
 export default function TenantNewChat({
@@ -24,7 +22,7 @@ export default function TenantNewChat({
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ px: 2.25, py: 1.5, borderBottom: `1px solid ${messagesDivider}` }}>
         <Typography variant="h6" fontWeight={700}>New message</Typography>
         <IconButton size="small" aria-label="Close new message" onClick={onClose} disabled={isSending}>
-          <CloseOutlined />
+          <AppIcon name="close" />
         </IconButton>
       </Stack>
       <Box sx={{ px: 2.25, py: 1.5, position: 'relative', zIndex: 2, borderBottom: `1px solid ${messagesDivider}`, bgcolor: 'background.paper' }}>
@@ -115,7 +113,7 @@ export default function TenantNewChat({
       </Box>
       <Stack alignItems="center" justifyContent="center" sx={{ flex: 1, minHeight: 0, textAlign: 'center', px: 2, bgcolor: 'background.paper' }}>
         <Box sx={{ width: 82, height: 82, borderRadius: 3, bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main', display: 'grid', placeItems: 'center', mb: 2 }}>
-          <MessageOutlined style={{ fontSize: 38 }} />
+          <AppIcon name="messages" size={38} />
         </Box>
         <Typography variant="h5" fontWeight={700}>You’re starting a new conversation</Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>Type your first message below.</Typography>
@@ -138,7 +136,7 @@ export default function TenantNewChat({
             slotProps={{ htmlInput: { maxLength, 'aria-label': 'First message' } }}
           />
           <IconButton aria-label="Send first message" color="primary" disabled={!landlord || !draft.trim() || isSending} onClick={onSend}>
-            {isSending ? <CircularProgress size={20} /> : <SendOutlined />}
+            {isSending ? <CircularProgress size={20} /> : <AppIcon name="send" />}
           </IconButton>
         </Stack>
       </Box>

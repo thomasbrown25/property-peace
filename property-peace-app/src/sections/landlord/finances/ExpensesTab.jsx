@@ -2,9 +2,9 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import PropTypes from 'prop-types';
 import { useDispatch } from 'react-redux';
 import { CSVLink } from 'react-csv';
-import { DollarOutlined } from '@ant-design/icons';
 import { Alert, alpha, Avatar, Box, Button, CircularProgress, Pagination, Stack, Typography, useMediaQuery, useTheme } from '@mui/material';
 
+import AppIcon from 'components/AppIcon';
 import { openSnackbar } from 'api/snackbar';
 import ConfirmationDialog from 'components/dialogs/ConfirmationDialog';
 import ExpenseEditDrawer from 'components/expense/ExpenseEditDrawer';
@@ -271,7 +271,7 @@ export default function ExpensesTab({
         </Box>
       ) : visibleExpenses.length === 0 ? (
         <Box role="status" aria-live="polite" sx={{ px: 3, py: 7, textAlign: 'center' }}>
-          <Avatar sx={{ width: 52, height: 52, mx: 'auto', bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main' }}><DollarOutlined /></Avatar>
+          <Avatar sx={{ width: 52, height: 52, mx: 'auto', bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main' }}><AppIcon name="dollarCircle" /></Avatar>
           <Typography variant="h6" sx={{ mt: 1.5 }}>{hasClientFilters ? 'No expenses match this view' : 'No expenses in this period'}</Typography>
           <Typography color="text.secondary" sx={{ mt: 0.6, fontSize: '0.84rem' }}>
             {hasClientFilters ? 'Clear or adjust the filters to see more records.' : 'Use the Add menu above to record the first expense in this scope.'}

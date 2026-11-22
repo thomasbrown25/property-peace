@@ -3,35 +3,42 @@ import { useState, useEffect } from 'react';
 import { rentalMode } from 'utils/rentalMode';
 import { Box, Button, Chip, Divider, Grid, LinearProgress, Stack, Typography } from '@mui/material';
 import { alpha } from '@mui/material/styles';
-import { HomeOutlined, EnvironmentOutlined, DollarOutlined } from '@ant-design/icons';
+import { CheckOutlined, EnvironmentOutlined } from '@ant-design/icons';
+import AppIcon from 'components/AppIcon';
 import { getPropertyTypeLabel, formatCurrency } from 'utils/formatters';
 import { calculateNextPaymentDate, getNextDueDate } from 'utils/helper-methods';
+import { isDetachedSingleUnitType } from 'utils/propertyType';
 import { useDrawer } from 'contexts/DrawerContext';
-import { propertyHeaderMetrics } from './propertyHeaderMetrics.mjs';
+import { formatLeasedRent, getNextBillingDueDate, getPropertyBillingDueByLease, getPropertyBillingProgress, getPropertyBillingRentDue, getRentLease, propertyHeaderMetrics } from './propertyHeaderMetrics.mjs';
 
 const photoChipSx = {
   bgcolor: (theme) => alpha(theme.palette.brand.forest, 0.88),
   color: 'common.white',
-  fontWeight: 700,
-  '& .MuiChip-icon': { color: 'brand.mint' }
+  fontWeight: 700
 };
 const dateLabel = (value) =>
   value ? new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'No active lease';
 
 // Show the earliest upcoming rent date across the property's long-term leases.
-const nextRentDueDate = (units) => {
+const nextRentDueDate = (leases, billingDueByLease) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const dates = units.flatMap((unit) => {
-    const lease = unit.lease ?? unit.Lease;
-    if (!lease || lease.isActive === false || lease.IsActive === false) return [];
+  const dates = leases.flatMap((lease) => {
     const start = lease.startDate ?? lease.StartDate;
     if (!start) return [];
-    const frequency = lease.rentFrequency ?? lease.RentFrequency ?? 'Monthly';
+    const frequency = String(lease.rentFrequency ?? lease.RentFrequency ?? 'Monthly').trim().toLowerCase() || 'monthly';
     const dueDay = lease.rentDueDay ?? lease.RentDueDay ?? 1;
-    const next = String(frequency).toLowerCase() === 'monthly'
-      ? calculateNextPaymentDate(start, dueDay, lease.endDate ?? lease.EndDate)
-      : getNextDueDate(start, frequency, dueDay);
+    const billingDate = getNextBillingDueDate(lease, today);
+    const leaseId = String(lease.id ?? lease.Id);
+    if ((frequency === 'monthly' || billingDate !== undefined) && billingDueByLease.has(leaseId)) {
+      const { date: unpaidDate } = billingDueByLease.get(leaseId);
+      return unpaidDate ? [new Date(`${unpaidDate}T12:00:00`)] : [];
+    }
+    const next = billingDate !== undefined
+      ? billingDate
+      : frequency === 'monthly'
+        ? calculateNextPaymentDate(start, dueDay, lease.endDate ?? lease.EndDate)
+        : getNextDueDate(start, frequency, dueDay);
     if (!next) return [];
     const date = typeof next === 'string' ? new Date(`${next}T12:00:00`) : next;
     const end = lease.endDate ?? lease.EndDate;
@@ -72,8 +79,11 @@ export default function PropertyHeader({ property, rentRecords = [], rentLoading
 
   const units = property?.units ?? property?.Units ?? [];
   const longTermUnits = units.filter((unit) => rentalMode(unit) !== 'shortTerm');
-  const nextDue = nextRentDueDate(longTermUnits);
+  const rentLeases = longTermUnits.map(getRentLease).filter(Boolean);
+  const billingDueByLease = getPropertyBillingDueByLease(rentRecords, propertyId);
+  const nextDue = nextRentDueDate(rentLeases, billingDueByLease);
   const hasLongTermUnits = longTermUnits.length > 0;
+  const hasRentLease = rentLeases.length > 0;
   const firstUnit = units[0];
   const firstLease = firstUnit?.lease ?? firstUnit?.Lease;
   const tenants = firstLease?.tenants ?? firstLease?.Tenants ?? [];
@@ -82,17 +92,20 @@ export default function PropertyHeader({ property, rentRecords = [], rentLoading
     ? `${primaryTenant.firstname || primaryTenant.Firstname || ''} ${primaryTenant.lastname || primaryTenant.Lastname || ''}`.trim()
     : null;
   const { occupiedUnits } = getPropertyOccupancy(property);
-  const { expected, collected, remaining, dueAmount, percent, overduePercent, scheduledRent, pastDue } = propertyHeaderMetrics(rentRecords, propertyId);
+  const monthly = propertyHeaderMetrics(rentRecords, propertyId);
+  const billingProgress = getPropertyBillingProgress(rentRecords, propertyId);
+  const { expected, collected, remaining, percent } = billingProgress ?? monthly;
+  const { dueAmount, overduePercent, pastDue } = monthly;
+  const period = billingProgress?.period ?? 'month';
   const collectionAvailable = !rentLoading && !rentError && propertyId != null;
-  const showingOverdue = collectionAvailable && overduePercent < 0;
+  const paidInFull = collectionAvailable && hasRentLease && rentLeases.every((lease) =>
+    billingDueByLease.get(String(lease.id ?? lease.Id))?.paidInFull);
+  const nextDueLabel = nextDue ? dateLabel(nextDue) : paidInFull ? 'Paid in full' : hasRentLease ? '—' : 'No lease';
+  const billingRentDue = getPropertyBillingRentDue(rentRecords, propertyId);
+  const rentPaid = collectionAvailable && billingRentDue === 0;
+  const showingOverdue = collectionAvailable && !billingProgress && overduePercent < 0;
   const progressPercent = showingOverdue ? overduePercent : percent;
   const collectionValue = (value) => (collectionAvailable ? formatCurrency(value) : '—');
-  const monthlyRent =
-    scheduledRent ||
-    longTermUnits.reduce((sum, unit) => {
-      const lease = unit.lease ?? unit.Lease;
-      return sum + (Number(lease?.rentAmount ?? lease?.RentAmount ?? unit.rentAmount ?? unit.RentAmount) || 0);
-    }, 0);
   const title = property?.name?.trim() || property?.streetAddress || 'Property';
   const address = [
     property?.streetAddress?.split(',')[0]?.trim(),
@@ -106,7 +119,12 @@ export default function PropertyHeader({ property, rentRecords = [], rentLoading
   const sqft = firstUnit?.squareFeet ?? firstUnit?.SquareFeet;
   const yearBuilt = property?.yearBuilt ?? property?.YearBuilt;
   const isSingle = units.length <= 1;
-  const monthLabel = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  const propertyType = property?.propertyType ?? property?.PropertyType;
+  const propertyIcon = isDetachedSingleUnitType(propertyType) ? 'house' : 'properties';
+  const isSingleFamily = String(propertyType ?? '').toLowerCase().replace(/[^a-z0-9]/g, '') === 'singlefamily';
+  const collectionPeriodLabel = billingProgress
+    ? `Current ${period}`
+    : new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
   return (
     <Box>
@@ -144,9 +162,15 @@ export default function PropertyHeader({ property, rentRecords = [], rentLoading
             <Stack justifyContent="space-between" sx={{ position: 'relative', height: '100%', minHeight: 300, boxSizing: 'border-box', p: { xs: 2, sm: 2.5 } }}>
               <Chip
                 size="small"
-                icon={<HomeOutlined />}
-                label={getPropertyTypeLabel(property?.propertyType) || 'Property'}
-                sx={{ ...photoChipSx, alignSelf: 'flex-start' }}
+                icon={<AppIcon name={propertyIcon} size={18} />}
+                label={getPropertyTypeLabel(propertyType) || 'Property'}
+                sx={{
+                  alignSelf: 'flex-start',
+                  height: 30,
+                  px: 0.5,
+                  fontWeight: 700,
+                  '&.MuiChip-filledDefault': { bgcolor: 'brand.forest', color: 'common.white' }
+                }}
               />
               <Box>
                 <Typography
@@ -167,12 +191,14 @@ export default function PropertyHeader({ property, rentRecords = [], rentLoading
                     Tenant · {tenantName}
                   </Typography>
                 )}
-                <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mt: 1.5 }}>
-                  {isSingle && beds != null && <Chip size="small" label={`${beds} beds`} sx={photoChipSx} />}
-                  {isSingle && baths != null && <Chip size="small" label={`${baths} baths`} sx={photoChipSx} />}
-                  {isSingle && sqft > 0 && <Chip size="small" label={`${Number(sqft).toLocaleString()} sqft`} sx={photoChipSx} />}
-                  {yearBuilt > 0 && <Chip size="small" label={`Built ${yearBuilt}`} sx={photoChipSx} />}
-                </Stack>
+                {!isSingleFamily && (
+                  <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mt: 1.5 }}>
+                    {isSingle && beds != null && <Chip size="small" label={`${beds} beds`} sx={photoChipSx} />}
+                    {isSingle && baths != null && <Chip size="small" label={`${baths} baths`} sx={photoChipSx} />}
+                    {isSingle && sqft > 0 && <Chip size="small" label={`${Number(sqft).toLocaleString()} sqft`} sx={photoChipSx} />}
+                    {yearBuilt > 0 && <Chip size="small" label={`Built ${yearBuilt}`} sx={photoChipSx} />}
+                  </Stack>
+                )}
               </Box>
             </Stack>
           </Box>
@@ -182,19 +208,26 @@ export default function PropertyHeader({ property, rentRecords = [], rentLoading
             <Stack spacing={1.5}>
               <Box>
                 <Stack spacing={1.5}>
-                  <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2}>
-                    <Box>
-                      <Typography
-                        variant="caption"
-                        sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.7 }}
-                      >
-                        Monthly rent
+                  <Stack direction="row" alignItems="center" spacing={1.5}>
+                    <Box
+                      aria-hidden="true"
+                      sx={{
+                        width: 48,
+                        height: 48,
+                        display: 'grid',
+                        placeItems: 'center',
+                        color: 'brand.teal',
+                        flexShrink: 0
+                      }}
+                    >
+                      <AppIcon name="moneys" size={26} />
+                    </Box>
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.7 }}>
+                        Due amount
                       </Typography>
-                      <Typography variant="h3" fontWeight={900} sx={{ color: 'text.primary', lineHeight: 1.1 }}>
-                        {monthlyRent > 0 ? formatCurrency(monthlyRent) : '—'}
-                        <Typography component="span" variant="h6" sx={{ color: 'text.secondary', ml: 0.5 }}>
-                          /mo
-                        </Typography>
+                      <Typography variant="h3" fontWeight={900} sx={{ color: 'text.primary', lineHeight: 1.1, overflowWrap: 'anywhere' }}>
+                        {collectionValue(billingRentDue ?? dueAmount)}
                       </Typography>
                       {!hasLongTermUnits && (
                         <Typography variant="caption" sx={{ color: 'text.secondary' }}>
@@ -202,27 +235,13 @@ export default function PropertyHeader({ property, rentRecords = [], rentLoading
                         </Typography>
                       )}
                     </Box>
-                    <Box
-                      sx={{
-                        width: 48,
-                        height: 48,
-                        borderRadius: 2.5,
-                        display: 'grid',
-                        placeItems: 'center',
-                        bgcolor: 'brand.ivory',
-                        color: 'brand.teal',
-                        flexShrink: 0
-                      }}
-                    >
-                      <DollarOutlined style={{ fontSize: 22 }} />
-                    </Box>
                   </Stack>
                   <Divider />
                   <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 1.5 }}>
-                    <SummaryFact label="Remaining this month" value={collectionValue(remaining)} />
-                    <SummaryFact label="Collected this month" value={collectionValue(collected)} />
-                    <SummaryFact label="Next due date" value={nextDue ? dateLabel(nextDue) : '—'} />
-                    <SummaryFact label="Due amount" value={collectionValue(dueAmount)} />
+                    <SummaryFact label={`Remaining this ${period}`} value={collectionValue(remaining)} />
+                    <SummaryFact label={`Collected this ${period}`} value={collectionValue(collected)} />
+                    <SummaryFact label="Next due date" value={nextDueLabel} />
+                    <SummaryFact label="Leased rent" value={hasRentLease ? formatLeasedRent(longTermUnits) : 'No lease'} />
                     <SummaryFact
                       label={isSingle ? 'Lease start' : 'Units'}
                       value={isSingle ? dateLabel(firstLease?.startDate ?? firstLease?.StartDate) : String(units.length)}
@@ -235,14 +254,14 @@ export default function PropertyHeader({ property, rentRecords = [], rentLoading
                   <Box>
                     <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1} sx={{ mb: 0.75 }}>
                       <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                        Rent collection · {monthLabel}
+                        Rent collection · {collectionPeriodLabel}
                       </Typography>
                       <Typography variant="caption" fontWeight={800} sx={{ color: showingOverdue ? 'error.main' : 'text.primary' }}>
                         {collectionAvailable && (expected > 0 || showingOverdue) ? `${Math.round(progressPercent)}%` : '—'}
                       </Typography>
                     </Stack>
                     <LinearProgress
-                      aria-label={`Rent collection for ${monthLabel}`}
+                      aria-label={`Rent collection for ${collectionPeriodLabel}`}
                       variant={rentLoading ? 'indeterminate' : 'determinate'}
                       value={collectionAvailable ? Math.abs(progressPercent) : 0}
                       sx={{
@@ -252,22 +271,30 @@ export default function PropertyHeader({ property, rentRecords = [], rentLoading
                         '& .MuiLinearProgress-bar': { borderRadius: 999, bgcolor: showingOverdue ? 'error.main' : 'brand.teal' }
                       }}
                     />
-                    <Typography variant="caption" sx={{ display: 'block', mt: 1, color: 'text.secondary' }}>
-                      {rentLoading
-                        ? 'Loading rent collection…'
-                        : rentError || propertyId == null
-                          ? 'Rent collection is unavailable.'
-                          : showingOverdue
-                            ? `${formatCurrency(pastDue)} overdue · ${formatCurrency(collected)} of ${formatCurrency(expected)} collected this month`
-                            : expected > 0
-                              ? `${formatCurrency(collected)} of ${formatCurrency(expected)} collected`
-                              : 'No rent scheduled for this month.'}
-                    </Typography>
+                    <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mt: 1, gap: 1 }}>
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                        {rentLoading
+                          ? 'Loading rent collection…'
+                          : rentError || propertyId == null
+                            ? 'Rent collection is unavailable.'
+                            : showingOverdue
+                              ? `${formatCurrency(pastDue)} overdue · ${formatCurrency(collected)} of ${formatCurrency(expected)} collected this month`
+                              : expected > 0
+                                ? `${formatCurrency(collected)} of ${formatCurrency(expected)} collected`
+                                : `No rent scheduled for this ${period}.`}
+                      </Typography>
+                      {rentPaid && (
+                        <Stack direction="row" alignItems="center" spacing={0.5} sx={{ color: 'success.main', flexShrink: 0 }}>
+                          <CheckOutlined aria-hidden="true" />
+                          <Typography variant="body2" fontWeight={700}>Paid</Typography>
+                        </Stack>
+                      )}
+                    </Stack>
                   </Box>
                   {hasLongTermUnits && (
                     <Button
                       variant="contained"
-                      startIcon={<DollarOutlined />}
+                      startIcon={<AppIcon name="dollarCircle" />}
                       onClick={() => drawer.openPaymentAddDrawer({ property: property || { id: propertyId } })}
                       sx={{ alignSelf: 'flex-start', textTransform: 'none' }}
                     >

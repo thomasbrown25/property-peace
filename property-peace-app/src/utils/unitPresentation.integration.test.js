@@ -21,7 +21,7 @@ test('unit drawer exposes one prominent lease-page action and closes before navi
 
   assert.match(drawer, /getLeasePagePath/);
   assert.match(drawer, /const handleOpenLease = \(\) =>/);
-  assert.match(drawer, /onClose\(\);\s*navigate\(leasePagePath\)/);
+  assert.match(drawer, /onClose\(\);\s*openLeaseWithPropertyHistory\(navigate, location, propertyId, leasePagePath\)/);
   assert.match(drawer, />\s*Open lease page\s*</);
   assert.equal((drawer.match(/onClick=\{handleOpenLease\}/g) || []).length, 1);
   assert.doesNotMatch(drawer, /View lease document/);

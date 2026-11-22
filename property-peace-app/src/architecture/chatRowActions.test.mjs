@@ -6,14 +6,19 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const page = fs.readFileSync(path.join(root, 'pages/landlord/messages.jsx'), 'utf8');
+const tenantPage = fs.readFileSync(path.join(root, 'pages/tenant/messages.jsx'), 'utf8');
+const rowActions = fs.readFileSync(path.join(root, 'components/conversation/ChatRowActions.jsx'), 'utf8');
 const controller = fs.readFileSync(path.resolve(root, '../../property-peace-api/Controllers/MessageController.cs'), 'utf8');
 const row = page.split('const renderConversationItem =')[1]?.split('const snapshotActionButtonSx')[0] ?? '';
 
 test('chat rows are compact with small avatars and keyboard-accessible hover actions', () => {
   assert.match(row, /width: 30, height: 30/);
-  assert.match(row, /aria-label=\{`Actions for \$\{tenantName\}`\}/);
+  assert.match(row, /<ChatRowActions[\s\S]*?name=\{tenantName\}/);
+  assert.match(rowActions, /triggerLabel=\{`Actions for \$\{name\}`\}/);
   assert.match(row, /focus-within/);
-  assert.match(row, /stopPropagation\(\)/);
+  assert.match(tenantPage, /focus-within/);
+  assert.match(row, /<\/ListItemButton>\s*<ChatRowActions/);
+  assert.match(tenantPage, /<\/ListItemButton>\s*<ChatRowActions/);
 });
 
 test('both chat lists give the avatar unread badge enough vertical clearance', () => {
@@ -25,14 +30,15 @@ test('both chat lists give the avatar unread badge enough vertical clearance', (
   }
 });
 
-test('row menu targets its own conversation and offers mark unread and archive without a white outline', () => {
-  assert.match(page, /rowActionConversation/);
-  assert.match(page, /Mark as unread/);
-  assert.match(page, /handleRowMarkUnread/);
-  assert.match(page, /handleRowArchive/);
+test('both row drawers target their own conversation and archive is available only in the landlord inbox', () => {
+  assert.match(rowActions, /label: 'Mark as unread',\s*description: '[^']+',\s*icon: 'messages'/);
+  assert.match(rowActions, /<ActionsDrawer[^>]*iconOnly/);
+  assert.match(row, /onMarkUnread=\{\(\) => handleRowMarkUnread\(conversation\.id\)\}/);
+  assert.match(tenantPage, /onMarkUnread=\{\(\) => handleMarkUnread\(conversation\.id\)\}/);
+  assert.match(row, /onArchive=\{conversation\.isArchived \? undefined : \(\) => handleRowArchive\(conversation\.id\)\}/);
+  assert.doesNotMatch(tenantPage, /onArchive=/);
   assert.match(page, /archiveConversation\(conversationId, true\)/);
   assert.match(page, /conversation\/\$\{conversationId\}\/unread/);
-  assert.match(page, /outline: 'none'/);
 });
 
 test('mark unread endpoint is scoped to the current participant and marks only that reader unread', () => {

@@ -64,9 +64,9 @@ test('timeline connector remains a one-pixel line instead of expanding across th
   assert.doesNotMatch(panel, /className="timeline-connector"[\s\S]*width: 1,/);
 });
 
-test('landlord maintenance details consolidate activity into expanded maintenance history', async () => {
+test('landlord maintenance details give the request history a dedicated section', async () => {
   const maintenance = await source('pages/landlord/maintenance.jsx');
-  assert.match(maintenance, /<ConversationTimelinePanel[\s\S]*contextKind="maintenance"[\s\S]*title="Maintenance history"[\s\S]*defaultExpanded/);
+  assert.match(maintenance, /<ConversationTimelinePanel\s+contextKind="maintenance"\s+contextId=\{Number\(maintenanceId\)\}\s+title="Maintenance history"\s+standalone\s+refreshKey=\{request.updatedAtUtc\}/);
   assert.doesNotMatch(maintenance, /Explicit maintenance actions/);
   assert.doesNotMatch(maintenance, /WORKFLOW HISTORY/);
 });

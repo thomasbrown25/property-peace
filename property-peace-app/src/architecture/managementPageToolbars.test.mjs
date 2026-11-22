@@ -81,7 +81,7 @@ test('core management controls are bare and separate from their result surfaces'
     source('../pages/landlord/announcements.jsx')
   ]);
   const expectations = [
-    ['maintenance-filters', 'maintenance-table', 'Search requests, properties, vendors...'],
+    ['maintenance-filters', 'maintenance-table', 'Search maintenance requests'],
     ['property-filters', 'property-table', 'Search properties, addresses, or units'],
     ['vendor-filters', 'vendor-table', 'Search vendors, categories, contact details, or location'],
     ['team-filters', 'team-table', 'Search team members, emails, or roles'],
@@ -92,8 +92,25 @@ test('core management controls are bare and separate from their result surfaces'
     expectBareFiltersBeforeTable(pages[index], filterId, tableId, placeholder);
   });
 
-  assert.match(pages[0], /color="success"[\s\S]{0,300}New request/);
+  assert.match(pages[0], /color="primary"[\s\S]{0,300}sx=\{creationActionSx\}>New request/);
   assert.match(pages[1], /PropertyCsvImportButton[\s\S]{0,180}managementPageHeaderActionSx/);
+});
+
+test('maintenance uses a transparent header without breadcrumbs and shares the property list table styles', async () => {
+  const [maintenance, properties] = await Promise.all([
+    source('../pages/landlord/maintenances.jsx'),
+    source('../pages/landlord/properties.jsx')
+  ]);
+
+  assert.match(maintenance, /component="header"[\s\S]*?bgcolor: 'transparent'[\s\S]*?variant="h3"/);
+  assert.doesNotMatch(maintenance, /PageBreadcrumbs/);
+  for (const page of [maintenance, properties]) {
+    assert.match(page, /const tableStyles = getManagementGridTableStyles\(theme\)/);
+    assert.match(page, /data-testid="(?:property|maintenance)-table" sx=\{tableStyles.container\}/);
+    assert.match(page, /sx=\{\{ \.\.\.tableStyles.header, gridTemplateColumns:/);
+    assert.match(page, /sx=\{tableStyles.heading\}/);
+    assert.match(page, /rowSx=\{tableStyles.row\}/);
+  }
 });
 
 test('finance tab controls are bare and separate from finance result surfaces', async () => {

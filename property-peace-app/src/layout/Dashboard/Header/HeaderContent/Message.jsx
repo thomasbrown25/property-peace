@@ -18,8 +18,7 @@ import useSignalRConversations from 'hooks/useSignalRConversations';
 import axiosServices from 'utils/axios';
 
 // assets
-import CommentOutlined from '@ant-design/icons/CommentOutlined';
-import CustomerServiceOutlined from '@ant-design/icons/CustomerServiceOutlined';
+import AppIcon from 'components/AppIcon';
 
 // ==============================|| HEADER CONTENT - MESSAGES ||============================== //
 
@@ -168,7 +167,7 @@ export default function Message() {
           onClick={handleClick}
         >
           <Badge badgeContent={unreadCount > 0 ? unreadCount : 0} color="primary" max={99} showZero={false}>
-            {isAdmin ? <CustomerServiceOutlined /> : <CommentOutlined />}
+            <AppIcon name={isAdmin ? 'support' : 'chatBubbles'} />
           </Badge>
         </IconButton>
       </Tooltip>

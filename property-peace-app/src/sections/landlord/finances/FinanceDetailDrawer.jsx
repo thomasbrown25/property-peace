@@ -1,7 +1,7 @@
 import PropTypes from 'prop-types';
 import { Alert, Box, Chip, Drawer, IconButton, Stack, Typography } from '@mui/material';
-import { Close } from '@mui/icons-material';
 
+import AppIcon from 'components/AppIcon';
 import { formatMoneyCenterDate } from 'utils/moneyCenter';
 
 const money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
@@ -43,7 +43,7 @@ export default function FinanceDetailDrawer({ item, onClose }) {
               <Typography variant="overline" color="text.secondary">Source record</Typography>
               <Typography id="finance-detail-title" variant="h4" noWrap>{item.description || item.category || 'Financial record'}</Typography>
             </Box>
-            <IconButton onClick={onClose} aria-label="Close finance detail"><Close /></IconButton>
+            <IconButton onClick={onClose} aria-label="Close finance detail"><AppIcon name="close" /></IconButton>
           </Stack>
 
           <Stack spacing={2.1} sx={{ mt: 3 }}>

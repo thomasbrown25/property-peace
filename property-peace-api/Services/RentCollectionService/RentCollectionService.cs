@@ -201,6 +201,9 @@ namespace brownstone_hub_api.Services.RentCollectionService
                     var periodExpected = historical ? RentCalculator.ExpectedForLease(l, startOfMonth, endOfMonth) : 0m;
                     var periodCollected = historical ? RentCalculator.CollectedForPeriod(l, leasePaymentList, startOfMonth, endOfMonth) : 0m;
                     var periodRemaining = Math.Max(0m, periodExpected - periodCollected);
+                    var currentBillingPeriod = startOfMonth == currentMonth
+                        ? RentCalculator.GetCurrentBillingPeriodRent(l, leasePaymentList, localToday)
+                        : null;
 
                     // total finalized payments made for this lease (all payments are rent payments)
                     var leasePayments = leasePaymentList
@@ -234,6 +237,8 @@ namespace brownstone_hub_api.Services.RentCollectionService
                         RentAmount = l.RentAmount ?? 0m,
                         CurrentMonthExpected = RentCalculator.ExpectedForLease(l, startOfMonth, endOfMonth),
                         CurrentMonthCollected = RentCalculator.CollectedForPeriod(l, leasePaymentList, startOfMonth, endOfMonth),
+                        CurrentBillingPeriodRentDue = currentBillingPeriod?.Due,
+                        CurrentBillingPeriod = currentBillingPeriod,
                         DueDate = l.NextDueDate ?? DateTime.UtcNow,
                         LeaseId = l.Id,
                         OverdueAmount = rentBalance.OverdueAmount,

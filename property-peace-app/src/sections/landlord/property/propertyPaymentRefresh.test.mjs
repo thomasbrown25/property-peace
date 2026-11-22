@@ -38,10 +38,10 @@ const balanceEffect = extract('../../../pages/landlord/property.jsx', n => n.typ
 function saveHandler(response, reject = false) {
   let notifications = 0;
   const errors = [];
-  const handler = new Function('selectedLease', 'paymentData', 'user', 'axiosServices',
+  const handler = new Function('selectedLease', 'selectedTenant', 'paymentData', 'user', 'axiosServices',
     'formatLocalDateTime', 'setLoading', 'setError', 'setLatestRentRecord', 'setIsComplete', 'openSnackbar', 'onSuccess',
     `return ${code(submit)}`)(
-    { id: 11 }, { amount: 690, paymentDate: new Date() }, { id: 1 },
+    { id: 11 }, { id: 23 }, { amount: 690, paymentDate: new Date() }, { id: 1 },
     { post: async () => { if (reject) throw new Error('Network failure'); return response; } },
     () => '2026-11-07T10:00:00', () => {}, value => errors.push(value), () => {}, () => {}, () => {},
     () => { notifications++; }
@@ -52,6 +52,7 @@ function saveHandler(response, reject = false) {
 test('successful payment save emits refresh immediately, not only when drawer closes', async () => {
   const h = saveHandler({ data: { success: true, data: { rentDue: 0 } } });
   await h.handler();
+  assert.deepEqual(h.errors, [null]);
   assert.equal(h.notifications, 1);
   await h.handler();
   assert.equal(h.notifications, 2, 'Record Another must also refresh');
@@ -63,24 +64,57 @@ test('failed payment saves do not emit a success refresh', async () => {
     const h = saveHandler({ data: { success: false, message: 'Rejected' } }, reject);
     await h.handler();
     assert.equal(h.notifications, 0);
-    assert.ok(h.errors.some(Boolean));
+    assert.deepEqual(h.errors, [null, reject ? 'Network failure' : 'Rejected']);
   }
 });
 
-test('each finance mutation refetches canonical balances used by hero and overdue status', () => {
+test('each finance mutation refetches the property header balance once without waiting for drawer close', () => {
   const deps = balanceEffect.arguments[1].elements.map(code).join(' ');
   assert.match(deps, /drawer\.financeMutationVersion/);
   assert.match(deps, /refetchRentCollection/);
   let calls = 0;
-  for (const version of [0, 1, 2]) {
-    new Function('drawer', 'refetchRentCollection', `return (${code(balanceEffect.arguments[0])})();`)(
-      { financeMutationVersion: version }, () => { calls++; });
-    assert.equal(calls, version);
+  const lastFinanceMutationVersion = { current: 3 };
+  for (const [version, expectedCalls] of [[3, 0], [4, 1], [4, 1], [5, 2]]) {
+    new Function('drawer', 'refetchRentCollection', 'lastFinanceMutationVersion', `return (${code(balanceEffect.arguments[0])})();`)(
+      { financeMutationVersion: version, isOpenPaymentAdd: true }, () => { calls++; }, lastFinanceMutationVersion);
+    assert.equal(calls, expectedCalls);
   }
   const page = source('../../../pages/landlord/property.jsx');
-  assert.match(page, /refetch:\s*refetchRentCollection\s*}\s*=\s*useFetchRentCollection\(propertyId\)/);
+  assert.match(page, /refetch:\s*refetchRentCollection\s*}\s*=\s*usePropertyRentCollection\(propertyId\)/);
   assert.match(page, /<PropertyHeader[\s\S]*?rentRecords=\{rentRecords\}/);
-  assert.match(page, /<PropertyRecordsTabs[\s\S]*?rentRecords=\{rentRecords\}/);
+  assert.doesNotMatch(page, /<PropertyRecordsTabs[^>]*rentRecords=\{rentRecords\}/);
+});
+
+test('property balance requests and refreshes are scoped to the active organization and route property', async () => {
+  const path = '../../../hooks/usePropertyRentCollection.js';
+  const fetchNode = extract(path, n => n.type === 'VariableDeclarator' && n.id.name === 'fetchPropertyRentCollection').init;
+  const requests = [];
+  const records = [{ propertyId: 7, leaseId: 11, currentBillingPeriodRentDue: 0 }];
+  const fetchBalance = new Function('axiosServices', `return ${code(fetchNode)}`)({
+    get: async (...args) => { requests.push(args); return { data: { data: { rentRecords: records } } }; }
+  });
+  const hookNode = extract(path, n => n.type === 'FunctionDeclaration' && n.id.name === 'usePropertyRentCollection');
+  const keys = [];
+  const mutate = () => {};
+  let organizationId = 19;
+  const usePropertyRentCollection = new Function('useSelector', 'getActiveOrganizationId', 'useSWR', 'fetchPropertyRentCollection',
+    `return ${code({ ...hookNode, type: 'FunctionExpression' })}`)(
+    select => select({ auth: { user: { organizationId } } }), user => user.organizationId,
+    (key, fetcher) => { keys.push(key); assert.equal(fetcher, fetchBalance); return { data: { rentRecords: records }, mutate }; }, fetchBalance
+  );
+
+  const balance = usePropertyRentCollection(7);
+  assert.equal(balance.refetch, mutate);
+  assert.equal(balance.rentRecords, records);
+  assert.deepEqual(await fetchBalance(keys[0]), { rentRecords: records });
+  assert.deepEqual(requests, [['/api/rent-collection', { headers: { 'X-Organization-Id': '19' }, params: { propertyId: '7', lifetime: false } }]]);
+  usePropertyRentCollection(8);
+  organizationId = 20;
+  usePropertyRentCollection(7);
+  usePropertyRentCollection(null);
+  assert.deepEqual(keys, [
+    ['/api/rent-collection', 19, '7'], ['/api/rent-collection', 19, '8'], ['/api/rent-collection', 20, '7'], null
+  ]);
 });
 
 test('payment list refetches after mutation and ignores aborted old-property responses', async () => {

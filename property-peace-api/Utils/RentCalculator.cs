@@ -106,6 +106,110 @@ namespace brownstone_hub_api.Utils
             return Math.Round(total, 2, MidpointRounding.ToEven);
         }
 
+        /// <summary>Rent expected and collected in the active billing period, with unpaid rent through that period.</summary>
+        public static BillingPeriodRentDto? GetCurrentBillingPeriodRent(LoadLeaseDto lease, IEnumerable<LoadPaymentDto> payments, DateTime today)
+        {
+            today = today.Date;
+            if (!lease.IsActive || lease.StartDate is not { } start || lease.EndDate is not { } end ||
+                lease.RentAmount is not > 0m || today < start.Date || today > end.Date)
+                return null;
+
+            start = start.Date;
+            var endExclusive = end.Date.AddDays(1);
+            var frequency = (lease.RentFrequency ?? "Monthly").Trim().ToLowerInvariant();
+            var cycleDays = frequency switch
+            {
+                "daily" => 1,
+                "weekly" => 7,
+                "biweekly" or "bi-weekly" or "fortnightly" => 14,
+                _ => 0
+            };
+            var cycleMonths = frequency switch
+            {
+                "quarterly" => 3,
+                "yearly" or "annually" => 12,
+                _ => 0
+            };
+
+            decimal expected;
+            decimal priorExpected;
+            string period;
+            var cycleIndex = 0;
+            if (cycleDays > 0)
+            {
+                cycleIndex = (today - start).Days / cycleDays;
+                var nextCycle = (cycleIndex + 1) * cycleDays;
+                expected = lease.RentAmount.Value * (Min(start.AddDays(nextCycle), endExclusive) - start).Days / cycleDays;
+                priorExpected = lease.RentAmount.Value * (nextCycle / cycleDays - 1);
+                period = cycleDays == 7 ? "week" : cycleDays == 1 ? "day" : "billing period";
+            }
+            else if (cycleMonths > 0)
+            {
+                var elapsedMonths = (today.Year - start.Year) * 12 + today.Month - start.Month;
+                cycleIndex = elapsedMonths / cycleMonths;
+                if (start.AddMonths(cycleIndex * cycleMonths) > today) cycleIndex--;
+                var periodStart = start.AddMonths(cycleIndex * cycleMonths);
+                var periodEnd = start.AddMonths((cycleIndex + 1) * cycleMonths);
+                expected = lease.RentAmount.Value * (cycleIndex + (decimal)(Min(periodEnd, endExclusive) - periodStart).Days / (periodEnd - periodStart).Days);
+                priorExpected = lease.RentAmount.Value * cycleIndex;
+                period = cycleMonths == 12 ? "year" : "quarter";
+            }
+            else
+            {
+                var month = new DateTime(today.Year, today.Month, 1);
+                expected = ExpectedForLease(lease, start, month.AddMonths(1));
+                priorExpected = ExpectedForLease(lease, start, month);
+                period = "month";
+            }
+
+            var credits = RentBalanceCreditingPayments(payments).Where(payment => payment.LeaseId == lease.Id).Sum(payment => payment.Amount);
+            var totalExpected = Math.Round(expected, 2, MidpointRounding.ToEven);
+            var prior = Math.Round(priorExpected, 2, MidpointRounding.ToEven);
+            var periodExpected = totalExpected - prior;
+            var periodCollected = Math.Clamp(credits - prior, 0m, periodExpected);
+            DateOnly? nextUnpaidDueDate = null;
+            var paidInFull = false;
+            if (period == "month")
+                (nextUnpaidDueDate, paidInFull) = FindNextUnpaidMonthlyDueDate(lease, start, endExclusive, today, priorExpected, credits);
+            else if (cycleDays >= 7 || cycleMonths == 12)
+                (nextUnpaidDueDate, paidInFull) = FindNextUnpaidBillingDueDate(start, endExclusive, today, cycleIndex, cycleDays, cycleMonths, lease.RentAmount.Value, credits);
+            return new(period, periodExpected, periodCollected, Math.Max(0m, totalExpected - credits), nextUnpaidDueDate, paidInFull);
+        }
+
+        private static (DateOnly? DueDate, bool PaidInFull) FindNextUnpaidMonthlyDueDate(LoadLeaseDto lease, DateTime start, DateTime endExclusive,
+            DateTime today, decimal expectedThroughMonth, decimal credits)
+        {
+            var currentMonth = new DateTime(today.Year, today.Month, 1);
+            for (var month = currentMonth; month < endExclusive; month = month.AddMonths(1))
+            {
+                expectedThroughMonth += ExpectedForLease(lease, month, month.AddMonths(1));
+                var dueDate = month == currentMonth && today == start
+                    ? start
+                    : month.AddDays(GetActualDayOfMonth(lease.RentDueDay, month.Year, month.Month) - 1);
+                if (dueDate >= today && dueDate < endExclusive && credits < Math.Round(expectedThroughMonth, 2, MidpointRounding.ToEven))
+                    return (DateOnly.FromDateTime(dueDate), false);
+            }
+
+            return (null, credits >= Math.Round(expectedThroughMonth, 2, MidpointRounding.ToEven));
+        }
+
+        private static (DateOnly? DueDate, bool PaidInFull) FindNextUnpaidBillingDueDate(DateTime start, DateTime endExclusive, DateTime today,
+            int cycleIndex, int cycleDays, int cycleMonths, decimal rent, decimal credits)
+        {
+            DateTime CycleStart(int index) => cycleDays > 0 ? start.AddDays(index * cycleDays) : start.AddMonths(index * cycleMonths);
+
+            var expectedThroughDueDate = 0m;
+            for (var dueDate = CycleStart(cycleIndex); dueDate < endExclusive; dueDate = CycleStart(++cycleIndex))
+            {
+                var nextCycle = CycleStart(cycleIndex + 1);
+                var fraction = (decimal)(Min(nextCycle, endExclusive) - dueDate).Days / (nextCycle - dueDate).Days;
+                expectedThroughDueDate = Math.Round(rent * (cycleIndex + fraction), 2, MidpointRounding.ToEven);
+                if (dueDate >= today && credits < expectedThroughDueDate) return (DateOnly.FromDateTime(dueDate), false);
+            }
+
+            return (null, credits >= expectedThroughDueDate);
+        }
+
         // expected rent for a single lease over [from, to) with day-accurate proration
         public static decimal ExpectedForLease(LoadLeaseDto lease, DateTime from, DateTime to)
         {

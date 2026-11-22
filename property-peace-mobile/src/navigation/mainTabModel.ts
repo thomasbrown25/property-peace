@@ -1,3 +1,5 @@
+import type { IconsaxIconName } from '@property-peace/shared/iconsax-icons';
+
 export type MainAudience = 'landlord' | 'tenant' | 'unsupported';
 
 export type MainTabName =
@@ -60,20 +62,16 @@ const visibleTabsByAudience: Record<MainAudience, readonly VisibleMainTab[]> = {
   unsupported: [],
 };
 
-const icons: Partial<Record<MainTabName, { active: string; inactive: string }>> = {
-  Dashboard: { active: 'home', inactive: 'home-outline' },
-  Team: { active: 'people', inactive: 'people-outline' },
-  Reports: { active: 'bar-chart', inactive: 'bar-chart-outline' },
-  Properties: { active: 'business', inactive: 'business-outline' },
-  Checklists: { active: 'clipboard', inactive: 'clipboard-outline' },
-  Maintenance: { active: 'construct', inactive: 'construct-outline' },
-  Payments: { active: 'card', inactive: 'card-outline' },
-  Leases: { active: 'document-text', inactive: 'document-text-outline' },
-  Marketing: { active: 'megaphone', inactive: 'megaphone-outline' },
-  Tenants: { active: 'people', inactive: 'people-outline' },
-  Messages: { active: 'chatbubble-ellipses', inactive: 'chatbubble-ellipses-outline' },
-  Notifications: { active: 'notifications', inactive: 'notifications-outline' },
-  Settings: { active: 'settings', inactive: 'settings-outline' },
+const icons: Partial<Record<MainTabName, IconsaxIconName>> = {
+  Dashboard: 'home',
+  Team: 'team',
+  Checklists: 'checklists',
+  Reports: 'reports',
+  Messages: 'messages',
+  Payments: 'payments',
+  Leases: 'leases',
+  Maintenance: 'maintenance',
+  Settings: 'settings',
 };
 
 export function visibleMainTabsForAudience(audience: MainAudience): readonly VisibleMainTab[] {
@@ -90,7 +88,7 @@ export function resolveVisibleMainTabs<T>(
   }));
 }
 
-export function mainTabIconNames(name: string) {
+export function mainTabIconName(name: string) {
   return icons[name as MainTabName];
 }
 

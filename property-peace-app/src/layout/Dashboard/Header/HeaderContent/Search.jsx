@@ -17,11 +17,7 @@ import {
   alpha
 } from '@mui/material';
 
-// assets
-import SearchOutlined from '@ant-design/icons/SearchOutlined';
-import HomeOutlined from '@ant-design/icons/HomeOutlined';
-import UserOutlined from '@ant-design/icons/UserOutlined';
-import FileTextOutlined from '@ant-design/icons/FileTextOutlined';
+import AppIcon from 'components/AppIcon';
 
 // hooks
 import { useGlobalSearch } from 'api/search';
@@ -109,7 +105,7 @@ export default function Search({ autoFocus = false, onResultSelect }) {
             }}
             startAdornment={
               <InputAdornment position="start" sx={{ mr: -0.5 }}>
-                {searchLoading ? <CircularProgress size={16} /> : <SearchOutlined style={{ fontSize: 16 }} />}
+                {searchLoading ? <CircularProgress size={16} /> : <AppIcon name="search" size={16} />}
               </InputAdornment>
             }
             aria-describedby="header-search-text"
@@ -181,7 +177,7 @@ export default function Search({ autoFocus = false, onResultSelect }) {
                       <ListItem key={property.id} disablePadding>
                         <ListItemButton onClick={() => handleResultClick('property', property.id)}>
                           <ListItemIcon>
-                            <HomeOutlined style={{ fontSize: 18, color: '#1877F2' }} />
+                            <AppIcon name="properties" size={18} style={{ color: '#1877F2' }} />
                           </ListItemIcon>
                           <ListItemText
                             primary={property.name}
@@ -206,7 +202,7 @@ export default function Search({ autoFocus = false, onResultSelect }) {
                       <ListItem key={tenant.id} disablePadding>
                         <ListItemButton onClick={() => handleResultClick('tenant', tenant.id)}>
                           <ListItemIcon>
-                            <UserOutlined style={{ fontSize: 18, color: '#41a541' }} />
+                            <AppIcon name="user" size={18} style={{ color: '#41a541' }} />
                           </ListItemIcon>
                           <ListItemText
                             primary={`${tenant.firstname} ${tenant.lastname}`}
@@ -235,7 +231,7 @@ export default function Search({ autoFocus = false, onResultSelect }) {
                       <ListItem key={lease.id} disablePadding>
                         <ListItemButton onClick={() => handleResultClick('lease', lease.id)}>
                           <ListItemIcon>
-                            <FileTextOutlined style={{ fontSize: 18, color: '#faad14' }} />
+                            <AppIcon name="leases" size={18} style={{ color: '#faad14' }} />
                           </ListItemIcon>
                           <ListItemText
                             primary={`${lease.propertyName}${lease.unitName ? ` - ${lease.unitName}` : ''}`}

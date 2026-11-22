@@ -1,6 +1,7 @@
 import { rentalMode } from './rentalMode.js';
 import { getPropertyOccupancy } from './occupancy.mjs';
 import { getLeaseHeaderBalance } from './leaseHeaderSummary.js';
+import { isDetachedSingleUnitType } from './propertyType.js';
 
 export function getPropertyOverdueRent(propertyId, records = [], unavailable = false) {
   if (unavailable || !Array.isArray(records)) return null;
@@ -22,6 +23,7 @@ export function getOwnerProperties(properties = [], now = new Date()) {
       address: [read(property, 'streetAddress', 'StreetAddress'), read(property, 'city', 'City'), read(property, 'state', 'State')].filter(Boolean).join(', '),
       imageUrl: read(property, 'mainImageUrl', 'MainImageUrl') || read(property, 'images', 'Images')?.[0]?.blobUrl || null,
       original: property,
+      isSingleUnit: isDetachedSingleUnitType(read(property, 'propertyType', 'PropertyType')),
       activeLeaseCount: getPropertyOccupancy(property, now).occupiedUnits,
       href: `/landlord/property/${encodeURIComponent(id)}`,
       shortStayHref: shortStayUnit
