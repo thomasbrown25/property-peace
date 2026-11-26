@@ -29,10 +29,13 @@ test('rent due Open targets the specific lease, with a safe fallback when its id
   assert.equal(getOwnerNextStep({ reminders }).href, '/landlord/leases/42');
 });
 
-test('empty, loading and failed property requests cannot claim the portfolio is empty', () => {
+test('an empty or loading portfolio never creates a task card without a reminder', () => {
   assert.equal(getOwnerNextStep({ properties: [], propertiesLoading: true }), null);
   assert.equal(getOwnerNextStep({ properties: [], propertiesError: true }), null);
-  assert.deepEqual(getOwnerNextStep({ properties: [] }), { title: 'Add your first property', label: 'Get started', href: '/landlord/properties/add' });
+  assert.equal(getOwnerNextStep({ properties: [] }), null);
+});
+
+test('property rows support PascalCase data and address fallbacks', () => {
   assert.deepEqual(getOwnerProperties([{ Id: 'A', Name: 'Oak', Units: [{ Id: 'U', rentalMode: 'shortTerm' }] }]), [
     { id: 'A', name: 'Oak', address: '', imageUrl: null, original: { Id: 'A', Name: 'Oak', Units: [{ Id: 'U', rentalMode: 'shortTerm' }] }, isSingleUnit: false, activeLeaseCount: 0, href: '/landlord/property/A', shortStayHref: '/landlord/property/A/unit/U/short-stay' }
   ]);

@@ -60,7 +60,7 @@ export function getPropertyMonthRent(propertyId, records = [], unavailable = fal
   return { expected, paid, percent: expected > 0 ? Math.min(100, (paid * 100) / expected) : 0 };
 }
 
-export function getOwnerNextStep({ reminders = [], properties = [], propertiesLoading = false, propertiesError = false } = {}) {
+export function getOwnerNextStep({ reminders = [] } = {}) {
   const reminder = reminders[0];
   if (reminder) {
     return {
@@ -71,7 +71,5 @@ export function getOwnerNextStep({ reminders = [], properties = [], propertiesLo
         : reminder.type === 'maintenance' ? '/landlord/maintenances' : '/landlord/dashboard?tab=tasks'
     };
   }
-  if (propertiesLoading || propertiesError) return null;
-  if (!properties?.length) return { title: 'Add your first property', label: 'Get started', href: '/landlord/properties/add' };
   return null;
 }

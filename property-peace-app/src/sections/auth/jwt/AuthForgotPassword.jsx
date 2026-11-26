@@ -4,9 +4,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@mui/material';
 import { FormHelperText } from '@mui/material';
 import { Grid } from '@mui/material';
-import { InputLabel } from '@mui/material';
+import { InputAdornment } from '@mui/material';
 import { OutlinedInput } from '@mui/material';
-import { Stack } from '@mui/material';
 import { Typography } from '@mui/material';
 
 // third-party
@@ -15,8 +14,9 @@ import { Formik } from 'formik';
 
 // project imports
 import useAuth from 'hooks/useAuth';
-import AnimateButton from 'components/@extended/AnimateButton';
+import { MailOutlined } from '@ant-design/icons';
 import { openSnackbar } from 'api/snackbar';
+import { authFieldSx, authLabelSx, authPrimaryButtonSx } from './authFormStyles';
 
 // ============================|| JWT - FORGOT PASSWORD ||============================ //
 
@@ -80,21 +80,27 @@ export default function AuthForgotPassword() {
           <form noValidate onSubmit={handleSubmit}>
             <Grid container spacing={3}>
               <Grid size={12}>
-                <Stack sx={{ gap: 1 }}>
-                  <InputLabel htmlFor="email-forgot">Email Address</InputLabel>
-                  <OutlinedInput
-                    fullWidth
-                    size="medium"
-                    error={Boolean(touched.email && errors.email)}
-                    id="email-forgot"
-                    type="email"
-                    value={values.email}
-                    name="email"
-                    onBlur={handleBlur}
-                    onChange={handleChange}
-                    placeholder="Enter email address"
-                  />
-                </Stack>
+                <Typography component="label" htmlFor="email-forgot" variant="body2" sx={authLabelSx}>
+                  Email address
+                </Typography>
+                <OutlinedInput
+                  fullWidth
+                  error={Boolean(touched.email && errors.email)}
+                  id="email-forgot"
+                  type="email"
+                  value={values.email}
+                  name="email"
+                  autoComplete="email"
+                  aria-describedby={touched.email && errors.email ? 'helper-text-email-forgot' : undefined}
+                  onBlur={handleBlur}
+                  onChange={handleChange}
+                  startAdornment={
+                    <InputAdornment position="start" disablePointerEvents>
+                      <MailOutlined aria-hidden="true" style={{ fontSize: 17 }} />
+                    </InputAdornment>
+                  }
+                  sx={authFieldSx}
+                />
                 {touched.email && errors.email && (
                   <FormHelperText error id="helper-text-email-forgot">
                     {errors.email}
@@ -107,14 +113,12 @@ export default function AuthForgotPassword() {
                 </Grid>
               )}
               <Grid sx={{ mb: -2 }} size={12}>
-                <Typography variant="caption">Do not forgot to check SPAM box.</Typography>
+                <Typography variant="caption">Check your spam folder if the email doesn’t arrive.</Typography>
               </Grid>
               <Grid size={12}>
-                <AnimateButton>
-                  <Button disableElevation disabled={isSubmitting} fullWidth size="medium" type="submit" variant="contained" color="primary">
-                    Send Password Reset Email
-                  </Button>
-                </AnimateButton>
+                <Button disableElevation disabled={isSubmitting} fullWidth size="large" type="submit" variant="contained" sx={authPrimaryButtonSx}>
+                  Send password reset email
+                </Button>
               </Grid>
             </Grid>
           </form>

@@ -4,6 +4,14 @@ import { readFileSync } from 'node:fs';
 
 const source = readFileSync(new URL('./TenantAddDrawer.jsx', import.meta.url), 'utf8');
 
+test('adding tenants keeps the same initial form and row identity across renders', () => {
+  assert.match(source, /const \[initialValues\] = useState\(buildInitialValues\)/);
+  assert.match(source, /useFormik\(\{\s*initialValues,/);
+  assert.doesNotMatch(source, /enableReinitialize:\s*true/);
+  assert.match(source, /setShowPasswords\(\{\}\);\s*setPasswordLevels\(\{\}\);\s*resetForm\(\)/);
+  assert.match(source, /resetForm\(\);\s*drawer\.closeTenantAddDrawer\(\)/);
+});
+
 test('property/unit is optional, after email, and selected independently for each tenant', () => {
   assert.match(source, /value=\{propertyUnitOptions\.find\(\(option\) => option\.id === tenant\.propertyUnitId\)/);
   assert.match(source, /setFieldValue\(`tenants\.\$\{index\}\.propertyUnitId`, option\?\.id \?\? null\)/);

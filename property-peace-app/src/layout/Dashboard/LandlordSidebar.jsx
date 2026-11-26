@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import { Link, useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import AppIcon from 'components/AppIcon';
-import { Box, Collapse, Drawer, IconButton, List, ListItemButton, ListItemText, TextField, Typography, useMediaQuery } from '@mui/material';
+import { Box, Collapse, Drawer, IconButton, List, ListItemButton, ListItemText, listItemTextClasses, TextField, Typography, useMediaQuery } from '@mui/material';
 import Logo from 'components/logo';
 import { brand } from 'themes/brand';
 import placeholderImage from 'assets/images/placeholder-house.png';
@@ -76,7 +76,7 @@ export default function LandlordSidebar({ mobileOpen, onMobileClose }) {
         <Logo darkSurface disableTopPadding width={120} to="/landlord/dashboard" />
       </Box>
       <Box component="nav" aria-label="Landlord pages" sx={{ maxHeight: '38dvh', overflowY: 'auto', flexShrink: 0, borderBottom: '1px solid rgba(255,255,255,0.18)' }}>
-        <List dense disablePadding sx={{ py: 1 }}>
+        <List dense disablePadding sx={{ py: 1, [`& .${listItemTextClasses.primary}`]: { color: '#FFFFFF' } }}>
           {landlordPrimaryLinks.map(({ label, to }) => (
             <ListItemButton key={label} component={Link} to={to} disabled={trialExpired} onClick={onMobileClose}
               selected={activeLandlordPrimaryLink(pathname, search) === label}

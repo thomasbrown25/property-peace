@@ -12,7 +12,7 @@ test('shared landlord page tabs retain the property tab design in light and dark
 });
 
 test('lease, tenant, payments, and tools use the record tab strip', () => {
-  for (const path of ['../leases/LeaseDetailView.jsx', '../../../pages/landlord/tenant.jsx', '../../../pages/landlord/online-payments.jsx', '../../../pages/landlord/tools-tabs.jsx']) {
+  for (const path of ['../leases/LeaseDetailView.jsx', '../../../pages/landlord/tenant.jsx', '../settings/OnlinePaymentSettings.jsx', '../../../pages/landlord/tools-tabs.jsx']) {
     assert.match(read(path), /<Box sx=\{recordTabsSx\}>/, path);
   }
 });

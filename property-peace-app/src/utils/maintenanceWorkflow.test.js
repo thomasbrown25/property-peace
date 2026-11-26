@@ -9,6 +9,22 @@ import {
 } from './maintenanceWorkflow.js';
 import * as maintenanceWorkflow from './maintenanceWorkflow.js';
 
+test('maintenance assignment labels use the team member name and identify the signed-in assignee', () => {
+  const request = { assignment: { assignedToUserId: 133, assignedToUserName: 'Avery Morgan' } };
+
+  assert.deepEqual(maintenanceWorkflow.maintenanceListAssignment(request, 57), { name: 'Avery Morgan', type: 'Team member' });
+  assert.deepEqual(maintenanceWorkflow.maintenanceListAssignment(request, '133'), { name: 'Assigned to me', type: 'Team member' });
+});
+
+test('maintenance assignment labels handle missing names, legacy contacts, vendors, and unassigned requests', () => {
+  const getAssignment = maintenanceWorkflow.maintenanceListAssignment;
+
+  assert.deepEqual(getAssignment({ assignment: { assignedToUserId: 133 } }, 57), { name: 'Team member', type: 'Team member' });
+  assert.deepEqual(getAssignment({ assignedToType: 4, assignedContactName: 'Avery Morgan' }, 57), { name: 'Avery Morgan', type: 'Team member' });
+  assert.deepEqual(getAssignment({ assignment: { vendorId: 8, assignedToUserId: 57 }, vendorName: 'Repairs Co.' }, 57), { name: 'Repairs Co.', type: 'Vendor' });
+  assert.equal(getAssignment({ assignment: null }, 57), null);
+});
+
 test('status contract normalizes numeric-style API names without collapsing workflow states', () => {
   assert.equal(normalizeWorkflowToken('Awaiting_Approval'), 'awaitingapproval');
   assert.equal(statusLabel('InProgress'), 'In progress');

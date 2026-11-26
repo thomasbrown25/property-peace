@@ -18,6 +18,7 @@ import { openSnackbar } from 'api/snackbar';
 import { organizationAPI } from 'api';
 import axiosServices from 'utils/axios';
 import { trackSignUpConversion } from 'utils/googleAds';
+import { authPrimaryButtonSx, authSecondaryButtonSx } from './authFormStyles';
 
 // ============================|| CREATING ACCOUNT STEP ||============================ //
 
@@ -189,7 +190,7 @@ export default function CreatingAccountStep({ password = '', onComplete, onBack 
         </Typography>
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ width: '100%' }}>
           {onBack && (
-            <Button fullWidth startIcon={<ArrowLeftOutlined />} onClick={onBack} variant="outlined">
+            <Button fullWidth startIcon={<ArrowLeftOutlined />} onClick={onBack} variant="outlined" sx={authSecondaryButtonSx}>
               Review details
             </Button>
           )}
@@ -200,6 +201,7 @@ export default function CreatingAccountStep({ password = '', onComplete, onBack 
               setRetryCount((count) => count + 1);
             }}
             variant="contained"
+            sx={authPrimaryButtonSx}
           >
             Try again
           </Button>

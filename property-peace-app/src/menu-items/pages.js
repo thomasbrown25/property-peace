@@ -143,7 +143,7 @@ const pages = [
         id: 'online-payments',
         title: 'Online Payments',
         type: 'item',
-        url: '/landlord/online-payments',
+        url: '/landlord/settings?tab=payments',
         icon: icons.CreditCardOutlined
       },
       {

@@ -151,6 +151,24 @@ test('initial Stripe creation is allowed only after a successful no-account stat
   assert.equal(canCreateInitialStripeAccount({ ...allowed, organizationId: null }), false);
 });
 
+test('first-account creation accepts the API’s direct no-account response and rejects an unverified status', async () => {
+  const { readStripeAccountStatus } = await import('./stripeOrganizationRequestLifecycle.js');
+  const noAccount = { accountId: null, detailsSubmitted: false };
+  const pendingAccount = { accountId: 'acct_pending', detailsSubmitted: false, canManageAccount: true };
+
+  for (const [response, expected, canCreate] of [
+    [noAccount, noAccount, true],
+    [{ success: true, data: pendingAccount }, pendingAccount, false],
+    [{ success: false, data: noAccount }, null, false],
+    [{ success: true, data: { detailsSubmitted: false } }, null, false],
+    [null, null, false]
+  ]) {
+    const status = readStripeAccountStatus(response);
+    assert.deepEqual(status, expected);
+    assert.equal(canCreateInitialStripeAccount({ statusLoadedSuccessfully: Boolean(status), status, rentCanInvoke: true, organizationId: 77 }), canCreate);
+  }
+});
+
 test('first-account creation follows only a successful hosted onboarding URL response', () => {
   assert.equal(getInitialStripeOnboardingUrl({
     success: true,

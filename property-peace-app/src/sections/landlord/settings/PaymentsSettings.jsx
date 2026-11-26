@@ -1,5 +1,6 @@
-import { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -38,7 +39,8 @@ import {
   canManageStripeAccount,
   createStripeOrganizationRequestLifecycle,
   getInitialStripeOnboardingUrl,
-  makeStripeOrganizationScopeKey
+  makeStripeOrganizationScopeKey,
+  readStripeAccountStatus
 } from 'utils/stripeOrganizationRequestLifecycle';
 import { Grid, Card, CardContent } from '@mui/material';
 
@@ -160,8 +162,9 @@ function DemoStripePaymentsPreview() {
   );
 }
 
-export function PaymentsSettingsContent({ rentPaymentAccess, headerActionElement = null }) {
+export function PaymentsSettingsContent({ rentPaymentAccess, headerActionElement = null, onSetupRequestHandled }) {
   const theme = useTheme();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { currentOrganization } = useOrganization();
   const stripeScopeKey = makeStripeOrganizationScopeKey(currentOrganization?.id ?? currentOrganization?.Id);
@@ -175,7 +178,7 @@ export function PaymentsSettingsContent({ rentPaymentAccess, headerActionElement
   const [loading, setLoading] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState(true);
   const [accountStatus, setAccountStatus] = useState(null);
-  const [accountStatusLoadedSuccessfully, setAccountStatusLoadedSuccessfully] = useState(false);
+  const [accountStatusScopeKey, setAccountStatusScopeKey] = useState(null);
   const [connecting, setConnecting] = useState(false);
   const [showPreparation, setShowPreparation] = useState(false);
   const [connectPreparation, setConnectPreparation] = useState(null);
@@ -199,7 +202,7 @@ export function PaymentsSettingsContent({ rentPaymentAccess, headerActionElement
   const isDemo = user?.isDemo === true || user?.IsDemo === true;
   const canManageAccount = canManageStripeAccount(accountStatus);
   const canCreateInitialAccount = canCreateInitialStripeAccount({
-    statusLoadedSuccessfully: accountStatusLoadedSuccessfully,
+    statusLoadedSuccessfully: Boolean(stripeScopeKey) && accountStatusScopeKey === stripeScopeKey,
     status: accountStatus,
     rentCanInvoke,
     organizationId: currentOrganization?.id ?? currentOrganization?.Id
@@ -208,7 +211,7 @@ export function PaymentsSettingsContent({ rentPaymentAccess, headerActionElement
   if (!requestLifecycleRef.current) {
     requestLifecycleRef.current = createStripeOrganizationRequestLifecycle(() => {
       setAccountStatus(null);
-      setAccountStatusLoadedSuccessfully(false);
+      setAccountStatusScopeKey(null);
       setBankAccounts([]);
       setConnectPreparation(null);
       setShowPreparation(false);
@@ -254,12 +257,13 @@ export function PaymentsSettingsContent({ rentPaymentAccess, headerActionElement
     
     // Check if we're returning from Stripe connection
     const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('stripe') === 'connected') {
-      // Remove the parameter from URL
+    const stripeReturn = urlParams.get('stripe');
+    if (stripeReturn === 'connected' || stripeReturn === 'refresh') {
       urlParams.delete('stripe');
-      const newUrl = window.location.pathname + (urlParams.toString() ? `?${urlParams.toString()}` : '');
-      window.history.replaceState({}, '', newUrl);
-      
+      navigate({ search: urlParams.toString() }, { replace: true });
+    }
+
+    if (stripeReturn === 'connected') {
       // Refresh account status after a short delay to ensure Stripe has processed
       const returnRefreshGuard = requestLifecycleRef.current.capture(stripeScopeKey);
       const returnRefreshTimeout = setTimeout(() => {
@@ -270,7 +274,7 @@ export function PaymentsSettingsContent({ rentPaymentAccess, headerActionElement
 
       return () => clearTimeout(returnRefreshTimeout);
     }
-  }, [user, stripeScopeKey, isDemo, rentCanInvoke, rentReadinessLoading, rentReadinessError]);
+  }, [user, stripeScopeKey, isDemo, rentCanInvoke, rentReadinessLoading, rentReadinessError, navigate]);
 
   const fetchBankAccounts = async () => {
     if (!stripeScopeKey || !requestLifecycleRef.current.isCurrent(stripeScopeKey)) return;
@@ -333,7 +337,7 @@ export function PaymentsSettingsContent({ rentPaymentAccess, headerActionElement
       channel: 'account-status',
       request: ({ signal }) => axiosServices.get('/api/stripe/account-status', { signal }),
       onSuccess: (response) => {
-        const data = response.data?.success ? response.data.data : null;
+        const data = readStripeAccountStatus(response.data);
         setAccountStatus({
           AccountId: data?.accountId || null,
           Status: data?.status || null,
@@ -345,18 +349,18 @@ export function PaymentsSettingsContent({ rentPaymentAccess, headerActionElement
           AccountReadinessReason: data?.accountReadinessReason || null,
           CanManageAccount: data?.canManageAccount === true
         });
-        setAccountStatusLoadedSuccessfully(true);
+        setAccountStatusScopeKey(data ? stripeScopeKey : null);
       },
       onError: (error) => {
         console.error('Error checking Stripe account status:', error);
         setAccountStatus({ AccountId: null, CanManageAccount: false });
-        setAccountStatusLoadedSuccessfully(false);
+        setAccountStatusScopeKey(null);
       },
       onFinally: () => setCheckingStatus(false)
     });
   };
 
-  const openConnectPreparation = async () => {
+  const openConnectPreparation = useCallback(async () => {
     if (!canCreateInitialAccount || !stripeScopeKey) return;
     setShowPreparation(true);
     setPreparationLoading(true);
@@ -376,7 +380,7 @@ export function PaymentsSettingsContent({ rentPaymentAccess, headerActionElement
       },
       onFinally: () => setPreparationLoading(false)
     });
-  };
+  }, [canCreateInitialAccount, stripeScopeKey]);
 
   const handlePreparedConnectAccount = async (context) => {
     if (!canCreateInitialAccount || !stripeScopeKey || connectSubmissionRef.current) return;
@@ -444,7 +448,7 @@ export function PaymentsSettingsContent({ rentPaymentAccess, headerActionElement
   };
 
   // Full-dashboard Standard accounts use Stripe-hosted onboarding, not embedded sessions.
-  const openStripeHostedOnboarding = async () => {
+  const openStripeHostedOnboarding = useCallback(async () => {
     if (!canManageAccount || !stripeScopeKey || !accountStatus?.AccountId) return;
     setFetchingSession(true);
     return requestLifecycleRef.current.run({
@@ -459,7 +463,23 @@ export function PaymentsSettingsContent({ rentPaymentAccess, headerActionElement
       onError: (error) => openSnackbar({ open: true, message: error?.response?.data?.message || error.message || 'Unable to open Stripe onboarding.', variant: 'alert', alert: { color: 'error' } }),
       onFinally: () => setFetchingSession(false)
     });
-  };
+  }, [canManageAccount, stripeScopeKey, accountStatus?.AccountId]);
+
+  useEffect(() => {
+    if (!onSetupRequestHandled || isDemo || !rentCanInvoke || rentReadinessLoading || rentReadinessError ||
+      !stripeScopeKey || accountStatusScopeKey !== stripeScopeKey) return;
+
+    onSetupRequestHandled();
+    if (canCreateInitialAccount && !showPreparation) {
+      openConnectPreparation();
+    } else if (canManageAccount && accountStatus?.DetailsSubmitted === false) {
+      openStripeHostedOnboarding();
+    }
+  }, [
+    onSetupRequestHandled, isDemo, rentCanInvoke, rentReadinessLoading, rentReadinessError,
+    stripeScopeKey, accountStatusScopeKey, canCreateInitialAccount, showPreparation, openConnectPreparation,
+    canManageAccount, accountStatus?.DetailsSubmitted, openStripeHostedOnboarding
+  ]);
 
   const openStripeDashboard = () => {
     if (!canManageAccount || !stripeScopeKey || !accountStatus?.AccountId) return;

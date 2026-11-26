@@ -57,9 +57,8 @@ import FormSelect from 'components/input/FormSelect';
 import AddressFieldWithPlaces from 'components/input/AddressFieldWithPlaces';
 import useCreateProperty from 'hooks/useCreateProperty';
 import GooglePhotoConfirmationDialog from 'components/dialogs/GooglePhotoConfirmationDialog';
-import StripeConnectOnboardingDialog from 'components/dialogs/StripeConnectOnboardingDialog';
+import OnlinePaymentSetupButton from 'components/rent-payments/OnlinePaymentSetupButton';
 import { useGooglePlacePhotos } from 'hooks/useGooglePlacePhotos';
-import axiosServices from 'utils/axios';
 import { bankAccountAPI } from 'api';
 import { bulkCreateUnits } from 'store/unit/unit.action';
 import FeatureReadinessNotice from 'components/feature-readiness/FeatureReadinessNotice';
@@ -124,7 +123,6 @@ export default function PropertyAdd() {
   const [organizationMembers, setOrganizationMembers] = useState([]);
   const [bankAccounts, setBankAccounts] = useState([]);
   const [loadingMembers, setLoadingMembers] = useState(false);
-  const [showStripeOnboarding, setShowStripeOnboarding] = useState(false);
   const [loadingBankAccounts, setLoadingBankAccounts] = useState(false);
   const addressInputRef = useRef(null);
 
@@ -164,7 +162,6 @@ export default function PropertyAdd() {
   useEffect(() => {
     if (!rentCanInvoke) {
       setBankAccounts([]);
-      setShowStripeOnboarding(false);
       setLoadingBankAccounts(false);
       return;
     }
@@ -196,7 +193,9 @@ export default function PropertyAdd() {
     };
 
     fetchBankAccounts();
-  }, [showStripeOnboarding, rentCanInvoke]); // Refetch when onboarding dialog closes
+    window.addEventListener('focus', fetchBankAccounts);
+    return () => window.removeEventListener('focus', fetchBankAccounts);
+  }, [rentCanInvoke, currentOrganization?.id]);
 
   // Handler for when address is selected
   const handleAddressSelected = async (address, place) => {
@@ -432,73 +431,6 @@ export default function PropertyAdd() {
       setFieldValue('creationMode', 'bulk');
     }
   }, [values.propertyType, setFieldValue]);
-
-  // Handler for when Stripe onboarding completes
-  const handleStripeOnboardingComplete = async () => {
-    if (!rentCanInvoke) return;
-
-    console.log('handleStripeOnboardingComplete called - starting sync process');
-    
-    // First, call the sync endpoint to ensure bank account is created in database
-    try {
-      console.log('Calling sync-bank-account endpoint...');
-      const syncResponse = await axiosServices.post('/api/stripe/sync-bank-account');
-      console.log('Sync endpoint response:', syncResponse.data);
-      
-      if (!syncResponse.data?.success && !syncResponse.data?.data) {
-        console.warn('Bank account sync may have failed:', syncResponse.data);
-      } else {
-        console.log('Bank account sync successful:', syncResponse.data);
-      }
-    } catch (error) {
-      console.error('Error calling sync-bank-account endpoint:', error);
-      console.error('Error details:', error?.response?.data || error?.message);
-    }
-    
-    // Wait a moment for the sync to complete, then refresh bank accounts list
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    try {
-      console.log('Refreshing bank accounts after onboarding...');
-      const response = await bankAccountAPI.getBankAccounts();
-      console.log('Bank accounts response:', response);
-      
-      if (response.success && response.data) {
-        // Map bank accounts to the format expected by the FormSelect
-        const mappedAccounts = response.data.map(acc => ({
-          id: acc.id,
-          value: acc.id,
-          label: acc.displayName || (acc.last4 ? `Bank Account (****${acc.last4})` : 'Bank Account'),
-          stripeAccountId: acc.stripeAccountId,
-          displayName: acc.displayName,
-          last4: acc.last4,
-          bankName: acc.bankName
-        }));
-        
-        console.log('Mapped bank accounts:', mappedAccounts);
-        setBankAccounts(mappedAccounts);
-        
-        // Auto-select the most recently created account (should be the one just connected)
-        if (mappedAccounts.length > 0) {
-          const newestAccount = mappedAccounts[0]; // Accounts are ordered by CreatedAt desc
-          console.log('Auto-selecting bank account:', newestAccount);
-          setFieldValue('operatingAccountId', newestAccount.id);
-        } else {
-          console.warn('No bank accounts found after onboarding. The sync may have failed.');
-        }
-      } else {
-        console.warn('Bank accounts response was not successful:', response);
-      }
-    } catch (error) {
-      console.error('Error refreshing bank accounts after onboarding:', error);
-      console.error('Error details:', error?.response?.data || error?.message);
-    }
-  };
-
-  const handleOpenStripeOnboarding = () => {
-    if (!rentCanInvoke) return;
-    setShowStripeOnboarding(true);
-  };
 
   const handleCancel = () => {
     navigate('/landlord/properties');
@@ -941,22 +873,19 @@ export default function PropertyAdd() {
                       <FormSelect
                         name="operatingAccountId"
                         label="Operating Account"
-                        options={[
-                          ...bankAccounts.map(acc => ({ id: acc.id, value: acc.id, label: acc.label || acc.displayName || 'Bank Account' })),
-                          { id: 'add-new', value: 'add-new', label: 'Add new bank account' }
-                        ]}
+                        options={bankAccounts}
                         value={values.operatingAccountId || ''}
-                        setFieldValue={(name, value) => {
-                          if (value === 'add-new') {
-                            handleOpenStripeOnboarding();
-                          } else {
-                            setFieldValue(name, value);
-                          }
-                        }}
-                        placeholder="Select or add new (optional)"
+                        setFieldValue={setFieldValue}
+                        placeholder="Select a bank account (optional)"
                         valueType="string"
                         disabled={loadingBankAccounts}
                       />
+                      <OnlinePaymentSetupButton
+                        startIcon={<PlusOutlined />}
+                        sx={{ mt: 1 }}
+                      >
+                        Add new bank account
+                      </OnlinePaymentSetupButton>
                     </Grid>
                   )}
 
@@ -1042,15 +971,6 @@ export default function PropertyAdd() {
         onCancel={handleCancelGooglePhoto}
         loading={fetchingPhoto}
       />
-
-      {/* Stripe Connect Onboarding Dialog */}
-      {rentCanInvoke && (
-        <StripeConnectOnboardingDialog
-          open={showStripeOnboarding}
-          onClose={() => setShowStripeOnboarding(false)}
-          onComplete={handleStripeOnboardingComplete}
-        />
-      )}
     </MainCard>
   );
 }

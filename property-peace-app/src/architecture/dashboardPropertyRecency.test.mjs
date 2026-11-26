@@ -18,28 +18,40 @@ const properties = [
   { Id: 2, Name: 'Bravo' },
   { id: 3, name: 'Charlie' },
   { id: 4, name: 'Delta' },
-  { id: 5, name: 'Echo' }
+  { id: 5, name: 'Echo' },
+  { id: 6, name: 'Foxtrot' },
+  { id: 7, name: 'Golf' },
+  { id: 8, name: 'Hotel' },
+  { id: 9, name: 'India' }
 ];
 const visibleIds = (store, account = user) => sortPropertiesByLastVisit(
   getOwnerProperties(properties), readPropertyVisitDates(account, store)
-).slice(0, 4).map((property) => property.id);
+).slice(0, 8).map((property) => property.id);
 
-test('dashboard sorts all properties by sidebar visits before limiting the table to four rows', () => {
+test('dashboard sorts all properties, including those without leases, before limiting the table to eight rows', () => {
   const store = storage();
-  recordRecentlyViewedProperty(5, user, store, 1000);
+  recordRecentlyViewedProperty(9, user, store, 1000);
   recordRecentlyViewedProperty(3, user, store, 2000);
-  assert.deepEqual(visibleIds(store), [3, 5, 1, 2]);
-  recordRecentlyViewedProperty(5, user, store, 3000);
-  assert.deepEqual(visibleIds(store), [5, 3, 1, 2]);
-  assert.deepEqual(properties.map((property) => property.id ?? property.Id), [1, 2, 3, 4, 5]);
+  assert.deepEqual(visibleIds(store), [3, 9, 1, 2, 4, 5, 6, 7]);
+  recordRecentlyViewedProperty(9, user, store, 3000);
+  assert.deepEqual(visibleIds(store), [9, 3, 1, 2, 4, 5, 6, 7]);
+  assert.deepEqual(properties.map((property) => property.id ?? property.Id), [1, 2, 3, 4, 5, 6, 7, 8, 9]);
 });
 
 test('dashboard falls back to alphabetical order and isolates account visit history', () => {
   const store = storage();
   recordRecentlyViewedProperty(5, user, store, 1000);
-  assert.deepEqual(visibleIds(storage()), [1, 2, 3, 4]);
-  assert.deepEqual(visibleIds(store, { ...user, currentOrganizationId: 8 }), [1, 2, 3, 4]);
-  assert.deepEqual(visibleIds(store, { ...user, id: 99 }), [1, 2, 3, 4]);
+  const alphabetical = [1, 2, 3, 4, 5, 6, 7, 8];
+  assert.deepEqual(visibleIds(storage()), alphabetical);
+  assert.deepEqual(visibleIds(store, { ...user, currentOrganizationId: 8 }), alphabetical);
+  assert.deepEqual(visibleIds(store, { ...user, id: 99 }), alphabetical);
+});
+
+test('dashboard appends a full-width View more link only when there are more than eight properties', () => {
+  const source = readFileSync(new URL('../sections/landlord/dashboard/OwnerTodayHome.jsx', import.meta.url), 'utf8');
+  assert.match(source, /const propertyRowLimit = 8;/);
+  assert.match(source, /places\.slice\(0, propertyRowLimit\)\.map/);
+  assert.match(source, /\{places\.length > propertyRowLimit && \(\s*<Button component=\{RouterLink\} to="\/landlord\/properties" fullWidth[^\n]*>\s*View more/);
 });
 
 test('dashboard listens for same-tab and cross-tab visit changes and cleans up listeners', () => {

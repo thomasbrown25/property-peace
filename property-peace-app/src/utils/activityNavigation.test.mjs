@@ -7,7 +7,7 @@ const cases = {
   LeaseAgreement: ['/landlord/lease-agreements', '/landlord/lease-agreements'],
   Lease: ['/landlord/leases/42', '/landlord/leases'],
   Property: ['/landlord/property/42', '/landlord/properties'],
-  BankAccount: ['/landlord/online-payments', '/landlord/online-payments'],
+  BankAccount: ['/landlord/settings?tab=payments', '/landlord/settings?tab=payments'],
   TeamMember: ['/landlord/admin-members', '/landlord/admin-members'],
   Listing: ['/landlord/listings/42', '/landlord/listings'],
   Calendar: ['/landlord/calendar', '/landlord/calendar'],

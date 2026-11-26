@@ -54,6 +54,7 @@ import { renterProfileRoute } from 'utils/renterWorkspace';
 import { paginateTenants } from './tenantPagination.mjs';
 
 const NAVY = '#061e35';
+const EMPTY_TENANTS = [];
 
 const read = (object, camel, pascal) => object?.[camel] ?? object?.[pascal];
 const getId = (tenant) => read(tenant, 'id', 'Id');
@@ -110,7 +111,7 @@ function PortalStatus({ tenant, tenantInvites }) {
   return <Chip label="Email needed" size="small" sx={{ fontWeight: 650 }} />;
 }
 
-function TenantRow({ tenant, tenantInvites, onOpen, onActions, onAddToLease }) {
+function TenantRow({ tenant, tenantInvites, onOpen, onActions }) {
   const theme = useTheme();
   const fullName = getFullName(tenant);
   const email = read(tenant, 'email', 'Email');
@@ -180,12 +181,12 @@ function TenantRow({ tenant, tenantInvites, onOpen, onActions, onAddToLease }) {
       </Stack>
 
       <Box sx={{ mt: { xs: 1.25, md: 0 }, pl: { xs: 6.5, md: 0 } }}>
-        {propertyDisplay ? (
+        {hasLease(tenant) ? (
           <>
             <Stack direction="row" spacing={0.7} alignItems="center">
               <HomeOutlined style={{ fontSize: 13, color: theme.palette.text.secondary }} />
               <Typography noWrap sx={{ fontSize: '0.8rem', fontWeight: 650 }}>
-                {propertyDisplay}
+                {propertyDisplay || 'Property unavailable'}
               </Typography>
             </Stack>
             <Stack direction="row" spacing={0.7} alignItems="center" sx={{ mt: 0.45 }}>
@@ -197,28 +198,14 @@ function TenantRow({ tenant, tenantInvites, onOpen, onActions, onAddToLease }) {
                   fontWeight: isLeaseEndingSoon(tenant) ? 650 : 400
                 }}
               >
-                {hasLease(tenant)
-                  ? leaseEnd
-                    ? `${leaseStart ? `${leaseStart} – ` : 'Through '}${leaseEnd}`
-                    : 'Lease assigned'
-                  : 'No lease assigned'}
+                {leaseStart && leaseEnd
+                  ? `${leaseStart} – ${leaseEnd}`
+                  : leaseStart ? `From ${leaseStart}` : leaseEnd ? `Through ${leaseEnd}` : 'Lease dates unavailable'}
               </Typography>
             </Stack>
           </>
-        ) : hasLease(tenant) ? (
-          <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>Lease assigned</Typography>
         ) : (
-          <Button
-            size="small"
-            variant="outlined"
-            onClick={(event) => {
-              event.stopPropagation();
-              onAddToLease(tenant);
-            }}
-            sx={{ textTransform: 'none', fontWeight: 650 }}
-          >
-            Add to lease
-          </Button>
+          <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>No lease</Typography>
         )}
       </Box>
 
@@ -261,7 +248,7 @@ export default function TenantsContent({ embedded = false }) {
   const dispatch = useDispatch();
   const drawer = useDrawer();
   const { setTenantsLoading } = useDashboardLoading();
-  const tenants = useSelector(selectTenants) || [];
+  const tenants = useSelector(selectTenants) ?? EMPTY_TENANTS;
   const { refetch, isLoading } = useFetchTenants();
 
   const [search, setSearch] = useState('');
@@ -642,10 +629,6 @@ export default function TenantsContent({ embedded = false }) {
               onOpen={(item) => {
                 const route = renterProfileRoute(getId(item));
                 if (route) navigate(route);
-              }}
-              onAddToLease={(item) => {
-                setAddToLeaseTenant(item);
-                setAddToLeaseDrawerOpen(true);
               }}
               onActions={handleActions}
             />

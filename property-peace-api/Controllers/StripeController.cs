@@ -184,7 +184,7 @@ namespace brownstone_hub_api.Controllers
 
                 if (request.ReturnUrl != null || request.RefreshUrl != null)
                     return BadRequest(new { Message = "Custom redirects are not accepted." });
-                var returnUrl = $"{_configuration["FrontendBaseUrl"] ?? $"{Request.Scheme}://{Request.Host}"}/landlord/settings?tab=payments&stripe=connected";
+                var returnUrl = BuildOnlinePaymentsStripeUrl("connected");
                 ServiceResponse<CreateStripeAccountResponseDto> response;
                 if (string.Equals(request.OperatingType, "business", StringComparison.OrdinalIgnoreCase))
                 {
@@ -371,8 +371,8 @@ namespace brownstone_hub_api.Controllers
                 if (request.ReturnUrl != null || request.RefreshUrl != null ||
                     request.Type is not (null or "account_onboarding" or "account_update"))
                     return BadRequest(new { Message = "Custom redirects or link types are not accepted" });
-                var returnUrl = $"{Request.Scheme}://{Request.Host}/landlord/settings?tab=payments&stripe=connected";
-                var refreshUrl = $"{Request.Scheme}://{Request.Host}/landlord/settings?tab=payments&stripe=refresh";
+                var returnUrl = BuildOnlinePaymentsStripeUrl("connected");
+                var refreshUrl = BuildOnlinePaymentsStripeUrl("refresh");
                 var linkType = request.Type ?? "account_onboarding";
 
                 var response = await _stripeService.CreateAccountLinkAsync(
@@ -1091,6 +1091,15 @@ namespace brownstone_hub_api.Controllers
             }
 
             return (organizationId.Value, destination, null);
+        }
+
+        private string BuildOnlinePaymentsStripeUrl(string status)
+        {
+            var frontendBaseUrl = _configuration["FrontendBaseUrl"];
+            var baseUrl = string.IsNullOrWhiteSpace(frontendBaseUrl)
+                ? $"{Request.Scheme}://{Request.Host}"
+                : frontendBaseUrl.TrimEnd('/');
+            return $"{baseUrl}/landlord/settings?tab=payments&stripe={status}";
         }
 
         private async Task<(long OrganizationId, OwnedStripeAccount? Account, IActionResult? Error)> ResolveOwnedOnboardingAsync(long actorUserId)

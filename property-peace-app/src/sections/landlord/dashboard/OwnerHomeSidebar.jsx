@@ -1,6 +1,6 @@
 import useSWR from 'swr';
 import { Link as RouterLink } from 'react-router-dom';
-import { alpha, Box, Button, Link, Stack, Typography } from '@mui/material';
+import { Box, Button, Link, Stack, Typography } from '@mui/material';
 import AppIcon from 'components/AppIcon';
 import { useOrganization } from 'contexts/OrganizationContext';
 import useAuth from 'hooks/useAuth';
@@ -9,13 +9,7 @@ import { formatRelativeTime } from 'utils/formatters';
 import useCurrentTime from 'hooks/useCurrentTime';
 import { getActivityDestination, getActivityKey } from 'utils/activityNavigation.mjs';
 import { loadDashboardActivity } from './dashboardActivity.mjs';
-
-const surfaceSx = {
-  p: 2.5,
-  borderRadius: 3,
-  bgcolor: 'background.paper',
-  boxShadow: (theme) => `0 8px 28px ${alpha(theme.palette.mode === 'dark' ? theme.palette.common.black : theme.palette.brand.forest, theme.palette.mode === 'dark' ? 0.15 : 0.05)}`
-};
+import { dashboardEntranceDelay, dashboardRowHoverSx, dashboardRowLinkSx, dashboardSlideDownSx } from './dashboardEntrance.mjs';
 
 function LoadState({ loading, error, onRetry, children }) {
   if (loading) return <Typography role="status" color="text.secondary" variant="body2">Loading…</Typography>;
@@ -45,17 +39,39 @@ export default function OwnerHomeSidebar() {
         <Link component={RouterLink} to="/landlord/activity" underline="hover" sx={{ whiteSpace: 'nowrap', fontSize: '0.8rem', fontWeight: 600 }}>View all</Link>
       </Stack>
       <LoadState loading={organizationLoading || activity.isLoading} error={activity.error} onRetry={() => activity.mutate()}>
-        <Box component="ul" sx={{ ...surfaceSx, m: 0, listStyle: 'none', px: 2, py: 0.5 }}>
+        <Box component="ul" sx={{ m: 0, p: 0, listStyle: 'none' }}>
           {(activity.data || []).map((item, index) => (
-            <Box component="li" key={getActivityKey(item, index)} sx={{ display: 'flex', gap: 1.25, py: 1.75, borderTop: index ? '1px solid' : 0, borderColor: 'divider' }}>
-              <Box aria-hidden="true" sx={{ color: 'text.secondary', pt: 0.25, flexShrink: 0 }}><AppIcon name="activity" /></Box>
-              <Box sx={{ minWidth: 0 }}>
-                <Link component={RouterLink} to={getActivityDestination(item) || '/landlord/activity'} variant="body2" underline="hover" sx={{ fontWeight: 600, overflowWrap: 'anywhere' }}>{item.title || item.message}</Link>
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, overflowWrap: 'anywhere' }}>
-                  {item.createdAt ? formatRelativeTime(item.createdAt, now) : ''}
-                  {item.performedByName && ` · ${item.performedByName}`}
+            <Box
+              component="li" key={getActivityKey(item, index)}
+              style={{ '--dashboard-deal-delay': dashboardEntranceDelay(index) }}
+              sx={{
+                ...dashboardSlideDownSx,
+                bgcolor: 'background.paper',
+                border: '1px solid',
+                borderBottomWidth: 0,
+                borderColor: 'divider',
+                '&:first-child': { borderTopLeftRadius: 2, borderTopRightRadius: 2 },
+                '&:last-child': { borderBottomWidth: 1, borderBottomLeftRadius: 2, borderBottomRightRadius: 2 }
+              }}
+            >
+              <Link
+                component={RouterLink}
+                to={getActivityDestination(item) || '/landlord/activity'}
+                underline="none"
+                sx={{ ...dashboardRowLinkSx, ...dashboardRowHoverSx, display: 'flex', alignItems: 'center', gap: 1.25, py: 1, px: 1.5, borderRadius: 'inherit' }}
+              >
+                <Box aria-hidden="true" sx={{ display: 'flex', flexShrink: 0, color: 'primary.main' }}>
+                  <AppIcon name="activity" />
+                </Box>
+                <Typography variant="body2" sx={{ flex: 1, minWidth: 0, fontWeight: 600, overflowWrap: 'anywhere' }}>
+                  {item.title || item.message}
                 </Typography>
-              </Box>
+                {item.createdAt && (
+                  <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0, textAlign: 'right' }}>
+                    {formatRelativeTime(item.createdAt, now)}
+                  </Typography>
+                )}
+              </Link>
             </Box>
           ))}
           {!activity.data?.length && <Box component="li" sx={{ py: 2 }}><Typography variant="body2" color="text.secondary">No recent activity.</Typography></Box>}

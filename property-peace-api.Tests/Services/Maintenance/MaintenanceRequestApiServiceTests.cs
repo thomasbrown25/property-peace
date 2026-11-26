@@ -1,3 +1,4 @@
+using System.Text.Json;
 using brownstone_hub_api.Data;
 using brownstone_hub_api.Dtos.Maintenance;
 using brownstone_hub_api.Models;
@@ -41,6 +42,40 @@ public sealed class MaintenanceRequestApiServiceTests
     }
 
     private static readonly DateTimeOffset Now = new(2026, 8, 9, 12, 0, 0, TimeSpan.Zero);
+
+    [Theory]
+    [InlineData(EAssignedToType.OrganizationMember, false)]
+    [InlineData(EAssignedToType.Self, false)]
+    [InlineData(EAssignedToType.Self, true)]
+    public async Task List_IncludesAssignedUserNameForLandlordAndOmitsItForTenant(EAssignedToType assignmentType, bool legacySelfAssignment)
+    {
+        await using var db = CreateDb();
+        SeedTenantLease(db, 10, 20, 30, 40, 50, 60);
+        db.Users.Add(new User { Id = 80, FirstName = "Avery", LastName = "Morgan" });
+        var request = Request(100, 40, 50, 60);
+        request.AssignedToType = assignmentType;
+        request.AssignedToUserId = legacySelfAssignment ? null : 80;
+        request.AssignedByUserId = assignmentType == EAssignedToType.Self ? 80 : 999;
+        db.MaintenanceRequests.Add(request);
+        await db.SaveChangesAsync();
+
+        var landlord = CreateService(db, new MaintenanceActor(999, false, true));
+        var landlordAssignment = (await landlord.ListAsync()).Value!.Single().Assignment;
+        landlordAssignment!.AssignedToUserId.Should().Be(80);
+        var jsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+        var landlordAssignmentJson = JsonSerializer.SerializeToElement(landlordAssignment, jsonOptions);
+        landlordAssignmentJson.TryGetProperty("assignedToUserName", out var name).Should().BeTrue();
+        name.GetString().Should().Be("Avery Morgan");
+
+        var context = new DefaultHttpContext();
+        context.Items["OrganizationId"] = 60L;
+        var tenant = new MaintenanceRequestApiService(db, new StubActorAccessor(new MaintenanceActor(10, true, false)),
+            new MaintenanceTriagePolicyV1(new FixedTimeProvider(Now)), new FixedTimeProvider(Now),
+            httpContextAccessor: new HttpContextAccessor { HttpContext = context });
+        var tenantAssignment = (await tenant.ListAsync()).Value!.Single().Assignment;
+        var tenantAssignmentJson = JsonSerializer.SerializeToElement(tenantAssignment, jsonOptions);
+        tenantAssignmentJson.TryGetProperty("assignedToUserName", out _).Should().BeFalse();
+    }
 
     [Fact]
     public async Task Create_TenantWithActiveLease_PersistsCanonicalTriageAndIgnoresServerOwnedInput()

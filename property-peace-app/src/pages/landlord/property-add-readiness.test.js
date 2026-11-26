@@ -15,12 +15,10 @@ for (const [name, path, accountField] of [
     const text = await source(path);
 
     assert.match(text, /canInvoke: rentCanInvoke[\s\S]*useFeatureReadiness\(FEATURE_KEYS\.onlineRentCollection\)/);
-    assert.match(text, /if \(!rentCanInvoke\) \{[\s\S]*setBankAccounts\(\[\]\);[\s\S]*setShowStripeOnboarding\(false\);[\s\S]*setLoadingBankAccounts\(false\);[\s\S]*return;/);
-    assert.match(text, /if \(!rentCanInvoke\) return;[\s\S]*sync-bank-account/);
+    assert.doesNotMatch(text, /StripeConnectOnboardingDialog|sync-bank-account/);
     assert.match(text, name === 'property add workflow'
       ? /operatingAccountId: values\.rentalMode === 'longTerm' && rentCanInvoke \? values\.bankAccountId \|\| null : null/
       : new RegExp(`operatingAccountId: rentCanInvoke \\? values\\.${accountField} \\|\\| null : null`));
-    assert.match(text, /\{rentCanInvoke && \([\s\S]*StripeConnectOnboardingDialog/);
   });
 }
 
@@ -29,7 +27,8 @@ test('property add reports readiness and hides all bank selection and onboarding
 
   assert.match(text, /FeatureReadinessNotice[\s\S]*Online rent collection/);
   assert.match(text, /\{rentCanInvoke && \([\s\S]*What is this property's primary bank account\?[\s\S]*Add new bank account/);
-  assert.match(text, /if \(!rentCanInvoke\) return;\s*setShowStripeOnboarding\(true\);/);
+  assert.match(text, /\{rentCanInvoke && \([\s\S]*<OnlinePaymentSetupButton\b[\s\S]*?Add new bank account/);
+  assert.match(text, /if \(!rentCanInvoke\) \{\s*setBankAccounts\(\[\]\);\s*setLoadingBankAccounts\(false\);\s*return;/);
 });
 
 test('primary creation does not silently finish with no property and uses a defined single-unit selector', async () => {

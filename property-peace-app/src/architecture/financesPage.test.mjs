@@ -71,6 +71,19 @@ test('finance metrics suppress retained values while their requested scope is lo
   assert.match(page, /overview=\{moneyData\.loading \|\| moneyScopeChanged \? null : moneyData\.overview\}/);
   assert.match(page, /collectedThisMonthAvailable=\{!paymentsData\.loading && !paymentsScopeChanged && paymentsData\.available\}/);
 });
+
+test('Payments offers a bookmarkable Stripe transactions view alongside the existing ledger', async () => {
+  const [page, settings] = await Promise.all([
+    source('pages/landlord/finances.jsx'), source('sections/landlord/settings/OnlinePaymentSettings.jsx')
+  ]);
+
+  assert.match(page, /const showStripeTransactions = activeTab === 'payments' && paymentView === 'stripe'/);
+  assert.match(page, /searchParams\.get\('paymentView'\) === 'stripe' \? 'stripe' : 'ledger'/);
+  assert.match(page, /aria-label="Payment views"[\s\S]*?<ToggleButton value="ledger">Payment ledger<\/ToggleButton>[\s\S]*?<ToggleButton value="stripe">Stripe transactions<\/ToggleButton>/);
+  assert.match(page, /showStripeTransactions \? \([\s\S]*?<OnlinePaymentTransactions \/>[\s\S]*?\) : \([\s\S]*?<PaymentsTab/);
+  assert.match(page, /if \(showStripeTransactions\) \{[\s\S]*?disabled: true,[\s\S]*?Select Payment ledger to export payment records/);
+  assert.match(settings, /if \(requestedTab === 'transactions'\) \{\s*return <Navigate to=\{buildLegacyOnlinePaymentsRedirect\(searchParams\)\} replace \/>/);
+});
 test('Needs review renders and exports real review records without fabricating bank connection rows', async () => {
   const [page, review] = await Promise.all([
     source('pages/landlord/finances.jsx'),

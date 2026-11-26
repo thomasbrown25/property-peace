@@ -7,7 +7,6 @@ import { motion } from 'framer-motion';
 // material-ui
 import { Button } from '@mui/material';
 import { FormHelperText } from '@mui/material';
-import { Grid } from '@mui/material';
 import { Link } from '@mui/material';
 import { OutlinedInput } from '@mui/material';
 import { Stack } from '@mui/material';
@@ -19,18 +18,17 @@ import { InputAdornment } from '@mui/material';
 import { Checkbox } from '@mui/material';
 import { FormControlLabel } from '@mui/material';
 import { CircularProgress } from '@mui/material';
-import { alpha } from '@mui/material/styles';
 
 // third-party
 import * as Yup from 'yup';
 import { Formik } from 'formik';
 
 // project imports
-import AnimateButton from 'components/@extended/AnimateButton';
-import { EyeOutlined, EyeInvisibleOutlined, KeyOutlined } from '@ant-design/icons';
+import { EyeOutlined, EyeInvisibleOutlined, KeyOutlined, MailOutlined } from '@ant-design/icons';
 
 import useAuth from 'hooks/useAuth';
 import MfaLoginChallenge from './MfaLoginChallenge';
+import { authFieldSx, authLabelSx, authPasswordAdornmentSx, authPasswordToggleSx, authPrimaryButtonSx, authSecondaryButtonSx } from './authFormStyles';
 
 const GOOGLE_OAUTH_MESSAGE_TYPE = 'GOOGLE_OAUTH_TOKEN';
 
@@ -80,42 +78,31 @@ function GoogleSignInButton({ inviteToken, setGoogleError, setMfaChallenge, isGo
   const disabled = !scriptReady || loading;
 
   return (
-    <AnimateButton>
-      <Button
-        disableElevation
-        fullWidth
-        size="large"
-        variant="outlined"
-        disabled={disabled}
-        onClick={handleGoogleLoginHook}
-        sx={{
-          borderColor: 'divider',
-          bgcolor: 'transparent',
-          color: 'text.primary',
-          py: 1.5,
-          '&:hover': {
-            borderColor: 'primary.main',
-            bgcolor: 'transparent'
-          }
-        }}
-        startIcon={
-          loading ? (
-            <CircularProgress size={18} color="inherit" />
-          ) : (
-            <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
-              <g fill="#000" fillRule="evenodd">
-                <path d="M9 3.48c1.69 0 2.83.73 3.48 1.34l2.54-2.48C13.46.89 11.43 0 9 0 5.48 0 2.44 2.02.96 4.96l2.91 2.26C4.6 5.05 6.62 3.48 9 3.48z" fill="#EA4335" />
-                <path d="M17.64 9.2c0-.74-.06-1.28-.19-1.84H9v3.34h4.96c-.21 1.18-.84 2.18-1.79 2.85l2.84 2.2c1.7-1.57 2.68-3.88 2.63-6.55z" fill="#4285F4" />
-                <path d="M3.88 10.78A5.54 5.54 0 0 1 3.58 9c0-.62.11-1.22.29-1.78L.96 4.96A9.008 9.008 0 0 0 0 9c0 1.45.35 2.82.96 4.04l2.92-2.26z" fill="#FBBC05" />
-                <path d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.84-2.2c-.76.53-1.78.9-3.12.9-2.38 0-4.4-1.57-5.12-3.74L.96 13.04C2.45 15.98 5.48 18 9 18z" fill="#34A853" />
-              </g>
-            </svg>
-          )
-        }
-      >
-        {!scriptReady ? 'Loading Google Sign-In…' : loading ? 'Signing in…' : 'Log in with Google'}
-      </Button>
-    </AnimateButton>
+    <Button
+      disableElevation
+      fullWidth
+      size="large"
+      variant="outlined"
+      disabled={disabled}
+      onClick={handleGoogleLoginHook}
+      sx={authSecondaryButtonSx}
+      startIcon={
+        loading ? (
+          <CircularProgress size={18} color="inherit" />
+        ) : (
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
+            <g fill="#000" fillRule="evenodd">
+              <path d="M9 3.48c1.69 0 2.83.73 3.48 1.34l2.54-2.48C13.46.89 11.43 0 9 0 5.48 0 2.44 2.02.96 4.96l2.91 2.26C4.6 5.05 6.62 3.48 9 3.48z" fill="#EA4335" />
+              <path d="M17.64 9.2c0-.74-.06-1.28-.19-1.84H9v3.34h4.96c-.21 1.18-.84 2.18-1.79 2.85l2.84 2.2c1.7-1.57 2.68-3.88 2.63-6.55z" fill="#4285F4" />
+              <path d="M3.88 10.78A5.54 5.54 0 0 1 3.58 9c0-.62.11-1.22.29-1.78L.96 4.96A9.008 9.008 0 0 0 0 9c0 1.45.35 2.82.96 4.04l2.92-2.26z" fill="#FBBC05" />
+              <path d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.84-2.2c-.76.53-1.78.9-3.12.9-2.38 0-4.4-1.57-5.12-3.74L.96 13.04C2.45 15.98 5.48 18 9 18z" fill="#34A853" />
+            </g>
+          </svg>
+        )
+      }
+    >
+      {!scriptReady ? 'Loading Google Sign-In…' : loading ? 'Signing in…' : 'Log in with Google'}
+    </Button>
   );
 }
 
@@ -263,9 +250,13 @@ export default function AuthLogin({ isDemo = false }) {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, ease: "easeOut", delay: 0.1 }}
               >
-                <Box sx={{ mb: 2, textAlign: 'center', mt: { xs: 0, sm: 18, md: 0 } }}>
-                  <Typography variant="h3" sx={{ fontWeight: 700, mb: 1, color: 'text.primary', fontSize: '2rem' }}>
-                    Welcome to Property Peace
+                <Box sx={{ mb: 1, textAlign: 'left', mt: { xs: 0, sm: 18, md: 0 } }}>
+                  <Typography
+                    component="h1"
+                    variant="h3"
+                    sx={{ fontWeight: 700, mb: 1, color: 'text.primary', fontSize: { xs: 28, sm: 32 }, letterSpacing: '-0.025em' }}
+                  >
+                    Log in to Property Peace
                   </Typography>
                   <Typography variant="body1" sx={{ color: 'text.secondary', display: { xs: 'none', sm: 'block' } }}>
                     Where property meets peace of mind.
@@ -281,7 +272,6 @@ export default function AuthLogin({ isDemo = false }) {
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.4, ease: "easeOut", delay: 0.2 }}
-                      style={{ padding: '0 4px', overflow: 'visible' }}
                     >
                       <GoogleSignInButton inviteToken={inviteToken} setGoogleError={setGoogleError} setMfaChallenge={setMfaChallenge} isGoogleAuthInProgress={isGoogleAuthInProgress} />
                     </motion.div>
@@ -294,8 +284,8 @@ export default function AuthLogin({ isDemo = false }) {
                       variant="outlined"
                       disabled={isPasskeyLoading}
                       onClick={handlePasskeyLogin}
-                      startIcon={isPasskeyLoading ? <CircularProgress size={18} color="inherit" /> : <KeyOutlined />}
-                      sx={{ borderColor: 'divider', color: 'text.primary', py: 1.5 }}
+                      startIcon={isPasskeyLoading ? <CircularProgress size={18} color="inherit" /> : <KeyOutlined aria-hidden="true" />}
+                      sx={authSecondaryButtonSx}
                     >
                       {isPasskeyLoading ? 'Signing in…' : 'Log in with a passkey'}
                     </Button>
@@ -309,8 +299,8 @@ export default function AuthLogin({ isDemo = false }) {
                       transition={{ duration: 0.3, ease: "easeOut", delay: 0.3 }}
                     >
                       <Divider sx={{ my: 1, borderColor: 'divider' }}>
-                        <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', fontWeight: 600, px: 1 }}>
-                          OR
+                        <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, px: 1 }}>
+                          or
                         </Typography>
                       </Divider>
                     </motion.div>
@@ -323,7 +313,7 @@ export default function AuthLogin({ isDemo = false }) {
                     transition={{ duration: 0.4, ease: "easeOut", delay: 0.4 }}
                   >
                     <Box>
-                      <Typography variant="body2" sx={{ mb: 0.5, color: 'text.primary', fontWeight: 500 }}>
+                      <Typography component="label" htmlFor="email-login" variant="body2" sx={authLabelSx}>
                         Email
                       </Typography>
                       <OutlinedInput
@@ -333,26 +323,19 @@ export default function AuthLogin({ isDemo = false }) {
                         name="email"
                         onBlur={handleBlur}
                         onChange={handleChange}
-                        placeholder=""
+                        autoComplete="username"
+                        aria-describedby={touched.email && errors.email ? 'email-login-error' : undefined}
                         fullWidth
-                        size="medium"
                         error={Boolean(touched.email && errors.email)}
-                        sx={{
-                          bgcolor: 'background.paper',
-                          borderRadius: 1,
-                          '& .MuiOutlinedInput-notchedOutline': {
-                            borderColor: 'divider'
-                          },
-                          '&:hover .MuiOutlinedInput-notchedOutline': {
-                            borderColor: 'primary.main'
-                          },
-                          '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                            borderColor: 'primary.main'
-                          }
-                        }}
+                        startAdornment={
+                          <InputAdornment position="start" disablePointerEvents>
+                            <MailOutlined aria-hidden="true" style={{ fontSize: 17 }} />
+                          </InputAdornment>
+                        }
+                        sx={authFieldSx}
                       />
                       {touched.email && errors.email && (
-                        <FormHelperText error sx={{ mt: 0.5 }}>
+                        <FormHelperText id="email-login-error" error sx={{ mt: 0.5 }}>
                           {errors.email}
                         </FormHelperText>
                       )}
@@ -366,12 +349,11 @@ export default function AuthLogin({ isDemo = false }) {
                     transition={{ duration: 0.4, ease: "easeOut", delay: 0.5 }}
                   >
                     <Box>
-                      <Typography variant="body2" sx={{ mb: 0.5, color: 'text.primary', fontWeight: 500 }}>
+                      <Typography component="label" htmlFor="password-login" variant="body2" sx={authLabelSx}>
                         Password
                       </Typography>
                       <OutlinedInput
                         fullWidth
-                        size="medium"
                         error={Boolean(touched.password && errors.password)}
                         id="password-login"
                         type={showPassword ? 'text' : 'password'}
@@ -379,37 +361,26 @@ export default function AuthLogin({ isDemo = false }) {
                         name="password"
                         onBlur={handleBlur}
                         onChange={handleChange}
-                        placeholder=""
+                        autoComplete="current-password"
+                        aria-describedby={touched.password && errors.password ? 'password-login-error' : undefined}
                         endAdornment={
-                          <InputAdornment position="end">
+                          <InputAdornment position="end" sx={authPasswordAdornmentSx}>
                             <IconButton
-                              aria-label="toggle password visibility"
+                              type="button"
+                              aria-label={showPassword ? 'Hide password' : 'Show password'}
+                              aria-controls="password-login"
                               onClick={handleClickShowPassword}
                               onMouseDown={handleMouseDownPassword}
-                              edge="end"
-                              size="small"
-                              sx={{ color: 'text.secondary' }}
+                              sx={authPasswordToggleSx}
                             >
                               {showPassword ? <EyeOutlined /> : <EyeInvisibleOutlined />}
                             </IconButton>
                           </InputAdornment>
                         }
-                        sx={{
-                          bgcolor: 'background.paper',
-                          borderRadius: 1,
-                          '& .MuiOutlinedInput-notchedOutline': {
-                            borderColor: 'divider'
-                          },
-                          '&:hover .MuiOutlinedInput-notchedOutline': {
-                            borderColor: 'primary.main'
-                          },
-                          '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                            borderColor: 'primary.main'
-                          }
-                        }}
+                        sx={authFieldSx}
                       />
                       {touched.password && errors.password && (
-                        <FormHelperText error sx={{ mt: 0.5 }}>
+                        <FormHelperText id="password-login-error" error sx={{ mt: 0.5 }}>
                           {errors.password}
                         </FormHelperText>
                       )}
@@ -435,7 +406,7 @@ export default function AuthLogin({ isDemo = false }) {
                         }
                         label={
                           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                            Remember Me
+                            Remember me
                           </Typography>
                         }
                       />
@@ -451,7 +422,7 @@ export default function AuthLogin({ isDemo = false }) {
                           }
                         }}
                       >
-                        Forgot Password?
+                        Forgot password?
                       </Link>
                     </Box>
                   </motion.div>
@@ -462,34 +433,18 @@ export default function AuthLogin({ isDemo = false }) {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.4, ease: "easeOut", delay: 0.7 }}
                   >
-                    <AnimateButton>
-                      <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-                        <Button
-                          disableElevation
-                          disabled={isSubmitting}
-                          size="large"
-                          type="submit"
-                          variant="contained"
-                          startIcon={isSubmitting ? <CircularProgress size={20} color="inherit" /> : null}
-                          sx={{
-                            bgcolor: 'primary.main',
-                            color: 'primary.contrastText',
-                            textTransform: 'uppercase',
-                            fontWeight: 600,
-                            py: 1.5,
-                            px: 6,
-                            minWidth: 250,
-                            boxShadow: (theme) => `0 12px 24px ${alpha(theme.palette.primary.main, 0.24)}`,
-                            '&:hover': {
-                              bgcolor: 'primary.dark',
-                              boxShadow: (theme) => `0 14px 28px ${alpha(theme.palette.primary.main, 0.28)}`
-                            }
-                          }}
-                        >
-                          {isSubmitting ? 'LOGGING IN...' : 'LOG IN'}
-                        </Button>
-                      </Box>
-                    </AnimateButton>
+                    <Button
+                      disableElevation
+                      fullWidth
+                      disabled={isSubmitting}
+                      size="large"
+                      type="submit"
+                      variant="contained"
+                      startIcon={isSubmitting ? <CircularProgress size={20} color="inherit" /> : null}
+                      sx={authPrimaryButtonSx}
+                    >
+                      {isSubmitting ? 'Logging in…' : 'Log in'}
+                    </Button>
                   </motion.div>
 
                   {/* Error Messages */}

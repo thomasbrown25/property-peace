@@ -4,6 +4,7 @@ import { Box, Button, FormHelperText, Link, OutlinedInput, Stack, Typography } f
 import * as Yup from 'yup';
 import { Formik } from 'formik';
 import axiosServices from 'utils/axios';
+import { authFieldSx, authLabelSx, authPrimaryButtonSx } from './authFormStyles';
 
 const RESEND_SECONDS = 30;
 
@@ -79,7 +80,7 @@ export default function EmailVerifierForm({ email, onVerified, onBack }) {
           <form noValidate onSubmit={handleSubmit}>
             <Stack spacing={2}>
               <Box>
-                <Typography component="label" htmlFor="code-verification" variant="body2" fontWeight={600}>
+                <Typography component="label" htmlFor="code-verification" variant="body2" sx={authLabelSx}>
                   Verification code
                 </Typography>
                 <OutlinedInput
@@ -91,6 +92,7 @@ export default function EmailVerifierForm({ email, onVerified, onBack }) {
                   fullWidth
                   autoFocus
                   error={Boolean(touched.code && errors.code)}
+                  aria-describedby={touched.code && errors.code ? 'code-verification-error' : undefined}
                   inputProps={{
                     maxLength: 6,
                     inputMode: 'numeric',
@@ -99,9 +101,9 @@ export default function EmailVerifierForm({ email, onVerified, onBack }) {
                     'aria-label': 'Six-digit verification code',
                     style: { textAlign: 'center', letterSpacing: '.45em', fontSize: '1.25rem' }
                   }}
-                  sx={{ mt: 0.75 }}
+                  sx={authFieldSx}
                 />
-                {touched.code && errors.code && <FormHelperText error>{errors.code}</FormHelperText>}
+                {touched.code && errors.code && <FormHelperText id="code-verification-error" error>{errors.code}</FormHelperText>}
               </Box>
               {errors.submit && (
                 <FormHelperText error role="alert">
@@ -114,7 +116,7 @@ export default function EmailVerifierForm({ email, onVerified, onBack }) {
                 type="submit"
                 variant="contained"
                 disabled={isSubmitting}
-                sx={{ py: 1.4, textTransform: 'none', fontWeight: 700 }}
+                sx={authPrimaryButtonSx}
               >
                 {isSubmitting ? 'Verifying…' : 'Verify email'}
               </Button>

@@ -433,7 +433,10 @@ public sealed class StripeControllerSecurityTests
             .ReturnsAsync(true);
         var stripeService = new Mock<IStripeService>();
         stripeService.Setup(x => x.CreateAccountLinkAsync(
-                "acct_selected_org_77", It.IsAny<string>(), It.IsAny<string>(), "account_onboarding"))
+                "acct_selected_org_77",
+                "https://app.example.test/landlord/settings?tab=payments&stripe=connected",
+                "https://app.example.test/landlord/settings?tab=payments&stripe=refresh",
+                "account_onboarding"))
             .ReturnsAsync(ServiceResponse<string>.CreateSuccess("https://stripe.test/onboard"));
         stripeService.Setup(x => x.CreateLoginLinkAsync("acct_selected_org_77"))
             .ReturnsAsync(ServiceResponse<string>.CreateSuccess("https://stripe.test/dashboard"));
@@ -450,7 +453,11 @@ public sealed class StripeControllerSecurityTests
             }));
         var controller = CreateController(
             stripeService.Object, userService.Object, organizationService.Object,
-            payeeService: payeeService.Object);
+            payeeService: payeeService.Object,
+            configuration: new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["FrontendBaseUrl"] = "https://app.example.test/"
+            }).Build());
         Authenticate(controller, 42);
         controller.HttpContext.Items["OrganizationId"] = 77L;
 
@@ -670,7 +677,8 @@ public sealed class StripeControllerSecurityTests
     public async Task CreateConnectAccount_PassesNullToServiceOnlyForAuthorizedFirstCreation()
     {
         var stripeService = new Mock<IStripeService>(MockBehavior.Strict);
-        stripeService.Setup(x => x.CreateConnectAccountAsync(42, "landlord@example.test", It.IsAny<string>(), null))
+        stripeService.Setup(x => x.CreateConnectAccountAsync(42, "landlord@example.test",
+                "https://app.example.test/landlord/settings?tab=payments&stripe=connected", null))
             .ReturnsAsync(ServiceResponse<CreateStripeAccountResponseDto>.CreateSuccess(new CreateStripeAccountResponseDto()));
         var userService = new Mock<IUserService>();
         userService.Setup(x => x.GetUserByIdAsync(42))
@@ -685,6 +693,8 @@ public sealed class StripeControllerSecurityTests
         var controller = CreateController(stripeService.Object, userService.Object,
             payeeService: payeeService.Object, connectPreparationService: preparationService.Object);
         Authenticate(controller, 42);
+        controller.Request.Scheme = "https";
+        controller.Request.Host = new HostString("app.example.test");
         controller.HttpContext.Items["OrganizationId"] = 77L;
 
         (await controller.CreateConnectAccount(new CreateConnectAccountRequest())).Should().BeOfType<OkObjectResult>();

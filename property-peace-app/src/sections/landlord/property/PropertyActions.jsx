@@ -3,7 +3,7 @@ import { useDrawer } from 'contexts/DrawerContext';
 import { isDetachedSingleUnitType } from 'utils/propertyType';
 import { rentalMode } from 'utils/rentalMode';
 
-export default function PropertyActions({ property, onEdit, onViewLeases, onUploadDocument, onDelete }) {
+export default function PropertyActions({ property, onlinePaymentAction, onEdit, onViewLeases, onUploadDocument, onDelete }) {
   const drawer = useDrawer();
   const propertyId = property?.id ?? property?.Id;
   const units = property?.units ?? property?.Units ?? [];
@@ -37,6 +37,7 @@ export default function PropertyActions({ property, onEdit, onViewLeases, onUplo
       disabled: !hasLongTermUnits,
       onSelect: () => drawer.openPaymentAddDrawer({ property: property || { id: propertyId } })
     },
+    ...(onlinePaymentAction ? [onlinePaymentAction] : []),
     {
       label: 'Create a maintenance ticket',
       description: 'Report a repair or maintenance issue at this property.',
