@@ -12,7 +12,7 @@ import { Box } from '@mui/material';
  * This component manages both exit and enter animations by keeping
  * the previous content visible during the exit animation.
  */
-export default function PageTransition({ children }) {
+export default function PageTransition({ children, stretch = false }) {
   const location = useLocation();
   const [displayChildren, setDisplayChildren] = useState(children);
   const [displayLocation, setDisplayLocation] = useState(location.pathname);
@@ -61,12 +61,14 @@ export default function PageTransition({ children }) {
         position: 'relative',
         width: '100%',
         flex: 1,
+        ...(stretch && { display: 'flex', flexDirection: 'column' }),
         overflow: 'visible', // Allow components to be visible when animating from outside
         minHeight: 'auto !important',
         height: 'auto !important',
         '& .page-content': {
           width: '100%',
           transformOrigin: 'center center',
+          ...(stretch && { flex: 1, display: 'flex', flexDirection: 'column' }),
         },
         '& .page-content.exiting': {
           position: 'absolute',

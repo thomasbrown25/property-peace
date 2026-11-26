@@ -101,6 +101,20 @@ export function maintenanceActorForRoute(user, pathname = '', activeOrganization
 
 export const maintenanceUserId = (user) => Number(user?.Id ?? user?.id ?? user?.userId) || null;
 
+export function maintenanceListAssignment(request, currentUserId) {
+  const assignment = request.assignment || request;
+  const { vendorId, assignedToUserId } = assignment;
+  if (vendorId || (!request.assignment && request.vendorName)) return { name: request.vendorName || `Vendor #${vendorId}`, type: 'Vendor' };
+  if (assignedToUserId || (Number(request.assignedToType) === 4 && request.assignedContactName)) {
+    const name = currentUserId && String(assignedToUserId) === String(currentUserId)
+      ? 'Assigned to me'
+      : assignment.assignedToUserName || request.assignedContactName || 'Team member';
+    return { name, type: 'Team member' };
+  }
+  if (request.assignedContactName) return { name: request.assignedContactName, type: 'Assigned' };
+  return null;
+}
+
 export function evidenceSelection(existingFiles = [], candidateFiles = []) {
   const candidates = Array.from(candidateFiles || []);
   const errors = [];

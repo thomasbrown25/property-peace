@@ -8,6 +8,13 @@ export function canManageStripeAccount(status) {
   return (status?.canManageAccount ?? status?.CanManageAccount) === true;
 }
 
+export function readStripeAccountStatus(response) {
+  if (response?.success === false) return null;
+  const status = response?.success === true ? response.data : response;
+  if (typeof status?.detailsSubmitted !== 'boolean') return null;
+  return status.accountId === null || typeof status.accountId === 'string' ? status : null;
+}
+
 export function canCreateInitialStripeAccount({
   statusLoadedSuccessfully,
   status,

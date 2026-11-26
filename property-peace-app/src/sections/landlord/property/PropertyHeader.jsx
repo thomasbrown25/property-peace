@@ -61,7 +61,7 @@ function SummaryFact({ label, value }) {
   );
 }
 
-export default function PropertyHeader({ property, rentRecords = [], rentLoading = false, rentError }) {
+export default function PropertyHeader({ property, onlinePaymentAction, rentRecords = [], rentLoading = false, rentError }) {
   const drawer = useDrawer();
   const [imageError, setImageError] = useState(false);
   const propertyId = property?.id ?? property?.Id;
@@ -292,14 +292,26 @@ export default function PropertyHeader({ property, rentRecords = [], rentLoading
                     </Stack>
                   </Box>
                   {hasLongTermUnits && (
-                    <Button
-                      variant="contained"
-                      startIcon={<AppIcon name="dollarCircle" />}
-                      onClick={() => drawer.openPaymentAddDrawer({ property: property || { id: propertyId } })}
-                      sx={{ alignSelf: 'flex-start', textTransform: 'none' }}
-                    >
-                      Record a payment
-                    </Button>
+                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                      <Button
+                        variant="contained"
+                        startIcon={<AppIcon name="dollarCircle" />}
+                        onClick={() => drawer.openPaymentAddDrawer({ property: property || { id: propertyId } })}
+                        sx={{ textTransform: 'none' }}
+                      >
+                        Record a payment
+                      </Button>
+                      {onlinePaymentAction?.showInRentCard && (
+                        <Button
+                          variant="outlined"
+                          startIcon={<AppIcon name={onlinePaymentAction.icon} />}
+                          onClick={onlinePaymentAction.onSelect}
+                          sx={{ textTransform: 'none' }}
+                        >
+                          {onlinePaymentAction.label}
+                        </Button>
+                      )}
+                    </Stack>
                   )}
                 </Stack>
               </Box>

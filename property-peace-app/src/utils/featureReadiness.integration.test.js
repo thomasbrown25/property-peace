@@ -72,10 +72,10 @@ test('lease gates Stripe account onboarding with online rent readiness independe
   const text = await source(landlordLeasePath);
   assert.match(text, /useFeatureReadiness\(FEATURE_KEYS\.eSignature\)/);
   assert.match(text, /canInvoke: rentCanInvoke[\s\S]*useFeatureReadiness\(FEATURE_KEYS\.onlineRentCollection\)/);
-  assert.match(text, /if \(!rentCanInvoke\) return;\s*setShowStripeOnboarding\(true\);/);
-  assert.match(text, /disabled=\{!rentCanInvoke\}[\s\S]*Add New Bank Account/);
+  const setupButton = text.match(/<OnlinePaymentSetupButton\b[\s\S]*?<\/OnlinePaymentSetupButton>/)?.[0];
+  assert.ok(setupButton);
+  assert.match(setupButton, /disabled=\{!rentCanInvoke\}/);
   assert.match(text, /FeatureReadinessNotice[\s\S]*Online rent collection/);
-  assert.match(text, /\{rentCanInvoke && \(\s*<StripeConnectOnboardingDialog/s);
 });
 
 test('contact-details save preserves hosted publication but clears blocked external defaults', async () => {
@@ -164,7 +164,7 @@ test('bank settings never call or mount Stripe provider setup while rent collect
   assert.ok(text.indexOf('if (!rentCanInvoke)') < text.indexOf('<Dialog'));
 });
 
-test('property banking fails closed before loading accounts and never mounts bank or Stripe dialogs while blocked', async () => {
+test('property banking fails closed before loading accounts or showing the setup link', async () => {
   const text = await source(landlordPropertyPath);
   assert.match(text, /canInvoke: rentCanInvoke[\s\S]*useFeatureReadiness\(FEATURE_KEYS\.onlineRentCollection\)/);
   assert.match(text, /if \(!rentCanInvoke \|\| !property\?\.operatingAccountId\) \{[\s\S]*setOperatingAccount\(null\);[\s\S]*setLoadingAccount\(false\);[\s\S]*return;/);
@@ -172,7 +172,7 @@ test('property banking fails closed before loading accounts and never mounts ban
   assert.match(text, /if \(!rentCanInvoke \|\| !property\?\.id\) return;/);
   assert.match(text, /FeatureReadinessNotice[\s\S]*Online rent collection/);
   assert.match(text, /\{rentCanInvoke && bankingModalOpen && \(\s*<Dialog/s);
-  assert.match(text, /\{rentCanInvoke && showStripeOnboarding && \(\s*<StripeConnectOnboardingDialog/s);
+  assert.match(text, /\{rentCanInvoke && bankingModalOpen && \(\s*<Dialog[\s\S]*?<OnlinePaymentSetupButton\b[\s\S]*?<\/Dialog>/s);
 });
 
 test('lease charges fail closed for online collection, account writes, bank APIs, and Stripe onboarding', async () => {
@@ -186,7 +186,7 @@ test('lease charges fail closed for online collection, account writes, bank APIs
   assert.match(text, /operatingAccountId: rentCanInvoke && collectThroughPlatform/);
   assert.match(text, /FeatureReadinessNotice[\s\S]*Online rent collection/);
   assert.match(text, /\{rentCanInvoke && bankingModalOpen && \(\s*<Dialog/s);
-  assert.match(text, /\{rentCanInvoke && showStripeOnboarding && \(\s*<StripeConnectOnboardingDialog/s);
+  assert.match(text, /\{rentCanInvoke && bankingModalOpen && \(\s*<Dialog[\s\S]*?<OnlinePaymentSetupButton\b[\s\S]*?<\/Dialog>/s);
 });
 
 test('pricing preserves plan entitlement and qualifies operational readiness', async () => {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
+import { matchPath, Outlet, useLocation } from 'react-router-dom';
 import NewMaintenancePanel from 'components/maintenance/NewMaintenancePanel';
 import ExpenseAddDrawer from 'components/expense/ExpenseAddDrawer';
 import LandlordMaintenanceDrawer from 'components/drawers/LandlordMaintenanceDrawer';
@@ -108,8 +108,9 @@ export default function DashboardLayout() {
   const isMessagesPage = pathname === '/landlord/chat' || pathname.startsWith('/landlord/chat?');
   // Check if it's the reports page (e.g., /landlord/reports)
   const isReportsPage = pathname === '/landlord/reports' || pathname.startsWith('/landlord/reports?');
-  // Check if it's the settings page (e.g., /landlord/settings)
-  const isSettingsPage = pathname === '/landlord/settings' || pathname.startsWith('/landlord/settings?');
+  const isLandlordSettingsPage = Boolean(matchPath('/landlord/settings', pathname));
+  const isSettingsPage = isLandlordSettingsPage || Boolean(matchPath('/tenant/settings', pathname));
+  const isFullWidthPage = isAddPropertyPage || isSettingsPage;
   // Check if it's the accounting page (e.g., /landlord/accounting)
   const isAccountingPage = pathname === '/landlord/accounting' || pathname.startsWith('/landlord/accounting');
   const hasPageScopedMaintenanceDrawer =
@@ -132,7 +133,7 @@ export default function DashboardLayout() {
     (isMaintenancesPage && isMaintenancesLoading) ||
     (isMessagesPage && isMessagesLoading) ||
     (isReportsPage && isReportsLoading) ||
-    (isSettingsPage && isSettingsLoading) ||
+    (isLandlordSettingsPage && isSettingsLoading) ||
     (isAccountingPage && isAccountingLoading);
 
   return (
@@ -164,7 +165,7 @@ export default function DashboardLayout() {
           sx={{ 
             width: isAdminPortal ? { xs: '100%', lg: `calc(100% - ${DRAWER_WIDTH}px)` } : isLandlordPortal ? { xs: '100%', lg: `calc(100% - ${LANDLORD_SIDEBAR_WIDTH}px)` } : '100%',
             flexGrow: 1, 
-            p: isAddPropertyPage ? 0 : 2.5,
+            p: isFullWidthPage ? 0 : 2.5,
             pb: 0,
             display: 'flex',
             flexDirection: 'column',
@@ -211,7 +212,7 @@ export default function DashboardLayout() {
                 width: '100%',
                 maxWidth: 'none',
                 mx: 'auto',
-                px: isAddPropertyPage ? 0 : { xs: 0, sm: 1, md: 1.5, lg: 2 },
+                px: isFullWidthPage ? 0 : { xs: 0, sm: 1, md: 1.5, lg: 2 },
                 boxSizing: 'border-box',
                 minWidth: 0,
                 flex: 1,
@@ -224,13 +225,14 @@ export default function DashboardLayout() {
                   height: 'auto !important'
                 }
               }}>
-                <PageTransition>
+                <PageTransition stretch={isSettingsPage}>
                   <Outlet />
                 </PageTransition>
               </Box>
               {!isAddPropertyPage && <Box sx={{
                 flexShrink: 0,
                 width: '100%',
+                px: isSettingsPage ? 2.5 : 0,
                 mt: 'auto',
               }}>
                 <Footer />

@@ -4,8 +4,8 @@ import { DRAWER_WIDTH } from 'config';
 import { LANDLORD_SIDEBAR_WIDTH } from '../LandlordSidebar';
 import HeaderContent from './HeaderContent';
 
-const HEADER_HEIGHT = { xs: 52, sm: 60 };
-export const TENANT_HEADER_HEIGHT = { xs: 96, sm: 104, md: 60 };
+export const HEADER_HEIGHT = { xs: 52, sm: 60 };
+export const TENANT_HEADER_HEIGHT = { xs: 96, sm: 104, md: HEADER_HEIGHT.sm };
 
 export default function Header({ adminPortal = false, landlordPortal = false, tenantPortal = false, onAdminMenuOpen, onLandlordMenuOpen }) {
   const height = tenantPortal ? TENANT_HEADER_HEIGHT : HEADER_HEIGHT;

@@ -9,6 +9,7 @@ import AdminRoute from 'components/auth/AdminRoute';
 
 import SubscriptionPausedGuard from 'components/auth/SubscriptionPausedGuard';
 import EntitlementGate from 'components/entitlements/EntitlementGate';
+import { buildLegacyOnlinePaymentsRedirect } from 'utils/onlinePaymentTabs';
 import { buildLeaseBuilderRedirect } from './leaseBuilderRoutes';
 import { buildLegacyFinancesRedirect } from './legacyFinancesRedirect';
 
@@ -89,7 +90,6 @@ const ContactUs = Loadable(lazy(() => import('pages/landlord/contact-us')));
 const Files = Loadable(lazy(() => import('pages/landlord/files')));
 const Documents = Loadable(lazy(() => import('pages/landlord/documents')));
 const ToolsTabs = Loadable(lazy(() => import('pages/landlord/tools-tabs')));
-const OnlinePayments = Loadable(lazy(() => import('pages/landlord/online-payments')));
 const Finances = Loadable(lazy(() => import('pages/landlord/finances')));
 const ExpensesProperty = Loadable(lazy(() => import('pages/landlord/expenses-property')));
 const ExpenseAddWorkflow = Loadable(lazy(() => import('pages/landlord/expense-add-workflow')));
@@ -232,6 +232,11 @@ function LegacyFinancesRedirect({ tab }) {
 LegacyFinancesRedirect.propTypes = {
   tab: PropTypes.oneOf(['activity', 'expenses', 'payments']).isRequired
 };
+
+function LegacyOnlinePaymentsRedirect() {
+  const { search, hash } = useLocation();
+  return <Navigate to={`${buildLegacyOnlinePaymentsRedirect(search)}${hash}`} replace />;
+}
 
 const MainRoutes = {
   path: '/',
@@ -903,11 +908,7 @@ const MainRoutes = {
         },
         {
           path: 'landlord/online-payments',
-          element: (
-            <SubscriptionPausedGuard>
-              <OnlinePayments />
-            </SubscriptionPausedGuard>
-          )
+          element: <LegacyOnlinePaymentsRedirect />
         },
         {
           path: 'landlord/finances',

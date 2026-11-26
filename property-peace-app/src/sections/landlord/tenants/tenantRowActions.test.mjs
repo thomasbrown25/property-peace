@@ -9,11 +9,11 @@ test('tenant table has no selection controls or bulk invite action', () => {
   assert.match(source, /gridTemplateColumns: 'minmax\(210px, 1\.45fr\)/);
 });
 
-test('tenant row omits record number and offers direct add-to-lease for an unassigned tenant', () => {
+test('tenant row shows the assigned home and dates or No lease, with assignment in the actions menu', () => {
   const row = source.split('function TenantRow(')[1].split('export default function TenantsContent')[0];
   assert.doesNotMatch(row, /Tenant record #|>Unassigned</);
   assert.match(row, /event\.target !== event\.currentTarget/);
-  assert.match(row, /hasLease\(tenant\) \? \([\s\S]*?Lease assigned[\s\S]*?\) : \([\s\S]*?<Button/);
-  assert.match(row, /<Button[\s\S]*?onClick=\{\(event\) => \{[\s\S]*?event\.stopPropagation\(\);[\s\S]*?onAddToLease\(tenant\);[\s\S]*?\}\}[\s\S]*?>\s*Add to lease\s*<\/Button>/);
-  assert.match(source, /onAddToLease=\{\(item\) => \{[\s\S]*?setAddToLeaseTenant\(item\);[\s\S]*?setAddToLeaseDrawerOpen\(true\);/);
+  assert.match(row, /hasLease\(tenant\) \? \([\s\S]*?\{propertyDisplay[\s\S]*?leaseStart[\s\S]*?leaseEnd[\s\S]*?>No lease<\/Typography>/);
+  assert.doesNotMatch(row, /Add to lease|Lease assigned/);
+  assert.match(source, /setAddToLeaseTenant\(actionMenuTenant\);[\s\S]*?<span>Add to lease<\/span>/);
 });

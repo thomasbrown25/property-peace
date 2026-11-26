@@ -20,12 +20,12 @@ test('public email signup renders a Turnstile checkbox and sends its one-time to
   assert.match(widget, /'error-callback'/);
 });
 
-test('signup account step uses the concise heading and Sign Up action', () => {
+test('signup account step uses the concise heading and sentence-case Sign up action', () => {
   const form = read('./EmailEntryForm.jsx');
 
   assert.doesNotMatch(form, /Step 1 of 3 · Account/);
   assert.doesNotMatch(form, /Use your work email and choose a secure password/);
-  assert.match(form, /emailAlreadyVerified \? 'Continue securely' : 'Sign Up'/);
+  assert.match(form, /emailAlreadyVerified \? 'Continue securely' : 'Sign up'/);
 });
 
 test('email signup advances to verification while trusted Google signup skips to details', () => {

@@ -16,13 +16,21 @@ import {
   Stack,
   Typography
 } from '@mui/material';
-import { EyeInvisibleOutlined, EyeOutlined } from '@ant-design/icons';
+import { EyeInvisibleOutlined, EyeOutlined, MailOutlined } from '@ant-design/icons';
 import * as Yup from 'yup';
 import { Formik } from 'formik';
 import axiosServices from 'utils/axios';
 import TurnstileCheckbox from 'components/auth/TurnstileCheckbox';
 import useAuth from 'hooks/useAuth';
 import { passwordRequirementStatuses, validatePassword } from 'utils/password-validation';
+import {
+  authFieldSx,
+  authLabelSx,
+  authPasswordAdornmentSx,
+  authPasswordToggleSx,
+  authPrimaryButtonSx,
+  authSecondaryButtonSx
+} from './authFormStyles';
 
 const GOOGLE_OAUTH_MESSAGE_TYPE = 'GOOGLE_OAUTH_TOKEN';
 
@@ -99,7 +107,7 @@ function GoogleButton({ userType, onGoogleSuccess, setGoogleError, externalLoadi
           </svg>
         )
       }
-      sx={{ py: 1.35, textTransform: 'none' }}
+      sx={authSecondaryButtonSx}
     >
       {busy ? 'Connecting to Google…' : 'Continue with Google'}
     </Button>
@@ -284,7 +292,7 @@ export default function EmailEntryForm({
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: reduceMotion ? 0 : 0.4, ease: 'easeOut', delay: reduceMotion ? 0 : oauthEnabled ? 0.4 : 0.2 }}
               >
-                <Typography component="label" htmlFor="email-signup" variant="body2" fontWeight={600}>
+                <Typography component="label" htmlFor="email-signup" variant="body2" sx={authLabelSx}>
                   Email address
                 </Typography>
                 <OutlinedInput
@@ -296,10 +304,16 @@ export default function EmailEntryForm({
                   onChange={handleChange}
                   onBlur={handleBlur}
                   error={Boolean(touched.email && errors.email)}
+                  aria-describedby={touched.email && errors.email ? 'email-signup-error' : undefined}
                   fullWidth
-                  sx={{ mt: 0.75 }}
+                  startAdornment={
+                    <InputAdornment position="start" disablePointerEvents>
+                      <MailOutlined aria-hidden="true" style={{ fontSize: 17 }} />
+                    </InputAdornment>
+                  }
+                  sx={authFieldSx}
                 />
-                {touched.email && errors.email && <FormHelperText error>{errors.email}</FormHelperText>}
+                {touched.email && errors.email && <FormHelperText id="email-signup-error" error>{errors.email}</FormHelperText>}
               </Box>
               <Box
                 component={motion.div}
@@ -307,7 +321,7 @@ export default function EmailEntryForm({
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: reduceMotion ? 0 : 0.4, ease: 'easeOut', delay: reduceMotion ? 0 : oauthEnabled ? 0.5 : 0.3 }}
               >
-                <Typography component="label" htmlFor="password-signup" variant="body2" fontWeight={600}>
+                <Typography component="label" htmlFor="password-signup" variant="body2" sx={authLabelSx}>
                   Password
                 </Typography>
                 <OutlinedInput
@@ -319,21 +333,24 @@ export default function EmailEntryForm({
                   onChange={handleChange}
                   onBlur={handleBlur}
                   error={Boolean(touched.password && errors.password)}
+                  aria-describedby={touched.password && errors.password ? 'password-signup-error' : undefined}
                   fullWidth
-                  sx={{ mt: 0.75 }}
+                  sx={authFieldSx}
                   endAdornment={
-                    <InputAdornment position="end">
+                    <InputAdornment position="end" sx={authPasswordAdornmentSx}>
                       <IconButton
+                        type="button"
                         aria-label={showPassword ? 'Hide password' : 'Show password'}
+                        aria-controls="password-signup"
                         onClick={() => setShowPassword((value) => !value)}
-                        edge="end"
+                        sx={authPasswordToggleSx}
                       >
                         {showPassword ? <EyeOutlined /> : <EyeInvisibleOutlined />}
                       </IconButton>
                     </InputAdornment>
                   }
                 />
-                {touched.password && errors.password && <FormHelperText error>{errors.password}</FormHelperText>}
+                {touched.password && errors.password && <FormHelperText id="password-signup-error" error>{errors.password}</FormHelperText>}
                 {values.password && (
                   <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 0.6 }}>
                     {passwordRequirementStatuses(values.password).map(({ label, met }) => (
@@ -369,9 +386,9 @@ export default function EmailEntryForm({
                   type="submit"
                   variant="contained"
                   disabled={isSubmitting || (turnstileRequired && !botChallengeToken)}
-                  sx={{ py: 1.4, textTransform: 'none', fontWeight: 700 }}
+                  sx={authPrimaryButtonSx}
                 >
-                  {isSubmitting ? 'Please wait…' : emailAlreadyVerified ? 'Continue securely' : 'Sign Up'}
+                  {isSubmitting ? 'Please wait…' : emailAlreadyVerified ? 'Continue securely' : 'Sign up'}
                 </Button>
               </TransitionIn>
               <TransitionIn delay={oauthEnabled ? 0.7 : 0.5} disabled={reduceMotion}>

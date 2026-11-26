@@ -39,12 +39,10 @@ import MainCard from 'components/MainCard';
 import AddressFieldWithPlaces from 'components/input/AddressFieldWithPlaces';
 import FormInput from 'components/input/FormInput';
 import FormSelect from 'components/input/FormSelect';
-import StripeConnectOnboardingDialog from 'components/dialogs/StripeConnectOnboardingDialog';
 import useCreateProperty from 'hooks/useCreateProperty';
 import { useGooglePlacePhotos } from 'hooks/useGooglePlacePhotos';
 import placeholderImage from 'assets/images/placeholder-house.png';
 import { useSubscriptionStatus } from 'hooks/useSubscription';
-import { bankAccountAPI } from 'api';
 import { openSnackbar } from 'api/snackbar';
 import useAuth from 'hooks/useAuth';
 import { useDrawer } from 'contexts/DrawerContext';
@@ -135,9 +133,6 @@ function PropertyAddWorkflow({ onClose, initialAddress, onBackToRental }) {
   const addressInputRef = useRef(null);
 
   // Bank accounts state
-  const [bankAccounts, setBankAccounts] = useState([]);
-  const [loadingBankAccounts, setLoadingBankAccounts] = useState(false);
-  const [showStripeOnboarding, setShowStripeOnboarding] = useState(false);
   const unitsInitializedRef = useRef(false);
 
   // Custom StepConnector for property workflow
@@ -272,43 +267,6 @@ function PropertyAddWorkflow({ onClose, initialAddress, onBackToRental }) {
     }
   }, [currentStep, values.units?.length, setFieldValue]); // Track length to detect additions
 
-  // Fetch bank accounts
-  useEffect(() => {
-    if (!rentCanInvoke) {
-      setBankAccounts([]);
-      setShowStripeOnboarding(false);
-      setLoadingBankAccounts(false);
-      return;
-    }
-
-    const fetchBankAccounts = async () => {
-      try {
-        setLoadingBankAccounts(true);
-        const response = await bankAccountAPI.getBankAccounts();
-        if (response.success && response.data) {
-          setBankAccounts(response.data.map(acc => ({
-            id: acc.id,
-            value: acc.id,
-            label: acc.displayName || (acc.last4 ? `Bank Account (****${acc.last4})` : 'Bank Account'),
-            stripeAccountId: acc.stripeAccountId,
-            displayName: acc.displayName,
-            last4: acc.last4,
-            bankName: acc.bankName
-          })));
-        } else {
-          setBankAccounts([]);
-        }
-      } catch (error) {
-        console.error('Error fetching bank accounts:', error);
-        setBankAccounts([]);
-      } finally {
-        setLoadingBankAccounts(false);
-      }
-    };
-
-    fetchBankAccounts();
-  }, [showStripeOnboarding, rentCanInvoke]);
-
   // The standalone address modal bypasses the legacy address picker; look up
   // imagery for its confirmed address while the user completes the remaining steps.
   useEffect(() => {
@@ -323,34 +281,6 @@ function PropertyAddWorkflow({ onClose, initialAddress, onBackToRental }) {
     lookupPropertyImage(place, address);
   };
 
-
-  // Handler for Stripe onboarding complete
-  const handleStripeOnboardingComplete = async () => {
-    if (!rentCanInvoke) return;
-
-    try {
-      await axiosServices.post('/api/stripe/sync-bank-account');
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      const response = await bankAccountAPI.getBankAccounts();
-      if (response.success && response.data) {
-        const mappedAccounts = response.data.map(acc => ({
-          id: acc.id,
-          value: acc.id,
-          label: acc.displayName || (acc.last4 ? `Bank Account (****${acc.last4})` : 'Bank Account'),
-          stripeAccountId: acc.stripeAccountId,
-          displayName: acc.displayName,
-          last4: acc.last4,
-          bankName: acc.bankName
-        }));
-        setBankAccounts(mappedAccounts);
-        if (mappedAccounts.length > 0) {
-          setFieldValue('bankAccountId', mappedAccounts[0].id);
-        }
-      }
-    } catch (error) {
-      console.error('Error refreshing bank accounts after onboarding:', error);
-    }
-  };
 
   const transitionToStep = (newStep, direction) => {
     setSlideDirection(direction);
@@ -1385,15 +1315,6 @@ function PropertyAddWorkflow({ onClose, initialAddress, onBackToRental }) {
           </Box>
         </MainCard>
       </Box>
-
-      {/* Stripe Connect Onboarding Dialog */}
-      {rentCanInvoke && (
-        <StripeConnectOnboardingDialog
-          open={showStripeOnboarding}
-          onClose={() => setShowStripeOnboarding(false)}
-          onComplete={handleStripeOnboardingComplete}
-        />
-      )}
     </FormikProvider>
   );
 }

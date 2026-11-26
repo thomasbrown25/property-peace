@@ -156,6 +156,7 @@ export default function TenantAddDrawer() {
   }, [properties, selectedProperty]);
 
   const [loading, setLoading] = useState(true);
+  const [initialValues] = useState(buildInitialValues);
   const [showPasswords, setShowPasswords] = useState({});
   const [passwordLevels, setPasswordLevels] = useState({});
   const processedTenantsRef = useRef(new Map());
@@ -163,9 +164,8 @@ export default function TenantAddDrawer() {
   useEffect(() => setLoading(false), []);
 
   const formik = useFormik({
-    initialValues: buildInitialValues(),
+    initialValues,
     validationSchema: TenantSchema,
-    enableReinitialize: true,
     onSubmit: async (values, { setSubmitting, resetForm, setFieldError }) => {
       try {
         processedTenantsRef.current.clear();
@@ -328,6 +328,8 @@ export default function TenantAddDrawer() {
           alert: { color: 'success' }
         });
 
+        setShowPasswords({});
+        setPasswordLevels({});
         resetForm();
         drawer.closeTenantAddDrawer();
       } catch (error) {

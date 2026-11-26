@@ -1,7 +1,9 @@
 import { isUnitOccupied } from 'utils/occupancy.mjs';
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import useSWR from 'swr';
 import { useDashboardLoading } from 'contexts/DashboardLoadingContext';
+import { useOrganization } from 'contexts/OrganizationContext';
 import {
   Box,
   Grid,
@@ -85,6 +87,7 @@ import listingApi from 'api/listing';
 // Enhanced components
 import PropertyHeader from 'sections/landlord/property/PropertyHeader';
 import PropertyActions from 'sections/landlord/property/PropertyActions';
+import { collectsRentOnline, getOnlinePaymentAction } from 'sections/landlord/property/propertyOnlinePayments.mjs';
 import PropertyMetrics from 'sections/landlord/property/PropertyMetrics';
 import PropertyHero from 'sections/landlord/property/PropertyHero';
 import MaintenanceTab from 'sections/landlord/property/MaintenanceTab';
@@ -96,7 +99,8 @@ import PropertyRecordsTabs from 'sections/landlord/property/PropertyRecordsTabs'
 import LandlordMaintenanceDrawer from 'components/drawers/LandlordMaintenanceDrawer';
 import { bankAccountAPI } from 'api';
 import axiosServices from 'utils/axios';
-import StripeConnectOnboardingDialog from 'components/dialogs/StripeConnectOnboardingDialog';
+import { ONLINE_PAYMENT_BANK_ACCOUNTS_PATH, ONLINE_PAYMENT_SETUP_PATH } from 'utils/onlinePaymentTabs';
+import OnlinePaymentSetupButton from 'components/rent-payments/OnlinePaymentSetupButton';
 import AnimateIn from 'components/AnimateIn';
 import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
 import FeatureReadinessNotice from 'components/feature-readiness/FeatureReadinessNotice';
@@ -178,7 +182,6 @@ function SummaryTab({ property, onRefresh, onImageUpload, uploading }) {
   const [loadingBankAccounts, setLoadingBankAccounts] = useState(false);
   const [selectedAccountId, setSelectedAccountId] = useState(property?.operatingAccountId || null);
   const [savingBankAccount, setSavingBankAccount] = useState(false);
-  const [showStripeOnboarding, setShowStripeOnboarding] = useState(false);
 
   // Clean street address to remove any zip code that might be included
 
@@ -287,7 +290,6 @@ function SummaryTab({ property, onRefresh, onImageUpload, uploading }) {
   useEffect(() => {
     if (!rentCanInvoke) {
       setBankingModalOpen(false);
-      setShowStripeOnboarding(false);
       setBankAccounts([]);
       setSelectedAccountId(null);
     }
@@ -326,48 +328,6 @@ function SummaryTab({ property, onRefresh, onImageUpload, uploading }) {
     } finally {
       setSavingBankAccount(false);
     }
-  };
-
-  // Handler for when Stripe onboarding completes
-  const handleStripeOnboardingComplete = async () => {
-    if (!rentCanInvoke) return;
-    // Close the Stripe onboarding dialog
-    setShowStripeOnboarding(false);
-    
-    // Ensure banking modal stays open
-    if (!bankingModalOpen) {
-      setBankingModalOpen(true);
-    }
-    
-    // Wait a moment for Stripe to process, then sync bank account
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    try {
-      // Sync bank account with backend
-      await axiosServices.post('/api/stripe/sync-bank-account');
-    } catch (error) {
-      console.error('Error syncing bank account:', error);
-    }
-    
-    // Wait a bit more, then refresh bank accounts list
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    try {
-      const response = await bankAccountAPI.getBankAccounts();
-      if (response.success && response.data) {
-        setBankAccounts(response.data || []);
-        // Auto-select the most recently created account
-        if (response.data.length > 0) {
-          const newestAccount = response.data[0];
-          setSelectedAccountId(newestAccount.id);
-        }
-      }
-    } catch (error) {
-      console.error('Error refreshing bank accounts after onboarding:', error);
-    }
-    
-    // Refresh property data to get updated operating account
-    onRefresh();
   };
 
   return (
@@ -1240,20 +1200,17 @@ function SummaryTab({ property, onRefresh, onImageUpload, uploading }) {
               </FormControl>
             )}
 
-            <Button
+            <OnlinePaymentSetupButton
               variant="outlined"
               startIcon={<PlusOutlined />}
-              onClick={() => {
-                // Keep modal open and show Stripe onboarding
-                setShowStripeOnboarding(true);
-              }}
+              onClick={() => setBankingModalOpen(false)}
               sx={{
                 alignSelf: 'flex-start',
                 textTransform: 'none'
               }}
             >
               Add New Bank Account
-            </Button>
+            </OnlinePaymentSetupButton>
           </Stack>
         </DialogContent>
         <DialogActions>
@@ -1270,15 +1227,6 @@ function SummaryTab({ property, onRefresh, onImageUpload, uploading }) {
           </Button>
         </DialogActions>
       </Dialog>
-      )}
-
-      {/* Stripe Connect Onboarding Dialog */}
-      {rentCanInvoke && showStripeOnboarding && (
-      <StripeConnectOnboardingDialog
-        open={showStripeOnboarding}
-        onClose={() => setShowStripeOnboarding(false)}
-        onComplete={handleStripeOnboardingComplete}
-      />
       )}
 
       <DeletePropertyModal
@@ -2314,6 +2262,7 @@ function UnitsTab({ property, onRefresh, onOpenBulkCreate }) {
 
 export default function Property() {
   const { user: currentUser } = useAuth();
+  const { currentOrganization, loading: organizationLoading } = useOrganization();
   const { propertyId } = useParams();
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -2355,6 +2304,27 @@ export default function Property() {
   }, []);
 
   const { selectedProperty, refetch: refetchProperty } = useFetchProperty(propertyId);
+  const propertyMatchesRoute = String(selectedProperty?.id ?? selectedProperty?.Id) === propertyId;
+  const userId = currentUser?.id ?? currentUser?.Id;
+  const organizationId = currentOrganization?.id ?? currentOrganization?.Id;
+  const propertyOrganizationId = selectedProperty?.organizationId ?? selectedProperty?.OrganizationId;
+  const propertyMatchesOrganization = propertyOrganizationId == null || String(propertyOrganizationId) === String(organizationId);
+  const stripeStatusKey = !organizationLoading && userId && organizationId &&
+    propertyMatchesRoute && propertyMatchesOrganization && collectsRentOnline(selectedProperty)
+    ? ['/api/stripe/account-status', userId, organizationId]
+    : null;
+  const { data: stripeStatus, error: stripeStatusError } = useSWR(
+    stripeStatusKey,
+    async ([url, , scopedOrganizationId]) => (await axiosServices.get(url, {
+      headers: { 'X-Organization-Id': String(scopedOrganizationId) }
+    })).data,
+    { shouldRetryOnError: false }
+  );
+  const paymentAction = stripeStatusKey && !stripeStatusError ? getOnlinePaymentAction(stripeStatus) : null;
+  const onlinePaymentAction = paymentAction && {
+    ...paymentAction,
+    onSelect: () => navigate(paymentAction.showInRentCard ? ONLINE_PAYMENT_SETUP_PATH : ONLINE_PAYMENT_BANK_ACCOUNTS_PATH)
+  };
 
   useEffect(() => {
     const selectedPropertyId = selectedProperty?.id ?? selectedProperty?.Id;
@@ -2616,6 +2586,7 @@ export default function Property() {
           ]} />
           <PropertyActions
             property={selectedProperty}
+            onlinePaymentAction={onlinePaymentAction}
             onEdit={drawer.openPropertyEditDrawer}
             onViewLeases={() => handleTabChange('leases')}
             onUploadDocument={openDocumentUpload}
@@ -2626,6 +2597,7 @@ export default function Property() {
         <AnimateIn direction="bottom" delay={100} distance={120}>
           <PropertyHeader
             property={selectedProperty}
+            onlinePaymentAction={onlinePaymentAction}
             rentRecords={rentRecords}
             rentLoading={rentCollectionLoading}
             rentError={rentCollectionError}

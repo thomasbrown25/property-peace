@@ -1,9 +1,14 @@
+using System.Text.Json.Serialization;
 using brownstone_hub_api.Models;
 
 namespace brownstone_hub_api.Dtos.Maintenance;
 
 public sealed record AssignMaintenanceCommandDto(EAssignedToType AssignedToType, long? AssignedToUserId, long? VendorId, bool EstimateRequired);
-public sealed record MaintenanceAssignmentDto(EAssignedToType AssignedToType, long? AssignedToUserId, long? VendorId, bool EstimateRequired, long? AssignedByUserId, DateTimeOffset? AssignedAtUtc);
+public sealed record MaintenanceAssignmentDto(EAssignedToType AssignedToType, long? AssignedToUserId, long? VendorId, bool EstimateRequired, long? AssignedByUserId, DateTimeOffset? AssignedAtUtc)
+{
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? AssignedToUserName { get; init; }
+}
 
 public sealed record SubmitMaintenanceEstimateDto(decimal Amount, string Currency, string Scope, DateTimeOffset? ValidUntilUtc);
 public sealed record EstimateVersionCommandDto(int ExpectedVersion);

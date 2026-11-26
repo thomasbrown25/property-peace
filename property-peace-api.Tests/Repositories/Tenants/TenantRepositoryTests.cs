@@ -79,6 +79,35 @@ namespace brownstone_hub_api.Tests.Repositories.Tenants
         }
 
         [Fact]
+        public async Task GetAllTenantsByOrganizationId_LoadsAssignedLeaseHomeWhenTenantHasNoUnit()
+        {
+            const long organizationId = 10;
+            var property = new Property { Id = 100, Name = "Cedar House", OrganizationId = organizationId };
+            var unit = new Unit { Id = 200, Name = "Unit A", PropertyId = property.Id };
+            var tenant = new Tenant { Id = 300, Firstname = "Terry", Lastname = "Tenant", OrganizationId = organizationId };
+            var lease = new Lease
+            {
+                Id = 400,
+                UnitId = unit.Id,
+                OrganizationId = organizationId,
+                StartDate = new DateTime(2026, 2, 1),
+                EndDate = new DateTime(2027, 2, 1),
+            };
+            _context.AddRange(property, unit, tenant, lease, new TenantLease { TenantId = tenant.Id, LeaseId = lease.Id });
+            await _context.SaveChangesAsync();
+            _context.ChangeTracker.Clear();
+
+            var directoryTenant = (await _repo.GetAllTenantsByOrganizationId(organizationId)).Single();
+
+            directoryTenant.LeaseId.Should().Be(lease.Id);
+            directoryTenant.PropertyId.Should().Be(property.Id);
+            directoryTenant.PropertyName.Should().Be(property.Name);
+            directoryTenant.UnitName.Should().Be(unit.Name);
+            directoryTenant.LeaseStartDate.Should().Be(lease.StartDate);
+            directoryTenant.LeaseEndDate.Should().Be(lease.EndDate);
+        }
+
+        [Fact]
         public async Task GetAllTenantsByOrganizationId_ExcludesSoftDeletedTenantsFromLandlordPortfolio()
         {
             _context.Tenants.AddRange(

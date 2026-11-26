@@ -42,17 +42,13 @@ test('landlord shell reserves one green property rail rather than two sidebars',
   assert.match(sidebar, /<Logo darkSurface[\s\S]*?to="\/landlord\/dashboard"/);
 });
 
-test('desktop top bar has ordered landlord links, More, and icon search', () => {
+test('desktop top bar has ordered landlord links and More', () => {
   const content = source('../layout/Dashboard/Header/HeaderContent/index.jsx');
   const primary = source('../layout/Dashboard/Header/HeaderContent/LandlordPrimaryNavigation.jsx');
   const more = source('../layout/Dashboard/Header/HeaderContent/TopNavigation.jsx');
   assert.match(content, /landlordPortal && <LandlordPrimaryNavigation \/>/);
   assert.match(content, /gridTemplateColumns: 'minmax\(0, 1fr\) auto minmax\(max-content, 1fr\)'/);
-  assert.match(content, /gridTemplateAreas: '"\. navigation actions"'/);
   assert.match(content, /gap: landlordPortal \? \{ xs: 0\.5, sm: 0\.75, xl: 1\.25 \}/);
-  assert.match(content, /!hasTenantRole && <MobileSearch \/>[\s\S]*?<Message \/>/);
-  assert.doesNotMatch(content, /<Search \/>/);
-  assert.match(source('../layout/Dashboard/Header/HeaderContent/MobileSearch.jsx'), /<AppIcon name="magnifier" \/>/);
   assert.match(source('../layout/Dashboard/Header/HeaderContent/Message.jsx'), /<AppIcon name=\{isAdmin \? 'support' : 'chatBubbles'\} \/>/);
   assert.match(source('../layout/Dashboard/Header/HeaderContent/Notification.jsx'), /<AppIcon name="notification" \/>/);
   assert.match(primary, /landlordPrimaryLinks\.map/);
@@ -62,6 +58,27 @@ test('desktop top bar has ordered landlord links, More, and icon search', () => 
   assert.match(more, /groupLandlordMoreNavigation\(landlordPagesForInventory/);
   assert.match(more, /primaryDestinations\.has\(item\.url\)/);
   assert.doesNotMatch(more, /const tenantsItem/);
+});
+
+test('landlord top bar uses a left-aligned search field on desktop and a search button on smaller screens', () => {
+  const content = source('../layout/Dashboard/Header/HeaderContent/index.jsx');
+  const mobileSearch = source('../layout/Dashboard/Header/HeaderContent/MobileSearch.jsx');
+  assert.match(content, /const downLG = useMediaQuery\(\(theme\) => theme\.breakpoints\.down\('lg'\)\)/);
+  assert.match(content, /gridTemplateAreas: '"search navigation actions"'/);
+  assert.match(content, /landlordPortal && !hasTenantRole && !downLG && \(\s*<Box sx=\{\{ gridArea: 'search',[^\n]*justifySelf: 'start'[^\n]*\}\}>\s*<Search \/>/);
+  assert.match(content, /!hasTenantRole && \(!landlordPortal \|\| downLG\) && <MobileSearch \/>[\s\S]*?<Message \/>/);
+  assert.match(mobileSearch, /<AppIcon name="magnifier" \/>/);
+  assert.match(mobileSearch, /<Search autoFocus /);
+});
+
+test('mobile landlord navigation renders primary and More menu labels in white', () => {
+  const sidebar = source('../layout/Dashboard/LandlordSidebar.jsx');
+  const mobileMenu = sidebar.match(/aria-label="Landlord pages"[\s\S]*?<\/List>/)?.[0];
+  assert.ok(mobileMenu);
+  assert.match(mobileMenu, /<List\b[^>]*\[`& \.\$\{listItemTextClasses\.primary\}`\]: \{ color: '#FFFFFF' \}/);
+  assert.match(mobileMenu, /landlordPrimaryLinks\.map[\s\S]*?<ListItemText primary=\{label\}/);
+  assert.match(mobileMenu, /<ListItemText primary="More"/);
+  assert.match(mobileMenu, /landlordMoreLinks[\s\S]*?<ListItemText primary=\{label\}/);
 });
 
 test('property rail snapshots visit order until page reload, while still recording clicks for the next load', () => {

@@ -16,7 +16,7 @@ import { ArrowLeftOutlined } from '@ant-design/icons';
 import MainCard from 'components/MainCard';
 import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
 import { openSnackbar } from 'api/snackbar';
-import axiosServices from 'utils/axios';
+import { ONLINE_PAYMENT_SETUP_PATH } from 'utils/onlinePaymentTabs';
 
 export default function LeaseRentCollection() {
   const { leaseId } = useParams();
@@ -35,7 +35,7 @@ export default function LeaseRentCollection() {
       // TODO: Save the selected rent collection method to the lease
       if (selectedMethod === 'through-platform') {
         // If they selected "through Property Peace", navigate to payment setup
-        navigate(`/landlord/leases/${leaseId}/payment-setup`);
+        navigate(ONLINE_PAYMENT_SETUP_PATH);
       } else {
         // If they selected "outside platform", just mark as complete and go back
         openSnackbar({
