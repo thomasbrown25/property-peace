@@ -136,6 +136,27 @@ public sealed class RentPaymentSummaryTests
         balance.OverdueAmount.Should().Be(500m);
         balance.RentDue.Should().Be(1_500m);
         balance.IsOverdue.Should().BeTrue("unpaid prior periods are always overdue, including during current-month grace");
+        balance.OldestOverdueRentDueDate.Should().Be(new DateTime(2026, 7, 1));
+    }
+
+    [Fact]
+    public void RentBalance_OldestOverdueRentDueDate_SkipsPaidAndInGraceInstallments()
+    {
+        var lease = ActiveMonthlyLease(new DateTime(2026, 6, 1), new DateTime(2027, 5, 31), 1_000m);
+        lease.RentDueDay = 1;
+        lease.Fees =
+        [
+            new LeaseFeeDto { Id = 10, LeaseId = lease.Id, IsLateFee = true, AppliedAfterDays = 5 }
+        ];
+        var payments = new List<LoadPaymentDto>
+        {
+            new() { LeaseId = lease.Id, Amount = 1_000m, Status = "Completed" }
+        };
+
+        var balance = RentCalculator.GetRentBalance(lease, payments, today: new DateTime(2026, 8, 4));
+
+        balance.OverdueAmount.Should().Be(1_000m);
+        balance.OldestOverdueRentDueDate.Should().Be(new DateTime(2026, 7, 1));
     }
 
     [Theory]
@@ -173,6 +194,7 @@ public sealed class RentPaymentSummaryTests
     {
         typeof(brownstone_hub_api.Dtos.RentCollection.RentRecordDto).GetProperty("RentDue").Should().NotBeNull();
         typeof(brownstone_hub_api.Dtos.RentCollection.RentRecordDto).GetProperty("RentDueIsOverdue").Should().NotBeNull();
+        typeof(brownstone_hub_api.Dtos.RentCollection.RentRecordDto).GetProperty("OldestOverdueRentDueDate").Should().NotBeNull();
     }
 
     [Fact]

@@ -1,9 +1,9 @@
-import ThemeAdaptiveDrawer from 'components/drawers/shared/ThemeAdaptiveDrawer';
-import { useState, useCallback, useEffect, useRef } from 'react';
+import ThemeAdaptiveDrawer, { getThemeAdaptiveDrawerStyles } from 'components/drawers/shared/ThemeAdaptiveDrawer';
+import { useState, useCallback, useEffect, useId, useRef } from 'react';
 import {
   Box, Typography, Stack, Button,
   alpha, useTheme, IconButton,
-  CircularProgress, Alert, Divider, Toolbar, Collapse
+  CircularProgress, Alert, Divider, Toolbar, Collapse, Dialog
 } from '@mui/material';
 import {
   CloseOutlined, CheckCircleOutlined
@@ -34,7 +34,22 @@ const formatCurrency = (amount) => new Intl.NumberFormat('en-US', {
 
 export default function RecordPaymentDrawer({ onSuccess }) {
   const drawer = useDrawer();
+
+  return (
+    <RecordPaymentOverlay
+      open={drawer.isOpenPaymentAdd}
+      onClose={drawer.closePaymentAddDrawer}
+      initialSelection={drawer.paymentAddInitialSelection}
+      onSuccess={onSuccess}
+    />
+  );
+}
+
+RecordPaymentDrawer.propTypes = { onSuccess: PropTypes.func };
+
+export function RecordPaymentOverlay({ open, onClose, onSuccess, initialSelection = null, presentation = 'drawer' }) {
   const theme = useTheme();
+  const titleId = useId();
   const { user } = useAuth();
 
   const [loading, setLoading] = useState(false);
@@ -51,12 +66,12 @@ export default function RecordPaymentDrawer({ onSuccess }) {
   const [selectedTenant, setSelectedTenant] = useState(null);
   const [latestRentRecord, setLatestRentRecord] = useState(null);
   const [paymentData, setPaymentData] = useState({ paymentDate: new Date(), amount: 0, amountDisplay: '', paymentAllocation: null });
-  const cycleSelection = drawer.isOpenPaymentAdd ? drawer.paymentAddInitialSelection : null;
+  const cycleSelection = open ? initialSelection : null;
   const viewingCyclePayments = Array.isArray(cycleSelection?.cyclePayments);
 
   // Reset on close; hydrate preselected lease context on contextual opens
   useEffect(() => {
-    if (!drawer.isOpenPaymentAdd) {
+    if (!open) {
       setLoading(false);
       setError(null);
       setIsComplete(false);
@@ -73,7 +88,7 @@ export default function RecordPaymentDrawer({ onSuccess }) {
       return;
     }
 
-    const initial = drawer.paymentAddInitialSelection;
+    const initial = initialSelection;
     if (initial) {
       const lease = initial.lease || null;
       setSelectedProperty(initial.property || null);
@@ -87,7 +102,7 @@ export default function RecordPaymentDrawer({ onSuccess }) {
       const cycleDate = firstOfCycleMonth(initial.cycleDueDate);
       if (cycleDate) setPaymentData({ paymentDate: cycleDate, amount: 0, amountDisplay: '', paymentAllocation: null });
     }
-  }, [drawer.isOpenPaymentAdd, drawer.paymentAddInitialSelection]);
+  }, [open, initialSelection]);
 
   const handleSubmit = async () => {
     if (!(selectedLease?.id ?? selectedLease?.Id)) { setError('Please select a lease'); return; }
@@ -168,19 +183,32 @@ export default function RecordPaymentDrawer({ onSuccess }) {
 
   const handleSelectTenant = useCallback((tenant) => setSelectedTenant(tenant), []);
 
+  const isModal = presentation === 'modal';
+  const Surface = isModal ? Dialog : ThemeAdaptiveDrawer;
+  const styles = getThemeAdaptiveDrawerStyles(theme);
+  const surfaceProps = isModal
+    ? {
+        fullWidth: true,
+        maxWidth: 'sm',
+        'aria-labelledby': titleId,
+        slotProps: {
+          backdrop: { sx: styles.backdrop },
+          paper: { sx: { ...styles.paper, width: { sm: DRAWER_WIDTH }, border: '1px solid', borderColor: 'divider', borderRadius: 2 } }
+        }
+      }
+    : {
+        anchor: 'right',
+        PaperProps: { sx: { width: { xs: '100%', sm: DRAWER_WIDTH }, display: 'flex', flexDirection: 'column', bgcolor: 'background.paper' } }
+      };
+
   return (
-    <ThemeAdaptiveDrawer
-      anchor="right"
-      open={drawer.isOpenPaymentAdd}
-      onClose={() => drawer.closePaymentAddDrawer()}
-      PaperProps={{ sx: { width: { xs: '100%', sm: DRAWER_WIDTH }, display: 'flex', flexDirection: 'column', bgcolor: 'background.paper' } }}
-    >
+    <Surface open={open} onClose={onClose} {...surfaceProps}>
       {/* Header */}
       <Toolbar sx={{ px: 2.5, justifyContent: 'space-between', flexShrink: 0 }}>
-        <Typography variant="h6">
+        <Typography id={titleId} variant="h6">
           {viewingCyclePayments ? 'Rent payments' : 'Record Payment'}
         </Typography>
-        <IconButton onClick={() => drawer.closePaymentAddDrawer()} size="large">
+        <IconButton aria-label="Close" onClick={onClose} size="large">
           <CloseOutlined />
         </IconButton>
       </Toolbar>
@@ -222,7 +250,7 @@ export default function RecordPaymentDrawer({ onSuccess }) {
               <Button variant="outlined" onClick={handleRecordAnother} sx={{ borderRadius: 1.5, textTransform: 'none' }}>
                 Record Another
               </Button>
-              <Button variant="contained" onClick={() => drawer.closePaymentAddDrawer()} sx={{ borderRadius: 1.5, textTransform: 'none' }}>
+              <Button variant="contained" onClick={onClose} sx={{ borderRadius: 1.5, textTransform: 'none' }}>
                 Done
               </Button>
             </Stack>
@@ -239,8 +267,8 @@ export default function RecordPaymentDrawer({ onSuccess }) {
                   detailLease={detailLease}
                   detailsVisible={Boolean(detailLease) && !switchingLease}
                   selectedTenant={selectedTenant}
-                  autoSelectPropertyId={drawer.isOpenPaymentAdd && selectedProperty
-                    ? (drawer.paymentAddInitialSelection?.property?.id ?? drawer.paymentAddInitialSelection?.property?.Id)
+                  autoSelectPropertyId={open && selectedProperty
+                    ? (initialSelection?.property?.id ?? initialSelection?.property?.Id)
                     : null}
                   onSelectTenant={handleSelectTenant}
                   selectedProperty={selectedProperty}
@@ -280,8 +308,14 @@ export default function RecordPaymentDrawer({ onSuccess }) {
           </Button>
         </Box>
       )}
-    </ThemeAdaptiveDrawer>
+    </Surface>
   );
 }
 
-RecordPaymentDrawer.propTypes = { onSuccess: PropTypes.func };
+RecordPaymentOverlay.propTypes = {
+  open: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+  onSuccess: PropTypes.func,
+  initialSelection: PropTypes.object,
+  presentation: PropTypes.oneOf(['drawer', 'modal'])
+};

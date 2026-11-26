@@ -52,6 +52,45 @@ public sealed class StripeAccountReadinessTests
         yield return [new StripeConnectedAccountSnapshot("acct_control", Now.AddMinutes(-6), true, true, true, "active", [], [], null, "approved-fingerprint", "manual", false), "stale"];
     }
 
+    [Fact]
+    public async Task AccountStatus_PastDueRequirements_ReportsSafeLabelsWhilePayoutsAreDisabled()
+    {
+        await using var context = StripeRentPaymentFlowTests.CreateContext();
+        var snapshot = new StripeConnectedAccountSnapshot(
+            "acct_past_due", Now, true, false, true, "active", ["business_profile.url"],
+            ["representative.ssn_last_4", "representative.id_number", "external_account", "person_private.verification.document", "person_private.unknown_field"],
+            "requirements.past_due", null, "daily", CardPaymentsCapabilityStatus: "inactive");
+        var service = CreateService(context, new StubGateway(snapshot));
+
+        var response = await service.GetAccountStatusAsync("acct_past_due", 42, 2);
+
+        response.Data!.HasPastDueRequirements.Should().BeTrue();
+        response.Data.PastDueRequirementLabels.Should().Equal(
+            "Representative’s Social Security number (SSN) or tax ID",
+            "Payout bank account",
+            "Identity document for a business owner or representative");
+        response.Data.IsAccountReadyForRentTransfers.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("acct_past_due", 0, true)]
+    [InlineData("acct_past_due", -6, false)]
+    [InlineData("acct_other", 0, false)]
+    public async Task AccountStatus_PastDueWithoutFieldDetails_UsesOnlyFreshMatchingStripeData(
+        string snapshotAccountId, int ageInMinutes, bool hasPastDueRequirements)
+    {
+        await using var context = StripeRentPaymentFlowTests.CreateContext();
+        var snapshot = new StripeConnectedAccountSnapshot(
+            snapshotAccountId, Now.AddMinutes(ageInMinutes), true, false, true, "active", [], [],
+            "requirements.past_due", null);
+        var service = CreateService(context, new StubGateway(snapshot));
+
+        var response = await service.GetAccountStatusAsync("acct_past_due", 42, 2);
+
+        response.Data!.HasPastDueRequirements.Should().Be(hasPastDueRequirements);
+        response.Data.PastDueRequirementLabels.Should().BeEmpty();
+    }
+
     [Theory]
     [MemberData(nameof(AccountControlRegressions))]
     public async Task AccountStatus_AccountControlRegression_IsNotReady(

@@ -21,10 +21,28 @@ test('a new onboarding draft uses safe profile defaults without selecting author
   });
 
   assert.equal(draft.operatingType, 'business');
-  assert.equal(draft.displayName, 'Morgan Rentals');
+  assert.deepEqual(draft.displayNames, { individual: 'Taylor Morgan', business: 'Morgan Rentals' });
   assert.deepEqual(draft.propertyIds, []);
   assert.equal(draft.authorityRelationship, '');
   assert.equal(draft.authorityAttested, false);
+});
+
+test('individual display name uses first and last name from the signed-in user', () => {
+  for (const user of [
+    { firstname: '  John ', lastname: ' Doe  ', companyName: 'Doe Rentals' },
+    { Firstname: 'John', Lastname: 'Doe', companyName: 'Doe Rentals' }
+  ]) {
+    const draft = createConnectOnboardingDraft({ user });
+    assert.deepEqual(draft.displayNames, { individual: 'John Doe', business: 'Doe Rentals' });
+  }
+});
+
+test('resuming individual setup keeps the saved display name for that account type', () => {
+  const draft = createConnectOnboardingDraft({
+    user: { firstname: 'John', lastname: 'Doe', companyName: 'Doe Rentals' },
+    savedPreparation: { operatingType: 'individual', displayName: 'John D.' }
+  });
+  assert.deepEqual(draft.displayNames, { individual: 'John D.', business: 'Doe Rentals' });
 });
 
 test('a saved server preparation resumes without trusting extra response fields', () => {
@@ -42,26 +60,46 @@ test('a saved server preparation resumes without trusting extra response fields'
 
   assert.deepEqual(draft, {
     operatingType: 'business',
-    displayName: 'Morgan Rentals',
+    displayNames: { individual: 'Taylor Morgan', business: 'Morgan Rentals' },
     propertyIds: ['11', '12'],
     authorityRelationship: 'property-manager',
     authorityAttested: false
   });
 });
 
-test('business profile step requires the landlord or company name', () => {
+test('account type is required before continuing to account details', () => {
+  assert.deepEqual(validateConnectOnboardingStep(0, {}), { operatingType: 'Select an account type.' });
+  assert.deepEqual(validateConnectOnboardingStep(0, { operatingType: 'individual' }), {});
+  assert.deepEqual(validateConnectOnboardingStep(0, { operatingType: 'business' }), {});
+});
+
+test('account details require a nonblank name for either account type', () => {
   assert.deepEqual(
-    validateConnectOnboardingStep(0, { operatingType: 'business', displayName: '   ' }),
+    validateConnectOnboardingStep(1, { operatingType: 'individual', displayName: '   ' }),
+    { displayName: 'Enter the landlord or business name that tenants recognize.' }
+  );
+  assert.deepEqual(validateConnectOnboardingStep(1, { operatingType: 'individual', displayName: 'Taylor Morgan' }), {});
+  assert.deepEqual(
+    validateConnectOnboardingStep(1, { operatingType: 'business', displayName: '   ' }, '12-3456789'),
     { displayName: 'Enter the landlord or business name that tenants recognize.' }
   );
 });
 
+test('business account details require a complete EIN even when the name is present', () => {
+  const draft = { operatingType: 'business', displayName: 'Morgan Rentals' };
+  for (const ein of ['', '12-345678']) {
+    assert.deepEqual(validateConnectOnboardingStep(1, draft, ein), { ein: 'Enter a valid 9-digit EIN.' });
+  }
+  assert.deepEqual(validateConnectOnboardingStep(1, draft, '12-3456789'), {});
+});
+
 test('property authority step requires property scope, relationship, and explicit attestation', () => {
-  assert.deepEqual(validateConnectOnboardingStep(1, { propertyIds: [], authorityRelationship: '', authorityAttested: false }), {
+  assert.deepEqual(validateConnectOnboardingStep(2, { propertyIds: [], authorityRelationship: '', authorityAttested: false }), {
     propertyIds: 'Select at least one property that will use online rent payments.',
     authorityRelationship: 'Choose how you are authorized to manage rent for these properties.',
     authorityAttested: 'Confirm that you are authorized to manage rent collection for the selected properties.'
   });
+  assert.deepEqual(validateConnectOnboardingStep(2, { propertyIds: ['11'], authorityRelationship: 'owner', authorityAttested: true }), {});
 });
 
 test('the handoff context strictly excludes raw KYC and banking fields', () => {

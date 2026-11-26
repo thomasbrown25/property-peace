@@ -3,15 +3,21 @@ import { useEffect, useState } from 'react';
 import { Box, Button, FormHelperText, Link, OutlinedInput, Stack, Typography } from '@mui/material';
 import * as Yup from 'yup';
 import { Formik } from 'formik';
+import TurnstileCheckbox from 'components/auth/TurnstileCheckbox';
 import axiosServices from 'utils/axios';
 import { authFieldSx, authLabelSx, authPrimaryButtonSx } from './authFormStyles';
 
 const RESEND_SECONDS = 30;
 
-export default function EmailVerifierForm({ email, onVerified, onBack }) {
-  const [cooldown, setCooldown] = useState(RESEND_SECONDS);
+export default function EmailVerifierForm({ email, onVerified, onBack, mustReverify = false }) {
+  const [cooldown, setCooldown] = useState(mustReverify ? 0 : RESEND_SECONDS);
   const [resendLoading, setResendLoading] = useState(false);
   const [resendMessage, setResendMessage] = useState('');
+  const [resendError, setResendError] = useState('');
+  const [showResendChallenge, setShowResendChallenge] = useState(false);
+  const [resendToken, setResendToken] = useState(null);
+  const [challengeReset, setChallengeReset] = useState(0);
+  const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY?.trim() || '';
 
   useEffect(() => {
     if (cooldown <= 0) return undefined;
@@ -20,16 +26,27 @@ export default function EmailVerifierForm({ email, onVerified, onBack }) {
   }, [cooldown]);
 
   const resend = async () => {
+    if (resendLoading || cooldown > 0) return;
+    if (siteKey && !showResendChallenge) {
+      setShowResendChallenge(true);
+      return;
+    }
+    if (siteKey && !resendToken) return;
+
     setResendLoading(true);
     setResendMessage('');
+    setResendError('');
     try {
-      const response = await axiosServices.post('/api/user/send-verification-code', { email });
+      const response = await axiosServices.post('/api/user/send-verification-code', { email, botChallengeToken: resendToken });
       if (!response.data?.success) throw new Error(response.data?.message || 'The code could not be resent.');
       setCooldown(RESEND_SECONDS);
+      setShowResendChallenge(false);
       setResendMessage('A new code was sent.');
     } catch (error) {
-      setResendMessage(error.response?.data?.message || error.message || 'The code could not be resent. Try again.');
+      setResendError(error.response?.data?.message || error.message || 'The code could not be resent. Try again.');
+      if (siteKey) setChallengeReset((current) => current + 1);
     } finally {
+      setResendToken(null);
       setResendLoading(false);
     }
   };
@@ -48,7 +65,9 @@ export default function EmailVerifierForm({ email, onVerified, onBack }) {
         </Link>
       </Box>
       <Typography color="text.secondary" sx={{ mt: 1, mb: 3 }}>
-        Enter the six-digit code sent to{' '}
+        {mustReverify && !resendMessage
+          ? 'Your previous verification is no longer valid. Request a new code for '
+          : 'Enter the six-digit code sent to '}
         <Box component="span" fontWeight={700} color="text.primary">
           {email}
         </Box>
@@ -62,10 +81,13 @@ export default function EmailVerifierForm({ email, onVerified, onBack }) {
             .required('Verification code is required')
         })}
         onSubmit={async (values, { setErrors, setSubmitting }) => {
+          if (resendLoading) {
+            setSubmitting(false);
+            return;
+          }
           try {
             const response = await axiosServices.post('/api/user/verify-code', { email, code: values.code });
             if (!response.data?.success) throw new Error(response.data?.message || 'That code is invalid or expired.');
-            sessionStorage.setItem('emailVerified', 'true');
             onVerified?.();
           } catch (error) {
             setErrors({
@@ -115,16 +137,19 @@ export default function EmailVerifierForm({ email, onVerified, onBack }) {
                 size="large"
                 type="submit"
                 variant="contained"
-                disabled={isSubmitting}
+                disabled={isSubmitting || resendLoading}
                 sx={authPrimaryButtonSx}
               >
                 {isSubmitting ? 'Verifying…' : 'Verify email'}
               </Button>
               <Box textAlign="center">
+                {showResendChallenge && (
+                  <TurnstileCheckbox siteKey={siteKey} resetKey={challengeReset} onToken={setResendToken} />
+                )}
                 <Button
                   type="button"
                   variant="text"
-                  disabled={resendLoading || cooldown > 0}
+                  disabled={isSubmitting || resendLoading || cooldown > 0 || (showResendChallenge && !resendToken)}
                   onClick={resend}
                   sx={{ textTransform: 'none' }}
                 >
@@ -133,6 +158,11 @@ export default function EmailVerifierForm({ email, onVerified, onBack }) {
                 {resendMessage && (
                   <FormHelperText role="status" sx={{ textAlign: 'center' }}>
                     {resendMessage}
+                  </FormHelperText>
+                )}
+                {resendError && (
+                  <FormHelperText error role="alert" sx={{ textAlign: 'center' }}>
+                    {resendError}
                   </FormHelperText>
                 )}
               </Box>
@@ -144,4 +174,9 @@ export default function EmailVerifierForm({ email, onVerified, onBack }) {
   );
 }
 
-EmailVerifierForm.propTypes = { email: PropTypes.string.isRequired, onVerified: PropTypes.func, onBack: PropTypes.func };
+EmailVerifierForm.propTypes = {
+  email: PropTypes.string.isRequired,
+  onVerified: PropTypes.func,
+  onBack: PropTypes.func,
+  mustReverify: PropTypes.bool
+};

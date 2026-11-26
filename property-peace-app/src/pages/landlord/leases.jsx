@@ -92,8 +92,8 @@ import { getSettings, saveSettings } from 'store/user/user.action';
 import { selectUserSettings } from 'store/user/user.selector';
 import useFetchRentCollection from 'hooks/useFetchRentCollection';
 import { tenantDocumentAPI } from 'api';
-import { normalizeRentBalance } from 'utils/rentBalance';
-import { leasesWorkspaceSearch, leasesWorkspaceTabFromSearch } from 'utils/renterWorkspace';
+import { getOldestUnpaidRentDueDate, normalizeRentBalance } from 'utils/rentBalance';
+import { leasesWorkspaceSearch, leasesWorkspaceTabFromSearch, leaseWorkspaceViewFromSearch } from 'utils/renterWorkspace';
 
 // Enhanced components
 import LeasesHeader from 'sections/landlord/leases/LeasesHeader';
@@ -336,21 +336,17 @@ function UpcomingCard({ leases, rentRecords, onCalendarClick }) {
   const upcomingItems = useMemo(() => {
     const items = [];
     rentRecords?.forEach((record) => {
-      if (record.dueDate) {
-        const lease = leases.find((l) => l.id === record.leaseId);
-        const leaseDisplay = getLeaseDisplayName(lease || {});
+      const lease = leases.find((l) => l.id === record.leaseId);
+      const leaseDisplay = getLeaseDisplayName(lease || {});
 
-        // If rent is overdue, show the past-due entry (dueDate is NextDueDate i.e. future;
-        // the unpaid date is one cycle back). Include it so it appears before future items.
-        const { rentDue, overdueAmount, rentDueIsOverdue } = normalizeRentBalance(record);
-        if (rentDueIsOverdue) {
-          const nextDate = new Date(record.dueDate);
-          const overdueDate = new Date(nextDate);
-          overdueDate.setMonth(overdueDate.getMonth() - 1);
-          items.push({ date: overdueDate, title: 'Rent overdue', subtitle: `${leaseDisplay} · ${formatCurrency(overdueAmount || rentDue)}` });
-        } else {
-          items.push({ date: new Date(record.dueDate), title: 'Rent due', subtitle: `${leaseDisplay} · ${formatCurrency(rentDue)}` });
-        }
+      const { rentDue, overdueAmount, rentDueIsOverdue } = normalizeRentBalance(record);
+      const oldestUnpaidDueDate = getOldestUnpaidRentDueDate(record);
+      if (rentDueIsOverdue && oldestUnpaidDueDate) {
+        items.push({ date: new Date(`${oldestUnpaidDueDate}T12:00:00`), dateTone: 'error.main', title: 'Rent overdue', subtitle: `${leaseDisplay} · ${formatCurrency(overdueAmount || rentDue)}` });
+      } else if (rentDueIsOverdue) {
+        items.push({ date: null, dateLabel: 'OVERDUE', dateTone: 'error.main', title: 'Rent overdue', subtitle: `${leaseDisplay} · ${formatCurrency(overdueAmount || rentDue)}` });
+      } else if (!rentDueIsOverdue && record.dueDate) {
+        items.push({ date: new Date(record.dueDate), title: 'Rent due', subtitle: `${leaseDisplay} · ${formatCurrency(rentDue)}` });
       }
     });
     leases.forEach((lease) => {
@@ -363,7 +359,7 @@ function UpcomingCard({ leases, rentRecords, onCalendarClick }) {
         if (days >= 0 && days <= 90) items.push({ date: endDate, title: `${getTenantDisplay(lease)} lease ends`, subtitle: 'renewal window: now' });
       }
     });
-    return items.sort((a, b) => a.date - b.date).slice(0, 4);
+    return items.sort((a, b) => (a.date?.getTime?.() ?? -Infinity) - (b.date?.getTime?.() ?? -Infinity)).slice(0, 4);
   }, [leases, rentRecords]);
 
   return (
@@ -378,8 +374,8 @@ function UpcomingCard({ leases, rentRecords, onCalendarClick }) {
         {upcomingItems.length ? upcomingItems.map((item, index) => (
           <Stack key={`${item.title}-${index}`} direction="row" spacing={1.25} alignItems="center">
             <Box sx={{ width: 58, py: 0.65, borderRadius: 1.5, bgcolor: (t) => alpha(t.palette.primary.main, t.palette.mode === 'dark' ? 0.08 : 0.04), border: (t) => `1px solid ${alpha(t.palette.divider, t.palette.mode === 'dark' ? 0.22 : 0.12)}`, textAlign: 'center', flexShrink: 0 }}>
-              <Typography sx={{ fontSize: '0.72rem', color: index === 0 ? 'success.main' : index === 1 ? 'primary.main' : 'warning.main', fontWeight: 800 }}>
-                {item.date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }).toUpperCase()}
+              <Typography sx={{ fontSize: '0.72rem', color: item.dateTone || (index === 0 ? 'success.main' : index === 1 ? 'primary.main' : 'warning.main'), fontWeight: 800 }}>
+                {item.date ? item.date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }).toUpperCase() : item.dateLabel}
               </Typography>
             </Box>
             <Box sx={{ minWidth: 0 }}>
@@ -576,33 +572,17 @@ export default function LeasesPage({ onEditLease }) {
   const [agreementActionMenuAnchor, setAgreementActionMenuAnchor] = useState(null);
   const [agreementActionMenuLease, setAgreementActionMenuLease] = useState(null);
 
-  // Get initial view from URL parameter or default to 'current'
-  // Support both 'view' and legacy 'tab' parameters for backward compatibility
-  const getInitialView = () => {
-    const viewParam = searchParams.get('view');
-    const tabParam = searchParams.get('tab'); // Legacy support
-    
-    if (viewParam === 'renewals') return 'renewals';
-    if (viewParam === 'history') return 'history';
-    if (viewParam === 'overdue') return 'overdue';
-    if (viewParam === 'notStarted') return 'notStarted';
-    if (viewParam === 'active') return 'active';
-    if (tabParam === 'history') return 'history'; // Legacy support
-    return 'current';
-  };
-
-  const [view, setView] = useState(getInitialView());
+  const initialView = leaseWorkspaceViewFromSearch(searchParams);
+  const [view, setView] = useState(initialView);
   const [filterAnchorEl, setFilterAnchorEl] = useState(null);
   const [subMenuAnchorEl, setSubMenuAnchorEl] = useState(null);
   const [activeSubMenu, setActiveSubMenu] = useState(null);
   const [clickedChipFilter, setClickedChipFilter] = useState(null); // Track which chip filter was clicked
   const filterButtonRef = useRef(null);
   const [filters, setFilters] = useState({
-    status: ['current'] // Default to current, now supports multiple
+    status: [initialView]
   });
 
-  // Update view when URL parameter changes
-  // Support both 'view' and legacy 'tab' parameters for backward compatibility
   useEffect(() => {
     const viewParam = searchParams.get('view');
     const tabParam = searchParams.get('tab'); // Legacy support
@@ -1585,6 +1565,7 @@ export default function LeasesPage({ onEditLease }) {
                           const rentRecord = rentRecords?.find((r) => r.leaseId === lease.id);
                           const leasePayments = (allPayments || []).filter((payment) => getPaymentLeaseId(payment) === Number(lease.id));
                           const { rentDue: balanceDue, rentDueIsOverdue: isOverdue } = normalizeRentBalance(rentRecord);
+                          const oldestUnpaidDueDate = getOldestUnpaidRentDueDate(rentRecord);
                           const propertyTenantTitle = getPropertyTenantTitle(lease);
                           const leaseStatus = getLeaseStatusPresentation(lease);
                           const term = getLeaseMonths(lease);
@@ -1643,6 +1624,7 @@ export default function LeasesPage({ onEditLease }) {
                                     <Box sx={{ textAlign: 'right' }}>
                                       <Typography variant="caption" color="text.secondary">Balance</Typography>
                                       <Typography variant="body2" fontWeight={700} color={balanceDue > 0 ? 'error.main' : 'text.secondary'}>{balanceDue > 0 ? `${formatCurrency(balanceDue)} due` : 'No balance'}</Typography>
+                                      {oldestUnpaidDueDate && <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>Oldest unpaid due date {formatDate(`${oldestUnpaidDueDate}T12:00:00`)}</Typography>}
                                     </Box>
                                   </Stack>
 
@@ -1695,6 +1677,7 @@ export default function LeasesPage({ onEditLease }) {
                               const rentRecord = rentRecords?.find((r) => r.leaseId === lease.id);
                               const leasePayments = (allPayments || []).filter((payment) => getPaymentLeaseId(payment) === Number(lease.id));
                               const { rentDue: balanceDue, rentDueIsOverdue: isOverdue } = normalizeRentBalance(rentRecord);
+                              const oldestUnpaidDueDate = getOldestUnpaidRentDueDate(rentRecord);
                               const propertyTenantTitle = getPropertyTenantTitle(lease);
                               const leaseStatus = getLeaseStatusPresentation(lease);
                               const term = getLeaseMonths(lease);
@@ -1729,6 +1712,7 @@ export default function LeasesPage({ onEditLease }) {
                                     <Typography variant="caption" sx={{ display: 'block', color: balanceDue > 0 ? 'error.main' : 'text.secondary', fontWeight: balanceDue > 0 ? 700 : 400, lineHeight: 1.2 }}>
                                       {balanceDue > 0 ? `${formatCurrency(balanceDue)} due` : 'No balance due'}
                                     </Typography>
+                                    {oldestUnpaidDueDate && <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.35, lineHeight: 1.2 }}>Oldest unpaid due date {formatDate(`${oldestUnpaidDueDate}T12:00:00`)}</Typography>}
                                   </TableCell>
                                   <TableCell sx={{ minWidth: 165, pl: 3 }}>
                                     <PaymentHeartbeat lease={lease} payments={leasePayments} />

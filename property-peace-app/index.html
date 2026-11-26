@@ -5,15 +5,32 @@
          initialized for non-screening routes. Keep this before all external assets. -->
     <script>
       if (!/^\/screening(?:\/|$)/.test(window.location.pathname)) {
+        const googleAdsId = 'AW-17815665224';
         const analytics = document.createElement('script');
         analytics.async = true;
-        analytics.src = 'https://www.googletagmanager.com/gtag/js?id=AW-17815665224';
-        document.head.appendChild(analytics);
+        analytics.src = `https://www.googletagmanager.com/gtag/js?id=${googleAdsId}`;
 
         window.dataLayer = window.dataLayer || [];
         function gtag(){dataLayer.push(arguments);}
         gtag('js', new Date());
-        gtag('config', 'AW-17815665224');
+        gtag('config', googleAdsId);
+
+        const landingUrl = new URL(window.location.href);
+        if (landingUrl.pathname === '/login' && landingUrl.searchParams.has('_gl')) {
+          const removeLoginLinker = () => {
+            const url = new URL(window.location.href);
+            if (url.pathname !== '/login' || url.searchParams.get('_gl') !== landingUrl.searchParams.get('_gl')) return;
+
+            url.searchParams.delete('_gl');
+            window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
+          };
+
+          // Let Google Ads process the original landing URL before cleaning up the address bar.
+          gtag('get', googleAdsId, 'gclid', removeLoginLinker);
+          analytics.addEventListener('error', removeLoginLinker, { once: true });
+        }
+
+        document.head.appendChild(analytics);
       }
     </script>
     <!-- Primary Meta Tags -->

@@ -144,7 +144,7 @@ test('lease timeline gates status cards behind blank loading/error states and re
   assert.match(history, /onClick=\{onRetryPayments\}/);
   assert.match(history, /Math\.min\(index \* 55, 660\)/);
   assert.match(history, /\.\.\.cardDealAnimationSx/);
-  const animation = view.slice(view.indexOf('const cardDealAnimationSx = {'), view.indexOf('function LeaseMoveInCard('));
+  const animation = fs.readFileSync(new URL('../utils/cardDealAnimation.js', import.meta.url), 'utf8');
   assert.match(animation, /translateX\(-28px\)/);
   assert.match(animation, /prefers-reduced-motion: reduce/);
   assert.match(animation, /animation: 'none'/);

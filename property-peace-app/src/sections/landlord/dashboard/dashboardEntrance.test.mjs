@@ -31,14 +31,14 @@ test('both the loaded task card and stable-keyed property rows use the entrance'
   assert.doesNotMatch(source, /key=\{(?:index|Math\.random|Date\.now)/);
 });
 
-test('landlord sidebar property links use the same staggered entrance as dashboard rows', () => {
+test('landlord sidebar property disclosure buttons use the same staggered entrance as dashboard rows', () => {
   const source = readFileSync(new URL('../../../layout/Dashboard/LandlordSidebar.jsx', import.meta.url), 'utf8');
   assert.match(source, /properties\.map\(\(property, index\) =>/);
 
-  const propertyLink = source.match(/<ListItemButton key=\{property\.id\}[\s\S]*?<Box component="img"/)?.[0];
-  assert.ok(propertyLink, 'Expected a sidebar link keyed by property ID');
-  assert.match(propertyLink, /'--dashboard-deal-delay': dashboardEntranceDelay\(index\)/);
-  assert.match(propertyLink, /\.\.\.dashboardSlideDownSx/);
+  const propertyButton = source.match(/<Box component="li" key=\{property\.id\}[^\n]*\n\s*<ListItemButton component="button"[\s\S]*?<Box component="img"/)?.[0];
+  assert.ok(propertyButton, 'Expected a sidebar disclosure inside a row keyed by property ID');
+  assert.match(propertyButton, /'--dashboard-deal-delay': dashboardEntranceDelay\(index\)/);
+  assert.match(propertyButton, /\.\.\.dashboardSlideDownSx/);
 });
 
 test('recent activity rows use the same staggered entrance as property rows', () => {

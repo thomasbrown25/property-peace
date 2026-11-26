@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
-import { Link, useLocation } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
 import AppIcon from 'components/AppIcon';
 import { Box, Collapse, Drawer, IconButton, List, ListItemButton, ListItemText, listItemTextClasses, TextField, Typography, useMediaQuery } from '@mui/material';
 import Logo from 'components/logo';
@@ -9,15 +9,29 @@ import { brand } from 'themes/brand';
 import placeholderImage from 'assets/images/placeholder-house.png';
 import useFetchProperties from 'hooks/useFetchProperties';
 import useAuth from 'hooks/useAuth';
+import { useDrawer } from 'contexts/DrawerContext';
 import { useOrganization } from 'contexts/OrganizationContext';
 import { selectPropertiesLoadStatus } from 'store/property/property.selector';
+import { createTask } from 'store/task/task.action';
 import { getRecentPropertyStorageKey, readPropertyVisitDates, recordRecentlyViewedProperty, sortPropertiesByLastVisit } from 'utils/recentlyViewedProperties';
 import { useSubscriptionStatus } from 'hooks/useSubscription';
 import { activeLandlordPrimaryLink, landlordMoreLinks, landlordPrimaryLinks } from 'utils/landlordPrimaryNavigation';
 import { dashboardEntranceDelay, dashboardSlideDownSx } from 'sections/landlord/dashboard/dashboardEntrance.mjs';
+import TaskEditorDrawer from 'sections/landlord/tasks/TaskEditorDrawer';
+import { isDetachedSingleUnitType } from 'utils/propertyType';
+import { rentalMode } from 'utils/rentalMode';
 
 export const LANDLORD_SIDEBAR_WIDTH = 260;
 const sidebarBackground = brand.forest;
+const propertySubtitleColor = 'rgba(255,255,255,0.72)';
+const propertyActions = [
+  { action: 'view', label: 'View property', icon: 'house' },
+  { action: 'edit', label: 'Edit property', icon: 'edit' },
+  { action: 'payment', label: 'Record payment', icon: 'payments', requires: 'canRecordPayment' },
+  { action: 'lease', label: 'Create lease', icon: 'leaseAdd', requires: 'canCreateLease' },
+  { action: 'task', label: 'Create task', icon: 'checklists' },
+  { action: 'upload', label: 'Upload document', icon: 'uploadDocument' }
+];
 
 // One visit-order snapshot per account/organization for this page load. A route
 // remount must not move a clicked property; a full reload creates fresh snapshots.
@@ -31,8 +45,12 @@ function visitDatesForSidebar(user) {
 
 export default function LandlordSidebar({ mobileOpen, onMobileClose }) {
   const { pathname, search } = useLocation();
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const drawer = useDrawer();
   const [propertySearch, setPropertySearch] = useState('');
   const [moreOpen, setMoreOpen] = useState(false);
+  const [taskDraft, setTaskDraft] = useState(null);
   const { properties } = useFetchProperties();
   const { currentOrganization } = useOrganization();
   const organizationId = currentOrganization?.id ?? currentOrganization?.Id ?? null;
@@ -41,25 +59,44 @@ export default function LandlordSidebar({ mobileOpen, onMobileClose }) {
   const visitScope = getRecentPropertyStorageKey(user);
   const visitDates = visitDatesForSidebar(user);
   useEffect(() => { setPropertySearch(''); }, [visitScope]);
+  useEffect(() => { setTaskDraft(null); }, [organizationId, visitScope]);
   const { status: subscriptionStatus } = useSubscriptionStatus();
   const trialExpired = subscriptionStatus?.isTrialActive &&
     (subscriptionStatus.trialDaysRemaining == null || subscriptionStatus.trialDaysRemaining <= 0);
 
   const propertyRows = sortPropertiesByLastVisit((properties || []).filter((property) => (property.id ?? property.Id) != null)
-    .map((property) => ({
-      id: property.id ?? property.Id,
-      name: property.name || property.Name || property.streetAddress || property.StreetAddress || 'Property',
-      address: [property.streetAddress || property.StreetAddress, property.city || property.City, property.state || property.State].filter(Boolean).join(', '),
-      image: property.mainImageUrl || property.MainImageUrl || property.images?.[0]?.blobUrl || property.Images?.[0]?.BlobUrl || placeholderImage
-    })), visitDates);
+    .map((property) => {
+      const units = property.units ?? property.Units ?? [];
+      const hasLongTermUnits = units.some((unit) => rentalMode(unit) !== 'shortTerm');
+      return {
+        id: property.id ?? property.Id,
+        name: property.name || property.Name || property.streetAddress || property.StreetAddress || 'Property',
+        address: [property.streetAddress || property.StreetAddress, property.city || property.City, property.state || property.State].filter(Boolean).join(', '),
+        image: property.mainImageUrl || property.MainImageUrl || property.images?.[0]?.blobUrl || property.Images?.[0]?.BlobUrl || placeholderImage,
+        canRecordPayment: hasLongTermUnits,
+        canCreateLease: hasLongTermUnits || (units.length === 0 && isDetachedSingleUnitType(property.propertyType ?? property.PropertyType))
+      };
+    }), visitDates);
   const searchTerm = propertySearch.trim().toLocaleLowerCase();
   const visibleProperties = propertyRows.filter((property) => `${property.name} ${property.address}`.toLocaleLowerCase().includes(searchTerm));
   const propertiesReady = propertiesStatus === 'ready';
 
+  const runPropertyAction = (action, property, to) => {
+    if (action === 'payment') {
+      drawer.openPaymentAddDrawer({ property: { id: property.id, name: property.name } });
+    } else if (action === 'task') {
+      setTaskDraft({ propertyId: property.id });
+    } else {
+      navigate(to, { state: { propertySidebarAction: action } });
+    }
+  };
+
   const renderPropertyNavigation = (variant) => <PropertyNavigation
+    key={`${variant}-${organizationId}-${visitScope}`}
     properties={propertiesReady ? visibleProperties : []} total={propertiesReady ? propertyRows.length : null}
     loading={propertiesStatus === 'pending'} search={propertySearch}
-    searchId={`property-sidebar-search-${variant}`} onSearch={setPropertySearch} pathname={pathname} disabled={trialExpired} user={user} onNavigate={onMobileClose}
+    searchId={`property-sidebar-search-${variant}`} onSearch={setPropertySearch} pathname={pathname} disabled={trialExpired} user={user}
+    onNavigate={variant === 'mobile' ? onMobileClose : undefined} onAction={runPropertyAction}
     status={propertiesStatus === 'failed' ? 'Failed to load properties' : propertiesReady && propertyRows.length ? 'No matching properties.' : null} />;
 
   return <>
@@ -102,13 +139,17 @@ export default function LandlordSidebar({ mobileOpen, onMobileClose }) {
       </Box>
       {renderPropertyNavigation('mobile')}
     </Drawer>
+    <TaskEditorDrawer open={Boolean(taskDraft) && propertiesReady && !trialExpired} onClose={() => setTaskDraft(null)}
+      properties={propertyRows} initialValues={taskDraft} onSave={(form) => dispatch(createTask(form))} />
   </>;
 }
 
-function PropertyNavigation({ properties, total, loading, search, searchId, onSearch, pathname, disabled, user, onNavigate, status }) {
+function PropertyNavigation({ properties, total, loading, search, searchId, onSearch, pathname, disabled, user, onNavigate, onAction, status }) {
   const scrollRef = useRef(null);
+  const propertyListRef = useRef(null);
   const searchButtonRef = useRef(null);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [expandedPropertyId, setExpandedPropertyId] = useState(null);
   const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
   const closeSearch = () => {
     setSearchOpen(false);
@@ -124,6 +165,7 @@ function PropertyNavigation({ properties, total, loading, search, searchId, onSe
     updateOverflow();
     const observer = new ResizeObserver(updateOverflow);
     if (scrollRef.current) observer.observe(scrollRef.current);
+    if (propertyListRef.current) observer.observe(propertyListRef.current);
     return () => observer.disconnect();
   }, [properties.length]);
 
@@ -168,20 +210,47 @@ function PropertyNavigation({ properties, total, loading, search, searchId, onSe
       <Box ref={scrollRef} onScroll={updateOverflow} aria-busy={loading || undefined} sx={{ height: '100%', overflowY: 'auto', scrollbarWidth: 'thin',
         scrollbarColor: 'rgba(255,255,255,0.4) transparent',
         '&::-webkit-scrollbar': { width: 6 }, '&::-webkit-scrollbar-thumb': { bgcolor: 'rgba(255,255,255,0.4)', borderRadius: 3 } }}>
-        <List disablePadding sx={{ pb: 2 }}>
+        <List ref={propertyListRef} disablePadding sx={{ pb: 2 }}>
           {properties.map((property, index) => {
             const to = `/landlord/property/${encodeURIComponent(property.id)}`;
             const isActive = pathname === to || pathname.startsWith(`${to}/`);
-            return <ListItemButton key={property.id} component={Link} to={to} disabled={disabled} selected={isActive}
-              aria-current={isActive ? 'page' : undefined} onClick={() => { recordRecentlyViewedProperty(property.id, user); onNavigate?.(); }}
-              style={{ '--dashboard-deal-delay': dashboardEntranceDelay(index) }}
-              sx={{ ...rowSx, ...dashboardSlideDownSx, px: 1.25, gap: 1.25, minHeight: 56 }}>
-              <Box component="img" src={property.image} alt="" onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = placeholderImage; }}
-                sx={{ width: 36, height: 36, flexShrink: 0, borderRadius: 1, objectFit: 'cover', bgcolor: 'rgba(255,255,255,0.12)' }} />
-              <ListItemText primary={property.name} secondary={property.address && property.address !== property.name ? property.address : null}
-                primaryTypographyProps={{ fontSize: 13, fontWeight: isActive ? 700 : 500, noWrap: true, title: property.name, sx: { color: '#FFFFFF' } }}
-                secondaryTypographyProps={{ fontSize: 11, noWrap: true, title: property.address, sx: { color: 'rgba(255,255,255,0.72)' } }} />
-            </ListItemButton>;
+            const expanded = !disabled && expandedPropertyId === property.id;
+            const actionsId = `${searchId}-actions-${encodeURIComponent(property.id)}`;
+            const toggleId = `${actionsId}-toggle`;
+            return <Box component="li" key={property.id} sx={{ display: 'flex', flexDirection: 'column' }}>
+              <ListItemButton component="button" type="button" id={toggleId} disabled={disabled} selected={isActive || expanded}
+                aria-expanded={expanded} aria-controls={expanded ? actionsId : undefined}
+                onClick={() => setExpandedPropertyId(expanded ? null : property.id)}
+                style={{ '--dashboard-deal-delay': dashboardEntranceDelay(index) }}
+                sx={{ ...rowSx, ...dashboardSlideDownSx, px: 1.25, gap: 1.25, minHeight: 56, textAlign: 'left' }}>
+                <Box component="img" src={property.image} alt="" onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = placeholderImage; }}
+                  sx={{ width: 36, height: 36, flexShrink: 0, borderRadius: 1, objectFit: 'cover', bgcolor: 'rgba(255,255,255,0.12)' }} />
+                <ListItemText primary={property.name} secondary={property.address && property.address !== property.name ? property.address : null}
+                  primaryTypographyProps={{ fontSize: 13, fontWeight: isActive || expanded ? 700 : 500, noWrap: true, title: property.name, sx: { color: '#FFFFFF' } }}
+                  secondaryTypographyProps={{ fontSize: 11, noWrap: true, title: property.address, sx: { color: propertySubtitleColor } }} />
+                <AppIcon name="chevronDown" size={11} style={{ transform: expanded ? 'rotate(180deg)' : undefined, transition: reducedMotion ? undefined : 'transform 240ms ease' }} />
+              </ListItemButton>
+              <Collapse in={expanded} timeout={reducedMotion ? 0 : 240} unmountOnExit>
+                <Box id={actionsId} role="group" aria-labelledby={toggleId} inert={!expanded}
+                  sx={{ ml: 3.75, mr: 1.5, mb: 0.5, pl: 0.75, borderLeft: '1px solid rgba(185,228,203,0.28)' }}>
+                  {propertyActions.map(({ action, label, icon, requires }) => {
+                    const isView = action === 'view';
+                    return <ListItemButton key={action} component={isView ? Link : 'button'}
+                      {...(isView ? { to, 'aria-current': pathname === to ? 'page' : undefined } : { type: 'button' })}
+                      disabled={Boolean(requires && !property[requires])}
+                      onClick={() => {
+                        if (isView) recordRecentlyViewedProperty(property.id, user);
+                        else onAction(action, property, to);
+                        onNavigate?.();
+                      }}
+                      sx={{ ...rowSx, m: 0, width: '100%', minHeight: 36, px: 1, py: 0.5, gap: 1.25, textAlign: 'left' }}>
+                      <AppIcon name={icon} size={15} style={{ color: brand.mint }} />
+                      <Typography component="span" sx={{ fontSize: 13, fontWeight: 500, color: propertySubtitleColor }}>{label}</Typography>
+                    </ListItemButton>;
+                  })}
+                </Box>
+              </Collapse>
+            </Box>;
           })}
         </List>
         {!properties.length && status && <Typography role="status" sx={{ px: 3, py: 1, fontSize: 12, color: 'rgba(255,255,255,0.8)' }}>{status}</Typography>}
@@ -204,5 +273,5 @@ LandlordSidebar.propTypes = { mobileOpen: PropTypes.bool, onMobileClose: PropTyp
 PropertyNavigation.propTypes = {
   properties: PropTypes.array.isRequired, total: PropTypes.number, loading: PropTypes.bool.isRequired, search: PropTypes.string.isRequired,
   searchId: PropTypes.string.isRequired, onSearch: PropTypes.func.isRequired, pathname: PropTypes.string.isRequired, disabled: PropTypes.bool,
-  user: PropTypes.object, onNavigate: PropTypes.func, status: PropTypes.string
+  user: PropTypes.object, onNavigate: PropTypes.func, onAction: PropTypes.func.isRequired, status: PropTypes.string
 };

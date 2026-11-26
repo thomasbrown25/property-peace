@@ -13,7 +13,7 @@ import useFinancesPayments from 'hooks/useFinancesPayments';
 import AccountActivityCard from 'sections/landlord/finances/AccountActivityCard';
 import ActivityTab from 'sections/landlord/finances/ActivityTab';
 import ExpensesTab from 'sections/landlord/finances/ExpensesTab';
-import CalculationDisclosure from 'sections/landlord/finances/CalculationDisclosure';
+import FinancesDataStatus from 'sections/landlord/finances/FinancesDataStatus';
 import FinanceDetailDrawer from 'sections/landlord/finances/FinanceDetailDrawer';
 import FinancesHeader from 'sections/landlord/finances/FinancesHeader';
 import FinancesMetrics from 'sections/landlord/finances/FinancesMetrics';
@@ -305,14 +305,16 @@ export default function FinancesPage() {
             </Alert>
           )}
 
-          <FinancesMetrics
-            overview={metricsOverview}
-            collectedThisMonth={collectedThisMonth}
-            collectedThisMonthAvailable={!paymentsData.loading && !paymentsScopeChanged && paymentsData.available}
-            onSelectMetric={handleMetricNavigation}
-          />
+          {!pageLoading && (
+            <FinancesMetrics
+              overview={metricsOverview}
+              collectedThisMonth={collectedThisMonth}
+              collectedThisMonthAvailable={!paymentsData.loading && !paymentsScopeChanged && paymentsData.available}
+              onSelectMetric={handleMetricNavigation}
+            />
+          )}
 
-          <CalculationDisclosure
+          <FinancesDataStatus
             overview={moneyData.loading || moneyScopeChanged ? null : moneyData.overview}
             itemsResponse={moneyData.loading || moneyScopeChanged ? null : moneyData.itemsResponse}
             loading={moneyData.loading || moneyScopeChanged}

@@ -7,6 +7,8 @@ import { format } from 'date-fns';
 import AppIcon from 'components/AppIcon';
 import { getTableStyles } from 'themes/tableStyles';
 import OwnerHomeSidebar from './OwnerHomeSidebar';
+import OwnerRentOverview from './OwnerRentOverview';
+import OwnerSetupTodos from './OwnerSetupTodos';
 import { dashboardEntranceDelay, dashboardRowHoverSx, dashboardRowLinkSx, dashboardSlideDownSx } from './dashboardEntrance.mjs';
 import { getOwnerNextStep, getOwnerProperties, getPropertyMonthRent, getPropertyOverdueRent, getPropertyRentDueDate } from 'utils/ownerHome';
 
@@ -14,7 +16,7 @@ const money = (value) => new Intl.NumberFormat('en-US', { style: 'currency', cur
 const columns = 'minmax(190px, 1.3fr) minmax(220px, 1.75fr) minmax(110px, .8fr) minmax(150px, 1fr)';
 const propertyRowLimit = 8;
 
-export default function OwnerTodayHome({ reminders = [], properties = [], propertiesLoading = false, propertiesError = false, rentRecords = [], rentLoading = false, rentError = false, rentReady = false }) {
+export default function OwnerTodayHome({ reminders = [], properties = [], propertiesLoading = false, propertiesError = false, rentSummary, rentRecords = [], rentLoading = false, rentError = false, rentReady = false, paymentAccountStatus }) {
   const theme = useTheme();
   const { user } = useAuth();
   const firstName = [user?.firstName, user?.firstname, user?.FirstName, user?.Firstname]
@@ -50,23 +52,7 @@ export default function OwnerTodayHome({ reminders = [], properties = [], proper
       </Box>
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: 'minmax(0, 1fr) 280px' }, gap: { xs: 0, lg: 6 }, alignItems: 'start' }}>
         <Box sx={{ minWidth: 0 }}>
-      <Box component="section" aria-labelledby="owner-next-heading" sx={{ py: { xs: 3, md: 4 }, borderBottom: '1px solid', borderColor: 'divider' }}>
-        <Typography id="owner-next-heading" component="h2" variant="h5" sx={{ mb: 1.5, fontWeight: 700 }}>Tasks</Typography>
-        {next ? (
-          <Box sx={{ ...dashboardSlideDownSx, display: 'flex', alignItems: { xs: 'flex-start', sm: 'center' }, justifyContent: 'space-between', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, p: { xs: 2, sm: 2.5 }, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
-            <Box sx={{ minWidth: 0 }}>
-              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>{next.label}</Typography>
-              <Typography variant="h5" sx={{ mt: 0.5, overflowWrap: 'anywhere', color: 'text.primary' }}>{next.title}</Typography>
-            </Box>
-            <Button component={RouterLink} to={next.href} variant="contained" endIcon={<AppIcon name="arrowRight" />} sx={{ flexShrink: 0, textTransform: 'none' }}>Open</Button>
-          </Box>
-        ) : (
-          <Typography color="text.secondary" sx={{ py: 2 }}>
-            {propertiesLoading ? 'Loading your properties…' : propertiesError ? 'Properties could not be loaded. Try again later.' : 'Nothing scheduled for today. Review your tasks or properties whenever you’re ready.'}
-          </Typography>
-        )}
-      </Box>
-
+      <OwnerRentOverview summary={rentSummary} loading={rentLoading || !rentReady} error={rentError} />
       <Box component="section" aria-labelledby="owner-properties-heading" sx={{ py: { xs: 3, md: 4 }, borderBottom: '1px solid', borderColor: 'divider' }}>
         <Stack direction="row" alignItems="center" justifyContent="space-between" gap={2} sx={{ mb: 1.5 }}>
           <Typography id="owner-properties-heading" component="h2" variant="h5" sx={{ fontWeight: 700 }}>Your properties</Typography>
@@ -78,7 +64,7 @@ export default function OwnerTodayHome({ reminders = [], properties = [], proper
           <Box style={{ ...tableStyles.container, backgroundColor: 'transparent' }} sx={{ overflow: 'hidden' }}>
             <Box>
               <Box style={{ ...tableStyles.header, borderBottom: tableStyles.headerCell.borderBottom }} sx={{ display: { xs: 'none', xl: 'grid' }, gridTemplateColumns: columns, gap: 2, px: 2, py: 1.15 }}>
-                {['Property', 'Rent paid', 'Rent status', 'Due date'].map((label) => (
+                {['Property', 'Rent paid', 'Rent status', 'Next rent due'].map((label) => (
                   <Typography key={label} style={{ ...tableStyles.headerCell, padding: 0, borderBottom: 0 }}>{label}</Typography>
                 ))}
               </Box>
@@ -120,7 +106,7 @@ export default function OwnerTodayHome({ reminders = [], properties = [], proper
                       </Typography>
                     </Box>
                     <Box>
-                      <Typography sx={{ display: { xs: 'block', xl: 'none' }, mb: 0.5, fontSize: '0.66rem', fontWeight: 750, textTransform: 'uppercase', color: 'text.secondary' }}>Due date</Typography>
+                      <Typography sx={{ display: { xs: 'block', xl: 'none' }, mb: 0.5, fontSize: '0.66rem', fontWeight: 750, textTransform: 'uppercase', color: 'text.secondary' }}>Next rent due</Typography>
                       <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>
                         {property.activeLeaseCount === 0 ? 'No lease' : rentError ? 'Rent data unavailable' : !rentReady ? 'Loading rent…' : dueDate ? format(new Date(`${dueDate}T12:00:00`), 'MMM d, yyyy') : 'No due date'}
                       </Typography>
@@ -138,9 +124,26 @@ export default function OwnerTodayHome({ reminders = [], properties = [], proper
         ) : <Typography color="text.secondary">No properties yet. Add one to start organizing your portfolio.</Typography>}
       </Box>
         </Box>
-        <Box sx={{ pt: { xs: 3, md: 4 }, pb: { xs: 1, lg: 0 }, minWidth: 0 }}>
+        <Stack spacing={3} sx={{ pt: { xs: 3, md: 4 }, pb: { xs: 1, lg: 0 }, minWidth: 0 }}>
+          <OwnerSetupTodos paymentAccountStatus={paymentAccountStatus} />
+          <Box component="section" aria-labelledby="owner-next-heading">
+            <Typography id="owner-next-heading" component="h2" variant="h5" sx={{ mb: 1.5, fontWeight: 700 }}>Tasks</Typography>
+            {next ? (
+              <Box sx={{ ...dashboardSlideDownSx, display: 'flex', alignItems: 'flex-start', flexDirection: 'column', gap: 2, p: { xs: 2, sm: 2.5 }, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>{next.label}</Typography>
+                  <Typography variant="h5" sx={{ mt: 0.5, overflowWrap: 'anywhere', color: 'text.primary' }}>{next.title}</Typography>
+                </Box>
+                <Button component={RouterLink} to={next.href} variant="contained" endIcon={<AppIcon name="arrowRight" />} sx={{ flexShrink: 0, textTransform: 'none' }}>Open</Button>
+              </Box>
+            ) : (
+              <Typography color="text.secondary" sx={{ py: 2 }}>
+                Nothing scheduled for today.
+              </Typography>
+            )}
+          </Box>
           <OwnerHomeSidebar />
-        </Box>
+        </Stack>
       </Box>
     </Box>
   );

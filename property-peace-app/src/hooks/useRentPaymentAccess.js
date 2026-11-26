@@ -11,7 +11,7 @@ import {
   makeRentPaymentAccessScopeKey
 } from 'utils/rentPaymentAccess';
 
-export default function useRentPaymentAccess() {
+export default function useRentPaymentAccess({ enabled = true } = {}) {
   const { currentOrganization, loading: organizationLoading } = useOrganization();
   const { user } = useAuth();
   const [state, setState] = useState({ scopeKey: null, readiness: null, configureReadiness: null, payReadiness: null, readinessError: null, loading: false, error: null });
@@ -20,7 +20,7 @@ export default function useRentPaymentAccess() {
   const userId = user?.id ?? user?.Id ?? user?.email ?? user?.Email ?? null;
   const organizationId = currentOrganization?.id ?? currentOrganization?.Id ?? null;
   const scopeKey = makeRentPaymentAccessScopeKey({ userId, organizationId });
-  const canFetch = Boolean(scopeKey) && !organizationLoading;
+  const canFetch = enabled && Boolean(scopeKey) && !organizationLoading;
   const refresh = useCallback(() => {
     if (!canFetch) {
       lifecycleRef.current.clear(scopeKey);

@@ -11,7 +11,7 @@ New accounts request Standard-equivalent controller settings:
 - `controller.requirement_collection = stripe`
 - `controller.stripe_dashboard.type = full`
 
-Card and US bank account ACH capabilities are requested. Stripe verification, active organization authority, payout readiness and explicit security holds remain required. Stripe-managed automatic payout schedules are accepted. Stripe fees and payment losses follow the account's Stripe controller configuration; direct charges alone are not a liability guarantee.
+New accounts request `card_payments`, `transfers`, and `us_bank_account_ach_payments`. Stripe requires `transfers` when requesting `card_payments`. Stripe verification, active organization authority, payout readiness and explicit security holds remain required. Stripe-managed automatic payout schedules are accepted. Stripe fees and payment losses follow the account's Stripe controller configuration; direct charges alone are not a liability guarantee.
 
 Existing Express test accounts are not converted or deleted. Create fresh accounts using the new setup flow for this configuration. Stripe Dashboard type cannot simply be changed on an existing Account.
 

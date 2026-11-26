@@ -20,6 +20,14 @@ export default function GuestGuard({ children }) {
       if (pathname.includes('/tenant/invite/')) {
         return; // Don't redirect - tenant needs to accept invite
       }
+      const step = new URLSearchParams(location.search).get('step');
+      if (
+        location.state?.registrationCompleting &&
+        pathname === '/register' &&
+        (step === 'creating' || step === 'complete')
+      ) {
+        return;
+      }
       navigate(getPostLoginRedirectPath(user, location?.state?.from), {
         state: {
           from: ''

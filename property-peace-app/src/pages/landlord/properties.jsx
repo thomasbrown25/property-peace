@@ -121,7 +121,7 @@ function PropertyRow({ property, onOpen, onAddLease, onDelete, rowSx }) {
   const imageUrl = read(property, 'mainImageUrl', 'MainImageUrl') || read(image, 'blobUrl', 'BlobUrl');
   const propertyIcon = isDetachedSingleUnitType(read(property, 'propertyType', 'PropertyType')) ? 'house' : 'properties';
   const occupancy = summary.units.length ? Math.round((summary.occupied / summary.units.length) * 100) : 0;
-  const statusColor = summary.overdue ? theme.palette.error.main : summary.vacant ? theme.palette.warning.main : theme.palette.success.main;
+  const occupancyColor = summary.vacant ? theme.palette.warning.main : theme.palette.success.main;
 
   const handleKeyDown = (event) => {
     if (event.key === 'Enter' || event.key === ' ') {
@@ -174,7 +174,7 @@ function PropertyRow({ property, onOpen, onAddLease, onDelete, rowSx }) {
         <LinearProgress
           variant="determinate"
           value={occupancy}
-          sx={{ mt: 0.65, height: 5, borderRadius: 8, bgcolor: alpha(theme.palette.divider, 0.12), '& .MuiLinearProgress-bar': { borderRadius: 8, bgcolor: statusColor } }}
+          sx={{ mt: 0.65, height: 5, borderRadius: 8, bgcolor: alpha(theme.palette.divider, 0.12), '& .MuiLinearProgress-bar': { borderRadius: 8, bgcolor: occupancyColor } }}
         />
       </Box>
 

@@ -66,7 +66,7 @@ public sealed class StripeServiceOrganizationAuthorizationTests
     }
 
     [Fact]
-    public async Task CreateConnectAccount_ConcurrentFirstAccountCalls_CreateAndReturnOneAccount()
+    public async Task CreateConnectAccount_ConcurrentFirstAccountCalls_BypassRetiredKeyAndReturnOneAccount()
     {
         var users = new Mock<IUserRepository>(MockBehavior.Strict);
         users.Setup(repository => repository.GetUser(42))
@@ -111,6 +111,12 @@ public sealed class StripeServiceOrganizationAuthorizationTests
                     Interlocked.Decrement(ref activeGatewayCalls);
                 }
             });
+        gateway.Setup(service => service.CreateOnboardingAccountAsync(
+                It.IsAny<Stripe.AccountCreateOptions>(),
+                It.IsAny<string>(),
+                "property-peace-connect-account-user-42-standard-v2",
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new Stripe.StripeException("Idempotency key was already used with different parameters."));
 
         var service = new StripeServiceImpl(
             users.Object,

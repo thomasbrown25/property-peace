@@ -108,7 +108,7 @@ test('today property list links the property name and shows rent paid and due da
   assert.match(home, /to=\{property\.href\}[\s\S]*?\{property\.name\}/);
   assert.match(home, /Rent paid/);
   assert.match(home, /LinearProgress/);
-  assert.match(home, /Due date/);
+  assert.match(home, /Next rent due/);
   assert.match(home, /getPropertyRentDueDate/);
   assert.doesNotMatch(home, /PropertyOperations/);
   assert.match(overview, /rentRecords=\{rentRecords\}/);

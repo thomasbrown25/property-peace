@@ -31,6 +31,17 @@ test('Properties page production summary counts active leases, not saved flags/s
   assert.equal(summary.occupied, 1);
   assert.equal(summary.vacant, 4);
 });
+test('Properties page occupancy bar color depends on vacancies, independent of overdue rent', () => {
+  const text = source('pages/landlord/properties.jsx');
+  const colorExpression = text.match(/const occupancyColor = ([^;]+);/)?.[1];
+  assert.ok(colorExpression);
+  const palette = { success: { main: 'green' }, warning: { main: 'yellow' }, error: { main: 'red' } };
+  const color = new Function('summary', 'theme', `return ${colorExpression};`);
+
+  assert.match(text, /MuiLinearProgress-bar'[^\n]+bgcolor: occupancyColor\b/);
+  assert.equal(color({ overdue: 1, vacant: 0 }, { palette }), 'green');
+  assert.equal(color({ overdue: 1, vacant: 1 }, { palette }), 'yellow');
+});
 test('occupancy calendars do not treat inactive history as occupied', () => {
   const period = { startDate: '2026-01-01', endDate: '2026-12-31', isActive: false };
   assert.equal(occupancyForDay({ leasePeriods: [period] }, new Date(2026, 5, 1)).occupied, false);
