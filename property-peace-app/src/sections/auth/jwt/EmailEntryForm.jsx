@@ -146,7 +146,6 @@ export default function EmailEntryForm({
   onGoogleSuccess,
   onBack,
   initialEmail = '',
-  emailAlreadyVerified = false,
   resumeMessage = ''
 }) {
   const navigate = useNavigate();
@@ -159,7 +158,7 @@ export default function EmailEntryForm({
   const [botChallengeResetKey, setBotChallengeResetKey] = useState(0);
   const oauthEnabled = Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID);
   const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY?.trim() || '';
-  const turnstileRequired = Boolean(turnstileSiteKey) && !emailAlreadyVerified;
+  const turnstileRequired = Boolean(turnstileSiteKey);
 
   useEffect(() => {
     if (!oauthEnabled) return undefined;
@@ -210,11 +209,6 @@ export default function EmailEntryForm({
           // Explicitly switch away from any earlier Google attempt before continuing with credentials.
           sessionStorage.removeItem('googleAccessToken');
           sessionStorage.removeItem('registerProfileImageUrl');
-          if (emailAlreadyVerified && email === initialEmail.trim().toLowerCase()) {
-            sessionStorage.setItem('registerEmail', email);
-            onNext?.(email, values.password, true);
-            return;
-          }
           const check = await axiosServices.post('/api/user/check-email', { email });
           if (check.data?.success && check.data?.data === true) {
             navigate(`${isDemo ? '/auth/login' : '/login'}?error=email-exists&email=${encodeURIComponent(email)}`, { replace: true });
@@ -226,8 +220,7 @@ export default function EmailEntryForm({
           });
           if (!response.data?.success) throw new Error(response.data?.message || 'We could not send a verification code.');
           sessionStorage.setItem('registerEmail', email);
-          sessionStorage.removeItem('emailVerified');
-          onNext ? onNext(email, values.password, false) : navigate('/register/email-verifier');
+          onNext ? onNext(email, values.password) : navigate('/register/email-verifier');
         } catch (error) {
           if (turnstileRequired) {
             setBotChallengeToken(null);
@@ -257,14 +250,9 @@ export default function EmailEntryForm({
               </TransitionIn>
             )}
             <TransitionIn delay={0.1} disabled={reduceMotion}>
-              <Typography variant="h3" sx={{ mb: emailAlreadyVerified ? 1 : 3, color: 'text.primary', fontWeight: 700, textAlign: 'center' }}>
+              <Typography variant="h3" sx={{ mb: 3, color: 'text.primary', fontWeight: 700, textAlign: 'center' }}>
                 Sign up to Property Peace
               </Typography>
-              {emailAlreadyVerified && (
-                <Typography color="text.secondary" sx={{ mb: 3, textAlign: 'center' }}>
-                  Re-enter your password to securely continue with your verified email.
-                </Typography>
-              )}
             </TransitionIn>
           {resumeMessage && <FormHelperText sx={{ mb: 2, color: 'warning.dark' }}>{resumeMessage}</FormHelperText>}
           <form noValidate onSubmit={handleSubmit}>
@@ -388,7 +376,7 @@ export default function EmailEntryForm({
                   disabled={isSubmitting || (turnstileRequired && !botChallengeToken)}
                   sx={authPrimaryButtonSx}
                 >
-                  {isSubmitting ? 'Please wait…' : emailAlreadyVerified ? 'Continue securely' : 'Sign up'}
+                  {isSubmitting ? 'Please wait…' : 'Sign up'}
                 </Button>
               </TransitionIn>
               <TransitionIn delay={oauthEnabled ? 0.7 : 0.5} disabled={reduceMotion}>
@@ -415,6 +403,5 @@ EmailEntryForm.propTypes = {
   onGoogleSuccess: PropTypes.func,
   onBack: PropTypes.func,
   initialEmail: PropTypes.string,
-  emailAlreadyVerified: PropTypes.bool,
   resumeMessage: PropTypes.string
 };

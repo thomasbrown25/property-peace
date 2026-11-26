@@ -1,5 +1,6 @@
 const SAFE_OPERATING_TYPES = new Set(['individual', 'business']);
 const SAFE_AUTHORITY_RELATIONSHIPS = new Set(['owner', 'property-manager', 'authorized-representative']);
+const EIN_PATTERN = /^\d{2}-?\d{7}$/;
 
 function readFirstValue(source, keys) {
   for (const key of keys) {
@@ -11,8 +12,8 @@ function readFirstValue(source, keys) {
 
 export function createConnectOnboardingDraft({ user = null, savedPreparation = null } = {}) {
   const companyName = readFirstValue(user, ['companyName', 'CompanyName', 'organizationName', 'OrganizationName']);
-  const firstName = readFirstValue(user, ['firstName', 'FirstName']);
-  const lastName = readFirstValue(user, ['lastName', 'LastName']);
+  const firstName = readFirstValue(user, ['firstName', 'firstname', 'FirstName', 'Firstname']);
+  const lastName = readFirstValue(user, ['lastName', 'lastname', 'LastName', 'Lastname']);
   const fullName = [firstName, lastName].filter(Boolean).join(' ');
   const savedOperatingType = SAFE_OPERATING_TYPES.has(savedPreparation?.operatingType) ? savedPreparation.operatingType : null;
   const savedAuthority = SAFE_AUTHORITY_RELATIONSHIPS.has(savedPreparation?.authorityRelationship)
@@ -29,23 +30,37 @@ export function createConnectOnboardingDraft({ user = null, savedPreparation = n
       ]
     : [];
 
+  const operatingType = savedOperatingType || (companyName ? 'business' : 'individual');
+  const displayNames = { individual: fullName, business: companyName || fullName };
+  const savedDisplayName = readFirstValue(savedPreparation, ['displayName']);
+  if (savedDisplayName) displayNames[operatingType] = savedDisplayName;
+
   return {
-    operatingType: savedOperatingType || (companyName ? 'business' : 'individual'),
-    displayName: readFirstValue(savedPreparation, ['displayName']) || companyName || fullName,
+    operatingType,
+    displayNames,
     propertyIds: savedPropertyIds,
     authorityRelationship: savedAuthority,
     authorityAttested: false
   };
 }
 
-export function validateConnectOnboardingStep(step, draft = {}) {
+export function validateConnectOnboardingStep(step, draft = {}, ein = '') {
   const errors = {};
 
-  if (step === 0 && !String(draft.displayName || '').trim()) {
-    errors.displayName = 'Enter the landlord or business name that tenants recognize.';
+  if (step === 0 && !SAFE_OPERATING_TYPES.has(draft.operatingType)) {
+    errors.operatingType = 'Select an account type.';
   }
 
   if (step === 1) {
+    if (!String(draft.displayName || '').trim()) {
+      errors.displayName = 'Enter the landlord or business name that tenants recognize.';
+    }
+    if (draft.operatingType === 'business' && !EIN_PATTERN.test(ein)) {
+      errors.ein = 'Enter a valid 9-digit EIN.';
+    }
+  }
+
+  if (step === 2) {
     if (!Array.isArray(draft.propertyIds) || draft.propertyIds.length === 0) {
       errors.propertyIds = 'Select at least one property that will use online rent payments.';
     }

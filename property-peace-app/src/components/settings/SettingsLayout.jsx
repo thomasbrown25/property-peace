@@ -21,12 +21,11 @@ export default function SettingsLayout({ tabs, selectedIndex, onTabChange }) {
       <Box
         component="nav"
         aria-label="Settings"
-        sx={{
+        sx={(theme) => ({
           bgcolor: 'background.paper',
-          borderRight: { md: '1px solid' },
-          borderBottom: { xs: '1px solid', md: 0 },
-          borderColor: 'divider'
-        }}
+          borderRight: { md: `1px solid ${theme.palette.divider}` },
+          borderBottom: { xs: `1px solid ${theme.palette.divider}`, md: 0 }
+        })}
       >
         <Box
           sx={{
@@ -82,16 +81,14 @@ export default function SettingsLayout({ tabs, selectedIndex, onTabChange }) {
                   })}
                 >
                   <Box
-                    sx={(theme) => ({
+                    sx={{
                       width: 28,
                       height: 28,
                       flexShrink: 0,
-                      borderRadius: 1.25,
                       display: 'grid',
                       placeItems: 'center',
-                      color: selected ? 'primary.main' : 'text.secondary',
-                      bgcolor: selected ? alpha(theme.palette.primary.main, 0.12) : alpha(theme.palette.text.secondary, 0.06)
-                    })}
+                      color: selected ? 'primary.main' : 'text.secondary'
+                    }}
                   >
                     <Icon style={{ fontSize: 16 }} />
                   </Box>
@@ -118,16 +115,14 @@ export default function SettingsLayout({ tabs, selectedIndex, onTabChange }) {
             })}
           >
             <Box
-              sx={(theme) => ({
+              sx={{
                 width: 38,
                 height: 38,
                 flexShrink: 0,
-                borderRadius: 1.5,
                 display: 'grid',
                 placeItems: 'center',
-                color: 'primary.main',
-                bgcolor: alpha(theme.palette.primary.main, 0.12)
-              })}
+                color: 'primary.main'
+              }}
             >
               <ActiveIcon style={{ fontSize: 20 }} />
             </Box>

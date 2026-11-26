@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeRentBalance } from './rentBalance.js';
+import { getOldestUnpaidRentDueDate, normalizeRentBalance } from './rentBalance.js';
 
 test('normalizes canonical camelCase rent balance fields', () => {
   assert.deepEqual(
@@ -106,4 +106,11 @@ test('returns a safe zero balance for missing or invalid data', () => {
     currentMonthRentDue: 0,
     overdueAmount: 0
   });
+});
+
+test('reads the canonical oldest unpaid rent due date without guessing from the next due date', () => {
+  assert.equal(getOldestUnpaidRentDueDate({ oldestOverdueRentDueDate: '2026-11-01T00:00:00' }), '2026-11-01');
+  assert.equal(getOldestUnpaidRentDueDate({ OldestOverdueRentDueDate: '2026-02-28' }), '2026-02-28');
+  assert.equal(getOldestUnpaidRentDueDate({ dueDate: '2026-12-01T00:00:00' }), null);
+  assert.equal(getOldestUnpaidRentDueDate({ oldestOverdueRentDueDate: 'not-a-date' }), null);
 });

@@ -23,7 +23,7 @@ namespace brownstone_hub_api.Tests.Services;
 public sealed class StripeServiceChargeAdapterTests
 {
     [Fact]
-    public async Task NewAccounts_ExplicitStandardFullDashboardStripeLossesAndAccountFees()
+    public async Task NewAccounts_RequestCardPaymentsTransfersAndAchWithStandardController()
     {
         await using var db = StripeRentPaymentFlowTests.CreateContext();
         var users = new Mock<IUserRepository>();
@@ -46,6 +46,9 @@ public sealed class StripeServiceChargeAdapterTests
         captured.Controller.Fees.Payer.Should().Be("account");
         captured.Controller.RequirementCollection.Should().Be("stripe");
         captured.Controller.StripeDashboard.Type.Should().Be("full");
+        (captured.Capabilities.CardPayments?.Requested).Should().BeTrue();
+        (captured.Capabilities.Transfers?.Requested).Should().BeTrue();
+        (captured.Capabilities.UsBankAccountAchPayments?.Requested).Should().BeTrue();
         captured.Settings.Should().BeNull("Standard owners manage their payout schedule");
     }
 

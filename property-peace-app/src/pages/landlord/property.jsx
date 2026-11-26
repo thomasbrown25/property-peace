@@ -99,7 +99,7 @@ import PropertyRecordsTabs from 'sections/landlord/property/PropertyRecordsTabs'
 import LandlordMaintenanceDrawer from 'components/drawers/LandlordMaintenanceDrawer';
 import { bankAccountAPI } from 'api';
 import axiosServices from 'utils/axios';
-import { ONLINE_PAYMENT_BANK_ACCOUNTS_PATH, ONLINE_PAYMENT_SETUP_PATH } from 'utils/onlinePaymentTabs';
+import { ONLINE_PAYMENT_SETUP_PATH, ONLINE_PAYMENT_STRIPE_PATH } from 'utils/onlinePaymentTabs';
 import OnlinePaymentSetupButton from 'components/rent-payments/OnlinePaymentSetupButton';
 import AnimateIn from 'components/AnimateIn';
 import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
@@ -2270,6 +2270,7 @@ export default function Property() {
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const previousPathname = useRef(null);
+  const handledSidebarActionKeys = useRef(new Set());
   const reduxSelectedProperty = useSelector(selectProperty);
 
   const requestedTab = searchParams.get('tab') || 'overview';
@@ -2309,6 +2310,26 @@ export default function Property() {
   const organizationId = currentOrganization?.id ?? currentOrganization?.Id;
   const propertyOrganizationId = selectedProperty?.organizationId ?? selectedProperty?.OrganizationId;
   const propertyMatchesOrganization = propertyOrganizationId == null || String(propertyOrganizationId) === String(organizationId);
+
+  useEffect(() => {
+    const { propertySidebarAction, ...remainingLocationState } = location.state || {};
+    const canHandleAction = propertyMatchesRoute && propertyMatchesOrganization && !organizationLoading;
+    const supportedAction = ['edit', 'lease', 'upload'].includes(propertySidebarAction);
+
+    if (!canHandleAction || !supportedAction || handledSidebarActionKeys.current.has(location.key)) return;
+
+    handledSidebarActionKeys.current.add(location.key);
+    navigate({ pathname: location.pathname, search: location.search, hash: location.hash }, { replace: true, state: remainingLocationState });
+
+    if (propertySidebarAction === 'edit') {
+      drawer.openPropertyEditDrawer();
+    } else if (propertySidebarAction === 'lease') {
+      drawer.openLeaseAddDrawer(null, selectedProperty);
+    } else {
+      setDocumentUploadPropertyId(propertyId);
+    }
+  }, [drawer, location.hash, location.key, location.pathname, location.search, location.state, navigate, organizationLoading, propertyId, propertyMatchesOrganization, propertyMatchesRoute, selectedProperty]);
+
   const stripeStatusKey = !organizationLoading && userId && organizationId &&
     propertyMatchesRoute && propertyMatchesOrganization && collectsRentOnline(selectedProperty)
     ? ['/api/stripe/account-status', userId, organizationId]
@@ -2323,7 +2344,7 @@ export default function Property() {
   const paymentAction = stripeStatusKey && !stripeStatusError ? getOnlinePaymentAction(stripeStatus) : null;
   const onlinePaymentAction = paymentAction && {
     ...paymentAction,
-    onSelect: () => navigate(paymentAction.showInRentCard ? ONLINE_PAYMENT_SETUP_PATH : ONLINE_PAYMENT_BANK_ACCOUNTS_PATH)
+    onSelect: () => navigate(paymentAction.showInRentCard ? ONLINE_PAYMENT_SETUP_PATH : ONLINE_PAYMENT_STRIPE_PATH)
   };
 
   useEffect(() => {

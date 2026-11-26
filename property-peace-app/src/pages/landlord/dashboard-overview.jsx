@@ -408,9 +408,11 @@ export default function DashboardOverview({ embedded = false }) {
             <Grid size={12}>
               <OwnerTodayHome
                 reminders={todayReminders}
+                paymentAccountStatus={setupState.paymentAccountStatus}
                 properties={properties}
                 propertiesLoading={propertiesLoading}
                 propertiesError={propertiesError}
+                rentSummary={summary}
                 rentRecords={rentRecords}
                 rentLoading={rentLoading}
                 rentError={Boolean(rentCollectionState.error)}

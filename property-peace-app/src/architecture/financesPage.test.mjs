@@ -7,15 +7,34 @@ import { fileURLToPath } from 'node:url';
 const srcRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const source = (relativePath) => readFile(path.join(srcRoot, relativePath), 'utf8');
 
+test('Finances omits the calculation disclosure and keeps financial data status', async () => {
+  const page = await source('pages/landlord/finances.jsx');
+  assert.doesNotMatch(page, /CalculationDisclosure|How these numbers are calculated/);
+  assert.match(page, /<FinancesDataStatus\b/);
+});
+
+test('Finances mounts the overview cards only after page data settles and uses the lease card stagger', async () => {
+  const [page, metrics, lease] = await Promise.all([
+    source('pages/landlord/finances.jsx'),
+    source('sections/landlord/finances/FinancesMetrics.jsx'),
+    source('sections/landlord/leases/LeaseDetailView.jsx')
+  ]);
+
+  assert.match(page, /\{!pageLoading && \(\s*<FinancesMetrics\b[^>]*\/>\s*\)\}/);
+  assert.match(metrics, /import \{ cardDealAnimationSx \} from 'utils\/cardDealAnimation';/);
+  assert.match(lease, /import \{ cardDealAnimationSx \} from 'utils\/cardDealAnimation';/);
+  assert.match(metrics, /<Grid container[^>]*\.\.\.cardDealAnimationSx/);
+  assert.match(metrics, /metrics\.map\(\(metric, index\)[\s\S]*'--deal-delay': \`\$\{index \* 55\}ms\`/);
+});
+
 test('unified Finances shell keeps the approved navigation, actions, and right rail', async () => {
-  const [page, header, metrics, accountActivity, disclosure] = await Promise.all([
+  const [page, header, metrics, accountActivity] = await Promise.all([
     source('pages/landlord/finances.jsx'),
     source('sections/landlord/finances/FinancesHeader.jsx'),
     source('sections/landlord/finances/FinancesMetrics.jsx'),
-    source('sections/landlord/finances/AccountActivityCard.jsx'),
-    source('sections/landlord/finances/CalculationDisclosure.jsx')
+    source('sections/landlord/finances/AccountActivityCard.jsx')
   ]);
-  const combined = [page, header, metrics, accountActivity, disclosure].join('\n');
+  const combined = [page, header, metrics, accountActivity].join('\n');
 
   assert.match(header, /<ManagementPageHeader\s+title="Finances"/);
   assert.match(
@@ -52,13 +71,6 @@ test('unified Finances shell keeps the approved navigation, actions, and right r
   assert.match(page, /tab: 'activity', account/);
   assert.match(page, />Keep records tax-ready<\/Typography>/);
   assert.match(page, /to="\/landlord\/accounting\/tax-center"/);
-
-  assert.match(disclosure, /aria-controls="finances-calculation-details"/);
-  assert.match(disclosure, /aria-expanded=\{expanded\}/);
-  assert.match(disclosure, /aria-live="polite"/);
-  assert.match(disclosure, /overview\?\.explanations/);
-  assert.match(disclosure, /itemsResponse\?\.disclosures/);
-  assert.match(disclosure, /overview\?\.dataQuality\?\.warnings/);
 
   assert.doesNotMatch(combined, /Spend by category/i);
   assert.doesNotMatch(combined, /connect(?:ed|ing)?\s+(?:a\s+)?bank|plaid/i);
@@ -175,6 +187,13 @@ test('Activity item errors remain retry states and detail uses original Money Ce
   );
   assert.doesNotMatch(drawer, /onClose={onClose}\s+aria-labelledby=/);
 });
+
+test('Source record uses the same themed drawer as payment details', async () => {
+  const drawer = await source('sections/landlord/finances/FinanceDetailDrawer.jsx');
+  assert.match(drawer, /from 'components\/drawers\/shared\/ThemeAdaptiveDrawer'/);
+  assert.match(drawer, /<ThemeAdaptiveDrawer\s+open=\{Boolean\(item\)\}\s+onClose=\{onClose\}/);
+});
+
 test('Expenses keeps editable transaction behavior inside the shared Finances scope', async () => {
   const [page, expenses, row] = await Promise.all([
     source('pages/landlord/finances.jsx'),

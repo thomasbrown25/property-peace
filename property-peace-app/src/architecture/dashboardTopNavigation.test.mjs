@@ -129,3 +129,30 @@ test('the property rail keeps the count and rows hidden until the current list i
   assert.match(sidebar, /status=\{propertiesStatus === 'failed' \? 'Failed to load properties' : propertiesReady && propertyRows\.length \? 'No matching properties\.' : null\}/);
   assert.match(sidebar, /!properties\.length && status && <Typography role="status"/);
 });
+
+test('the property rail expands in place with six compact icon-and-title actions', () => {
+  const sidebar = source('../layout/Dashboard/LandlordSidebar.jsx');
+  const actions = sidebar.match(/const propertyActions = \[([\s\S]*?)\];/)?.[1] || '';
+  assert.deepEqual(Array.from(actions.matchAll(/label: '([^']+)', icon: '([^']+)'/g), ([, label, icon]) => [label, icon]), [
+    ['View property', 'house'], ['Edit property', 'edit'], ['Record payment', 'payments'],
+    ['Create lease', 'leaseAdd'], ['Create task', 'checklists'], ['Upload document', 'uploadDocument']
+  ]);
+  assert.match(sidebar, /component="button"[\s\S]*?aria-expanded=\{expanded\}[\s\S]*?setExpandedPropertyId\(expanded \? null : property\.id\)/);
+  const dropdown = sidebar.match(/<Collapse in=\{expanded\}[\s\S]*?<\/Collapse>/)?.[0];
+  assert.ok(dropdown);
+  assert.match(dropdown, /timeout=\{reducedMotion \? 0 : 240\}/);
+  assert.match(dropdown, /minHeight: 36/);
+  assert.match(dropdown, /<AppIcon name=\{icon\}[\s\S]*?<Typography[^>]*>\{label\}<\/Typography>/);
+  assert.match(sidebar, /const propertySubtitleColor = 'rgba\(255,255,255,0\.72\)'/);
+  assert.match(sidebar, /secondaryTypographyProps=\{\{[^\n]*color: propertySubtitleColor/);
+  assert.match(dropdown, /<Typography[^>]*color: propertySubtitleColor[^>]*>\{label\}<\/Typography>/);
+  assert.doesNotMatch(dropdown, /secondary|subtitle|description/);
+});
+
+test('sidebar actions keep the selected property when opening a page or drawer', () => {
+  const sidebar = source('../layout/Dashboard/LandlordSidebar.jsx');
+  assert.match(sidebar, /navigate\(to, \{ state: \{ propertySidebarAction: action \} \}\)/);
+  assert.match(sidebar, /drawer\.openPaymentAddDrawer\(\{ property: \{ id: property\.id, name: property\.name \} \}\)/);
+  assert.match(sidebar, /setTaskDraft\(\{ propertyId: property\.id \}\)/);
+  assert.match(sidebar, /<TaskEditorDrawer[\s\S]*?initialValues=\{taskDraft\}[\s\S]*?dispatch\(createTask\(form\)\)/);
+});

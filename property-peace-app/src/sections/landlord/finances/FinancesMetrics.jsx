@@ -1,6 +1,8 @@
 import { alpha, Box, Grid, Stack, Typography, useTheme } from '@mui/material';
 
 import AppIcon from 'components/AppIcon';
+import { cardDealAnimationSx } from 'utils/cardDealAnimation';
+
 const money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
 
 function MetricCard({ label, value, available, note, color, icon, onSelect }) {
@@ -85,9 +87,9 @@ export default function FinancesMetrics({ overview, collectedThisMonth, collecte
   ];
 
   return (
-    <Grid container spacing={1.5} sx={{ mb: 2.5 }}>
-      {metrics.map((metric) => (
-        <Grid key={metric.key} size={{ xs: 12, sm: 6, xl: 3 }}>
+    <Grid container spacing={1.5} sx={{ ...cardDealAnimationSx, mb: 2.5 }}>
+      {metrics.map((metric, index) => (
+        <Grid key={metric.key} size={{ xs: 12, sm: 6, xl: 3 }} style={{ '--deal-delay': `${index * 55}ms` }}>
           <MetricCard {...metric} onSelect={() => onSelectMetric(metric.key)} />
         </Grid>
       ))}

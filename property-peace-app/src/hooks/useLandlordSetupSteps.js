@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 
 import useAuth from 'hooks/useAuth';
+import { useOrganization } from 'contexts/OrganizationContext';
 import useFetchProperties from 'hooks/useFetchProperties';
 import useFetchAllTenants from 'hooks/useFetchAllTenants';
 import { useSubscriptionStatus } from 'hooks/useSubscription';
@@ -11,9 +12,12 @@ import { selectTenants } from 'store/tenant/tenant.selector';
 import { selectCurrentUser } from 'store/user/user.selector';
 import axiosServices from 'utils/axios';
 import { organizationSmsNumberAPI } from 'api/organizationSmsNumber';
+import { makeRentPaymentAccessScopeKey } from 'utils/rentPaymentAccess';
+import { readStripeAccountStatus } from 'utils/stripeOrganizationRequestLifecycle';
 
 export default function useLandlordSetupSteps(onClose) {
   const { user: authUser } = useAuth();
+  const { currentOrganization, loading: organizationLoading } = useOrganization();
   const userFromStore = useSelector(selectCurrentUser);
   const user = useMemo(() => ({ ...(authUser || {}), ...(userFromStore || {}) }), [authUser, userFromStore]);
   const navigate = useNavigate();
@@ -24,35 +28,25 @@ export default function useLandlordSetupSteps(onClose) {
   const tenants = useSelector(selectTenants);
   const [smsNumberStatus, setSmsNumberStatus] = useState(null);
   const [smsNumberStatusLoading, setSmsNumberStatusLoading] = useState(true);
-  const [paymentAccountStatus, setPaymentAccountStatus] = useState(null);
-  const [paymentAccountStatusLoading, setPaymentAccountStatusLoading] = useState(true);
+  const paymentScope = makeRentPaymentAccessScopeKey({
+    userId: authUser?.id ?? authUser?.Id,
+    organizationId: currentOrganization?.id ?? currentOrganization?.Id
+  });
+  const canLoadPaymentStatus = Boolean(paymentScope) && !organizationLoading;
+  const [paymentAccount, setPaymentAccount] = useState(null);
+  const paymentAccountStatus = canLoadPaymentStatus && paymentAccount?.scope === paymentScope ? paymentAccount.status : null;
+  const paymentAccountStatusLoading = organizationLoading || (canLoadPaymentStatus && paymentAccount?.scope !== paymentScope);
   useEffect(() => {
-    let cancelled = false;
-
-    const loadPaymentAccountStatus = async () => {
-      setPaymentAccountStatusLoading(true);
-      if (!user?.id && !user?.Id) {
-        setPaymentAccountStatus(null);
-        setPaymentAccountStatusLoading(false);
-        return;
-      }
-
-      try {
-        const response = await axiosServices.get('/api/stripe/account-status');
-        const data = response?.data?.success ? response?.data?.data : null;
-        if (!cancelled) setPaymentAccountStatus(data || null);
-      } catch (error) {
-        if (!cancelled) setPaymentAccountStatus(null);
-      } finally {
-        if (!cancelled) setPaymentAccountStatusLoading(false);
-      }
+    if (!canLoadPaymentStatus) return;
+    const controller = new AbortController();
+    const publishStatus = (status) => {
+      if (!controller.signal.aborted) setPaymentAccount({ scope: paymentScope, status });
     };
-
-    loadPaymentAccountStatus();
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.id, user?.Id]);
+    axiosServices.get('/api/stripe/account-status', { signal: controller.signal })
+      .then(({ data }) => publishStatus(readStripeAccountStatus(data)))
+      .catch(() => publishStatus(null));
+    return () => controller.abort();
+  }, [canLoadPaymentStatus, paymentScope]);
 
   useEffect(() => {
     let cancelled = false;
@@ -282,5 +276,5 @@ export default function useLandlordSetupSteps(onClose) {
   const isComplete = totalCount > 0 && completedCount === totalCount;
   const isLoading = Boolean(propertiesLoading || tenantsLoading || paymentAccountStatusLoading || smsNumberStatusLoading);
 
-  return { steps, completedCount, totalCount, isComplete, isLoading };
+  return { steps, completedCount, totalCount, isComplete, isLoading, paymentAccountStatus };
 }

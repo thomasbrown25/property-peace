@@ -223,6 +223,11 @@ namespace brownstone_hub_api.Services.StripeService
                         {
                             Requested = true
                         },
+                        // Stripe Accounts v1 requires transfers when requesting card payments.
+                        Transfers = new AccountCapabilitiesTransfersOptions
+                        {
+                            Requested = true
+                        },
                         UsBankAccountAchPayments = new AccountCapabilitiesUsBankAccountAchPaymentsOptions
                         {
                             Requested = true
@@ -240,12 +245,11 @@ namespace brownstone_hub_api.Services.StripeService
                     };
                 }
 
-                // The key is stable for this user's first account. Stripe durably collapses
-                // retries and cross-instance races while the per-user lock serializes this process.
+                // Keep retries stable for this user's first account. The v2 key was used with a different capabilities payload.
                 var account = await _stripeConnectedAccountGateway.CreateOnboardingAccountAsync(
                     accountOptions,
                     returnUrl,
-                    $"property-peace-connect-account-user-{userId}-standard-v2");
+                    $"property-peace-connect-account-user-{userId}-standard-v3");
 
                 // DetailsSubmitted alone is insufficient: a fresh capability, bank and payout snapshot is required.
                 await _stripeConnectedPayeeService.RegisterAsync(userId, account.AccountId, account.DetailsSubmitted);
@@ -355,11 +359,8 @@ namespace brownstone_hub_api.Services.StripeService
                         ? "Current organization authority and an eligible connected account are required."
                         : null);
                 var isAccountReady = accountReadinessReason == null;
-                // The same authoritative snapshot drives both readiness and capability display.
-                // Avoid a second, independently timed capability request.
-                var cardPaymentsCapabilityStatus = snapshot != null && snapshotMatchesAccount && snapshotIsFresh
-                    ? snapshot.CardPaymentsCapabilityStatus
-                    : null;
+                // Provider status and requirements must come from a fresh snapshot of this account.
+                var statusSnapshot = snapshotMatchesAccount && snapshotIsFresh ? snapshot : null;
                 response.Data = new StripeAccountStatusDto
                 {
                     AccountId = accountId,
@@ -370,7 +371,14 @@ namespace brownstone_hub_api.Services.StripeService
                     IsEnabled = isAccountReady,
                     ChargesEnabled = snapshot?.ChargesEnabled ?? false,
                     PayoutsEnabled = snapshot?.PayoutsEnabled ?? false,
-                    CardPaymentsCapabilityStatus = cardPaymentsCapabilityStatus,
+                    CardPaymentsCapabilityStatus = statusSnapshot?.CardPaymentsCapabilityStatus,
+                    HasPastDueRequirements = statusSnapshot is not null && (statusSnapshot.PastDue.Count > 0
+                        || statusSnapshot.DisabledReason == "requirements.past_due"),
+                    PastDueRequirementLabels = statusSnapshot?.PastDue
+                        .Select(GetStripeRequirementLabel)
+                        .OfType<string>()
+                        .Distinct()
+                        .ToArray() ?? [],
                     DetailsSubmitted = snapshot?.DetailsSubmitted ?? false,
                     InternalReviewStatus = reviewStatus.ToString(),
                     IsInternallyPayoutApproved = internallyApproved,
@@ -402,6 +410,36 @@ namespace brownstone_hub_api.Services.StripeService
             }
 
             return response;
+        }
+
+        private static string? GetStripeRequirementLabel(string requirement)
+        {
+            // Stripe can prefix a required field with a Person ID. Keep it out of the response.
+            var separator = requirement.IndexOf('.');
+            if (separator > 0 && requirement.StartsWith("person_", StringComparison.Ordinal))
+            {
+                return requirement[(separator + 1)..] switch
+                {
+                    "ssn_last_4" or "id_number" => "Identification or tax number for a business owner or representative",
+                    "verification.document" or "verification.additional_document" => "Identity document for a business owner or representative",
+                    _ => null
+                };
+            }
+
+            return requirement switch
+            {
+                "representative.ssn_last_4" or "representative.id_number" => "Representative’s Social Security number (SSN) or tax ID",
+                "individual.ssn_last_4" or "individual.id_number" => "Your Social Security number (SSN) or tax ID",
+                "representative.verification.document" or "representative.verification.additional_document" => "Representative’s identity document",
+                "individual.verification.document" or "individual.verification.additional_document" => "Your identity document",
+                "company.tax_id" => "Business tax ID",
+                "company.verification.document" => "Business verification document",
+                "business_profile.url" => "Business website",
+                "business_profile.mcc" or "business_profile.product_description" => "Business activity details",
+                "external_account" => "Payout bank account",
+                "tos_acceptance.date" or "tos_acceptance.ip" => "Acceptance of Stripe’s terms",
+                _ => null
+            };
         }
 
         public async Task<ServiceResponse<string>> CreateAccountLinkAsync(string accountId, string returnUrl, string refreshUrl, string type = "account_onboarding")

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { Box } from '@mui/material';
+import useAuth from 'hooks/useAuth';
 import AuthWrapper from 'sections/auth/AuthWrapper';
 import EmailEntryForm from 'sections/auth/jwt/EmailEntryForm';
 import EmailVerifierForm from 'sections/auth/jwt/EmailVerifierForm';
@@ -21,6 +22,7 @@ const readDraft = () => ({
 export default function RegisterLandlord() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { isLoggedIn } = useAuth();
   const reduceMotion = useReducedMotion();
   const queryStep = new URLSearchParams(location.search).get('step');
   const legacyStep = location.pathname.endsWith('/email-verifier')
@@ -33,22 +35,23 @@ export default function RegisterLandlord() {
   const requestedStep = queryStep || legacyStep;
   const [password, setPassword] = useState('');
   const [draft, setDraft] = useState(readDraft);
-  const [completed, setCompleted] = useState(false);
+  const [mustReverify, setMustReverify] = useState(false);
   const [registrationMethod, setRegistrationMethod] = useState(() =>
     sessionStorage.getItem('googleAccessToken') ? 'google' : 'email'
   );
   const googleProfile = registrationMethod === 'google';
-  const emailAlreadyVerified = sessionStorage.getItem('emailVerified') === 'true';
-  const needsPasswordAfterRefresh = requestedStep !== 'account' && !googleProfile && !password;
+  const registrationCompleting = location.state?.registrationCompleting === true;
+  const signedInCompletion = isLoggedIn && registrationCompleting && ['creating', 'complete'].includes(requestedStep);
+  const needsPasswordAfterRefresh = requestedStep !== 'account' && !googleProfile && !password && !signedInCompletion;
   const step = !validSteps.includes(requestedStep) || needsPasswordAfterRefresh ? 'account' : requestedStep;
 
   useEffect(() => {
     if (location.pathname !== '/register' || step !== requestedStep) {
-      navigate(`/register?step=${step}`, { replace: true });
+      navigate(`/register?step=${step}`, { replace: true, state: { resumeRegistration: needsPasswordAfterRefresh } });
     }
-  }, [location.pathname, navigate, requestedStep, step]);
+  }, [location.pathname, navigate, needsPasswordAfterRefresh, requestedStep, step]);
 
-  const go = (next, replace = false) => navigate(`/register?step=${next}`, { replace });
+  const go = (next, replace = false, state) => navigate(`/register?step=${next}`, { replace, state });
   const updateDraft = (updates) => setDraft((current) => ({ ...current, ...updates }));
 
   const content = (() => {
@@ -56,11 +59,15 @@ export default function RegisterLandlord() {
       return (
         <EmailVerifierForm
           email={draft.email}
+          mustReverify={mustReverify}
           onBack={() => {
-            sessionStorage.removeItem('emailVerified');
+            setMustReverify(false);
             go('account');
           }}
-          onVerified={() => go('details')}
+          onVerified={() => {
+            setMustReverify(false);
+            go('details');
+          }}
         />
       );
     if (step === 'details')
@@ -79,7 +86,7 @@ export default function RegisterLandlord() {
               sessionStorage.setItem(`register${key.charAt(0).toUpperCase()}${key.slice(1)}`, value)
             );
             updateDraft(values);
-            go('creating');
+            go('creating', false, { registrationCompleting: true });
           }}
         />
       );
@@ -87,27 +94,29 @@ export default function RegisterLandlord() {
       return (
         <CreatingAccountStep
           password={password}
-          onComplete={() => {
-            setCompleted(true);
-            go('complete', true);
+          onVerificationRequired={() => {
+            setMustReverify(true);
+            go('verify', true);
           }}
+          onComplete={() => go('complete', true, { registrationCompleting: true })}
           onBack={() => go('details')}
         />
       );
-    if (step === 'complete') return <SettingUpProfile hideWrapper redirectOnly={completed} />;
+    if (step === 'complete') return <SettingUpProfile hideWrapper redirectOnly={signedInCompletion} />;
     return (
       <EmailEntryForm
         userType="landlord"
         initialEmail={draft.email}
-        emailAlreadyVerified={emailAlreadyVerified}
         resumeMessage={
-          needsPasswordAfterRefresh ? 'For your security, please re-enter your password. Your other details have been saved.' : ''
+          needsPasswordAfterRefresh || location.state?.resumeRegistration
+            ? 'Re-enter your password to request a new verification code. Your other details have been saved.'
+            : ''
         }
-        onNext={(email, nextPassword, alreadyVerified = false) => {
+        onNext={(email, nextPassword) => {
           setRegistrationMethod('email');
           setPassword(nextPassword);
           updateDraft({ email });
-          go(alreadyVerified ? 'details' : 'verify');
+          go('verify');
         }}
         onGoogleSuccess={(profile) => {
           setRegistrationMethod('google');

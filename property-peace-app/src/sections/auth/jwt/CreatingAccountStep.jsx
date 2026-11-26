@@ -22,7 +22,7 @@ import { authPrimaryButtonSx, authSecondaryButtonSx } from './authFormStyles';
 
 // ============================|| CREATING ACCOUNT STEP ||============================ //
 
-export default function CreatingAccountStep({ password = '', onComplete, onBack }) {
+export default function CreatingAccountStep({ password = '', onComplete, onBack, onVerificationRequired }) {
   const { user, register, isLoggedIn, updateUser } = useAuth();
   const [error, setError] = useState(null);
   const [retryCount, setRetryCount] = useState(0);
@@ -48,10 +48,16 @@ export default function CreatingAccountStep({ password = '', onComplete, onBack 
 
       try {
         if (isLoggedIn && user) {
-          const orgResponse = await organizationAPI.createOrganization(organizationName.trim(), organizationDescription?.trim() || null);
+          let organizationId = user.CurrentOrganizationId || user.currentOrganizationId;
+          if (!organizationId) {
+            const orgResponse = await organizationAPI.createOrganization(organizationName.trim(), organizationDescription?.trim() || null);
 
-          if (!orgResponse.success || !orgResponse.data) {
-            throw new Error(orgResponse.message || 'Failed to create organization');
+            if (!orgResponse.success || !orgResponse.data) {
+              throw new Error(orgResponse.message || 'Failed to create organization');
+            }
+
+            organizationId = orgResponse.data.id;
+            updateUser?.({ CurrentOrganizationId: organizationId });
           }
 
           const response = await axiosServices.put('/api/user/update-account', {
@@ -77,7 +83,7 @@ export default function CreatingAccountStep({ password = '', onComplete, onBack 
               BusinessName: organizationName.trim(),
               BusinessEmail: storedEmail,
               BusinessPhone: storedPhoneNumber || null,
-              CurrentOrganizationId: orgResponse.data.id
+              CurrentOrganizationId: organizationId
             });
           }
 
@@ -113,13 +119,28 @@ export default function CreatingAccountStep({ password = '', onComplete, onBack 
           const accountPassword = googleToken ? '' : password;
           const storedRole = sessionStorage.getItem('registerRole') || 'Landlord';
 
-          await register(storedEmail, accountPassword, storedFirstName, storedLastName, storedPhoneNumber || null, {
+          const registeredUser = await register(storedEmail, accountPassword, storedFirstName, storedLastName, storedPhoneNumber || null, {
             businessName: organizationName.trim(),
             businessEmail: storedEmail,
             businessPhone: storedPhoneNumber?.trim() || null,
             googleAccessToken: googleToken || null,
             roles: [storedRole]
           });
+
+          const currentOrganizationId = registeredUser?.CurrentOrganizationId || registeredUser?.currentOrganizationId;
+          if (!currentOrganizationId) {
+            const orgResponse = await organizationAPI.createOrganization(organizationName.trim(), organizationDescription?.trim() || null);
+
+            if (!orgResponse.success || !orgResponse.data) {
+              throw new Error(orgResponse.message || 'Your account was created, but we could not finish setting up your organization. Try again to finish setup.');
+            }
+            updateUser?.({
+              BusinessName: organizationName.trim(),
+              BusinessEmail: storedEmail,
+              BusinessPhone: storedPhoneNumber || null,
+              CurrentOrganizationId: orgResponse.data.id
+            });
+          }
 
           [
             'registerEmail',
@@ -150,7 +171,12 @@ export default function CreatingAccountStep({ password = '', onComplete, onBack 
       } catch (err) {
         if (cancelled) return;
         console.error('Error creating account:', err);
+        const status = err.status || err.response?.status;
         const message = err.response?.data?.message || err.message || 'Registration failed. Please try again.';
+        if (status === 403 && message === 'Email verification is required before registration.') {
+          onVerificationRequired?.();
+          return;
+        }
         setError(message);
         openSnackbar({
           open: true,
@@ -165,7 +191,9 @@ export default function CreatingAccountStep({ password = '', onComplete, onBack 
     return () => {
       cancelled = true;
     };
-  }, [isLoggedIn, user, updateUser, register, password, retryCount]);
+    // Registration must remain a single operation while auth state updates.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [retryCount]);
 
   if (error) {
     return (
@@ -186,10 +214,12 @@ export default function CreatingAccountStep({ password = '', onComplete, onBack 
           {error}
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
-          Your details are still saved. Check them, retry, or log in if the account was already created.
+          {isLoggedIn
+            ? 'Your account is ready. Try again to finish setting up your organization.'
+            : 'Your details are still saved. Check them, retry, or log in if the account was already created.'}
         </Typography>
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ width: '100%' }}>
-          {onBack && (
+          {onBack && !isLoggedIn && (
             <Button fullWidth startIcon={<ArrowLeftOutlined />} onClick={onBack} variant="outlined" sx={authSecondaryButtonSx}>
               Review details
             </Button>
@@ -259,5 +289,6 @@ export default function CreatingAccountStep({ password = '', onComplete, onBack 
 CreatingAccountStep.propTypes = {
   password: PropTypes.string,
   onComplete: PropTypes.func,
-  onBack: PropTypes.func
+  onBack: PropTypes.func,
+  onVerificationRequired: PropTypes.func
 };

@@ -1,31 +1,44 @@
+import { useRef } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { Box, Stack, Tab, Tabs } from '@mui/material';
 import SubscriptionPausedGuard from 'components/auth/SubscriptionPausedGuard';
 import useRentPaymentAccess from 'hooks/useRentPaymentAccess';
-import ShortStayConnect from 'pages/landlord/short-stay-connect.jsx';
 import { recordTabsSx } from 'sections/landlord/property/recordTabsStyle';
-import { buildLegacyOnlinePaymentsRedirect, DEFAULT_ONLINE_PAYMENT_TAB, getOnlinePaymentTabs, getSelectedOnlinePaymentTab } from 'utils/onlinePaymentTabs';
+import {
+  buildLegacyOnlinePaymentsRedirect,
+  getOnlinePaymentTabs,
+  getRequestedOnlinePaymentTab,
+  getSelectedOnlinePaymentTab,
+  isStripeSetupRequested,
+  STRIPE_TAB
+} from 'utils/onlinePaymentTabs';
 import { PaymentsSettingsContent } from './PaymentsSettings';
 import PayoutAssignments from './PayoutAssignments';
 
 export default function OnlinePaymentSettings() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const stripeTabRef = useRef(null);
   const rentPaymentAccess = useRentPaymentAccess();
   const paymentTabs = getOnlinePaymentTabs(rentPaymentAccess.presentation.canConfigure);
-  const requestedTab = searchParams.get('paymentTab') ?? DEFAULT_ONLINE_PAYMENT_TAB;
+  const requestedTab = getRequestedOnlinePaymentTab(searchParams);
   const selectedTab = getSelectedOnlinePaymentTab(requestedTab, paymentTabs);
 
-  const changeTab = (_event, value) => {
+  const selectTab = (value, setup = false) => {
     const params = new URLSearchParams(searchParams);
     params.set('paymentTab', value);
-    params.delete('setup');
+    if (setup) params.set('setup', '1');
+    else params.delete('setup');
     setSearchParams(params, { replace: true });
   };
 
-  const clearSetupRequest = () => {
-    const params = new URLSearchParams(searchParams);
-    params.delete('setup');
-    setSearchParams(params, { replace: true });
+  const openStripeSetup = () => {
+    selectTab(STRIPE_TAB, true);
+    stripeTabRef.current?.focus();
+  };
+
+  const closeStripeSetup = () => {
+    selectTab(STRIPE_TAB);
+    stripeTabRef.current?.focus();
   };
 
   if (requestedTab === 'transactions') {
@@ -35,21 +48,27 @@ export default function OnlinePaymentSettings() {
   return (
     <Stack spacing={2.5}>
       <Box sx={recordTabsSx}>
-        <Tabs value={selectedTab} onChange={changeTab} variant="scrollable" scrollButtons="auto" aria-label="Online payment settings">
+        <Tabs value={selectedTab} onChange={(_event, value) => selectTab(value)} variant="scrollable" scrollButtons="auto" aria-label="Online payment settings">
           {paymentTabs.map(({ id, label }) => (
-            <Tab key={id} value={id} label={label} id={`online-payments-tab-${id}`} aria-controls={`online-payments-panel-${id}`} />
+            <Tab
+              key={id}
+              ref={id === STRIPE_TAB ? stripeTabRef : undefined}
+              value={id}
+              label={label}
+              id={`online-payments-tab-${id}`}
+              aria-controls={`online-payments-panel-${id}`}
+            />
           ))}
         </Tabs>
       </Box>
       <Box role="tabpanel" id={`online-payments-panel-${selectedTab}`} aria-labelledby={`online-payments-tab-${selectedTab}`}>
-        {selectedTab === 'bank-accounts' && (
-          <Stack spacing={3}>
-            <PaymentsSettingsContent
-              rentPaymentAccess={rentPaymentAccess}
-              onSetupRequestHandled={searchParams.get('setup') === '1' ? clearSetupRequest : undefined}
-            />
-            <ShortStayConnect />
-          </Stack>
+        {selectedTab === STRIPE_TAB && (
+          <PaymentsSettingsContent
+            rentPaymentAccess={rentPaymentAccess}
+            showStripeSetup={isStripeSetupRequested(searchParams)}
+            onOpenStripeSetup={openStripeSetup}
+            onCloseStripeSetup={closeStripeSetup}
+          />
         )}
         {selectedTab === 'payout-assignments' && (
           <SubscriptionPausedGuard>

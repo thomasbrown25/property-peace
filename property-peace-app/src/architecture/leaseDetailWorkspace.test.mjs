@@ -67,7 +67,7 @@ test('payment history stays visually blank while loading and preserves errors an
 });
 
 test('payment tiles keep slide-in animation while checklist cards remain static', () => {
-  const animation = between('const cardDealAnimationSx = {', 'function LeaseMoveInCard(');
+  const animation = fs.readFileSync(new URL('../utils/cardDealAnimation.js', import.meta.url), 'utf8');
   assert.match(animation, /translateX\(-28px\) rotate\(-4deg\) scale\(0\.96\)/);
   assert.match(animation, /dealRentCard 420ms cubic-bezier\(0\.22, 1, 0\.36, 1\) both/);
   assert.match(animation, /prefers-reduced-motion: reduce/);
