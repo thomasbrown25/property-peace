@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
+import { useSelector } from 'react-redux';
 import { alpha, Box, Button, CircularProgress, LinearProgress, Stack, Typography, useTheme } from '@mui/material';
 import useAuth from 'hooks/useAuth';
+import { useOrganization } from 'contexts/OrganizationContext';
+import { selectPropertiesLoadStatus } from 'store/property/property.selector';
 import { getRecentPropertyStorageKey, PROPERTY_VISITED_EVENT, readPropertyVisitDates, sortPropertiesByLastVisit } from 'utils/recentlyViewedProperties';
 import { Link as RouterLink } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -19,6 +22,9 @@ const propertyRowLimit = 8;
 export default function OwnerTodayHome({ reminders = [], properties = [], propertiesLoading = false, propertiesError = false, rentSummary, rentRecords = [], rentLoading = false, rentError = false, rentReady = false, paymentAccountStatus }) {
   const theme = useTheme();
   const { user } = useAuth();
+  const { currentOrganization } = useOrganization();
+  const organizationId = currentOrganization?.id ?? currentOrganization?.Id;
+  const propertiesStatus = useSelector((state) => selectPropertiesLoadStatus(state, organizationId));
   const firstName = [user?.firstName, user?.firstname, user?.FirstName, user?.Firstname]
     .find((name) => typeof name === 'string' && name.trim())?.trim();
   const visitScope = getRecentPropertyStorageKey(user);
@@ -50,9 +56,24 @@ export default function OwnerTodayHome({ reminders = [], properties = [], proper
           {firstName ? `Welcome back, ${firstName}!` : 'Welcome back!'}
         </Typography>
       </Box>
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: 'minmax(0, 1fr) 280px' }, gap: { xs: 0, lg: 6 }, alignItems: 'start' }}>
-        <Box sx={{ minWidth: 0 }}>
-      <OwnerRentOverview summary={rentSummary} loading={rentLoading || !rentReady} error={rentError} />
+      <Box sx={{
+        display: 'grid',
+        gridTemplateAreas: { xs: '"setup" "main" "sidebar"', lg: '"setup main" "sidebar main"' },
+        gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: '320px minmax(0, 1fr)' },
+        gridTemplateRows: { lg: 'auto 1fr' },
+        columnGap: { lg: 4 },
+        alignItems: 'start'
+      }}>
+        <Box sx={{ gridArea: 'setup', minWidth: 0 }}>
+          <OwnerSetupTodos paymentAccountStatus={paymentAccountStatus} propertyCount={properties?.length} propertiesStatus={propertiesStatus} />
+        </Box>
+        <Box sx={{ gridArea: 'main', minWidth: 0 }}>
+      <OwnerRentOverview
+        summary={rentSummary}
+        loading={rentLoading || !rentReady}
+        error={rentError}
+        emptyPortfolio={propertiesStatus === 'ready' && properties?.length === 0}
+      />
       <Box component="section" aria-labelledby="owner-properties-heading" sx={{ py: { xs: 3, md: 4 }, borderBottom: '1px solid', borderColor: 'divider' }}>
         <Stack direction="row" alignItems="center" justifyContent="space-between" gap={2} sx={{ mb: 1.5 }}>
           <Typography id="owner-properties-heading" component="h2" variant="h5" sx={{ fontWeight: 700 }}>Your properties</Typography>
@@ -124,8 +145,7 @@ export default function OwnerTodayHome({ reminders = [], properties = [], proper
         ) : <Typography color="text.secondary">No properties yet. Add one to start organizing your portfolio.</Typography>}
       </Box>
         </Box>
-        <Stack spacing={3} sx={{ pt: { xs: 3, md: 4 }, pb: { xs: 1, lg: 0 }, minWidth: 0 }}>
-          <OwnerSetupTodos paymentAccountStatus={paymentAccountStatus} />
+        <Stack spacing={3} sx={{ gridArea: 'sidebar', pt: { xs: 3, md: 4 }, pb: { xs: 1, lg: 0 }, minWidth: 0 }}>
           <Box component="section" aria-labelledby="owner-next-heading">
             <Typography id="owner-next-heading" component="h2" variant="h5" sx={{ mb: 1.5, fontWeight: 700 }}>Tasks</Typography>
             {next ? (

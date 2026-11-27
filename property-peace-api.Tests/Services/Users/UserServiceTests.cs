@@ -1,3 +1,5 @@
+using AutoMapper;
+using brownstone_hub_api.Controllers;
 using brownstone_hub_api.Dtos.OrganizationInvite;
 using brownstone_hub_api.Dtos.Role;
 using brownstone_hub_api.Dtos.User;
@@ -15,6 +17,8 @@ using brownstone_hub_api.Repositories.Tenants;
 using brownstone_hub_api.Services.UserService;
 using brownstone_hub_api.Tests.Helpers;
 using FluentAssertions;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -1001,6 +1005,61 @@ namespace brownstone_hub_api.Tests.Services.Users
             var successor = (await _context.OrganizationMembers.FindAsync(3L))!;
             successor.Role.Should().Be("Owner");
             successor.CanManageMembers.Should().BeTrue();
+        }
+
+        [Fact]
+        public async Task HardDeleteUserCompletely_RemovesStorageRecordsOwnedOrUploadedByUser()
+        {
+            var user = MakeUser(1);
+            var otherUser = MakeUser(2);
+            otherUser.Email = "other@test.com";
+            var repository = new UserRepository(_context, Mock.Of<IHttpContextAccessor>(), Mock.Of<ILogger<UserRepository>>(), Mock.Of<IMapper>());
+            _userRepo.Setup(r => r.GetUserByIdIncludingDeleted(1L)).ReturnsAsync(user);
+            _userRepo.Setup(r => r.HardDeleteUser(user)).Returns(() => repository.HardDeleteUser(user));
+            _context.Users.AddRange(user, otherUser);
+            _context.StorageObjects.AddRange(
+                new StorageObject { Id = 10, OwnerUserId = 1, UploadedByUserId = 2, BlobName = "owned" },
+                new StorageObject { Id = 20, OwnerUserId = 2, UploadedByUserId = 1, BlobName = "uploaded" },
+                new StorageObject { Id = 30, OwnerUserId = 1, UploadedByUserId = 1, BlobName = "deleted", IsDeleted = true },
+                new StorageObject { Id = 40, OwnerUserId = 2, UploadedByUserId = 2, BlobName = "unrelated" });
+            await _context.SaveChangesAsync();
+            _context.ChangeTracker.Clear();
+
+            var response = await _sut.HardDeleteUserCompletely(1);
+
+            response.Success.Should().BeTrue(response.Message);
+            (await _context.Users.Select(u => u.Id).ToListAsync()).Should().Equal(2L);
+            (await _context.StorageObjects.Select(o => o.Id).ToListAsync()).Should().Equal(40L);
+        }
+
+        [Fact]
+        public async Task AdminDeleteUser_ReturnsNotFoundForUnknownUser()
+        {
+            var controller = new UserAdminController(_sut, Mock.Of<ILogger<UserAdminController>>());
+
+            var result = await controller.DeleteUser(1);
+
+            var failure = result.Should().BeAssignableTo<ObjectResult>().Which;
+            failure.StatusCode.Should().Be(StatusCodes.Status404NotFound);
+            failure.Value.Should().BeOfType<ServiceResponse<string>>().Which.Success.Should().BeFalse();
+        }
+
+        [Fact]
+        public async Task AdminDeleteUser_ReturnsInternalServerErrorWhenDatabaseRejectsDeletion()
+        {
+            var user = MakeUser(1);
+            const string sqlDetails = "Internal database constraint details";
+            _userRepo.Setup(r => r.GetUserByIdIncludingDeleted(1L)).ReturnsAsync(user);
+            _userRepo.Setup(r => r.HardDeleteUser(user)).ThrowsAsync(new DbUpdateException(sqlDetails));
+            var controller = new UserAdminController(_sut, Mock.Of<ILogger<UserAdminController>>());
+
+            var result = await controller.DeleteUser(1);
+
+            var failure = result.Should().BeAssignableTo<ObjectResult>().Which;
+            failure.StatusCode.Should().Be(StatusCodes.Status500InternalServerError);
+            var response = failure.Value.Should().BeOfType<ServiceResponse<string>>().Which;
+            response.Success.Should().BeFalse();
+            response.Message.Should().NotContain(sqlDetails);
         }
 
         [Fact]

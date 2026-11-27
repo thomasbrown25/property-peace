@@ -3,6 +3,16 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import * as ownerHome from './ownerHome.js';
 
+test('a confirmed empty portfolio shows a plain Rent overview message before rendering payment controls', () => {
+  const home = readFileSync(new URL('../sections/landlord/dashboard/OwnerTodayHome.jsx', import.meta.url), 'utf8');
+  const view = readFileSync(new URL('../sections/landlord/dashboard/OwnerRentOverview.jsx', import.meta.url), 'utf8');
+  assert.match(home, /emptyPortfolio=\{propertiesStatus === 'ready' && properties\?\.length === 0\}/);
+  const emptyView = view.match(/if \(emptyPortfolio\) \{([\s\S]*?)\n  \}/);
+  assert.ok(emptyView);
+  assert.match(emptyView[1], /Rent overview[\s\S]*?Add a property to start tracking rent\./);
+  assert.doesNotMatch(emptyView[1], /<Button|<RecordPaymentModal|border|periodLabel/);
+});
+
 test('Rent Overview opens a centered payment dialog with the drawer form', () => {
   const view = readFileSync(new URL('../sections/landlord/dashboard/OwnerRentOverview.jsx', import.meta.url), 'utf8');
   const modal = readFileSync(new URL('../components/drawers/RecordPaymentModal.jsx', import.meta.url), 'utf8');

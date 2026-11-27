@@ -355,7 +355,7 @@ export default function PeopleOnLeasePage({ embedded = false, onSaved } = {}) {
   }
 
   return (
-    <Box sx={embedded ? { bgcolor: 'transparent' } : { minHeight: '100vh', bgcolor: 'background.default' }}>
+    <Box sx={embedded ? undefined : { minHeight: '100vh' }}>
       <Container maxWidth={embedded ? false : "md"} disableGutters={embedded} sx={{ py: embedded ? 0 : 3 }}>
         {!embedded && <BuildLeaseAgreementHeader onBack={handleBack} onSaveDraft={handleSaveDraft} showTitle={false} />}
 

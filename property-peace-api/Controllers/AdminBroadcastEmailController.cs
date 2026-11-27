@@ -40,7 +40,6 @@ namespace brownstone_hub_api.Controllers
             const string logoUrl = "https://propertypeace.io/images/logos/property-peace-dark.png";
             var logoHtml = $"<div style='margin-bottom: 16px;'><img src='{logoUrl}' alt='Property Peace' style='max-width: 180px; height: auto; display: block;' /></div>";
 
-            // No divider before signature; minimal top margin only
             return "<div style='margin-top: 24px;'>"
                 + logoHtml
                 + "<p style='margin: 4px 0; color: #4a4a4a;'>Best regards,</p>"

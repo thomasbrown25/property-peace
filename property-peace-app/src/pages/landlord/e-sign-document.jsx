@@ -150,7 +150,7 @@ export default function ESignDocumentPage() {
   };
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', pb: 4 }}>
+    <Box sx={{ minHeight: '100vh', pb: 4 }}>
       <Box sx={{ maxWidth: 1200, mx: 'auto', px: { xs: 2, sm: 3, md: 4 }, pt: 3 }}>
         {/* Back Button */}
         <Button

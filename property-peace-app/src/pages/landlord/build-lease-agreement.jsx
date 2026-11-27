@@ -209,7 +209,9 @@ function AgreementBuilder({ leaseId, confirmSelection }) {
             <List component="nav" aria-label="Agreement sections" sx={{ mt: 2 }}>
               {agreementSections.map((section, index) => <ListItemButton key={section.id} selected={active === index} onClick={() => setActive(index)} disabled={finishing} sx={{ ...noBorderSx, borderRadius: 1, mb: 1, gap: 1, outline: 0, '&.Mui-selected, &.Mui-selected:hover, &:focus-visible': { border: 0, boxShadow: 'none' } }}>
                 <Box component="span" sx={{ display: 'inline-flex', fontSize: 24, flexShrink: 0 }}>
-                  {readAgreement(agreement, section.flag) === true && !dirty[section.id] ? <CheckCircleOutlined style={{ color: '#16a34a', fontSize: 28 }} /> : <FileTextOutlined />}
+                  {readAgreement(agreement, section.flag) === true && !dirty[section.id] ? (
+                    <Box component={CheckCircleOutlined} sx={{ color: 'success.main', fontSize: 28 }} />
+                  ) : <FileTextOutlined />}
                 </Box>
                 <ListItemText primary={section.title} primaryTypographyProps={{ fontWeight: 700 }} secondary={dirty[section.id] ? 'Unsaved changes' : section.description} />
               </ListItemButton>)}

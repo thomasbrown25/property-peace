@@ -31,8 +31,8 @@ test('dashboard sidebar shows recent activity without loading or showing Stripe 
   assert.match(sidebar, /to="\/landlord\/activity"/);
   assert.doesNotMatch(sidebar, /Stripe account|owner-home-accounts|loadDashboardAccounts/);
   assert.match(sidebar, /\['owner-home-activity', organizationId, userId\]/);
-  assert.match(home, /gridTemplateColumns: \{ xs: 'minmax\(0, 1fr\)', lg: 'minmax\(0, 1fr\) 280px' \}/);
-  assert.match(home, /aria-labelledby="owner-properties-heading"[\s\S]*<Stack spacing=\{3\} sx=\{\{ pt:[^\n]*>[\s\S]*?<Box component="section" aria-labelledby="owner-next-heading"[\s\S]*?<\/Box>\s*<OwnerHomeSidebar \/>\s*<\/Stack>/);
+  assert.match(home, /gridTemplateAreas: \{ xs: '"setup" "main" "sidebar"', lg: '"setup main" "sidebar main"' \}/);
+  assert.match(home, /aria-labelledby="owner-properties-heading"[\s\S]*<Stack spacing=\{3\} sx=\{\{ gridArea: 'sidebar'[^\n]*>[\s\S]*?<Box component="section" aria-labelledby="owner-next-heading"[\s\S]*?<\/Box>\s*<OwnerHomeSidebar \/>\s*<\/Stack>/);
 });
 
 test('the dashboard Tasks empty state shows only the scheduled-task message', () => {

@@ -95,6 +95,25 @@ public sealed class StripeWebhookControllerSignatureValidationTests
     }
 
     [Fact]
+    public async Task HandleWebhook_SignedDeauthorization_DispatchesTheConnectedAccountIdentifier()
+    {
+        await using var context = CreateContext();
+        var service = new Mock<IStripeWebhookService>(MockBehavior.Strict);
+        service.Setup(x => x.HandleAccountApplicationDeauthorizedAsync(It.IsAny<Stripe.Event>()))
+            .Returns(Task.CompletedTask);
+        var payload = CreateDeauthorizationPayload("evt_deauthorized", "acct_linked");
+        var controller = CreateController(service.Object, context, payload,
+            CreateSignature(payload, ConnectWebhookSecret, DateTimeOffset.UtcNow),
+            ConnectWebhookSecret);
+
+        var result = await controller.HandleWebhook();
+
+        result.Should().BeOfType<OkObjectResult>();
+        service.Verify(x => x.HandleAccountApplicationDeauthorizedAsync(
+            It.Is<Stripe.Event>(e => e.Id == "evt_deauthorized" && e.Account == "acct_linked")), Times.Once);
+    }
+
+    [Fact]
     public async Task HandleWebhook_PayloadAlteredAfterSigning_RejectsRequestWithoutDispatching()
     {
         await using var context = CreateContext();
@@ -193,6 +212,26 @@ public sealed class StripeWebhookControllerSignatureValidationTests
           "pending_webhooks": 1,
           "request": { "id": null, "idempotency_key": null },
           "type": "payment_intent.succeeded"
+        }
+        """;
+
+    private static string CreateDeauthorizationPayload(string eventId, string accountId) => $$"""
+        {
+          "id": "{{eventId}}",
+          "object": "event",
+          "api_version": "2025-02-24.acacia",
+          "account": "{{accountId}}",
+          "created": 1750000000,
+          "data": {
+            "object": {
+              "id": "ca_test_application",
+              "object": "application"
+            }
+          },
+          "livemode": false,
+          "pending_webhooks": 1,
+          "request": { "id": null, "idempotency_key": null },
+          "type": "account.application.deauthorized"
         }
         """;
 }

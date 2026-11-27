@@ -4,16 +4,52 @@ import fs from 'node:fs';
 
 const read = (name) => fs.readFileSync(new URL(name, import.meta.url), 'utf8');
 
-test('standalone add property owns its chrome instead of inheriting dashboard navigation', () => {
-  const layout = fs.readFileSync(new URL('../../layout/Dashboard/index.jsx', import.meta.url), 'utf8');
+test('landlord signup opens the welcome dialog on Home, with a choice to add a property', () => {
+  const complete = read('../auth/jwt/setting-up-profile.jsx');
+  const dashboard = read('./dashboard.jsx');
+  const dialog = read('../../sections/landlord/dashboard/OwnerWelcomeDialog.jsx');
+  const routes = read('../../routes/MainRoutes.jsx');
+  assert.equal([...complete.matchAll(/window\.location\.replace\('\/landlord\/dashboard\?welcome=signup'\)/g)].length, 3);
+  assert.match(dashboard, /activeTab === 'overview' && searchParams\.get\('welcome'\) === 'signup'/);
+  assert.match(dashboard, /nextParams\.delete\('welcome'\);\s*setSearchParams\(nextParams, \{ replace: true \}\)/);
+  assert.match(dashboard, /showWelcome && <OwnerWelcomeDialog onClose=\{dismissWelcome\}/);
+  assert.match(dialog, /to="\/landlord\/properties\/add\?from=signup"\s+replace[\s\S]*?Add your first property/);
+  assert.match(dialog, /href: ONLINE_PAYMENT_SETUP_PATH/);
+  assert.match(dialog, /href: '\/landlord\/support\/ticket'/);
+  assert.match(dialog, /to=\{option\.href\}\s+replace/);
+  assert.match(routes, /path: 'landlord\/properties\/add',\s*element: <PropertyAddWorkflow \/>/);
+});
+
+test('property onboarding keeps signup context through the address and rental steps', () => {
+  const onboarding = read('./listing-create.jsx');
+  const workflow = read('./property-add-workflow.jsx');
+  assert.match(onboarding, /new URLSearchParams\(params\)[\s\S]*?(?:set|delete)\('step'/);
+  assert.match(workflow, /new URLSearchParams\(searchParams\)[\s\S]*?set\('step', 'rental'\)/);
+});
+
+test('property onboarding inherits the portal background while standalone listing keeps its themed canvas', () => {
+  const dashboardLayout = read('../../layout/Dashboard/index.jsx');
+  const backgrounds = read('../../themes/portalPageBackground.js');
+  const listing = read('./listing-create.jsx');
+  const workflow = read('./property-add-workflow.jsx');
+  assert.match(dashboardLayout, /sx=\{\[portalPageBackground,/);
+  assert.match(backgrounds, /bgcolor: 'background.default'/);
+  assert.match(listing, /propertyMode \? undefined : \[portalPageBackground, \{ position: 'fixed'/);
+  assert.match(listing, /\.\.\.\(!propertyMode && \{ position: 'fixed', bottom: 0/);
+  assert.match(listing, /!propertyMode && <Box component="img" src=\{theme.palette.mode === 'dark' \? logoOnDark/);
+  assert.doesNotMatch(workflow, /position: 'fixed'|portalPageBackground|listing-onboarding-logo/);
+});
+
+test('successful signup property creation opens Home and regular creation opens the property', () => {
+  const workflow = read('./property-add-workflow.jsx');
+  assert.match(workflow, /const created = await createProperty[\s\S]*?if \(!created\?\.id\) throw[\s\S]*?if \(!onClose && searchParams\.get\('from'\) === 'signup'\) \{\s*window\.location\.replace\('\/landlord\/dashboard'\);\s*return;\s*\}[\s\S]*?navigate\(`\/landlord\/property\/\$\{created.id\}`\)/);
+});
+
+test('both property onboarding phases provide in-page Save and exit actions', () => {
   const workflow = read('./property-add-workflow.jsx');
   const onboarding = read('./listing-create.jsx');
-  assert.match(layout, /pathname === '\/landlord\/properties\/add' \|\| pathname === '\/landlord\/property-add-workflow'/);
-  assert.match(layout, /!isAddPropertyPage && <Header \/>/);
-  assert.match(layout, /!isAddPropertyPage && <Toolbar/);
-  assert.match(layout, /!isAddPropertyPage && <Box sx=\{\{[\s\S]*?<Footer \/>/);
-  assert.match(workflow, /component="header"[\s\S]*?listing-onboarding-logo\.png[\s\S]*?Save &amp; exit/);
-  assert.match(onboarding, /component="header"[\s\S]*?listing-onboarding-logo\.png[\s\S]*?Save &amp; exit/);
+  assert.match(workflow, /onClick=\{\(\) => navigate\('\/landlord\/properties'\)\}[^>]*>Save &amp; exit/);
+  assert.match(onboarding, /onClick=\{saveAndExit\}>Save &amp; exit/);
 });
 
 test('add property page reuses the listing Google address modal without changing listing mode', () => {
@@ -29,7 +65,7 @@ test('add property page reuses the listing Google address modal without changing
   assert.match(onboarding, /Back to address results/);
   assert.match(onboarding, /justifyContent: 'center', minHeight: 44, px: 6, py: \{ xs: 2, sm: 3 \}, mb: 2/);
   assert.match(onboarding, /textAlign: 'center' \}\}>\{modalStep === 'search' \? 'Enter your address' : 'Confirm your address'\}/);
-  assert.match(onboarding, /const primaryButton = \{[^\n]*bgcolor: '#061e35'[^\n]*color: '#fff'[^\n]*'&:hover': \{ bgcolor: '#042238'/);
+  assert.match(onboarding, /const primaryButton = \{[^\n]*bgcolor: 'primary.main'[^\n]*color: 'primary.contrastText'[^\n]*'&:hover': \{ bgcolor: 'primary.dark'/);
   assert.match(onboarding, /setModalStep\('confirm'\)/);
   assert.match(onboarding, /onContinue\?\.\(\{ \.\.\.address, rentalMode \}\)/);
   assert.match(onboarding, /What type of rental describes your place best\?/);
@@ -38,7 +74,7 @@ test('add property page reuses the listing Google address modal without changing
   assert.match(onboarding, /step === 'rental' && !rentalMode/);
   assert.match(onboarding, /step === 'rental' \? 'place' : 'address'/);
   assert.match(onboarding, /step === 'rental' \|\| !propertyMode/);
-  assert.match(onboarding, /component="footer"/);
+  assert.match(onboarding, /component=\{propertyMode \? 'div' : 'footer'\}/);
   assert.match(onboarding, /Step 1<\/Typography>/);
   assert.match(onboarding, /pp-\$\{propertyMode \? 'property' : 'listing'\}-onboarding/);
 });
@@ -74,7 +110,7 @@ test('Back from property type returns to rental choice with the confirmed addres
   const page = read('./property-add-workflow.jsx');
   assert.match(page, /onBackToRental=\{\(\) => setConfirmedAddress\(null\)\}/);
   assert.match(page, /function PropertyAddWorkflow\(\{ onClose, initialAddress, onBackToRental \}\)/);
-  assert.match(page, /navigate\('\/landlord\/properties\/add\?step=rental'\);\s*onBackToRental\?\.\(\);/);
+  assert.match(page, /nextParams\.set\('step', 'rental'\);\s*setSearchParams\(nextParams,[^\n]*\);\s*onBackToRental\?\.\(\);/);
   assert.match(read('./listing-create.jsx'), /const \[rentalMode, setRentalMode\] = useState\(saved\?\.rentalMode \|\| ''\)/);
 });
 
@@ -100,7 +136,7 @@ test('confirmed property address continues to the creation workflow without repe
   assert.match(page, /onClose && <Stack direction=\{\{ xs: 'column', sm: 'row' \}\}/);
   assert.match(page, /onClose && currentStep < STEPS.PROCESSING/);
   assert.doesNotMatch(page, /<PageBreadcrumbs/);
-  assert.match(page, /position: 'fixed', inset: 0, zIndex: 1400/);
+  assert.doesNotMatch(page, /position: 'fixed', inset: 0/);
   assert.match(read('./properties.jsx'), /onClick=\{\(\) => navigate\('\/landlord\/properties\/add'\)\}/);
   assert.match(read('../../sections/landlord/properties/PropertiesEmptyState.jsx'), /onAction=\{\(\) => navigate\('\/landlord\/properties\/add'\)\}/);
 });

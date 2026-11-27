@@ -7,9 +7,20 @@ import { useDrawer } from 'contexts/DrawerContext';
 import { formatCurrency } from 'utils/formatters';
 import { getOwnerRentOverview } from 'utils/ownerHome';
 
-export default function OwnerRentOverview({ summary, loading, error }) {
+export default function OwnerRentOverview({ summary, loading, error, emptyPortfolio = false }) {
   const { notifyFinanceMutation } = useDrawer();
   const [paymentOpen, setPaymentOpen] = useState(false);
+  if (emptyPortfolio) {
+    return (
+      <Box component="section" aria-labelledby="owner-rent-overview-heading" sx={{ pt: { xs: 3, md: 4 } }}>
+        <Typography id="owner-rent-overview-heading" component="h2" variant="h5" fontWeight={700} sx={{ mb: 1.5 }}>
+          Rent overview
+        </Typography>
+        <Typography color="text.secondary">Add a property to start tracking rent.</Typography>
+      </Box>
+    );
+  }
+
   const rent = error ? null : getOwnerRentOverview(summary);
   const periodLabel = rent?.period ? format(new Date(`${rent.period}-01T12:00:00`), 'MMMM yyyy') : 'This month';
 

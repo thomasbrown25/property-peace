@@ -7,6 +7,7 @@ using brownstone_hub_api.Repositories.Users;
 using brownstone_hub_api.Services.NotificationService;
 using brownstone_hub_api.Services.StripeRentPayments;
 using brownstone_hub_api.Services.StripeService;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Stripe;
@@ -66,6 +67,62 @@ public sealed class StripeWebhookConnectedAccountTests
 
         gateway.Verify(x => x.GetSnapshotAsync("acct_without_embedded_list", It.IsAny<CancellationToken>()), Times.Once);
         payees.Verify(x => x.SyncStripeSnapshotAsync(authoritativeSnapshot, "evt_account", It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task AccountApplicationDeauthorized_SuspendsOnlyTheKnownLinkedPayee()
+    {
+        await using var context = StripeRentPaymentFlowTests.CreateContext();
+        context.StripeConnectedPayeeReviews.Add(new StripeConnectedPayeeReview
+        {
+            StripeAccountId = "acct_linked",
+            Status = StripePayeeReviewStatus.PayoutApproved,
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow
+        });
+        await context.SaveChangesAsync();
+
+        var payees = new Mock<IStripeConnectedPayeeService>(MockBehavior.Strict);
+        payees.Setup(x => x.SuspendAsync(
+                "acct_linked",
+                null,
+                "Stripe Connect authorization was revoked by the connected account.",
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new StripeConnectedPayeeReview());
+        var service = CreateService(context, payees.Object, Mock.Of<IStripeConnectedAccountGateway>());
+
+        await service.HandleAccountApplicationDeauthorizedAsync(new Event
+        {
+            Id = "evt_deauthorized",
+            Type = "account.application.deauthorized",
+            Account = "acct_linked"
+        });
+
+        payees.Verify(x => x.SuspendAsync(
+            "acct_linked",
+            null,
+            "Stripe Connect authorization was revoked by the connected account.",
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Theory]
+    [InlineData("acct_foreign")]
+    [InlineData(null)]
+    public async Task AccountApplicationDeauthorized_WithoutKnownLinkedPayee_DoesNotSuspend(string? accountId)
+    {
+        await using var context = StripeRentPaymentFlowTests.CreateContext();
+        var payees = new Mock<IStripeConnectedPayeeService>(MockBehavior.Strict);
+        var service = CreateService(context, payees.Object, Mock.Of<IStripeConnectedAccountGateway>());
+
+        await service.HandleAccountApplicationDeauthorizedAsync(new Event
+        {
+            Id = "evt_deauthorized_unlinked",
+            Type = "account.application.deauthorized",
+            Account = accountId
+        });
+
+        payees.VerifyNoOtherCalls();
+        Assert.Equal(0, await context.StripeConnectedPayeeReviews.CountAsync());
     }
 
     private static Event AccountUpdatedEvent(StripeAccount account) => new()

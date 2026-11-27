@@ -5,6 +5,7 @@ import { useLocation, useSearchParams } from 'react-router-dom';
 import CalendarPage from 'pages/landlord/calendar';
 import DashboardOverview from 'pages/landlord/dashboard-overview';
 import TasksPage from 'pages/landlord/tasks';
+import OwnerWelcomeDialog from 'sections/landlord/dashboard/OwnerWelcomeDialog';
 import { getDashboardWorkspaceTab } from 'utils/dashboardWorkspace';
 
 const workspaceComponents = {
@@ -19,6 +20,13 @@ export default function DashboardWorkspace() {
   const reduceMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
   const activeTab = getDashboardWorkspaceTab(location.pathname, location.search);
   const ActiveComponent = workspaceComponents[activeTab] || DashboardOverview;
+  const showWelcome = activeTab === 'overview' && searchParams.get('welcome') === 'signup';
+
+  const dismissWelcome = () => {
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete('welcome');
+    setSearchParams(nextParams, { replace: true });
+  };
 
   useEffect(() => {
     const requestedTab = searchParams.get('tab');
@@ -46,6 +54,7 @@ export default function DashboardWorkspace() {
           <ActiveComponent embedded />
         </Box>
       </AnimatePresence>
+      {showWelcome && <OwnerWelcomeDialog onClose={dismissWelcome} />}
     </Box>
   );
 }

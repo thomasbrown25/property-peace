@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 
 // material-ui
 import { Box } from '@mui/material';
@@ -21,7 +20,6 @@ import { trackSignUpConversion } from 'utils/googleAds';
 // ================================|| JWT - SETTING UP PROFILE ||================================ //
 
 export default function SettingUpProfile({ hideWrapper = false, redirectOnly = false }) {
-  const navigate = useNavigate();
   const { register, user, isLoggedIn, updateUser } = useAuth();
   const [error, setError] = useState(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -32,7 +30,7 @@ export default function SettingUpProfile({ hideWrapper = false, redirectOnly = f
   useEffect(() => {
     if (redirectOnly) {
       const t = setTimeout(() => {
-        window.location.replace('/landlord/dashboard');
+        window.location.replace('/landlord/dashboard?welcome=signup');
       }, 800);
       return () => clearTimeout(t);
     }
@@ -63,7 +61,7 @@ export default function SettingUpProfile({ hideWrapper = false, redirectOnly = f
             All set!
           </Typography>
           <Typography variant="body2" sx={{ color: 'text.secondary', textAlign: 'center' }}>
-            Redirecting to your dashboard…
+            Opening your dashboard…
           </Typography>
         </Stack>
       </Box>
@@ -150,16 +148,15 @@ export default function SettingUpProfile({ hideWrapper = false, redirectOnly = f
 
             openSnackbar({
               open: true,
-              message: 'Your organization has been created successfully. Redirecting to dashboard...',
+              message: 'Your organization has been created.',
               variant: 'alert',
               alert: {
                 color: 'success'
               }
             });
 
-            // Redirect to dashboard - user is already signed in
             setTimeout(() => {
-              window.location.replace('/landlord/dashboard');
+              window.location.replace('/landlord/dashboard?welcome=signup');
             }, 1500);
           } else {
             throw new Error(response.data?.message || 'Failed to update account information');
@@ -199,16 +196,15 @@ export default function SettingUpProfile({ hideWrapper = false, redirectOnly = f
 
         openSnackbar({
           open: true,
-          message: 'Your registration has been successfully completed. Redirecting to dashboard...',
+          message: 'Your registration is complete.',
           variant: 'alert',
           alert: {
             color: 'success'
           }
         });
 
-        // Redirect to dashboard - register() already signed them in
         setTimeout(() => {
-          window.location.replace('/landlord/dashboard');
+          window.location.replace('/landlord/dashboard?welcome=signup');
         }, 1500);
       }
     } catch (err) {

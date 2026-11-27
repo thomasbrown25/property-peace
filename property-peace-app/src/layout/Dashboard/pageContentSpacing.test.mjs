@@ -30,7 +30,8 @@ test('standard shared route content stays uncapped with modest responsive gutter
 });
 
 test('navigation and footer sit outside the page gutters and content clears the fixed header', () => {
-  assert.ok(layout.indexOf('<Header ') < contentStart);
+  const headerStart = layout.search(/<Header\b/);
+  assert.ok(headerStart >= 0 && headerStart < contentStart);
   assert.ok(layout.indexOf('<Footer />') > contentEnd);
   assert.doesNotMatch(content, /<Header\b|<Footer\b/);
   assert.equal(spacingValue(main, 'p'), 2.5);
@@ -45,24 +46,21 @@ test('navigation and footer sit outside the page gutters and content clears the 
   assert.match(layout, /<Toolbar[^\n]*height: isTenantPortal \? TENANT_HEADER_HEIGHT : undefined/);
 });
 
-test('standalone property onboarding keeps its existing edge-to-edge shell', () => {
-  const expression = layout.match(/const isAddPropertyPage = ([^;]+);/)[1];
-  const isOnboarding = new Function('pathname', `return ${expression}`);
+test('both add-property routes use the standard landlord shell and gutters', () => {
+  const expression = layout.match(/const isLandlordPortal = ([^;]+);/)[1];
+  const isLandlord = new Function('pathname', `return ${expression}`);
   for (const pathname of ['/landlord/properties/add', '/landlord/property-add-workflow']) {
-    assert.equal(isOnboarding(pathname), true, pathname);
+    assert.equal(isLandlord(pathname), true, pathname);
   }
-  for (const pathname of ['/landlord/dashboard', '/landlord/properties', '/landlord/leases']) {
-    assert.equal(isOnboarding(pathname), false, pathname);
-  }
-  assert.equal(spacingValue(main, 'p', true), 0);
-  assert.equal(contentValue('maxWidth'), 'none');
-  assert.equal(contentValue('px', true), 0);
+  assert.match(layout, /const isFullWidthPage = isSettingsPage;/);
+  assert.match(layout, /\{isLandlordPortal && \(\s*<LandlordSidebar\b/);
+  assert.doesNotMatch(layout, /isAddPropertyPage/);
 });
 
 test('landlord and tenant Settings sit flush against the dashboard navigation', () => {
   assert.match(layout, /matchPath\('\/landlord\/settings', pathname\)/);
   assert.match(layout, /matchPath\('\/tenant\/settings', pathname\)/);
-  assert.match(layout, /const isFullWidthPage = isAddPropertyPage \|\| isSettingsPage;/);
+  assert.match(layout, /const isFullWidthPage = isSettingsPage;/);
   assert.equal(spacingValue(main, 'p', true), 0);
   assert.equal(contentValue('px', true), 0);
 });

@@ -14,7 +14,7 @@ const row = page.split('const renderConversationItem =')[1]?.split('const snapsh
 test('chat rows are compact with small avatars and keyboard-accessible hover actions', () => {
   assert.match(row, /width: 30, height: 30/);
   assert.match(row, /<ChatRowActions[\s\S]*?name=\{tenantName\}/);
-  assert.match(rowActions, /triggerLabel=\{`Actions for \$\{name\}`\}/);
+  assert.match(rowActions, /const triggerLabel = `Actions for \$\{name\}`/);
   assert.match(row, /focus-within/);
   assert.match(tenantPage, /focus-within/);
   assert.match(row, /<\/ListItemButton>\s*<ChatRowActions/);
@@ -30,9 +30,21 @@ test('both chat lists give the avatar unread badge enough vertical clearance', (
   }
 });
 
-test('both row drawers target their own conversation and archive is available only in the landlord inbox', () => {
+test('the landlord row opens a menu below its own action button', () => {
+  assert.match(row, /<ChatRowActions[^>]*variant="menu"/);
+  assert.match(rowActions, /aria-haspopup="menu"/);
+  assert.match(rowActions, /setMenuAnchor\(event.currentTarget\)/);
+  assert.match(rowActions, /<Menu\s+anchorEl=\{menuAnchor\}/);
+  assert.match(rowActions, /anchorOrigin=\{\{ vertical: 'bottom', horizontal: 'right' \}\}/);
+  assert.match(rowActions, /transformOrigin=\{\{ vertical: 'top', horizontal: 'right' \}\}/);
+  assert.match(rowActions, /<MenuItem[\s\S]*?closeMenu\(\);\s*onSelect\(\);/);
+});
+
+test('row actions target their own conversation and archive is available only in the landlord inbox', () => {
   assert.match(rowActions, /label: 'Mark as unread',\s*description: '[^']+',\s*icon: 'messages'/);
+  assert.match(rowActions, /variant = 'drawer'/);
   assert.match(rowActions, /<ActionsDrawer[^>]*iconOnly/);
+  assert.doesNotMatch(tenantPage, /<ChatRowActions[^>]*variant="menu"/);
   assert.match(row, /onMarkUnread=\{\(\) => handleRowMarkUnread\(conversation\.id\)\}/);
   assert.match(tenantPage, /onMarkUnread=\{\(\) => handleMarkUnread\(conversation\.id\)\}/);
   assert.match(row, /onArchive=\{conversation\.isArchived \? undefined : \(\) => handleRowArchive\(conversation\.id\)\}/);

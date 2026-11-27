@@ -14,6 +14,7 @@ namespace brownstone_hub_api.Models
         
         public string Role { get; set; } = "Viewer"; // "Owner", "Manager", "Viewer"
         public bool IsActive { get; set; } = true;
+        public bool HasDismissedOnlinePaymentsSetup { get; set; }
         
         public DateTime JoinedAt { get; set; } = DateTime.Now;
         public long? InvitedBy { get; set; } // UserId who invited

@@ -71,10 +71,13 @@ export default function ConnectOnboardingWizard({
   onRetryProperties,
   user = null,
   initialDraft = null,
+  initialSetupMode = 'new',
+  onConnectExisting,
   preparationLoading = false,
   loading = false
 }) {
   const [activeStep, setActiveStep] = useState(0);
+  const [setupMode, setSetupMode] = useState(initialSetupMode === 'existing' ? 'existing' : 'new');
   const [draftState, setDraft] = useState(() => makeInitialDraft({ user, initialDraft }));
   const draft = { ...draftState, displayName: draftState.displayNames[draftState.operatingType] ?? '' };
   const [ein, setEin] = useState('');
@@ -89,9 +92,10 @@ export default function ConnectOnboardingWizard({
     if (!open && !embedded) return;
     setActiveStep(0);
     setDraft(makeInitialDraft({ user, initialDraft }));
+    setSetupMode(initialSetupMode === 'existing' ? 'existing' : 'new');
     setEin('');
     setErrors({});
-  }, [open, embedded, user, initialDraft]);
+  }, [open, embedded, user, initialDraft, initialSetupMode]);
 
   useEffect(() => {
     if (embedded && previousStep.current !== activeStep) stepHeadingRef.current?.focus();
@@ -130,7 +134,8 @@ export default function ConnectOnboardingWizard({
     updatePropertySelection([...selected]);
   };
 
-  const nextErrors = validateConnectOnboardingStep(activeStep, draft, ein);
+  const nextErrors = { ...validateConnectOnboardingStep(activeStep, draft, ein) };
+  if (setupMode === 'existing') delete nextErrors.ein;
   const nextDisabled = loading || preparationLoading || Object.keys(nextErrors).length > 0 ||
     (activeStep === 2 && (propertiesLoading || propertiesError || selectedProperties.length === 0));
 
@@ -138,7 +143,8 @@ export default function ConnectOnboardingWizard({
     if (!nextDisabled) setActiveStep((current) => Math.min(current + 1, 3));
   };
 
-  const handleContinue = () => {
+  const handleContinue = (mode = setupMode) => {
+    if (mode !== 'new' && mode !== 'existing') mode = setupMode;
     const context = buildConnectOnboardingContext(draft);
     const nextErrors = validateConnectOnboardingContext(context, properties.map(getPropertyId));
     if (Object.keys(nextErrors).length > 0) {
@@ -146,7 +152,12 @@ export default function ConnectOnboardingWizard({
       setActiveStep(nextErrors.operatingType ? 0 : nextErrors.displayName ? 1 : 2);
       return;
     }
-    onContinue({ ...context, ein: draft.operatingType === 'business' ? ein.replace(/\D/g, '') : null });
+    const preparedContext = { ...context, ein: mode === 'new' && draft.operatingType === 'business' ? ein.replace(/\D/g, '') : null };
+    if (mode === 'existing' && onConnectExisting) {
+      onConnectExisting(preparedContext);
+      return;
+    }
+    onContinue(preparedContext);
   };
 
   const title = activeStep === 0
@@ -174,6 +185,12 @@ export default function ConnectOnboardingWizard({
           <Typography variant="body1" fontWeight={650}>
             Select the account type and provide the information for identity verification to set up online payments.
           </Typography>
+
+          {onConnectExisting && (
+            <Alert severity="info" action={<Button color="inherit" size="small" onClick={() => setSetupMode('existing')}>Use existing</Button>}>
+              Already have a Stripe account? You can connect it after confirming your property authority.
+            </Alert>
+          )}
 
           <RadioGroup
             aria-label="Bank account type"
@@ -237,25 +254,27 @@ export default function ConnectOnboardingWizard({
                 helperText={errors.displayName}
                 autoFocus={!embedded}
               />
-              <Stack sx={{ gap: 1 }}>
-                <InputLabel htmlFor={einInputId}>EIN *</InputLabel>
-                <TextField
-                  id={einInputId}
-                  required
-                  size="small"
-                  placeholder="00-0000000"
-                  value={ein}
-                  onChange={(event) => {
-                    const digits = event.target.value.replace(/\D/g, '').slice(0, 9);
-                    setEin(digits.length > 2 ? `${digits.slice(0, 2)}-${digits.slice(2)}` : digits);
-                    setErrors((current) => ({ ...current, ein: undefined }));
-                  }}
-                  error={Boolean(errors.ein)}
-                  helperText={errors.ein}
-                  inputProps={{ inputMode: 'numeric', autoComplete: 'off' }}
-                  fullWidth
-                />
-              </Stack>
+              {setupMode === 'new' && (
+                <Stack sx={{ gap: 1 }}>
+                  <InputLabel htmlFor={einInputId}>EIN *</InputLabel>
+                  <TextField
+                    id={einInputId}
+                    required
+                    size="small"
+                    placeholder="00-0000000"
+                    value={ein}
+                    onChange={(event) => {
+                      const digits = event.target.value.replace(/\D/g, '').slice(0, 9);
+                      setEin(digits.length > 2 ? `${digits.slice(0, 2)}-${digits.slice(2)}` : digits);
+                      setErrors((current) => ({ ...current, ein: undefined }));
+                    }}
+                    error={Boolean(errors.ein)}
+                    helperText={errors.ein}
+                    inputProps={{ inputMode: 'numeric', autoComplete: 'off' }}
+                    fullWidth
+                  />
+                </Stack>
+              )}
             </Box>
           ) : (
             <FormInput
@@ -277,7 +296,9 @@ export default function ConnectOnboardingWizard({
               <Divider sx={{ borderColor: 'warning.light', mb: 1.25 }} />
               <Typography variant="subtitle2" color="text.primary" fontWeight={750}>Please note!</Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                {draft.operatingType === 'business'
+                {setupMode === 'existing'
+                  ? 'Stripe already has the identity and tax details for your selected account. Property Peace does not request your EIN for this connection.'
+                  : draft.operatingType === 'business'
                   ? "The Legal Business Name must match the legal account holder's name on the bank account. The EIN is sent securely to Stripe and is not stored by Property Peace."
                   : 'The account holder name must match the name used during Stripe verification.'}
               </Typography>
@@ -457,8 +478,24 @@ export default function ConnectOnboardingWizard({
           </Paper>
 
           <Alert severity="info" icon={<SafetyCertificateOutlined />}>
-            Stripe verifies your account details. Manage your account, payout settings, and bank accounts in your full Stripe Dashboard.
+            {setupMode === 'existing'
+              ? 'Stripe will ask you to select and authorize an eligible existing account. Manage your account, payout settings, and bank accounts in your full Stripe Dashboard.'
+              : 'Stripe verifies your account details. Manage your account, payout settings, and bank accounts in your full Stripe Dashboard.'}
           </Alert>
+
+          {onConnectExisting && (
+            <Stack spacing={1}>
+              <Typography variant="subtitle2" fontWeight={700}>How would you like to connect Stripe?</Typography>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25}>
+                <Button variant={setupMode === 'new' ? 'contained' : 'outlined'} onClick={() => setSetupMode('new')}>
+                  Set up a new account
+                </Button>
+                <Button variant={setupMode === 'existing' ? 'contained' : 'outlined'} onClick={() => setSetupMode('existing')}>
+                  Connect existing Stripe account
+                </Button>
+              </Stack>
+            </Stack>
+          )}
 
           <Box>
             <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1 }}>
@@ -487,7 +524,7 @@ export default function ConnectOnboardingWizard({
         </Button>
       ) : (
         <Button variant="contained" color="primary" onClick={handleContinue} disabled={loading || preparationLoading} startIcon={<LockOutlined />}>
-          {loading ? 'Opening Stripe…' : 'Continue to Stripe'}
+          {loading ? 'Opening Stripe…' : setupMode === 'existing' ? 'Connect existing Stripe account' : 'Continue to Stripe'}
         </Button>
       )}
     </>

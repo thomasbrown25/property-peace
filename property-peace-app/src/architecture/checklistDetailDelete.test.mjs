@@ -37,12 +37,12 @@ test('detail heading uses a checklist icon and no back-arrow button', () => {
   assert.doesNotMatch(header, /<HomeOutlined/);
 });
 
-test('room controls and instructions are separate white panels above the main card', () => {
+test('room controls and instructions use separate themed panels above the main card', () => {
   const detail = source.match(/function InspectionColumn\([\s\S]*?function normalizeChecklistTitle/)?.[0];
   assert.ok(detail);
   assert.match(detail, /\{checklist && \(\s*<Grid container[\s\S]*?Rooms[\s\S]*?Add Room[\s\S]*?<KeyLegend[\s\S]*?<\/Grid>\s*\)\}[\s\S]*?<MainCard/);
-  assert.match(detail, /bgcolor: '#fff'/);
-  assert.match(source, /function KeyLegend[\s\S]*?bgcolor: '#fff'/);
+  assert.match(detail, /bgcolor: 'background.paper'/);
+  assert.match(source, /function KeyLegend[\s\S]*?bgcolor: 'background.paper'/);
 });
 
 test('progress is first within the main checklist card before room items', () => {

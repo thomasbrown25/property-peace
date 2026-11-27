@@ -158,7 +158,7 @@ export default function HelpPage() {
           bgcolor: 'background.paper',
           boxShadow: `0 4px 20px ${alpha(t.palette.primary.main, t.palette.mode === 'dark' ? 0.12 : 0.07)}`,
           ...(t.palette.mode === 'dark' && {
-            backgroundColor: '#111827',
+            backgroundColor: t.palette.surface.raised,
             backgroundImage: `linear-gradient(180deg, ${alpha('#ffffff', 0.035)} 0%, ${alpha('#ffffff', 0.005)} 100%)`
           })
         })}

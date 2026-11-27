@@ -101,6 +101,40 @@ namespace brownstone_hub_api.Services.StripeService
                 _logger.LogCritical("Stripe connected payee {AccountId} was automatically suspended after external-account change: {Reason}", accountId, review.SuspensionReason);
         }
 
+        public async Task HandleAccountApplicationDeauthorizedAsync(Event stripeEvent)
+        {
+            // For this event, data.object is the OAuth application rather than the connected
+            // account. Stripe's signed top-level account field is the only account identifier
+            // we accept; do not infer ownership from the application payload or create a binding.
+            var accountId = stripeEvent.Account;
+            if (string.IsNullOrWhiteSpace(accountId))
+            {
+                _logger.LogWarning(
+                    "account.application.deauthorized event {EventId} did not identify a connected account; no payee was changed.",
+                    stripeEvent.Id);
+                return;
+            }
+
+            // Suspend only a pre-existing, explicitly linked payee. SuspendAsync deliberately
+            // has broader fail-closed behavior for other incident paths, so this lookup prevents
+            // a foreign or malformed deauthorization event from creating/reassigning a review.
+            var isKnownLinkedPayee = await _context.StripeConnectedPayeeReviews.AsNoTracking()
+                .AnyAsync(x => x.StripeAccountId == accountId);
+            if (!isKnownLinkedPayee)
+            {
+                _logger.LogWarning(
+                    "Ignoring account.application.deauthorized event {EventId} for unlinked Stripe account {AccountId}.",
+                    stripeEvent.Id, accountId);
+                return;
+            }
+
+            const string reason = "Stripe Connect authorization was revoked by the connected account.";
+            await _stripeConnectedPayeeService.SuspendAsync(accountId, null, reason);
+            _logger.LogCritical(
+                "Stripe connected payee {AccountId} was suspended because its Stripe Connect authorization was revoked.",
+                accountId);
+        }
+
         public async Task HandleSubscriptionCreatedAsync(Event stripeEvent)
         {
             var subscription = stripeEvent.Data.Object as Stripe.Subscription;

@@ -41,9 +41,9 @@ import { selectCurrentConversationId, selectMessageError, selectMessageLoading, 
 import ConversationQuickReplies from 'components/conversation/ConversationQuickReplies';
 import { useOrganization } from 'contexts/OrganizationContext';
 import { getSendAttempt } from 'utils/clientRequestId';
-import { getConversationBubbleSx } from 'utils/conversationPresentation';
+import { getConversationBubbleSx, parseMessageDate, sortConversationMessages } from 'utils/conversationPresentation';
 import { latestConfirmedSentMessageId } from 'utils/latestSentMessage.mjs';
-import { chatConversationRowButtonSx, getChatStyles } from 'themes/chatStyles';
+import { chatConversationRowButtonSx, chatMessageStatusSx, chatSendButtonSx, getChatStyles } from 'themes/chatStyles';
 import { filterControlSx } from 'themes/filterControlStyles';
 import TenantNewChat from './TenantNewChat';
 
@@ -60,12 +60,12 @@ function formatPhone(raw = '') {
   return raw;
 }
 
-function getDateLabel(dateStr) {
-  if (!dateStr) return '';
-  const date = new Date(dateStr);
+function getDateLabel(date) {
+  if (!Number.isFinite(date.getTime())) return '';
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const yesterday = new Date(today.getTime() - 86400000);
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
   const msgDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
   if (msgDay.getTime() === today.getTime()) return 'Today';
   if (msgDay.getTime() === yesterday.getTime()) return 'Yesterday';
@@ -355,7 +355,7 @@ export default function TenantChat() {
       (message) => String(message.conversationId ?? loadedConversationId) === String(selectedConversationId)
     );
     const pending = optimisticMessages.filter((message) => String(message.conversationId) === String(selectedConversationId));
-    return [...persisted, ...pending].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+    return sortConversationMessages([...persisted, ...pending]);
   }, [loadedConversationId, messages, optimisticMessages, selectedConversationId]);
   const latestSentMessageId = latestConfirmedSentMessageId(visibleMessages, userId);
 
@@ -742,9 +742,10 @@ export default function TenantChat() {
                     minHeight: 0,
                     overflowY: 'auto',
                     overflowX: 'hidden',
-                    px: { xs: 1, sm: 2.5 },
+                    pl: { xs: 1, sm: 2.5 },
+                    pr: 2.5,
                     py: { xs: 1.5, sm: 2.5 },
-                    bgcolor: isDarkMode ? theme.palette.background.default : theme.palette.surface.nested,
+                    bgcolor: isDarkMode ? theme.palette.background.default : theme.palette.brand.ivory,
                     '&::-webkit-scrollbar': { width: 8 },
                     '&::-webkit-scrollbar-track': { bgcolor: 'transparent' },
                     '&::-webkit-scrollbar-thumb': {
@@ -774,20 +775,16 @@ export default function TenantChat() {
                       {visibleMessages.map((message, index) => {
                         const isOwn = String(message.senderId) === String(userId);
                         const previousMessage = index > 0 ? visibleMessages[index - 1] : null;
-                        const isConsecutive =
-                          previousMessage &&
-                          String(previousMessage.senderId) === String(message.senderId) &&
-                          new Date(message.createdAt).toDateString() === new Date(previousMessage.createdAt).toDateString();
-                        const showDateSeparator =
-                          !previousMessage ||
-                          new Date(message.createdAt).toDateString() !== new Date(previousMessage.createdAt).toDateString();
+                        const messageDate = parseMessageDate(message.createdAt);
+                        const sameDay = previousMessage && messageDate.toDateString() === parseMessageDate(previousMessage.createdAt).toDateString();
+                        const isConsecutive = sameDay && String(previousMessage.senderId) === String(message.senderId);
                         return (
                           <Fragment key={message.id}>
-                            {showDateSeparator && (
+                            {!sameDay && (
                               <Box sx={{ display: 'flex', alignItems: 'center', my: 2, px: 1 }}>
                                 <Box sx={{ flex: 1, height: 1, bgcolor: messagesSoftDivider }} />
                                 <Typography variant="caption" color="text.secondary" sx={{ mx: 2, whiteSpace: 'nowrap', fontWeight: 500 }}>
-                                  {getDateLabel(message.createdAt)}
+                                  {getDateLabel(messageDate)}
                                 </Typography>
                                 <Box sx={{ flex: 1, height: 1, bgcolor: messagesSoftDivider }} />
                               </Box>
@@ -849,11 +846,11 @@ export default function TenantChat() {
                                       </Typography>
                                     )}
                                     <Typography variant="caption" color="text.secondary" sx={{ opacity: 0.7, fontSize: '0.7rem' }}>
-                                      {formatMessageTime(message.createdAt)}
+                                      {formatMessageTime(messageDate)}
                                     </Typography>
                                   </Stack>
                                 )}
-                                <Stack direction="row" spacing={0.75} alignItems="flex-end" sx={{ maxWidth: '100%' }}>
+                                <Stack direction="row" alignItems="flex-end" sx={{ position: 'relative', maxWidth: '100%' }}>
                                   <Paper
                                     elevation={0}
                                     sx={{
@@ -872,9 +869,9 @@ export default function TenantChat() {
                                       {message.content}
                                     </Typography>
                                   </Paper>
-                                  {message._optimistic && isOwn && <CircularProgress size={12} sx={{ color: 'primary.main', mb: 0.25, flexShrink: 0 }} />}
+                                  {message._optimistic && isOwn && <CircularProgress size={12} sx={{ ...chatMessageStatusSx, color: 'primary.main' }} />}
                                   {isOwn && !message._optimistic && latestSentMessageId != null && String(message.id) === String(latestSentMessageId) && (
-                                    <Box component="span" role="img" aria-label="Message sent" sx={{ display: 'inline-flex', color: 'success.main', mb: '2px', flexShrink: 0 }}><AppIcon name="checkCircle" size={15} /></Box>
+                                    <Box component="span" role="img" aria-label="Message sent" sx={{ ...chatMessageStatusSx, display: 'inline-flex', color: 'success.main' }}><AppIcon name="checkCircle" size={15} /></Box>
                                   )}
                                 </Stack>
                               </Box>
@@ -955,19 +952,12 @@ export default function TenantChat() {
                       <span style={{ alignSelf: 'flex-end' }}>
                         <IconButton
                           onClick={handleSendMessage}
+                          disableRipple
                           disabled={!messageInput.trim() || sendingMessage}
                           aria-label="Send message"
-                          sx={{
-                            ml: 0.75,
-                            width: 40,
-                            height: 40,
-                            bgcolor: 'primary.main',
-                            color: '#fff',
-                            '&:hover': { bgcolor: 'primary.dark' },
-                            '&.Mui-disabled': { bgcolor: 'action.disabledBackground', color: 'text.disabled' }
-                          }}
+                          sx={{ ...chatSendButtonSx, ml: 0.75, width: 40, height: 40 }}
                         >
-                          {sendingMessage ? <CircularProgress size={19} color="inherit" /> : <AppIcon name="send" size={18} />}
+                          {sendingMessage ? <CircularProgress size={19} color="inherit" /> : <AppIcon name="send" size={20} />}
                         </IconButton>
                       </span>
                     </Tooltip>

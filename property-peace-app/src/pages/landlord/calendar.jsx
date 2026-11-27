@@ -607,10 +607,10 @@ function EventDetailsDrawer({ event, onClose, onEditTask, onDeleteTask, onNaviga
       PaperProps={{
         sx: {
           width: { xs: '100%', sm: 400 },
-          bgcolor: '#fff',
-          color: '#061e35',
-          borderLeft: `1px solid ${c.border}`,
-          boxShadow: '-18px 0 48px rgba(6, 30, 53, 0.24)'
+          bgcolor: 'background.paper',
+          color: 'text.primary',
+          borderLeft: '1px solid',
+          borderColor: 'divider'
         }
       }}
     >
@@ -619,15 +619,15 @@ function EventDetailsDrawer({ event, onClose, onEditTask, onDeleteTask, onNaviga
           direction="row"
           justifyContent="space-between"
           alignItems="center"
-          sx={{ px: 3, py: 2, bgcolor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}
+          sx={{ px: 3, py: 2, bgcolor: 'surface.nested', borderBottom: '1px solid', borderColor: 'divider' }}
         >
-          <Typography variant="overline" fontWeight={800} sx={{ color: c.text, letterSpacing: 1 }}>
+          <Typography variant="overline" fontWeight={800} sx={(theme) => ({ color: theme.palette.mode === 'dark' ? c.border : c.text, letterSpacing: 1 })}>
             {categoryLabel}
           </Typography>
           <IconButton
             onClick={onClose}
             aria-label="Close event details"
-            sx={{ color: '#334155', bgcolor: '#fff', border: '1px solid #e2e8f0', '&:hover': { bgcolor: '#f1f5f9' } }}
+            sx={{ color: 'text.secondary', bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', '&:hover': { bgcolor: 'action.hover' } }}
           >
             <CloseOutlined />
           </IconButton>
@@ -635,10 +635,10 @@ function EventDetailsDrawer({ event, onClose, onEditTask, onDeleteTask, onNaviga
 
         <Stack spacing={2.5} sx={{ flex: 1, px: 3, py: 3 }}>
           <Box>
-            <Typography variant="h5" fontWeight={750} sx={{ color: '#061e35', lineHeight: 1.3 }}>
+            <Typography variant="h5" fontWeight={750} sx={{ lineHeight: 1.3 }}>
               {event.title}
             </Typography>
-            <Typography sx={{ mt: 0.75, color: '#475569', fontWeight: 500 }}>
+            <Typography sx={{ mt: 0.75, color: 'text.secondary', fontWeight: 500 }}>
               {format(event.date, 'EEEE, MMMM d, yyyy · h:mm a')}
             </Typography>
           </Box>
@@ -649,15 +649,15 @@ function EventDetailsDrawer({ event, onClose, onEditTask, onDeleteTask, onNaviga
               label={event.status || 'Scheduled'}
               sx={{ bgcolor: c.bg, color: c.text, border: `1px solid ${c.border}`, fontWeight: 700 }}
             />
-            {event.unitName && <Chip size="small" label={event.unitName} sx={{ bgcolor: '#f8fafc', color: '#334155', border: '1px solid #cbd5e1' }} />}
+            {event.unitName && <Chip size="small" label={event.unitName} variant="outlined" />}
           </Stack>
 
           {event.amount != null && (
-            <Box sx={{ p: 2, borderRadius: 1.5, bgcolor: '#f8fafc', border: '1px solid #e2e8f0' }}>
-              <Typography sx={{ color: '#475569', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.6 }}>
+            <Box sx={{ p: 2, borderRadius: 1.5, bgcolor: 'surface.nested', border: '1px solid', borderColor: 'divider' }}>
+              <Typography sx={{ color: 'text.secondary', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.6 }}>
                 {event.source === 'recurring-expense' ? 'Expense amount' : 'Rent amount'}
               </Typography>
-              <Typography variant="h5" fontWeight={800} sx={{ mt: 0.25, color: '#061e35' }}>
+              <Typography variant="h5" fontWeight={800} sx={{ mt: 0.25 }}>
                 ${Number(event.amount).toLocaleString()}
               </Typography>
             </Box>
@@ -669,7 +669,7 @@ function EventDetailsDrawer({ event, onClose, onEditTask, onDeleteTask, onNaviga
           </Stack> : destination ? <Button
             variant="contained"
             onClick={() => onNavigate(destination)}
-            sx={{ alignSelf: 'flex-start', px: 2.5, bgcolor: theme.palette.brand.forest, color: '#fff', fontWeight: 800, '&:hover': { bgcolor: theme.palette.primary.dark } }}
+            sx={{ alignSelf: 'flex-start', px: 2.5, fontWeight: 800 }}
           >
             {event.source === 'recurring-expense' ? 'View expenses' : event.category === 'RentPayment' ? 'View payments' : event.category === 'Maintenance' ? 'View request' : event.source === 'inspection' ? 'Open checklist' : 'View lease'}
           </Button> : null}

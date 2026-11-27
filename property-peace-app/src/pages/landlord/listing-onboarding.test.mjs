@@ -55,11 +55,11 @@ test('add-listing actions open the standalone onboarding, not the old drawer', (
   assert.match(onboarding, /<Dialog[^\n]*zIndex: 1500/);
 });
 
-test('shared add-property/add-listing accents use the app green and Next buttons use navy with white text', () => {
+test('shared add-property/add-listing accents and Next buttons use the primary palette', () => {
   const onboarding = source('listing-create.jsx');
-  assert.match(onboarding, /outlineColor: 'success.main'/);
-  assert.match(onboarding, /color: 'success.dark'/);
-  assert.match(onboarding, /borderColor: 'success.dark'/);
+  assert.match(onboarding, /outlineColor: 'primary.main'/);
+  assert.match(onboarding, /color: 'primary.contrastText'/);
+  assert.match(onboarding, /borderColor: 'primary.main'/);
   assert.doesNotMatch(onboarding, /#25755f|#096b55|#06815e/);
   assert.match(onboarding, /<Button variant="contained" fullWidth onClick=\{confirmAddress\} sx=\{\{ \.\.\.primaryButton, mt: 3 \}\}>Next<\/Button>/);
   assert.match(onboarding, /sx=\{primaryButton\}>Next<\/Button>/);

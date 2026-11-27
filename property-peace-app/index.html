@@ -4,7 +4,28 @@
     <!-- Capability URLs must never be sent to third parties. Analytics is only
          initialized for non-screening routes. Keep this before all external assets. -->
     <script>
-      if (!/^\/screening(?:\/|$)/.test(window.location.pathname)) {
+      (function() {
+        var landingUrl = new URL(window.location.href);
+        var isExistingStripeReturn = landingUrl.pathname === '/landlord/settings' &&
+          landingUrl.searchParams.get('tab') === 'payments' &&
+          landingUrl.searchParams.get('paymentTab') === 'stripe' &&
+          landingUrl.searchParams.get('stripe') === 'existing-return';
+
+        if (isExistingStripeReturn) {
+          // Keep the one-time OAuth payload only in this page's memory. Remove it
+          // before any external asset or analytics code can observe the URL.
+          window.__propertyPeaceExistingStripeReturn = {
+            code: landingUrl.searchParams.get('code'),
+            state: landingUrl.searchParams.get('state'),
+            error: landingUrl.searchParams.get('error')
+          };
+          ['stripe', 'code', 'state', 'error'].forEach(function(name) {
+            landingUrl.searchParams.delete(name);
+          });
+          window.history.replaceState(window.history.state, '', landingUrl.pathname + landingUrl.search + landingUrl.hash);
+        }
+
+        if (/^\/screening(?:\/|$)/.test(window.location.pathname) || isExistingStripeReturn) return;
         const googleAdsId = 'AW-17815665224';
         const analytics = document.createElement('script');
         analytics.async = true;
@@ -15,11 +36,11 @@
         gtag('js', new Date());
         gtag('config', googleAdsId);
 
-        const landingUrl = new URL(window.location.href);
-        if (landingUrl.pathname === '/login' && landingUrl.searchParams.has('_gl')) {
+        const currentLandingUrl = new URL(window.location.href);
+        if (currentLandingUrl.pathname === '/login' && currentLandingUrl.searchParams.has('_gl')) {
           const removeLoginLinker = () => {
             const url = new URL(window.location.href);
-            if (url.pathname !== '/login' || url.searchParams.get('_gl') !== landingUrl.searchParams.get('_gl')) return;
+            if (url.pathname !== '/login' || url.searchParams.get('_gl') !== currentLandingUrl.searchParams.get('_gl')) return;
 
             url.searchParams.delete('_gl');
             window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
@@ -31,7 +52,7 @@
         }
 
         document.head.appendChild(analytics);
-      }
+      })();
     </script>
     <!-- Primary Meta Tags -->
     <title>Property Peace | Property Management Software</title>
