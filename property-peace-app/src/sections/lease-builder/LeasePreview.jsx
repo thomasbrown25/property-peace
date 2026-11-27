@@ -210,7 +210,7 @@ export default function LeasePreview({
                 </Typography>
                 <Stack spacing={1}>
                   {instance.documents.map((doc) => (
-                    <Box key={doc.id} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1, bgcolor: 'grey.50', borderRadius: 1 }}>
+                    <Box key={doc.id} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1, bgcolor: 'surface.nested', borderRadius: 1 }}>
                       <Stack direction="row" spacing={1} alignItems="center">
                         <Chip label={doc.documentType} size="small" />
                         <Typography variant="body2">

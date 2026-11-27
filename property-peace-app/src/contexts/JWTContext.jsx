@@ -555,6 +555,8 @@ export const JWTProvider = ({ children }) => {
         localStorage.removeItem('users');
       }
     }
+
+    return userWithoutToken;
   };
 
   const startImpersonation = async (targetUserId, reason, supportReference = '') => {

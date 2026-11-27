@@ -2,7 +2,7 @@ import axios from 'utils/axios';
 
 /**
  * Send broadcast email to all users or selected user IDs (admin only).
- * @param {{ subject: string, body: string, userIds?: number[] }} payload
+ * @param {{ subject: string, body: string, userIds?: number[], isMarketing?: boolean }} payload
  */
 export const sendBroadcastEmail = async (payload) => {
   const response = await axios.post('/api/admin/broadcast-email', payload);

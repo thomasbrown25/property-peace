@@ -892,13 +892,10 @@ export default function TenantDashboard() {
                   const iconBoxSx = {
                     width: 40,
                     height: 40,
-                    borderRadius: 2,
-                    bgcolor: alpha(statusTone.main, isDark ? 0.18 : 0.1),
                     color: statusTone.main,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    boxShadow: `inset 0 0 0 1px ${alpha(statusTone.main, isDark ? 0.24 : 0.14)}`,
                     flexShrink: 0
                   };
 
@@ -1092,7 +1089,7 @@ export default function TenantDashboard() {
               <Stack spacing={2}>
                 <Box>
                   <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-                    <HomeOutlined style={{ fontSize: 18, color: '#1877F2' }} />
+                    <HomeOutlined style={{ fontSize: 18, color: theme.palette.primary.main }} />
                     <Typography variant="body2" color="text.secondary">
                       Property
                     </Typography>
@@ -1109,7 +1106,7 @@ export default function TenantDashboard() {
                 <Divider />
                 <Box>
                   <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-                    <CalendarOutlined style={{ fontSize: 18, color: '#1877F2' }} />
+                    <CalendarOutlined style={{ fontSize: 18, color: theme.palette.primary.main }} />
                     <Typography variant="body2" color="text.secondary">
                       Lease Period
                     </Typography>
@@ -1121,7 +1118,7 @@ export default function TenantDashboard() {
                 <Divider />
                 <Box>
                   <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-                    <DollarOutlined style={{ fontSize: 18, color: '#1877F2' }} />
+                    <DollarOutlined style={{ fontSize: 18, color: theme.palette.primary.main }} />
                     <Typography variant="body2" color="text.secondary">
                       Monthly Rent
                     </Typography>

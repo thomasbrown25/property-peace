@@ -1,6 +1,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import PropTypes from 'prop-types';
+import useSWR from 'swr';
 
 // material-ui
 import {
@@ -25,7 +26,7 @@ import DollarOutlined from '@ant-design/icons/DollarOutlined';
 import { formatCurrency } from 'utils/formatters';
 import { normalizeRentBalance } from 'utils/rentBalance';
 import { getCurrentRentPresentation } from 'utils/paymentSummaryPresentation';
-import useFetchRentCollection from 'hooks/useFetchRentCollection';
+import { useOrganization } from 'contexts/OrganizationContext';
 import axiosServices from 'utils/axios';
 
 // Parse currency string back to number
@@ -44,21 +45,32 @@ export default function PaymentEntryForm({ lease, paymentData, onPaymentDataChan
   const [deposits, setDeposits] = useState([]);
   const [loadingDeposits, setLoadingDeposits] = useState(true);
 
-  // Fetch rent collection data for the lease's property
-  const propertyId = lease?.unit?.propertyId || lease?.unit?.property?.id || lease?.propertyId;
-  const { rentRecords, loading: rentRecordsLoading } = useFetchRentCollection(propertyId || null, false, true);
+  const { currentOrganization } = useOrganization();
+  const organizationId = currentOrganization?.id ?? currentOrganization?.Id;
+  const leaseId = lease?.id ?? lease?.Id;
+  const { data: rentRecords, isValidating: rentRecordsLoading } = useSWR(
+    organizationId && leaseId ? ['payment-entry-rent', organizationId, leaseId] : null,
+    async ([, requestOrganizationId, requestLeaseId]) => {
+      const response = await axiosServices.get('/api/rent-collection', {
+        params: { leaseId: requestLeaseId },
+        headers: { 'X-Organization-Id': String(requestOrganizationId) }
+      });
+      return response.data?.data?.rentRecords || [];
+    },
+    { dedupingInterval: 0, revalidateOnFocus: false, shouldRetryOnError: false }
+  );
 
   // Fetch deposits for this lease
   useEffect(() => {
     const fetchDeposits = async () => {
-      if (!lease?.id) {
+      if (!leaseId) {
         setDeposits([]);
         return;
       }
 
       setLoadingDeposits(true);
       try {
-        const response = await axiosServices.get(`/api/deposit/lease/${lease.id}`);
+        const response = await axiosServices.get(`/api/deposit/lease/${leaseId}`);
         if (response.data && response.data.success) {
           setDeposits(response.data.data || []);
         }
@@ -71,16 +83,16 @@ export default function PaymentEntryForm({ lease, paymentData, onPaymentDataChan
     };
 
     fetchDeposits();
-  }, [lease?.id]);
+  }, [leaseId]);
 
   // Derive the selected record synchronously so defaults never use the previous lease's balance.
   const rentRecord = useMemo(() => {
-    if (!lease?.id) return null;
+    if (!leaseId) return null;
     const overrideLeaseId = rentRecordOverride?.leaseId ?? rentRecordOverride?.LeaseId;
-    return Number(overrideLeaseId) === Number(lease.id)
-      ? rentRecordOverride
-      : rentRecords?.find((record) => Number(record.leaseId ?? record.LeaseId) === Number(lease.id)) || null;
-  }, [lease?.id, rentRecords, rentRecordOverride]);
+    if (Number(overrideLeaseId) === Number(leaseId)) return rentRecordOverride;
+    if (rentRecordsLoading) return null;
+    return rentRecords?.find((record) => Number(record.leaseId ?? record.LeaseId) === Number(leaseId)) || null;
+  }, [leaseId, rentRecords, rentRecordsLoading, rentRecordOverride]);
 
 
   const unpaidDeposit = useMemo(() => {

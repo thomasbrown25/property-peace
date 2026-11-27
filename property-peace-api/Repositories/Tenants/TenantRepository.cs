@@ -224,11 +224,26 @@ namespace brownstone_hub_api.Repositories.Tenants
                     .ThenInclude(u => u!.Property)
                 .Include(t => t.TenantLeases)
                     .ThenInclude(tl => tl.Lease)
+                    .ThenInclude(l => l.Unit)
+                    .ThenInclude(u => u.Property)
                 .Include(t => t.User)
                 .Where(t => t.OrganizationId == organizationId && !t.IsDeleted)
                 .ToListAsync();
 
-            return _mapper.Map<List<LoadTenantDto>>(tenants);
+            return tenants.Select(tenant =>
+            {
+                var result = _mapper.Map<LoadTenantDto>(tenant);
+                var leaseUnit = tenant.TenantLeases?.FirstOrDefault(link => link.LeaseId == result.LeaseId)?.Lease?.Unit;
+                if (leaseUnit?.Property is { } property && property.OrganizationId == organizationId)
+                {
+                    result.PropertyId = property.Id;
+                    result.PropertyName = string.IsNullOrWhiteSpace(property.Name) ? property.StreetAddress : property.Name;
+                    result.PropertyType = property.PropertyType.ToString();
+                    result.UnitName = leaseUnit.Name;
+                }
+
+                return result;
+            }).ToList();
         }
 
         public async Task<LoadTenantDto> DeleteTenant(long id)

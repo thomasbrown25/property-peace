@@ -62,6 +62,39 @@ test('property Actions matches the payment button using theme-contained styling'
   assert.match(actions, /aria-expanded=\{actionsOpen\}[\s\S]*?sx=\{actionButtonSx\}[\s\S]*?>\s*Actions/);
 });
 
+test('the rent card shows setup only and the Actions drawer shares the state-dependent action', async () => {
+  const [header, actions, page] = await Promise.all([
+    read('./PropertyHeader.jsx'), read('./PropertyActions.jsx'), read('../../../pages/landlord/property.jsx')
+  ]);
+  assert.match(header, /<Stack direction="row"[^>]*flexWrap="wrap"[^>]*>[\s\S]*?Record a payment[\s\S]*?onlinePaymentAction\?\.showInRentCard &&[\s\S]*?onClick=\{onlinePaymentAction\.onSelect\}[\s\S]*?\{onlinePaymentAction\.label\}/);
+  assert.match(actions, /\.\.\.\(onlinePaymentAction \? \[onlinePaymentAction\] : \[\]\)/);
+  assert.match(page, /propertyMatchesRoute && propertyMatchesOrganization && collectsRentOnline\(selectedProperty\)\s*\? \['\/api\/stripe\/account-status', userId, organizationId\]/);
+  assert.match(page, /'X-Organization-Id': String\(scopedOrganizationId\)/);
+  assert.match(page, /<PropertyActions[^>]*onlinePaymentAction=\{onlinePaymentAction\}/);
+  assert.match(page, /<PropertyHeader[^>]*onlinePaymentAction=\{onlinePaymentAction\}/);
+});
+
+test('online payment actions depend on an opted-in long-term lease and confirmed Stripe setup status', async () => {
+  const { collectsRentOnline, getOnlinePaymentAction } = await import('./propertyOnlinePayments.mjs');
+  assert.equal(collectsRentOnline({ units: [{ lease: { rentCollectionByPlatform: true } }] }), true);
+  assert.equal(collectsRentOnline({ Units: [{ Lease: { RentCollectionByPlatform: true } }] }), true);
+  assert.equal(collectsRentOnline({ units: [{ lease: { rentCollectionByPlatform: false } }] }), false);
+  assert.equal(collectsRentOnline({ units: [{ lease: { rentCollectionByPlatform: true, isActive: false } }] }), false);
+  assert.equal(collectsRentOnline({ units: [{ rentalMode: 'shortTerm', lease: { rentCollectionByPlatform: true } }] }), false);
+  assert.equal(collectsRentOnline({ units: [{}] }), false);
+
+  for (const response of [{ detailsSubmitted: false }, { success: true, data: { detailsSubmitted: false } }]) {
+    const setup = getOnlinePaymentAction(response);
+    assert.equal(setup.label, 'Setup online payments');
+    assert.equal(setup.showInRentCard, true);
+  }
+  const edit = getOnlinePaymentAction({ success: true, data: { detailsSubmitted: true } });
+  assert.equal(edit.label, 'Edit online payment settings');
+  assert.equal(edit.showInRentCard, false);
+  assert.equal(getOnlinePaymentAction(), null);
+  assert.equal(getOnlinePaymentAction({ success: false, data: { detailsSubmitted: false } }), null);
+});
+
 test('overview shows property activity without rent due, units at a glance, or tenant and lease cards', async () => {
   const overview = await read('./PropertyOverview.jsx');
   assert.doesNotMatch(overview, /<PropertyCurrentTenant|<PropertyActiveLease/);

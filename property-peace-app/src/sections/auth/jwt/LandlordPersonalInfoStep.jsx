@@ -5,6 +5,7 @@ import * as Yup from 'yup';
 import { Formik } from 'formik';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import { formatPhoneInput } from 'utils/formatters';
+import { authFieldSx, authLabelSx, authPrimaryButtonSx } from './authFormStyles';
 
 const meaningfulText = (label) =>
   Yup.string()
@@ -82,7 +83,7 @@ export default function LandlordPersonalInfoStep({
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                   {nameFields.map(([name, label]) => (
                     <Box key={name} sx={{ flex: 1 }}>
-                      <Typography component="label" htmlFor={`personal-${name}`} variant="body2" fontWeight={600}>
+                      <Typography component="label" htmlFor={`personal-${name}`} variant="body2" sx={authLabelSx}>
                         {label}
                       </Typography>
                       <OutlinedInput
@@ -93,16 +94,17 @@ export default function LandlordPersonalInfoStep({
                         onBlur={handleBlur}
                         fullWidth
                         error={Boolean(touched[name] && errors[name])}
+                        aria-describedby={touched[name] && errors[name] ? `personal-${name}-error` : undefined}
                         inputProps={{ maxLength: 100 }}
-                        sx={{ mt: 0.75 }}
+                        sx={authFieldSx}
                       />
-                      {touched[name] && errors[name] && <FormHelperText error>{errors[name]}</FormHelperText>}
+                      {touched[name] && errors[name] && <FormHelperText id={`personal-${name}-error`} error>{errors[name]}</FormHelperText>}
                     </Box>
                   ))}
                 </Stack>
               )}
               <Box>
-                <Typography component="label" htmlFor="workspace-name" variant="body2" fontWeight={600}>
+                <Typography component="label" htmlFor="workspace-name" variant="body2" sx={authLabelSx}>
                   Workspace or business name
                 </Typography>
                 <OutlinedInput
@@ -113,18 +115,19 @@ export default function LandlordPersonalInfoStep({
                   onBlur={handleBlur}
                   fullWidth
                   error={Boolean(touched.organizationName && errors.organizationName)}
+                  aria-describedby={touched.organizationName && errors.organizationName ? 'workspace-name-error' : undefined}
                   inputProps={{ maxLength: 255 }}
                   placeholder="Example: Oak Street Rentals"
-                  sx={{ mt: 0.75 }}
+                  sx={authFieldSx}
                 />
                 {touched.organizationName && errors.organizationName ? (
-                  <FormHelperText error>{errors.organizationName}</FormHelperText>
+                  <FormHelperText id="workspace-name-error" error>{errors.organizationName}</FormHelperText>
                 ) : (
                   <FormHelperText>This is how your portfolio will be identified in Property Peace.</FormHelperText>
                 )}
               </Box>
               <Box>
-                <Typography component="label" htmlFor="personal-phone" variant="body2" fontWeight={600}>
+                <Typography component="label" htmlFor="personal-phone" variant="body2" sx={authLabelSx}>
                   Phone number
                 </Typography>
                 <OutlinedInput
@@ -137,12 +140,13 @@ export default function LandlordPersonalInfoStep({
                   onBlur={handleBlur}
                   fullWidth
                   error={Boolean(touched.phoneNumber && errors.phoneNumber)}
+                  aria-describedby={touched.phoneNumber && errors.phoneNumber ? 'personal-phone-error' : undefined}
                   inputProps={{ inputMode: 'tel', maxLength: 18 }}
                   placeholder="(555) 555-5555"
-                  sx={{ mt: 0.75 }}
+                  sx={authFieldSx}
                 />
                 {touched.phoneNumber && errors.phoneNumber ? (
-                  <FormHelperText error>{errors.phoneNumber}</FormHelperText>
+                  <FormHelperText id="personal-phone-error" error>{errors.phoneNumber}</FormHelperText>
                 ) : (
                   <FormHelperText>Required. Enter a complete 10-digit US number, including area code.</FormHelperText>
                 )}
@@ -154,7 +158,7 @@ export default function LandlordPersonalInfoStep({
                 type="submit"
                 variant="contained"
                 disabled={isSubmitting}
-                sx={{ py: 1.4, textTransform: 'none', fontWeight: 700 }}
+                sx={authPrimaryButtonSx}
               >
                 {isSubmitting ? 'Creating account…' : 'Create account'}
               </Button>

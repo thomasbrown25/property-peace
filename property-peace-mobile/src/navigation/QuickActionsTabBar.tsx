@@ -38,7 +38,7 @@ const landlordMenu: MenuSection[] = [
     { label: 'Announcements', icon: 'notifications-outline', route: 'Announcements' },
   ] },
   { title: 'Accounting', items: [
-    { label: 'Online Payments', icon: 'card-outline', webPath: '/landlord/online-payments' },
+    { label: 'Online Payments', icon: 'card-outline', webPath: '/landlord/settings?tab=payments' },
     { label: 'Finances', icon: 'cash-outline', route: 'Finances' },
     { label: 'Tax Center', icon: 'receipt-outline', webPath: '/landlord/accounting/tax-center' },
   ] },

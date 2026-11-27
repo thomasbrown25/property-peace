@@ -70,7 +70,7 @@ import axiosServices from 'utils/axios';
 import { getMessageRentStatus } from './messageRentStatus.mjs';
 import { canManageGroupConversation, getConversationBubbleSx } from 'utils/conversationPresentation';
 import { latestConfirmedSentMessageId } from 'utils/latestSentMessage.mjs';
-import { chatConversationRowButtonSx, getChatStyles } from 'themes/chatStyles';
+import { chatConversationRowButtonSx, chatMessageStatusSx, chatSendButtonSx, getChatStyles } from 'themes/chatStyles';
 
 // ==============================|| MESSAGES PAGE ||============================== //
 
@@ -961,7 +961,10 @@ export default function Messages() {
           transition: 'background-color 0.15s ease',
           '& .MuiListItemButton-root:hover': { bgcolor: 'transparent' },
           '& .chat-row-actions': { opacity: 0, pointerEvents: 'none' },
-          '&:hover .chat-row-actions, &:focus-within .chat-row-actions': { opacity: 1, pointerEvents: 'auto' },
+          '&:hover .chat-row-actions, &:focus-within .chat-row-actions, & .chat-row-actions:has([aria-expanded="true"])': {
+            opacity: 1,
+            pointerEvents: 'auto'
+          },
           '@media (hover: none)': { '& .chat-row-actions': { opacity: 1, pointerEvents: 'auto' } },
           '&:hover': { bgcolor: isSelected ? alpha(t.palette.primary.main, 0.07) : alpha(t.palette.primary.main, 0.035) },
           '&:last-of-type': { borderBottom: 0 }
@@ -992,6 +995,7 @@ export default function Messages() {
         <ChatRowActions
           id={`landlord-chat-row-actions-${conversation.id}`}
           name={tenantName}
+          variant="menu"
           onMarkUnread={() => handleRowMarkUnread(conversation.id)}
           onArchive={conversation.isArchived ? undefined : () => handleRowArchive(conversation.id)}
         />
@@ -1556,8 +1560,14 @@ export default function Messages() {
                           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendNewMessage(); } }}
                           inputProps={{ maxLength: MAX_MESSAGE_LENGTH }}
                         />
-                        <IconButton aria-label="Send first message" color="primary" disabled={!draftTenant || !newMessageDraft.trim() || startingConversation} onClick={handleSendNewMessage}>
-                          {startingConversation ? <CircularProgress size={20} /> : <AppIcon name="send" />}
+                        <IconButton
+                          aria-label="Send first message"
+                          disableRipple
+                          disabled={!draftTenant || !newMessageDraft.trim() || startingConversation}
+                          onClick={handleSendNewMessage}
+                          sx={chatSendButtonSx}
+                        >
+                          {startingConversation ? <CircularProgress size={20} /> : <AppIcon name="send" size={20} />}
                         </IconButton>
                       </Stack>
                     </Box>
@@ -1694,9 +1704,10 @@ export default function Messages() {
                         minHeight: 0,
                         overflowY: 'auto',
                         overflowX: 'hidden',
-                        px: { xs: 1, sm: 2.5 },
+                        pl: { xs: 1, sm: 2.5 },
+                        pr: 2.5,
                         py: { xs: 1.5, sm: 2.5 },
-                        bgcolor: isDarkMode ? theme.palette.background.default : theme.palette.surface.nested,
+                        bgcolor: isDarkMode ? theme.palette.background.default : theme.palette.brand.ivory,
                         position: 'relative',
                         zIndex: 0,
                         '&::-webkit-scrollbar': { width: '8px' },
@@ -1960,7 +1971,7 @@ export default function Messages() {
                                         </Box>
                                       </Box>
                                     ) : (
-                                      <Stack direction="row" spacing={0.75} alignItems="flex-end" sx={{ maxWidth: '100%' }}>
+                                      <Stack direction="row" alignItems="flex-end" sx={{ position: 'relative', maxWidth: '100%' }}>
                                         <Paper
                                           elevation={0}
                                           sx={{
@@ -1980,10 +1991,10 @@ export default function Messages() {
                                           </Typography>
                                         </Paper>
                                         {isOwnMessage && message._optimistic && (
-                                          <CircularProgress size={12} sx={{ color: 'primary.main', mb: 0.25, flexShrink: 0 }} />
+                                          <CircularProgress size={12} sx={{ ...chatMessageStatusSx, color: 'primary.main' }} />
                                         )}
                                         {isOwnMessage && !message._optimistic && latestSentMessageId != null && String(message.id) === String(latestSentMessageId) && (
-                                          <Box component="span" role="img" aria-label="Message sent" sx={{ display: 'inline-flex', color: 'success.main', mb: '2px', flexShrink: 0 }}><AppIcon name="checkCircle" size={15} /></Box>
+                                          <Box component="span" role="img" aria-label="Message sent" sx={{ ...chatMessageStatusSx, display: 'inline-flex', color: 'success.main' }}><AppIcon name="checkCircle" size={15} /></Box>
                                         )}
                                       </Stack>
                                     )}
@@ -2155,22 +2166,15 @@ export default function Messages() {
                               <span style={{ alignSelf: 'flex-end' }}>
                                 <IconButton
                                   onClick={handleSendMessage}
+                                  disableRipple
                                   disabled={!messageInput.trim() || sendingMessage}
                                   aria-label="Send message"
-                                  sx={{
-                                    ml: 0.75,
-                                    width: 40,
-                                    height: 40,
-                                    bgcolor: 'primary.main',
-                                    color: '#fff',
-                                    '&:hover': { bgcolor: 'primary.dark' },
-                                    '&.Mui-disabled': { bgcolor: 'action.disabledBackground', color: 'text.disabled' }
-                                  }}
+                                  sx={{ ...chatSendButtonSx, ml: 0.75, width: 40, height: 40 }}
                                 >
                                   {sendingMessage ? (
                                     <CircularProgress size={19} color="inherit" />
                                   ) : (
-                                    <AppIcon name="send" size={18} />
+                                    <AppIcon name="send" size={20} />
                                   )}
                                 </IconButton>
                               </span>

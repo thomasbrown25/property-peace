@@ -1,7 +1,9 @@
 using brownstone_hub_api.Data;
 using brownstone_hub_api.Dtos.Conversation;
+using brownstone_hub_api.Dtos.Message;
 using brownstone_hub_api.Models;
 using brownstone_hub_api.Repositories.Conversations;
+using brownstone_hub_api.Repositories.Messages;
 using brownstone_hub_api.Tests.Helpers;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
@@ -557,6 +559,37 @@ namespace brownstone_hub_api.Tests.Repositories.Conversations
 
             (await _repo.GetUnreadCount(101, 1)).Should().Be(1);
             (await _repo.GetUnreadCount(101, 2)).Should().Be(2);
+        }
+
+        [Fact]
+        public async Task ConversationListUnread_LandlordReadsAndReplies_OnlyTenantHasUnread()
+        {
+            SeedUser(1, "Land", "Lord", "landlord@example.com");
+            SeedUser(2, "Tara", "Tenant", "tenant@example.com");
+            SeedTenant(10, 2, "tenant@example.com");
+            _context.OrganizationMembers.Add(new OrganizationMember
+                { Id = 1, OrganizationId = 50, UserId = 1, IsActive = true, Role = "Owner" });
+            _context.Conversations.Add(new Conversation
+                { Id = 101, Title = "Direct chat", LandlordId = 1, OrganizationId = 50, TenantId = 10 });
+            _context.ConversationParticipants.AddRange(
+                new ConversationParticipant { ConversationId = 101, UserId = 1 },
+                new ConversationParticipant { ConversationId = 101, UserId = 2 });
+            await _context.SaveChangesAsync();
+
+            var messages = new MessageRepository(_context, Mock.Of<ILogger<MessageRepository>>(), MapperFactory.Create());
+            await messages.AddMessage(new AddMessageDto { ConversationId = 101, Content = "Tenant question" }, 2);
+            (await _repo.GetUnreadCount(101, 1)).Should().Be(1);
+            (await _repo.GetUnreadCount(101, 2)).Should().Be(0);
+
+            await messages.MarkConversationAsRead(101, 1);
+            await messages.AddMessage(new AddMessageDto { ConversationId = 101, Content = "Landlord reply" }, 1);
+
+            (await _repo.GetUnreadCount(101, 1)).Should().Be(0);
+            (await _repo.GetUnreadCount(101, 2)).Should().Be(1);
+
+            await messages.AddMessage(new AddMessageDto { ConversationId = 101, Content = "New tenant question" }, 2);
+            (await _repo.GetUnreadCount(101, 1)).Should().Be(1);
+            (await _repo.GetUnreadCount(101, 2)).Should().Be(1);
         }
 
         private static ConversationTimelineEntry TimelineEntry(long conversationId, long sequence,

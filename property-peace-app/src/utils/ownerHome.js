@@ -1,6 +1,7 @@
 import { rentalMode } from './rentalMode.js';
 import { getPropertyOccupancy } from './occupancy.mjs';
 import { getLeaseHeaderBalance } from './leaseHeaderSummary.js';
+import { normalizeRentCollectionMetrics } from './rentCollectionMetrics.js';
 import { isDetachedSingleUnitType } from './propertyType.js';
 
 export function getPropertyOverdueRent(propertyId, records = [], unavailable = false) {
@@ -10,6 +11,20 @@ export function getPropertyOverdueRent(propertyId, records = [], unavailable = f
 }
 
 const read = (item, camel, pascal) => item?.[camel] ?? item?.[pascal];
+
+export function getOwnerRentOverview(summary) {
+  if (read(summary, 'propertyId', 'PropertyId') != null ||
+      read(summary, 'expectedThisMonth', 'ExpectedThisMonth') == null ||
+      read(summary, 'collectedThisMonth', 'CollectedThisMonth') == null) return null;
+
+  const period = read(summary, 'period', 'Period');
+  const overdue = Number(read(summary, 'overdue', 'Overdue'));
+  return {
+    ...normalizeRentCollectionMetrics(summary),
+    period: /^\d{4}-(0[1-9]|1[0-2])$/.test(period) ? period : null,
+    overdue: Number.isFinite(overdue) && overdue > 0 ? overdue : 0
+  };
+}
 
 export function getOwnerProperties(properties = [], now = new Date()) {
   return (properties || []).filter((property) => read(property, 'id', 'Id') != null).map((property) => {
@@ -38,10 +53,7 @@ export function getPropertyRentDueDate(propertyId, records = [], unavailable = f
   const dates = records
     .filter((record) => String(read(record, 'propertyId', 'PropertyId')) === String(propertyId))
     .map((record) => {
-      const currentDue = Number(read(record, 'currentMonthRentDue', 'CurrentMonthRentDue'));
-      const value = currentDue > 0
-        ? read(record, 'currentMonthRentDueDate', 'CurrentMonthRentDueDate') ?? read(record, 'dueDate', 'DueDate')
-        : read(record, 'dueDate', 'DueDate');
+      const value = read(record, 'dueDate', 'DueDate');
       const date = typeof value === 'string' ? value.slice(0, 10) : null;
       return /^\d{4}-\d{2}-\d{2}$/.test(date || '') && !Number.isNaN(Date.parse(`${date}T12:00:00Z`)) ? date : null;
     })
@@ -60,7 +72,7 @@ export function getPropertyMonthRent(propertyId, records = [], unavailable = fal
   return { expected, paid, percent: expected > 0 ? Math.min(100, (paid * 100) / expected) : 0 };
 }
 
-export function getOwnerNextStep({ reminders = [], properties = [], propertiesLoading = false, propertiesError = false } = {}) {
+export function getOwnerNextStep({ reminders = [] } = {}) {
   const reminder = reminders[0];
   if (reminder) {
     return {
@@ -71,7 +83,5 @@ export function getOwnerNextStep({ reminders = [], properties = [], propertiesLo
         : reminder.type === 'maintenance' ? '/landlord/maintenances' : '/landlord/dashboard?tab=tasks'
     };
   }
-  if (propertiesLoading || propertiesError) return null;
-  if (!properties?.length) return { title: 'Add your first property', label: 'Get started', href: '/landlord/properties/add' };
   return null;
 }

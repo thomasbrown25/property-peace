@@ -1746,7 +1746,7 @@ namespace brownstone_hub_api.Services.LeaseService
         .header {{ background-color: #4A90E2; color: white; padding: 20px; text-align: center; }}
         .content {{ padding: 20px; background-color: #f9f9f9; }}
         .button {{ display: inline-block; padding: 12px 24px; background-color: #4A90E2; color: white; text-decoration: none; border-radius: 4px; margin: 20px 0; }}
-        .footer {{ text-align: center; padding: 20px; color: #666; font-size: 12px; }}
+        .footer {{ background-color: #102C29; text-align: center; padding: 20px; color: #E1EFE8; font-size: 12px; }}
     </style>
 </head>
 <body>

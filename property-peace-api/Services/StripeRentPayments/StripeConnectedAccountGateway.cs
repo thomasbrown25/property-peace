@@ -33,7 +33,8 @@ namespace brownstone_hub_api.Services.StripeRentPayments
         string? CardPaymentsCapabilityStatus = null,
         string? DashboardType = null,
         string? LossesPayments = null,
-        string? FeesPayer = null)
+        string? FeesPayer = null,
+        string? Country = null)
     {
         public bool IsStripeManagedDirectCharge =>
             string.Equals(DashboardType, "full", StringComparison.OrdinalIgnoreCase)
@@ -226,7 +227,8 @@ namespace brownstone_hub_api.Services.StripeRentPayments
                 account.Capabilities?.CardPayments,
                 account.Controller?.StripeDashboard?.Type,
                 account.Controller?.Losses?.Payments,
-                account.Controller?.Fees?.Payer);
+                account.Controller?.Fees?.Payer,
+                account.Country);
         }
 
         private static string GetFingerprintMaterial(IExternalAccount externalAccount) => externalAccount switch

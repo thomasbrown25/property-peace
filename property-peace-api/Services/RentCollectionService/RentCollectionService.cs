@@ -244,6 +244,7 @@ namespace brownstone_hub_api.Services.RentCollectionService
                         OverdueAmount = rentBalance.OverdueAmount,
                         RentDue = rentBalance.RentDue,
                         RentDueIsOverdue = rentBalance.IsOverdue,
+                        OldestOverdueRentDueDate = rentBalance.OldestOverdueRentDueDate,
                         CurrentMonthRentDue = historical ? periodRemaining : rentBalance.CurrentMonthRentDue,
                         CurrentMonthRentDueDate = rentBalance.CurrentMonthRentDueDate,
                         CurrentMonthRentIsOverdue = !historical && rentBalance.OverdueAmount > rentBalance.PriorPeriodOverdueRent,
@@ -270,6 +271,7 @@ namespace brownstone_hub_api.Services.RentCollectionService
                     Summary = new RentCollectionSummaryDto
                     {
                         PropertyId = propertyId,
+                        Period = startOfMonth.ToString("yyyy-MM", System.Globalization.CultureInfo.InvariantCulture),
                         TotalMonthlyRent = totalMonthlyRent,
                         CollectedThisMonth = collectedThisMonth,
                         ExpectedThisMonth = expectedThisMonth,
@@ -450,6 +452,7 @@ namespace brownstone_hub_api.Services.RentCollectionService
                     OverdueAmount = rentBalance.OverdueAmount,
                     RentDue = rentBalance.RentDue,
                     RentDueIsOverdue = rentBalance.IsOverdue,
+                    OldestOverdueRentDueDate = rentBalance.OldestOverdueRentDueDate,
                     CurrentMonthRentDue = rentBalance.CurrentMonthRentDue,
                     CurrentMonthRentDueDate = rentBalance.CurrentMonthRentDueDate,
                     CurrentMonthRentIsOverdue = rentBalance.OverdueAmount > rentBalance.PriorPeriodOverdueRent,

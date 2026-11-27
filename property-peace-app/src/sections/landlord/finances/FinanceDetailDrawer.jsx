@@ -1,7 +1,8 @@
 import PropTypes from 'prop-types';
-import { Alert, Box, Chip, Drawer, IconButton, Stack, Typography } from '@mui/material';
+import { Alert, Box, Chip, Divider, IconButton, Stack, Typography } from '@mui/material';
 
 import AppIcon from 'components/AppIcon';
+import ThemeAdaptiveDrawer from 'components/drawers/shared/ThemeAdaptiveDrawer';
 import { formatMoneyCenterDate } from 'utils/moneyCenter';
 
 const money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
@@ -23,8 +24,7 @@ export default function FinanceDetailDrawer({ item, onClose }) {
   ] : [];
 
   return (
-    <Drawer
-      anchor="right"
+    <ThemeAdaptiveDrawer
       open={Boolean(item)}
       onClose={onClose}
       slotProps={{
@@ -32,29 +32,40 @@ export default function FinanceDetailDrawer({ item, onClose }) {
           role: 'dialog',
           'aria-modal': true,
           'aria-labelledby': 'finance-detail-title',
-          sx: { width: { xs: '100%', sm: 440 }, p: { xs: 2, sm: 3 } }
+          sx: { width: { xs: '100%', sm: 440 }, maxWidth: '100vw' }
         }
       }}
     >
       {item && (
         <>
-          <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1.5}>
+          <Stack
+            direction="row"
+            justifyContent="space-between"
+            alignItems="center"
+            spacing={1.5}
+            sx={{ px: { xs: 2, sm: 3 }, py: 2, flexShrink: 0 }}
+          >
             <Box minWidth={0}>
-              <Typography variant="overline" color="text.secondary">Source record</Typography>
-              <Typography id="finance-detail-title" variant="h4" noWrap>{item.description || item.category || 'Financial record'}</Typography>
+              <Typography variant="caption" color="text.secondary">Source record</Typography>
+              <Typography id="finance-detail-title" component="h2" variant="h4" fontWeight={700} sx={{ overflowWrap: 'anywhere' }}>
+                {item.description || item.category || 'Financial record'}
+              </Typography>
             </Box>
-            <IconButton onClick={onClose} aria-label="Close finance detail"><AppIcon name="close" /></IconButton>
+            <IconButton onClick={onClose} aria-label="Close finance detail" size="small"><AppIcon name="close" /></IconButton>
           </Stack>
+          <Divider />
 
-          <Stack spacing={2.1} sx={{ mt: 3 }}>
+          <Stack spacing={2.1} sx={{ flex: 1, overflowY: 'auto', px: { xs: 2, sm: 3 }, py: 2.5 }}>
             <Box>
               <Typography variant="caption" color="text.secondary">Amount</Typography>
-              <Typography variant="h3" color={`${tone[item.direction] || 'primary'}.main`}>{money.format(Number(item.amount) || 0)}</Typography>
+              <Typography variant="h3" fontWeight={700}>{money.format(Number(item.amount) || 0)}</Typography>
             </Box>
             <Chip
               label={typeLabel[item.direction] || item.direction || 'Type not recorded'}
               color={tone[item.direction] || 'default'}
-              sx={{ alignSelf: 'flex-start' }}
+              size="small"
+              variant="outlined"
+              sx={{ alignSelf: 'flex-start', color: 'inherit' }}
             />
             {details.map(([label, value]) => (
               <Box key={label}>
@@ -69,7 +80,7 @@ export default function FinanceDetailDrawer({ item, onClose }) {
           </Stack>
         </>
       )}
-    </Drawer>
+    </ThemeAdaptiveDrawer>
   );
 }
 

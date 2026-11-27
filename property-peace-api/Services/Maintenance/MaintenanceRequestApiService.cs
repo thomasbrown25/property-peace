@@ -221,8 +221,28 @@ public sealed partial class MaintenanceRequestApiService(
         var actor = await actors.GetCurrentAsync(cancellationToken);
         if (actor is null) return MaintenanceApiResult<IReadOnlyList<MaintenanceRequestDetailDto>>.Error(MaintenanceApiResultCode.Unauthorized, "Authentication is required.");
         var requests = await ScopedRequests(actor, tracking: false).OrderByDescending(x => x.UpdatedAt).ToListAsync(cancellationToken);
-        return MaintenanceApiResult<IReadOnlyList<MaintenanceRequestDetailDto>>.Success(requests.Select(x => Map(x, actor)).ToArray());
+        var assigneeIds = actor.IsTenant || actor.IsVendor ? [] : requests.Select(GetTeamAssigneeId).OfType<long>().Distinct().ToArray();
+        if (assigneeIds.Length == 0)
+            return MaintenanceApiResult<IReadOnlyList<MaintenanceRequestDetailDto>>.Success(requests.Select(x => Map(x, actor)).ToArray());
+
+        var assigneeNames = await db.Users.Where(user => assigneeIds.Contains(user.Id))
+            .Select(user => new { user.Id, user.FirstName, user.LastName })
+            .ToDictionaryAsync(user => user.Id, user => $"{user.FirstName} {user.LastName}".Trim(), cancellationToken);
+
+        var details = requests.Select(request =>
+        {
+            var name = GetTeamAssigneeId(request) is { } userId ? assigneeNames.GetValueOrDefault(userId) : null;
+            return Map(request, actor, string.IsNullOrWhiteSpace(name) ? null : name);
+        }).ToArray();
+        return MaintenanceApiResult<IReadOnlyList<MaintenanceRequestDetailDto>>.Success(details);
     }
+
+    private static long? GetTeamAssigneeId(MaintenanceRequest request) => request.AssignedToType switch
+    {
+        EAssignedToType.OrganizationMember => request.AssignedToUserId,
+        EAssignedToType.Self => request.AssignedToUserId ?? request.AssignedByUserId,
+        _ => null
+    };
 
     public async Task<MaintenanceApiResult<MaintenanceRequestDetailDto>> AcknowledgeAsync(long id, CancellationToken cancellationToken = default)
     {
@@ -405,7 +425,7 @@ public sealed partial class MaintenanceRequestApiService(
         return tracking ? query : query.AsNoTracking();
     }
 
-    private MaintenanceRequestDetailDto Map(MaintenanceRequest request, MaintenanceActor? actor = null) => new(
+    private MaintenanceRequestDetailDto Map(MaintenanceRequest request, MaintenanceActor? actor = null, string? assignedToUserName = null) => new(
         request.Id, request.PropertyId, request.UnitId, request.Title, request.Description, request.LocationDetails,
         request.Status, request.Urgency, request.TriagePolicyVersion, request.LandlordSummary,
         DeserializeMissing(request.MissingInformationJson), request.StopTroubleshooting, request.TriagedAtUtc,
@@ -414,7 +434,8 @@ public sealed partial class MaintenanceRequestApiService(
         request.TroubleshootingSteps.OrderBy(x => x.Sequence).Select(Map).ToArray(),
         request.ResolutionCycle,
         request.AssignedToType == EAssignedToType.Unassigned ? null : new MaintenanceAssignmentDto(request.AssignedToType,
-            request.AssignedToUserId, request.VendorId, request.EstimateRequired, request.AssignedByUserId, request.AssignedAt),
+            request.AssignedToUserId ?? GetTeamAssigneeId(request), request.VendorId, request.EstimateRequired, request.AssignedByUserId, request.AssignedAt)
+            { AssignedToUserName = assignedToUserName },
         actor?.IsTenant == true ? [] : request.Estimates.Where(x => actor?.IsVendor != true || x.VendorId == request.VendorId).OrderBy(x => x.Version).Select(MapEstimate).ToArray(),
         actor?.IsTenant == true ? [] : request.WorkOrders.Where(x => actor?.IsVendor != true || x.VendorId == request.VendorId).OrderBy(x => x.Version).Select(MapWorkOrder).ToArray(),
         request.Appointments.OrderBy(x => x.StartsAtUtc).Select(MapAppointment).ToArray(),

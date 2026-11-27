@@ -41,6 +41,20 @@ test('tenant dashboard shows Rent Status, Lease Summary, and Announcements in th
   );
 });
 
+test('Lease Summary uses the theme primary color for its property, lease period, and rent icons', () => {
+  const summary = dashboard.slice(dashboard.indexOf('title="Lease Summary"')).split('</MainCard>')[0];
+  for (const icon of ['HomeOutlined', 'CalendarOutlined', 'DollarOutlined']) {
+    const iconMarkup = summary.match(new RegExp(`<${icon}\\b[^>]*>`))?.[0];
+    assert.match(iconMarkup ?? '', /color: theme\.palette\.primary\.main/);
+  }
+});
+
+test('Rent Status shows the next due date icon without a background or outline', () => {
+  const iconStyle = dashboard.match(/const iconBoxSx = \{([\s\S]*?)^\s*\};/m)?.[1];
+  assert.ok(iconStyle);
+  assert.doesNotMatch(iconStyle, /\b(?:bgcolor|background\w*|border|boxShadow):/);
+});
+
 test('charge list shows a single accumulated rent balance, not installment rows', () => {
   assert.match(list, /charges\.filter\(\(item\) => String\(item\.type[^\n]+!== 'rent'\)/);
   assert.match(list, /Accumulated rent balance/);

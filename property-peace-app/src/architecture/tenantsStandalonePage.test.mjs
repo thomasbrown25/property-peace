@@ -4,6 +4,12 @@ import { readFileSync } from 'node:fs';
 
 const source = (path) => readFileSync(new URL(path, import.meta.url), 'utf8');
 
+test('the tenant invite effect receives a stable empty list while tenant data is missing', () => {
+  const directory = source('../sections/landlord/tenants/TenantsContent.jsx');
+  assert.match(directory, /const EMPTY_TENANTS = \[\];[\s\S]*export default function TenantsContent/);
+  assert.match(directory, /const tenants = useSelector\(selectTenants\) \?\? EMPTY_TENANTS;/);
+});
+
 test('tenant directory is a guarded standalone page with the existing directory and add drawer', () => {
   const routes = source('../routes/MainRoutes.jsx');
   const page = source('../pages/landlord/tenants.jsx');

@@ -5,7 +5,7 @@ import { dirname, join } from 'node:path';
 import test from 'node:test';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const pages = 'checklists calendar maintenances messages ai-center listing-create property-add-workflow announcement-details online-payments dashboard-overview inspection-detail lease-shield'.split(' ');
+const pages = 'checklists calendar maintenances messages ai-center listing-create property-add-workflow announcement-details dashboard-overview inspection-detail lease-shield'.split(' ');
 
 for (const page of pages) {
   test(`${page} does not paint a navy fill or hover`, () => {
@@ -15,7 +15,17 @@ for (const page of pages) {
   });
 }
 
-test('online payments uses palette colors in the hero gradient', () => {
-  const source = readFileSync(join(here, 'online-payments.jsx'), 'utf8');
-  assert.match(source, /linear-gradient\(145deg, \$\{theme\.palette\.brand\.forest\}/);
+test('lease builder panels use the same nested surface as the portal in both theme modes', () => {
+  for (const file of ['LeaseAgreementBuilder', 'LeasePreview', 'PolicyBuilder']) {
+    const source = readFileSync(join(here, '..', '..', 'sections', 'lease-builder', `${file}.jsx`), 'utf8');
+    assert.match(source, /bgcolor: 'surface.nested'/, file);
+    assert.doesNotMatch(source, /bgcolor: 'grey.50'/, file);
+  }
+});
+
+test('standalone agreement editors leave the shared portal background visible', () => {
+  for (const file of ['pets-smoking-other', 'utilities-maintenance-keys', 'provisions-attachments']) {
+    const source = readFileSync(join(here, 'build-lease-agreement', `${file}.jsx`), 'utf8');
+    assert.match(source, /<Box sx=\{embedded \? undefined : \{ minHeight: '100vh', display: 'flex'/, file);
+  }
 });

@@ -60,6 +60,7 @@ function harness(options = {}, initialRent = { rentRecords: [], loading: true })
   let props = { lease, paymentData: { amount: 0, amountDisplay: '', paymentDate: new Date('2026-11-01') }, ...options };
   let rent = initialRent;
   const calls = [], requests = [];
+  let rentLookup;
   const depsChanged = (old, next) => !old || !next || next.some((v, i) => !Object.is(v, old[i]));
   const useState = initial => {
     const index = cursor++;
@@ -78,12 +79,15 @@ function harness(options = {}, initialRent = { rentRecords: [], loading: true })
     if (depsChanged(slots[index]?.deps, deps)) slots[index] = { deps, value: fn() };
     return slots[index].value;
   };
-  const axiosServices = { get(url) {
-    return new Promise(resolve => requests.push({ url, resolve }));
+  const axiosServices = { get(url, config) {
+    return new Promise(resolve => requests.push({ url, config, resolve }));
   } };
-  const Form = new Function('element', 'useState', 'useEffect', 'useMemo', 'useFetchRentCollection',
+  const Form = new Function('element', 'useState', 'useEffect', 'useMemo', 'useSWR', 'useOrganization',
     'axiosServices', 'formatCurrency', 'normalizeRentBalance', 'getCurrentRentPresentation', 'AdapterDateFns', formCode)(
-    element, useState, useEffect, useMemo, () => rent, axiosServices, currency,
+    element, useState, useEffect, useMemo, (key, fetcher) => {
+      rentLookup = { key, fetcher };
+      return { data: rent.rentRecords, isValidating: rent.loading };
+    }, () => ({ currentOrganization: { id: 3 } }), axiosServices, currency,
     normalizeRentBalance, getCurrentRentPresentation, {});
   const change = data => { calls.push(data); props.paymentData = data; dirty = true; };
   const render = () => {
@@ -98,6 +102,7 @@ function harness(options = {}, initialRent = { rentRecords: [], loading: true })
   };
   return {
     render, calls, requests,
+    get rentLookup() { return rentLookup; },
     get tree() { return tree; }, get payment() { return props.paymentData; },
     setRent(records, loading = false) { rent = { rentRecords: records, loading }; return render(); },
     setProps(overrides) { props = { ...props, ...overrides }; return render(); },
@@ -109,6 +114,18 @@ function harness(options = {}, initialRent = { rentRecords: [], loading: true })
     }
   };
 }
+test('payment details fetch the selected lease without writing to the portfolio rent store', async () => {
+  const h = harness();
+  h.render();
+
+  assert.deepEqual(h.rentLookup?.key, ['payment-entry-rent', 3, 11]);
+  const pending = h.rentLookup.fetcher(h.rentLookup.key);
+  assert.equal(h.requests[1].url, '/api/rent-collection');
+  assert.deepEqual(h.requests[1].config, { params: { leaseId: 11 }, headers: { 'X-Organization-Id': '3' } });
+  h.requests[1].resolve({ data: { data: { rentRecords: [record] } } });
+  assert.deepEqual(await pending, [record]);
+});
+
 async function loaded(options = {}, rentRecord = record, deposits = []) {
   const h = harness(options);
   h.render(); h.setRent([rentRecord]); await h.deposits(deposits);

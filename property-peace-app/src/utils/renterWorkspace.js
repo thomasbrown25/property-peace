@@ -31,6 +31,13 @@ export function leasesWorkspaceTabFromSearch(search) {
   return LEASES_WORKSPACE_TABS.has(requested) ? requested : 'leases';
 }
 
+export function leaseWorkspaceViewFromSearch(search) {
+  const searchParams = searchParamsFrom(search);
+  const requestedView = searchParams.get('view');
+  if (LEASE_VIEW_FILTERS.has(requestedView)) return requestedView;
+  return searchParams.get('tab') === 'history' ? 'history' : 'current';
+}
+
 export function leasesWorkspaceSearch(tab, currentSearch = '') {
   const destination = LEASES_WORKSPACE_TABS.has(tab) ? tab : 'leases';
   if (destination === 'tenants' || destination === 'agreements') return `?tab=${destination}`;

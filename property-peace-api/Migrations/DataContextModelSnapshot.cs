@@ -5916,6 +5916,20 @@ namespace brownstone_hub_api.Migrations
                     b.ToTable("MaintenanceWorkOrders", "maintenance");
                 });
 
+            modelBuilder.Entity("brownstone_hub_api.Models.MarketingEmailOptOut", b =>
+                {
+                    b.Property<string>("EmailHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)");
+
+                    b.Property<DateTimeOffset>("UnsubscribedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("EmailHash");
+
+                    b.ToTable("MarketingEmailOptOuts", "communication");
+                });
+
             modelBuilder.Entity("brownstone_hub_api.Models.Message", b =>
                 {
                     b.Property<long>("Id")
@@ -6670,6 +6684,9 @@ namespace brownstone_hub_api.Migrations
 
                     b.Property<string>("Email")
                         .HasColumnType("nvarchar(450)");
+
+                    b.Property<bool>("HasDismissedOnlinePaymentsSetup")
+                        .HasColumnType("bit");
 
                     b.Property<long?>("InvitedBy")
                         .HasColumnType("bigint");
@@ -11269,6 +11286,33 @@ namespace brownstone_hub_api.Migrations
                         .IsUnique();
 
                     b.ToTable("StripeConnectPreparationProperties", "financial");
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.StripeConnectOAuthReplay", b =>
+                {
+                    b.Property<string>("CodeHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateTime>("ConsumedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("StateNonceHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.HasKey("CodeHash");
+
+                    b.HasIndex("ExpiresAt");
+
+                    b.HasIndex("StateNonceHash")
+                        .IsUnique();
+
+                    b.ToTable("StripeConnectOAuthReplays", "financial");
                 });
 
             modelBuilder.Entity("brownstone_hub_api.Models.StripeConnectedPayeeReview", b =>

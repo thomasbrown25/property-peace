@@ -187,8 +187,8 @@ function KeyLegend({ items = [], sx = {} }) {
     ['RP', 'Needs Replacing']
   ];
   return (
-    <Box sx={{ p: 1.75, height: '100%', borderRadius: 1.5, bgcolor: '#fff', border: `1px solid ${theme.palette.divider}`, color: '#061e35', ...sx }}>
-      <Typography variant="caption" sx={{ display: 'block', mb: 1, lineHeight: 1.4, color: '#365069' }}>
+    <Box sx={{ p: 1.75, height: '100%', borderRadius: 1.5, bgcolor: 'background.paper', border: `1px solid ${theme.palette.divider}`, color: 'text.primary', ...sx }}>
+      <Typography variant="caption" sx={{ display: 'block', mb: 1, lineHeight: 1.4, color: 'text.secondary' }}>
         Unless otherwise noted, premises are in clean, good working order and undamaged. Use the key below.
       </Typography>
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: '2px 16px' }}>
@@ -197,7 +197,7 @@ function KeyLegend({ items = [], sx = {} }) {
           return (
             <Stack key={abbr} direction="row" spacing={1} alignItems="baseline">
               <Typography variant="caption" fontWeight={800} sx={{ color: conditionColor, minWidth: 40, whiteSpace: 'nowrap' }}>{abbr}</Typography>
-              <Typography variant="caption" sx={{ color: '#365069' }}>{desc}<Box component="span" sx={{ color: conditionColor, fontWeight: 800, ml: 0.75, whiteSpace: 'nowrap' }}>{counts[abbr]}</Box></Typography>
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>{desc}<Box component="span" sx={{ color: conditionColor, fontWeight: 800, ml: 0.75, whiteSpace: 'nowrap' }}>{counts[abbr]}</Box></Typography>
             </Stack>
           );
         })}
@@ -785,7 +785,7 @@ function RoomInspectionSection({ room, checklist, expanded, onToggle, onAddItem,
         overflow: 'hidden',
         border: `1px solid ${alpha(progressColor, complete ? 0.28 : 0.18)}`,
         boxShadow: 'none',
-        bgcolor: '#fff'
+        bgcolor: 'background.paper'
       }}
     >
       <Box
@@ -820,7 +820,7 @@ function RoomInspectionSection({ room, checklist, expanded, onToggle, onAddItem,
                     width: 26,
                     height: 26,
                     border: `1px solid ${alpha(progressColor, 0.25)}`,
-                    bgcolor: expanded ? alpha(progressColor, 0.1) : '#fff',
+                    bgcolor: expanded ? alpha(progressColor, 0.1) : 'background.paper',
                     color: progressColor,
                     '&:hover': { bgcolor: alpha(progressColor, 0.14) }
                   }}
@@ -1325,9 +1325,9 @@ function InspectionColumn({ type, checklist, counterpartChecklist, relatedLease,
       {checklist && (
         <Grid container spacing={2} alignItems="stretch">
           <Grid size={{ xs: 12, md: 4 }}>
-            <Box sx={{ height: '100%', p: 1.75, border: `1px solid ${theme.palette.divider}`, borderRadius: 1.5, bgcolor: '#fff' }}>
-              <Typography variant="subtitle2" fontWeight={800} sx={{ color: '#061e35' }}>Rooms</Typography>
-              <Typography variant="caption" sx={{ display: 'block', mt: 0.25, mb: 1.25, lineHeight: 1.4, color: '#365069' }}>
+            <Box sx={{ height: '100%', p: 1.75, border: `1px solid ${theme.palette.divider}`, borderRadius: 1.5, bgcolor: 'background.paper' }}>
+              <Typography variant="subtitle2" fontWeight={800} sx={{ color: 'text.primary' }}>Rooms</Typography>
+              <Typography variant="caption" sx={{ display: 'block', mt: 0.25, mb: 1.25, lineHeight: 1.4, color: 'text.secondary' }}>
                 Add another room and then add its checklist items below.
               </Typography>
               <Stack direction="row" spacing={1}>
@@ -1339,7 +1339,7 @@ function InspectionColumn({ type, checklist, counterpartChecklist, relatedLease,
                   onChange={(e) => setNewRoomName(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') handleAddRoom(); }}
                   disabled={addingRoom}
-                  sx={{ '& .MuiInputBase-input': { color: '#061e35' }, '& .MuiOutlinedInput-notchedOutline': { borderColor: '#a8b6c3' } }}
+                  sx={{ '& .MuiInputBase-input': { color: 'text.primary' }, '& .MuiOutlinedInput-notchedOutline': { borderColor: 'divider' } }}
                 />
                 <Button
                   variant="contained"
@@ -1595,7 +1595,7 @@ function ChecklistOverviewColumn({ title, description, checklists, accentColor, 
                   py: 1.75,
                   borderRadius: 2,
                   border: `1px solid ${alpha(theme.palette.divider, 0.8)}`,
-                  bgcolor: '#fff',
+                  bgcolor: 'background.paper',
                   cursor: 'pointer',
                   transition: 'border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease',
                   '&:hover': { borderColor: alpha(accentColor, 0.42), boxShadow: `0 6px 18px ${alpha(accentColor, 0.07)}`, transform: 'translateY(-1px)' },

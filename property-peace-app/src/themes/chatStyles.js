@@ -10,6 +10,20 @@ export const chatConversationRowButtonSx = {
   borderRadius: 0
 };
 
+export const chatMessageStatusSx = {
+  position: 'absolute',
+  left: 'calc(100% + 3px)',
+  bottom: '2px'
+};
+
+export const chatSendButtonSx = {
+  bgcolor: 'transparent',
+  color: 'primary.main',
+  '&:hover': { bgcolor: 'transparent', color: 'text.primary' },
+  '&.Mui-disabled': { bgcolor: 'transparent', color: 'text.disabled' },
+  '&.Mui-focusVisible': { outline: '2px solid', outlineColor: 'primary.main' }
+};
+
 export function getChatStyles(theme) {
   const dark = theme.palette.mode === 'dark';
   const { primary, divider } = theme.palette;

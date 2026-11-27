@@ -11,15 +11,13 @@ const bankAccountControllerSource = await readFile(
   'utf8'
 );
 
-test('Bank Accounts shows the payment entity first and provides add, edit, and remove management actions', () => {
+test('Stripe shows account status before its bank list and opens Stripe for account management', () => {
   assert.match(bankAccountsSource, /bankAccountAPI\.getBankAccounts\(currentOrganization/);
   assert.match(bankAccountsSource, /bankAccounts\.map\(\(account\)/);
-  assert.ok(bankAccountsSource.indexOf('Payment entity') < bankAccountsSource.indexOf('Connected bank accounts'));
-  assert.match(bankAccountsSource, /Add bank account/);
-  assert.match(bankAccountsSource, /Edit entity/);
-  assert.match(bankAccountsSource, />\s*Edit\s*</);
-  assert.match(bankAccountsSource, />\s*Remove\s*</);
-  assert.match(bankAccountsSource, /openBankAccountManagement\('remove'\)/);
+  assert.ok(bankAccountsSource.indexOf('label={stripeStatus.label}') < bankAccountsSource.indexOf('Connected bank accounts'));
+  assert.match(bankAccountsSource, /Manage in Stripe/);
+  assert.match(bankAccountsSource, /const stripeAction = !hasStripeAccount \? openStripeSetup : needsHostedOnboarding \? openStripeHostedOnboarding : openStripeDashboard/);
+  assert.match(bankAccountsSource, /const refreshStripeStatus = \(\) =>[\s\S]*?checkAccountStatus\(\);[\s\S]*?fetchBankAccounts\(\);/);
   assert.match(bankAccountsSource, /ConnectAccountManagement/);
   assert.match(bankAccountsSource, /\/api\/stripe\/account-management-session/);
   assert.doesNotMatch(bankAccountsSource, /routingNumber|accountNumber/);

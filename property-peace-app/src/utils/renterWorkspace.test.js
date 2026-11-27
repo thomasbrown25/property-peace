@@ -13,13 +13,21 @@ test('Leases workspace tab is selected from the canonical tab query value', () =
   assert.equal(call('leasesWorkspaceTabFromSearch', new URLSearchParams('tab=agreements')), 'agreements');
   assert.equal(call('leasesWorkspaceTabFromSearch', '?tab=unknown'), 'leases');
   assert.equal(call('leasesWorkspaceTabFromSearch', '?view=history'), 'leases');
+  assert.equal(call('leasesWorkspaceTabFromSearch', '?view=overdue'), 'leases');
 });
 
 test('changing Leases workspace tabs keeps only query state that belongs to the destination', () => {
   assert.equal(call('leasesWorkspaceSearch', 'tenants', '?view=history&search=oak'), '?tab=tenants');
   assert.equal(call('leasesWorkspaceSearch', 'agreements', '?view=history'), '?tab=agreements');
   assert.equal(call('leasesWorkspaceSearch', 'leases', '?tab=tenants&view=history'), '?view=history');
+  assert.equal(call('leasesWorkspaceSearch', 'leases', '?view=overdue'), '?view=overdue');
   assert.equal(call('leasesWorkspaceSearch', 'leases', '?tab=tenants'), '');
+});
+
+test('rent overview overdue links initialize the lease list with the same overdue view', () => {
+  assert.equal(call('leaseWorkspaceViewFromSearch', '?view=overdue'), 'overdue');
+  assert.equal(call('leaseWorkspaceViewFromSearch', '?tab=history'), 'history');
+  assert.equal(call('leaseWorkspaceViewFromSearch', '?view=unknown'), 'current');
 });
 
 test('renter profile tab accepts only the six supported URL keys', () => {

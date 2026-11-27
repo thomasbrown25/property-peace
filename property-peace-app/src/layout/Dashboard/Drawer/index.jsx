@@ -10,23 +10,27 @@ import DrawerHeader from './DrawerHeader';
 import DrawerContent from './DrawerContent';
 import MiniDrawerStyled from './MiniDrawerStyled';
 
-import { DRAWER_WIDTH } from 'config';
+import { DRAWER_WIDTH, MenuOrientation } from 'config';
 import { handlerDrawerOpen } from 'api/menu';
+import { ConfigContext } from 'contexts/ConfigContext';
 import useConfig from 'hooks/useConfig';
 
 const DEFAULT_LIGHT_DRAWER_BACKGROUND = '#ffffff';
 
 // ==============================|| MAIN LAYOUT - DRAWER ||============================== //
 
-export default function MainDrawer({ window, mobileOpen = false, onMobileClose }) {
+export default function MainDrawer({ window, desktopOpen = true, mobileOpen = false, onMobileClose }) {
   const downLG = useMediaQuery((theme) => theme.breakpoints.down('lg'));
-  const drawerOpen = downLG ? mobileOpen : true;
+  const drawerOpen = downLG ? mobileOpen : desktopOpen;
   // The existing nav items read menuMaster to decide whether to display labels.
   useEffect(() => {
     handlerDrawerOpen(drawerOpen);
   }, [drawerOpen]);
-  const { presetColor } = useConfig();
-  const lightDrawerBackground = presetColor === 'default' ? DEFAULT_LIGHT_DRAWER_BACKGROUND : undefined;
+  const config = useConfig();
+  const lightDrawerBackground = config.presetColor === 'default' ? DEFAULT_LIGHT_DRAWER_BACKGROUND : undefined;
+  const drawerConfig = !downLG && !desktopOpen && config.menuOrientation === MenuOrientation.HORIZONTAL
+    ? { ...config, menuOrientation: MenuOrientation.VERTICAL }
+    : config;
 
   // responsive drawer container
   const container = window !== undefined ? () => window().document.body : undefined;
@@ -39,12 +43,14 @@ export default function MainDrawer({ window, mobileOpen = false, onMobileClose }
   );
 
   return (
-    <Box component="nav" sx={{ flexShrink: 0, zIndex: 1200 }} aria-label="Admin navigation"
+    <Box component="nav" id="admin-navigation" sx={{ flexShrink: 0, zIndex: 1200 }} aria-label="Admin navigation"
       onClick={(event) => { if (downLG && event.target.closest('a[href]')) onMobileClose(); }}>
       {!downLG ? (
         <MiniDrawerStyled variant="permanent" open={drawerOpen} lightDrawerBackground={lightDrawerBackground}>
-          {drawerHeader}
-          {drawerContent}
+          <ConfigContext.Provider value={drawerConfig}>
+            {drawerHeader}
+            {drawerContent}
+          </ConfigContext.Provider>
         </MiniDrawerStyled>
       ) : (
         <Drawer
@@ -79,4 +85,4 @@ export default function MainDrawer({ window, mobileOpen = false, onMobileClose }
   );
 }
 
-MainDrawer.propTypes = { window: PropTypes.func, mobileOpen: PropTypes.bool, onMobileClose: PropTypes.func };
+MainDrawer.propTypes = { window: PropTypes.func, desktopOpen: PropTypes.bool, mobileOpen: PropTypes.bool, onMobileClose: PropTypes.func };

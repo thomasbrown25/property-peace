@@ -25,6 +25,8 @@ namespace brownstone_hub_api.Dtos.RentCollection
         public decimal RentDue { get; set; }
         /// <summary>True when any part of RentDue is overdue.</summary>
         public bool RentDueIsOverdue { get; set; }
+        /// <summary>Oldest unpaid installment that is past its configured grace period.</summary>
+        public DateTime? OldestOverdueRentDueDate { get; set; }
         /// <summary>Remaining rent installment for the current calendar month.</summary>
         public decimal CurrentMonthRentDue { get; set; }
         /// <summary>Due date for the current calendar month's rent installment.</summary>

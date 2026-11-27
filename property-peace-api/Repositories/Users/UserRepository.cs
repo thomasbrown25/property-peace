@@ -204,8 +204,6 @@ namespace brownstone_hub_api.Repositories.Users
         {
             // Hard delete: completely remove the user record from the database
             // UserRoles will be deleted automatically via cascade delete (configured in UserRoleConfig)
-            // Other relationships use SetNull, so they'll be set to null automatically
-
             // Load user with related data to ensure proper deletion
             var userToDelete = await _context.Users
                 .Include(u => u.UserRoles)
@@ -231,7 +229,12 @@ namespace brownstone_hub_api.Repositories.Users
                 _context.NotificationSettings.Remove(notificationSettings);
             }
 
-            // Remove the user
+            var storageObjects = await _context.StorageObjects
+                .Where(o => o.OwnerUserId == userToDelete.Id || o.UploadedByUserId == userToDelete.Id)
+                .ToListAsync();
+            _context.StorageObjects.RemoveRange(storageObjects);
+
+            // Save storage cleanup and user deletion together.
             _context.Users.Remove(userToDelete);
             await _context.SaveChangesAsync();
         }

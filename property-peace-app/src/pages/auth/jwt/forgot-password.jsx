@@ -10,7 +10,7 @@ import { Button } from '@mui/material';
 import useAuth from 'hooks/useAuth';
 import AuthWrapper from 'sections/auth/AuthWrapper';
 import AuthForgotPassword from 'sections/auth/jwt/AuthForgotPassword';
-import AnimateButton from 'components/@extended/AnimateButton';
+import { authSecondaryButtonSx } from 'sections/auth/jwt/authFormStyles';
 
 // ================================|| JWT - FORGOT PASSWORD ||================================ //
 
@@ -30,27 +30,14 @@ export default function ForgotPassword() {
     <AuthWrapper>
       <Grid container spacing={3}>
         <Grid size={12}>
-          <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: { xs: -0.5, sm: 0.5 } }}>
+          <Stack
+            direction="row"
+            sx={{ alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1.5, mb: { xs: -0.5, sm: 0.5 } }}
+          >
             <Typography variant="h3">Forgot Password</Typography>
-            <AnimateButton>
-              <Button
-                disableElevation
-                size="medium"
-                variant="outlined"
-                onClick={handleBackToLogin}
-                sx={{
-                  borderColor: 'divider',
-                  bgcolor: 'background.paper',
-                  color: 'text.primary',
-                  '&:hover': {
-                    borderColor: 'primary.main',
-                    bgcolor: 'action.hover'
-                  }
-                }}
-              >
-                Back to Login
-              </Button>
-            </AnimateButton>
+            <Button disableElevation size="large" variant="outlined" onClick={handleBackToLogin} sx={authSecondaryButtonSx}>
+              Back to login
+            </Button>
           </Stack>
         </Grid>
         <Grid size={12}>

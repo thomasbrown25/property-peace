@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, alpha, Box, Button, FormControl, Grid, InputLabel, MenuItem, Select, Stack, Tab, Tabs, TextField, Typography, useTheme } from '@mui/material';
+import { Alert, alpha, Box, Button, FormControl, Grid, InputLabel, MenuItem, Select, Stack, Tab, Tabs, TextField, ToggleButton, ToggleButtonGroup, Typography, useTheme } from '@mui/material';
 import { Link as RouterLink, useLocation, useSearchParams } from 'react-router-dom';
 
 import AppIcon from 'components/AppIcon';
@@ -13,13 +13,14 @@ import useFinancesPayments from 'hooks/useFinancesPayments';
 import AccountActivityCard from 'sections/landlord/finances/AccountActivityCard';
 import ActivityTab from 'sections/landlord/finances/ActivityTab';
 import ExpensesTab from 'sections/landlord/finances/ExpensesTab';
-import CalculationDisclosure from 'sections/landlord/finances/CalculationDisclosure';
+import FinancesDataStatus from 'sections/landlord/finances/FinancesDataStatus';
 import FinanceDetailDrawer from 'sections/landlord/finances/FinanceDetailDrawer';
 import FinancesHeader from 'sections/landlord/finances/FinancesHeader';
 import FinancesMetrics from 'sections/landlord/finances/FinancesMetrics';
 import NeedsReviewTab from 'sections/landlord/finances/NeedsReviewTab';
 import PaymentsTab from 'sections/landlord/finances/PaymentsTab';
 import UpcomingTab from 'sections/landlord/finances/UpcomingTab';
+import OnlinePaymentTransactions from 'sections/landlord/payments/OnlinePaymentTransactions';
 import {
   buildFinancesMoneyQuery,
   isFinancesPageLoading,
@@ -61,6 +62,8 @@ export default function FinancesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { properties, isLoading: propertiesLoading } = useFetchProperties();
   const activeTab = normalizeFinancesTab(searchParams.get('tab'));
+  const paymentView = searchParams.get('paymentView') === 'stripe' ? 'stripe' : 'ledger';
+  const showStripeTransactions = activeTab === 'payments' && paymentView === 'stripe';
   const period = normalizeFinancesPeriod(searchParams.get('period'));
   const requestedPropertyId = searchParams.get('propertyId');
   const requestedUnitId = searchParams.get('unitId');
@@ -156,16 +159,19 @@ export default function FinancesPage() {
   });
 
   const handleMetricNavigation = (metric) => {
-    if (metric === 'income') updateSearch({ tab: 'payments' });
+    if (metric === 'income') updateSearch({ tab: 'payments', paymentView: undefined });
     if (metric === 'expenses') updateSearch({ tab: 'expenses' });
     if (metric === 'net-cash-flow') updateSearch({ tab: 'activity' });
-    if (metric === 'collected-this-month') updateSearch({ tab: 'payments', period: 'this-month', from: undefined, to: undefined });
+    if (metric === 'collected-this-month') updateSearch({ tab: 'payments', paymentView: undefined, period: 'this-month', from: undefined, to: undefined });
   };
 
   const handleAccountNavigation = (account) => updateSearch({ tab: 'activity', account });
   const activityExportDisabled = moneyData.loading || moneyScopeChanged || Boolean(moneyData.itemsError);
   const registeredExportState = selectFinancesExportState(exportRegistration, activeTab, exportRegistrationKey);
   const activeExport = useMemo(() => {
+    if (showStripeTransactions) {
+      return { label: 'Export payments', disabled: true, disabledReason: 'Select Payment ledger to export payment records.' };
+    }
     if (!registeredExportState) {
       return {
         label: 'Export',
@@ -183,7 +189,7 @@ export default function FinancesPage() {
       };
     }
     return registeredExportState;
-  }, [activeTab, activityExportDisabled, moneyData.exportActivity, moneyData.exporting, moneyData.itemsError, moneyData.loading, moneyScopeChanged, registeredExportState]);
+  }, [activeTab, activityExportDisabled, moneyData.exportActivity, moneyData.exporting, moneyData.itemsError, moneyData.loading, moneyScopeChanged, registeredExportState, showStripeTransactions]);
 
   return (
     <Box sx={{ pb: 4 }}>
@@ -247,175 +253,199 @@ export default function FinancesPage() {
         </Tabs>
       </Box>
 
-      <Box data-testid="finance-scope-filters" sx={{ mb: 2.5 }}>
-        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} alignItems={{ md: 'center' }}>
-          <Box sx={{ minWidth: { xs: '100%', md: 260 } }}>
-            <PropertySelect
-              width="100%"
-              label="Property"
-              localSelectedProperty={selectedProperty || ALL_PROPERTIES_SCOPE}
-              requestedPropertyId={propertyId}
-              onPropertyChange={setPropertyScope}
-            />
-          </Box>
-          <FormControl size="small" sx={{ minWidth: 170 }}>
-            <InputLabel id="finances-period-label">Period</InputLabel>
-            <Select labelId="finances-period-label" label="Period" value={period} onChange={(event) => setPeriod(event.target.value)}>
-              {PERIOD_OPTIONS.map(([value, label]) => <MenuItem key={value} value={value}>{label}</MenuItem>)}
-            </Select>
-          </FormControl>
-          {period === 'custom' && (
-            <>
-              <TextField size="small" type="date" label="From" InputLabelProps={{ shrink: true }} value={customFrom} onChange={(event) => updateSearch({ period: 'custom', from: event.target.value })} />
-              <TextField size="small" type="date" label="Through" InputLabelProps={{ shrink: true }} value={customTo} onChange={(event) => updateSearch({ period: 'custom', to: event.target.value })} />
-            </>
-          )}
-        </Stack>
-      </Box>
-
-      {period === 'custom' && !customRangeValid && (
-        <Alert severity="info" sx={{ mb: 2 }}>
-          Enter a valid From and Through date. Until then, recorded activity for the current month through now is shown.
-        </Alert>
+      {activeTab === 'payments' && (
+        <ToggleButtonGroup
+          value={paymentView}
+          exclusive
+          size="small"
+          onChange={(_event, view) => view && updateSearch({ paymentView: view === 'stripe' ? view : undefined })}
+          aria-label="Payment views"
+          sx={{ mb: 2.5, '& .MuiToggleButton-root': { textTransform: 'none' } }}
+        >
+          <ToggleButton value="ledger">Payment ledger</ToggleButton>
+          <ToggleButton value="stripe">Stripe transactions</ToggleButton>
+        </ToggleButtonGroup>
       )}
 
-      <FinancesMetrics
-        overview={metricsOverview}
-        collectedThisMonth={collectedThisMonth}
-        collectedThisMonthAvailable={!paymentsData.loading && !paymentsScopeChanged && paymentsData.available}
-        onSelectMetric={handleMetricNavigation}
-      />
+      {showStripeTransactions ? (
+        <Box role="tabpanel" id="finances-payments-panel" aria-labelledby="finances-payments-tab">
+          <OnlinePaymentTransactions />
+        </Box>
+      ) : (
+        <>
+          <Box data-testid="finance-scope-filters" sx={{ mb: 2.5 }}>
+            <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} alignItems={{ md: 'center' }}>
+              <Box sx={{ minWidth: { xs: '100%', md: 260 } }}>
+                <PropertySelect
+                  width="100%"
+                  label="Property"
+                  localSelectedProperty={selectedProperty || ALL_PROPERTIES_SCOPE}
+                  requestedPropertyId={propertyId}
+                  onPropertyChange={setPropertyScope}
+                />
+              </Box>
+              <FormControl size="small" sx={{ minWidth: 170 }}>
+                <InputLabel id="finances-period-label">Period</InputLabel>
+                <Select labelId="finances-period-label" label="Period" value={period} onChange={(event) => setPeriod(event.target.value)}>
+                  {PERIOD_OPTIONS.map(([value, label]) => <MenuItem key={value} value={value}>{label}</MenuItem>)}
+                </Select>
+              </FormControl>
+              {period === 'custom' && (
+                <>
+                  <TextField size="small" type="date" label="From" InputLabelProps={{ shrink: true }} value={customFrom} onChange={(event) => updateSearch({ period: 'custom', from: event.target.value })} />
+                  <TextField size="small" type="date" label="Through" InputLabelProps={{ shrink: true }} value={customTo} onChange={(event) => updateSearch({ period: 'custom', to: event.target.value })} />
+                </>
+              )}
+            </Stack>
+          </Box>
 
-      <CalculationDisclosure
-        overview={moneyData.loading || moneyScopeChanged ? null : moneyData.overview}
-        itemsResponse={moneyData.loading || moneyScopeChanged ? null : moneyData.itemsResponse}
-        loading={moneyData.loading || moneyScopeChanged}
-        overviewError={moneyData.loading || moneyScopeChanged ? '' : moneyData.overviewError}
-        itemsError={moneyData.loading || moneyScopeChanged ? '' : moneyData.itemsError}
-        paymentsError={paymentsData.loading || paymentsScopeChanged ? '' : paymentsData.error}
-        exportError={moneyData.exportError}
-        onRetry={moneyData.retry}
-        onRetryPayments={paymentsData.retry}
-      />
+          {period === 'custom' && !customRangeValid && (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              Enter a valid From and Through date. Until then, recorded activity for the current month through now is shown.
+            </Alert>
+          )}
 
-      <Grid container spacing={2}>
-        <Grid size={{ xs: 12, xl: 9 }}>
-          <Box
-            role="tabpanel"
-            id={`finances-${activeTab}-panel`}
-            aria-labelledby={`finances-${activeTab}-tab`}
-            sx={{ minHeight: 300 }}
-          >
-            {activeTab === 'review' && (
+          {!pageLoading && (
+            <FinancesMetrics
+              overview={metricsOverview}
+              collectedThisMonth={collectedThisMonth}
+              collectedThisMonthAvailable={!paymentsData.loading && !paymentsScopeChanged && paymentsData.available}
+              onSelectMetric={handleMetricNavigation}
+            />
+          )}
+
+          <FinancesDataStatus
+            overview={moneyData.loading || moneyScopeChanged ? null : moneyData.overview}
+            itemsResponse={moneyData.loading || moneyScopeChanged ? null : moneyData.itemsResponse}
+            loading={moneyData.loading || moneyScopeChanged}
+            overviewError={moneyData.loading || moneyScopeChanged ? '' : moneyData.overviewError}
+            itemsError={moneyData.loading || moneyScopeChanged ? '' : moneyData.itemsError}
+            paymentsError={paymentsData.loading || paymentsScopeChanged ? '' : paymentsData.error}
+            exportError={moneyData.exportError}
+            onRetry={moneyData.retry}
+            onRetryPayments={paymentsData.retry}
+          />
+
+          <Grid container spacing={2}>
+            <Grid size={{ xs: 12, xl: 9 }}>
               <Box
-                sx={{
-                  bgcolor: 'background.paper',
-                  border: `1px solid ${alpha(theme.palette.divider, 0.16)}`,
-                  borderRadius: 3,
-                  overflow: 'hidden',
-                  minHeight: 300
-                }}
+                role="tabpanel"
+                id={`finances-${activeTab}-panel`}
+                aria-labelledby={`finances-${activeTab}-tab`}
+                sx={{ minHeight: 300 }}
               >
-                <NeedsReviewTab
-                  items={moneyData.reviewItems}
+                {activeTab === 'review' && (
+                  <Box
+                    sx={{
+                      bgcolor: 'background.paper',
+                      border: `1px solid ${alpha(theme.palette.divider, 0.16)}`,
+                      borderRadius: 3,
+                      overflow: 'hidden',
+                      minHeight: 300
+                    }}
+                  >
+                    <NeedsReviewTab
+                      items={moneyData.reviewItems}
+                      partial={Boolean(moneyData.itemsResponse?.isTruncated)}
+                      loadedCount={moneyData.itemsResponse?.loadedCount || 0}
+                      totalCount={moneyData.itemsResponse?.totalCount || 0}
+                      loading={moneyData.loading || moneyScopeChanged}
+                      error={moneyData.itemsError}
+                      onRetry={moneyData.retry}
+                      onSelectItem={openFinanceDetail}
+                      registrationKey={exportRegistrationKey}
+                      registerExport={registerExport}
+                    />
+                  </Box>
+                )}
+                {activeTab === 'activity' && (
+                    <ActivityTab
+                      entries={moneyData.activityEntries}
+                      loading={moneyData.loading || moneyScopeChanged}
+                      partial={Boolean(moneyData.itemsResponse?.isTruncated)}
+                      loadedCount={moneyData.itemsResponse?.loadedCount || 0}
+                      sourceTotalCount={moneyData.itemsResponse?.totalCount || 0}
+                      error={moneyData.itemsError}
+                      onRetry={moneyData.retry}
+                      account={searchParams.get('account') || 'all'}
+                      onAccountChange={setActivityAccount}
+                      onSelectItem={openFinanceDetail}
+                      registrationKey={exportRegistrationKey}
+                      registerExport={registerExport}
+                    />
+                  )}
+                  {activeTab === 'expenses' && (
+                    <ExpensesTab
+                      expenses={expensesData.expenses}
+                      loading={expensesData.loading}
+                      error={expensesData.error}
+                      onRetry={expensesData.refetch}
+                      propertyId={propertyId}
+                      sharedPeriod={period}
+                      sharedFrom={scopedQuery.from}
+                      unitId={scopedQuery.unitId}
+                      sharedTo={scopedQuery.to}
+                      onMutation={drawer.notifyFinanceMutation}
+                      registrationKey={exportRegistrationKey}
+                      registerExport={registerExport}
+                    />
+                  )}
+                  {activeTab === 'payments' && (
+                    <PaymentsTab
+                      properties={properties}
+                      propertyId={propertyId}
+                      sharedPeriod={period}
+                      sharedFrom={scopedQuery.from}
+                      unitId={scopedQuery.unitId}
+                      sharedTo={scopedQuery.to}
+                      mutationVersion={drawer.financeMutationVersion}
+                      onMutation={drawer.notifyFinanceMutation}
+                      registrationKey={exportRegistrationKey}
+                      registerExport={registerExport}
+                      payments={paymentsData.payments}
+                      loading={paymentsData.loading || paymentsScopeChanged}
+                      error={paymentsData.error}
+                      onRetry={paymentsData.retry}
+                    />
+                  )}
+                  {activeTab === 'upcoming' && (
+                    <UpcomingTab
+                      propertyId={propertyId}
+                      mutationVersion={drawer.financeMutationVersion}
+                      onMutation={drawer.notifyFinanceMutation}
+                      registrationKey={exportRegistrationKey}
+                      registerExport={registerExport}
+                    />
+                )}
+              </Box>
+            </Grid>
+
+            <Grid size={{ xs: 12, xl: 3 }}>
+              <Stack spacing={2}>
+                <AccountActivityCard
+                  accounts={moneyData.accountActivity}
                   partial={Boolean(moneyData.itemsResponse?.isTruncated)}
                   loadedCount={moneyData.itemsResponse?.loadedCount || 0}
                   totalCount={moneyData.itemsResponse?.totalCount || 0}
+                  available={!moneyData.loading && !moneyScopeChanged && !moneyData.itemsError && moneyData.clientDerivationsAvailable}
                   loading={moneyData.loading || moneyScopeChanged}
-                  error={moneyData.itemsError}
-                  onRetry={moneyData.retry}
-                  onSelectItem={openFinanceDetail}
-                  registrationKey={exportRegistrationKey}
-                  registerExport={registerExport}
+                  onSelectAccount={handleAccountNavigation}
                 />
-              </Box>
-            )}
-            {activeTab === 'activity' && (
-                <ActivityTab
-                  entries={moneyData.activityEntries}
-                  loading={moneyData.loading || moneyScopeChanged}
-                  partial={Boolean(moneyData.itemsResponse?.isTruncated)}
-                  loadedCount={moneyData.itemsResponse?.loadedCount || 0}
-                  sourceTotalCount={moneyData.itemsResponse?.totalCount || 0}
-                  error={moneyData.itemsError}
-                  onRetry={moneyData.retry}
-                  account={searchParams.get('account') || 'all'}
-                  onAccountChange={setActivityAccount}
-                  onSelectItem={openFinanceDetail}
-                  registrationKey={exportRegistrationKey}
-                  registerExport={registerExport}
-                />
-              )}
-              {activeTab === 'expenses' && (
-                <ExpensesTab
-                  expenses={expensesData.expenses}
-                  loading={expensesData.loading}
-                  error={expensesData.error}
-                  onRetry={expensesData.refetch}
-                  propertyId={propertyId}
-                  sharedPeriod={period}
-                  sharedFrom={scopedQuery.from}
-                  unitId={scopedQuery.unitId}
-                  sharedTo={scopedQuery.to}
-                  onMutation={drawer.notifyFinanceMutation}
-                  registrationKey={exportRegistrationKey}
-                  registerExport={registerExport}
-                />
-              )}
-              {activeTab === 'payments' && (
-                <PaymentsTab
-                  properties={properties}
-                  propertyId={propertyId}
-                  sharedPeriod={period}
-                  sharedFrom={scopedQuery.from}
-                  unitId={scopedQuery.unitId}
-                  sharedTo={scopedQuery.to}
-                  mutationVersion={drawer.financeMutationVersion}
-                  onMutation={drawer.notifyFinanceMutation}
-                  registrationKey={exportRegistrationKey}
-                  registerExport={registerExport}
-                  payments={paymentsData.payments}
-                  loading={paymentsData.loading || paymentsScopeChanged}
-                  error={paymentsData.error}
-                  onRetry={paymentsData.retry}
-                />
-              )}
-              {activeTab === 'upcoming' && (
-                <UpcomingTab
-                  propertyId={propertyId}
-                  mutationVersion={drawer.financeMutationVersion}
-                  onMutation={drawer.notifyFinanceMutation}
-                  registrationKey={exportRegistrationKey}
-                  registerExport={registerExport}
-                />
-            )}
-          </Box>
-        </Grid>
 
-        <Grid size={{ xs: 12, xl: 3 }}>
-          <Stack spacing={2}>
-            <AccountActivityCard
-              accounts={moneyData.accountActivity}
-              partial={Boolean(moneyData.itemsResponse?.isTruncated)}
-              loadedCount={moneyData.itemsResponse?.loadedCount || 0}
-              totalCount={moneyData.itemsResponse?.totalCount || 0}
-              available={!moneyData.loading && !moneyScopeChanged && !moneyData.itemsError && moneyData.clientDerivationsAvailable}
-              loading={moneyData.loading || moneyScopeChanged}
-              onSelectAccount={handleAccountNavigation}
-            />
-
-            <Box sx={{ p: 2, bgcolor: alpha(theme.palette.success.main, theme.palette.mode === 'dark' ? 0.1 : 0.045), border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`, borderRadius: 3 }}>
-              <Typography fontWeight={750}>Keep records tax-ready</Typography>
-              <Typography sx={{ mt: 0.6, fontSize: '0.78rem', color: 'text.secondary', lineHeight: 1.55 }}>
-                Attach receipts while the details are fresh, and mark deductible expenses so reports need less cleanup later.
-              </Typography>
-              <Button component={RouterLink} to="/landlord/accounting/tax-center" size="small" startIcon={<AppIcon name="reports" />} sx={{ mt: 1.2, px: 0, textTransform: 'none' }}>
-                Open Tax Center
-              </Button>
-            </Box>
-          </Stack>
-        </Grid>
-      </Grid>
+                <Box sx={{ p: 2, bgcolor: alpha(theme.palette.success.main, theme.palette.mode === 'dark' ? 0.1 : 0.045), border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`, borderRadius: 3 }}>
+                  <Typography fontWeight={750}>Keep records tax-ready</Typography>
+                  <Typography sx={{ mt: 0.6, fontSize: '0.78rem', color: 'text.secondary', lineHeight: 1.55 }}>
+                    Attach receipts while the details are fresh, and mark deductible expenses so reports need less cleanup later.
+                  </Typography>
+                  <Button component={RouterLink} to="/landlord/accounting/tax-center" size="small" startIcon={<AppIcon name="reports" />} sx={{ mt: 1.2, px: 0, textTransform: 'none' }}>
+                    Open Tax Center
+                  </Button>
+                </Box>
+              </Stack>
+            </Grid>
+          </Grid>
+        </>
+      )}
 
       <FinanceDetailDrawer item={selectedFinanceItem} onClose={() => setSelectedFinanceItem(null)} />
     </Box>

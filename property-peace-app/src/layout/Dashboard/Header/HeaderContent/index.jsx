@@ -7,6 +7,7 @@ import Profile from './Profile';
 import Notification from './Notification';
 import MobileSection from './MobileSection';
 import MobileSearch from './MobileSearch';
+import Search from './Search';
 import LandlordPrimaryNavigation from './LandlordPrimaryNavigation';
 import TenantPrimaryNavigation from './TenantPrimaryNavigation';
 import Logo from 'components/logo';
@@ -20,6 +21,7 @@ export default function HeaderContent({ adminPortal = false, landlordPortal = fa
   const isAdmin = useIsAdmin();
   const downMD = useMediaQuery((theme) => theme.breakpoints.down('md'));
   const downSM = useMediaQuery((theme) => theme.breakpoints.down('sm'));
+  const downLG = useMediaQuery((theme) => theme.breakpoints.down('lg'));
   const roles = Array.isArray(user?.Roles) ? user.Roles : Array.isArray(user?.roles) ? user.roles : [];
   const hasTenantRole = roles.some((role) => String(role).toLowerCase().trim() === 'tenant');
   const basePath = isAdmin ? '/admin' : hasTenantRole ? '/tenant' : '/landlord';
@@ -35,7 +37,7 @@ export default function HeaderContent({ adminPortal = false, landlordPortal = fa
         display: { xs: 'flex', lg: 'grid' },
         // Center the links beside the property rail when both sides have room.
         gridTemplateColumns: 'minmax(0, 1fr) auto minmax(max-content, 1fr)',
-        gridTemplateAreas: '". navigation actions"'
+        gridTemplateAreas: '"search navigation actions"'
       }),
       ...(tenantPortal && {
         height: '100%',
@@ -65,6 +67,11 @@ export default function HeaderContent({ adminPortal = false, landlordPortal = fa
         sx={{ flexShrink: 0, lineHeight: 0, display: landlordPortal ? { xs: 'flex', lg: 'none' } : 'flex', alignItems: 'center' }}
       />
       </Box>
+      {landlordPortal && !hasTenantRole && !downLG && (
+        <Box sx={{ gridArea: 'search', justifySelf: 'start', width: '100%', maxWidth: 320, minWidth: 0 }}>
+          <Search />
+        </Box>
+      )}
       {tenantPortal ? <TenantPrimaryNavigation /> : <Box sx={{
         flex: 1,
         minWidth: 0,
@@ -87,7 +94,7 @@ export default function HeaderContent({ adminPortal = false, landlordPortal = fa
           '& > .MuiBox-root': { ml: 0 }
         })
       }}>
-        {!hasTenantRole && <MobileSearch />}
+        {!hasTenantRole && (!landlordPortal || downLG) && <MobileSearch />}
         <Message />
         <Notification />
         {tenantPortal && (

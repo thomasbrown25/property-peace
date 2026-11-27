@@ -572,11 +572,11 @@ namespace brownstone_hub_api.Services.DailySummaryEmailService
     ul { padding-left:20px; margin:8px 0 0; }
     li { margin:9px 0; }
     hr { border:0; border-top:1px solid #e1e5e8; margin:28px 0; }
-    .footer { background:#062d42; color:#d8e2e7; padding:30px 28px; text-align:center; font-size:13px; line-height:1.6; }
+    .footer { background-color: #102C29; color: #E1EFE8; padding:30px 28px; text-align:center; font-size:13px; line-height:1.6; }
     .footer a { color:#ffffff; font-weight:700; text-decoration:none; margin:0 12px; }
-    .footer .reason { color:#d8e2e7; margin:18px auto 0; max-width:520px; font-size:12px; }
+    .footer .reason { color:#E1EFE8; margin:18px auto 0; max-width:520px; font-size:12px; }
     .footer .unsubscribe { color:#ffffff; text-decoration:underline; margin:0; }
-    .copyright { color:#a9bbc4; margin-top:18px; }
+    .copyright { color:#B9E4CB; margin-top:18px; }
     @media only screen and (max-width: 640px) {
       .outer { padding:0; }
       .wrap { border-radius:0; }

@@ -12,20 +12,18 @@ test('Accounting navigation places Online Payments directly above Finances', asy
   assert.notEqual(onlinePaymentsIndex, -1);
   assert.match(
     menu.slice(onlinePaymentsIndex, financesIndex),
-    /title: 'Online Payments'[\s\S]*type: 'item'[\s\S]*url: '\/landlord\/online-payments'/
+    /title: 'Online Payments'[\s\S]*type: 'item'[\s\S]*url: '\/landlord\/settings\?tab=payments'/
   );
   assert.equal((menu.slice(onlinePaymentsIndex, financesIndex).match(/id: '/g) || []).length, 1);
   assert.ok(financesIndex > onlinePaymentsIndex, 'Online Payments should be directly above Finances');
 });
 
-test('Online Payments is a guarded landlord route', async () => {
+test('the former Online Payments route redirects to Settings and preserves the query and hash', async () => {
   const routes = await read('../routes/MainRoutes.jsx');
 
-  assert.match(routes, /const OnlinePayments = Loadable\(lazy\(\(\) => import\('pages\/landlord\/online-payments'\)\)\);/);
-  assert.match(
-    routes,
-    /path: 'landlord\/online-payments',[\s\S]{0,200}<SubscriptionPausedGuard>[\s\S]{0,100}<OnlinePayments \/>[\s\S]{0,100}<\/SubscriptionPausedGuard>/
-  );
+  assert.doesNotMatch(routes, /import\('pages\/landlord\/online-payments'\)/);
+  assert.match(routes, /path: 'landlord\/online-payments',\s*element: <LegacyOnlinePaymentsRedirect \/>/);
+  assert.match(routes, /<Navigate to=\{`\$\{buildLegacyOnlinePaymentsRedirect\(search\)\}\$\{hash\}`} replace \/>/);
 });
 
 test('Transactions reloads for the active organization without rendering stale organization data', async () => {
@@ -42,41 +40,62 @@ test('Transactions reloads for the active organization without rendering stale o
   assert.match(transactions, /All properties/);
 });
 
-test('Online Payments shows a one-time welcome before the tabbed payment workspace', async () => {
-  const page = await read('../pages/landlord/online-payments.jsx');
+test('Online Rent Payments puts Stripe setup and status in one tab beside Payout Assignments', async () => {
+  const [settings, panel] = await Promise.all([
+    read('../pages/landlord/settings.jsx'), read('../sections/landlord/settings/OnlinePaymentSettings.jsx')
+  ]);
 
-  assert.match(page, /<ManagementPageHeader/);
-  assert.match(page, /title="Online Payments"/);
-  assert.match(page, /user\.hasContinuedToOnlinePayments === true/);
-  assert.match(page, /post\('\/api\/user\/online-payments-welcome\/continue'\)/);
-  assert.match(page, /updateUser\(\{ hasContinuedToOnlinePayments: true \}\)/);
-  assert.match(page, /hasContinuedToOnlinePayments\(user, currentOrganization\)/);
-  assert.match(page, /markOnlinePaymentsContinued\(user, currentOrganization\)/);
-  assert.match(page, /Continue to Online Payments/);
-  assert.match(page, /useState\(DEFAULT_ONLINE_PAYMENT_TAB\)/);
-  assert.match(page, /getOnlinePaymentTabs\(rentPaymentAccess\.access, rentPaymentAccess\.presentation\.canConfigure\)/);
-  assert.match(page, /getSelectedOnlinePaymentTab\(activeTab, paymentTabs\)/);
-  assert.match(page, /paymentTabs\.map\(\(\{ id, label \}\)/);
-  assert.match(page, /value=\{selectedTab\}/);
-  assert.match(page, /selectedTab === 'transactions' && <OnlinePaymentTransactions \/>/);
-  assert.ok(page.includes("selectedTab === 'bank-accounts' && ("));
-  assert.ok(page.includes('<PaymentsSettingsContent rentPaymentAccess={rentPaymentAccess} headerActionElement={paymentHeaderActionElement} />'));
-  assert.match(page, /actions=\{selectedTab === 'bank-accounts' \? <Box ref=\{setPaymentHeaderActionElement\} \/> : null\}/);
-  assert.match(page, /selectedTab === 'payout-assignments' && <PayoutAssignments \/>/);
-  assert.doesNotMatch(page, /account-status/);
-  assert.doesNotMatch(page, /role="status"/);
-  assert.doesNotMatch(page, /could not load your current setup status/i);
-  assert.doesNotMatch(page, /navigate\('\/landlord\/settings\?tab=payments'\)/);
+  assert.match(settings, /key: 'payments', label: 'Online Rent Payments',[^}]*component: OnlinePaymentSettings/);
+  assert.match(panel, /getOnlinePaymentTabs\(rentPaymentAccess\.presentation\.canConfigure\)/);
+  assert.match(panel, /getRequestedOnlinePaymentTab\(searchParams\)/);
+  assert.match(panel, /getSelectedOnlinePaymentTab\(requestedTab, paymentTabs\)/);
+  assert.match(panel, /params\.set\('paymentTab', value\)/);
+  assert.match(panel, /selectedTab === STRIPE_TAB && \([\s\S]*?<PaymentsSettingsContent[\s\S]*?showStripeSetup=\{isStripeSetupRequested\(searchParams\)\}/);
+  assert.doesNotMatch(panel, /ShortStayConnect/);
+  assert.match(await read('../pages/landlord/short-stay-setup.jsx'), /<ShortStayConnect\b/);
+  assert.doesNotMatch(panel, /OnlinePaymentTransactions/);
+  assert.match(panel, /selectedTab === 'payout-assignments' && \(\s*<SubscriptionPausedGuard>\s*<PayoutAssignments \/>/);
+});
+
+test('property payment actions use the Settings paths for setup and editing', async () => {
+  const property = await read('../pages/landlord/property.jsx');
+  assert.match(property, /onSelect: \(\) => navigate\(paymentAction\.showInRentCard \? ONLINE_PAYMENT_SETUP_PATH : ONLINE_PAYMENT_STRIPE_PATH\)/);
+});
+
+test('the Stripe tab opens and closes the inline wizard for authorized first-time setup', async () => {
+  const [page, settings] = await Promise.all([read('../sections/landlord/settings/OnlinePaymentSettings.jsx'), read('../sections/landlord/settings/PaymentsSettings.jsx')]);
+  assert.match(page, /if \(setup\) params\.set\('setup', '1'\);\s*else params\.delete\('setup'\);/);
+  assert.match(settings, /showStripeSetup && !isDemo && !rentReadinessLoading && !rentReadinessError && canCreateInitialAccount/);
+  assert.match(settings, /if \(showStripeSetup && canCreateInitialAccount\) \{[\s\S]*?<ConnectOnboardingWizard\s+embedded\s+onClose=\{onCloseStripeSetup\}/);
+});
+
+test('lease and property setup actions use the Online Rent Payments settings route and keep editing open', async () => {
+  const setupButton = await read('../components/rent-payments/OnlinePaymentSetupButton.jsx');
+  assert.match(setupButton, /component=\{RouterLink\}\s+to=\{ONLINE_PAYMENT_SETUP_PATH\}/);
+  assert.match(setupButton, /target=\{isImpersonating\(\) \? undefined : '_blank'\}\s+rel="noopener noreferrer"/);
+  for (const path of ['lease.jsx', 'lease-charges.jsx', 'property.jsx', 'property-add.jsx']) {
+    const page = await read(`../pages/landlord/${path}`);
+    assert.match(page, /<OnlinePaymentSetupButton\b/);
+    assert.doesNotMatch(page, /StripeConnectOnboardingDialog|\/api\/stripe\/sync-bank-account/);
+  }
+  const [legacyLeaseSetup, propertyWorkflow] = await Promise.all([
+    read('../pages/landlord/lease-payment-setup.jsx'), read('../pages/landlord/property-add-workflow.jsx')
+  ]);
+  assert.match(legacyLeaseSetup, /<Navigate to=\{ONLINE_PAYMENT_SETUP_PATH\} replace \/>/);
+  assert.doesNotMatch(propertyWorkflow, /StripeConnectOnboardingDialog|\/api\/stripe\/sync-bank-account/);
 });
 
 test('Bank Accounts only shows connected Stripe bank accounts, not connected properties or the legacy account card', async () => {
   const settings = await read('../sections/landlord/settings/PaymentsSettings.jsx');
 
-  assert.match(settings, /Payment entity/);
+  assert.match(settings, /getStripeBankAccountStatus\(accountStatus\)/);
+  assert.match(settings, /label=\{stripeStatus\.label\}/);
+  assert.match(settings, /HasPastDueRequirements: data\?\.hasPastDueRequirements === true/);
+  assert.match(settings, /stripeStatus\.requirements\.map\(/);
   assert.match(settings, /Connected bank accounts/);
   assert.match(settings, /bankAccounts\.map\(\(account\)/);
-  assert.match(settings, /createPortal\(addAccountButton, headerActionElement\)/);
-  assert.match(settings, /!headerActionElement && addAccountButton/);
+  assert.doesNotMatch(settings, /Doing business as/);
+  assert.doesNotMatch(settings, /onConfigure=\{/);
   assert.doesNotMatch(settings, /Online rent payment account/);
   assert.doesNotMatch(settings, /Connected Properties/);
   assert.doesNotMatch(settings, /getPropertiesForAccount/);

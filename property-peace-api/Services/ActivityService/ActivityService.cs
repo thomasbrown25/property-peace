@@ -175,21 +175,33 @@ namespace brownstone_hub_api.Services.ActivityService
                 var totalCount = activities.Count + await ledger.CountAsync();
                 // Fetch only candidates which can occur in this merged page. Count is not capped.
                 var events = await ledger.OrderByDescending(e => e.CreatedAt).ThenByDescending(e => e.Id)
-                    .Take(skip + pageSize).ToListAsync();
-                var actorIds = events.Where(e => e.PerformedByUserId.HasValue)
-                    .Select(e => e.PerformedByUserId!.Value).Distinct().ToArray();
+                    .Take(skip + pageSize)
+                    .Select(e => new
+                    {
+                        Event = e,
+                        // Public signup creates the founding membership before the user signs in.
+                        IsAccountCreation = e.ActivityType == "TeamMember" && e.Operation == "Created" &&
+                            e.PerformedByUserId == null && _context.OrganizationMembers.Any(m =>
+                                m.Id == e.RelatedId && m.OrganizationId == e.OrganizationId && m.UserId == userId &&
+                                m.Role == "Owner" && m.Organization.OwnerId == userId)
+                    }).ToListAsync();
+                var actorIds = events.Where(row => row.Event.PerformedByUserId.HasValue)
+                    .Select(row => row.Event.PerformedByUserId!.Value).Distinct().ToArray();
                 var actors = await _context.Users.AsNoTracking().Where(u => actorIds.Contains(u.Id))
                     .Select(u => new { u.Id, u.FirstName, u.LastName }).ToDictionaryAsync(u => u.Id);
                 foreach (var item in activities) item.EventKey ??= $"legacy:{item.ActivityType}:{item.Id}";
-                activities.AddRange(events.Select(e =>
+                activities.AddRange(events.Select(row =>
                 {
+                    var e = row.Event;
                     var (icon, color) = GetActivityIconAndColor(e.ActivityType);
                     var name = e.PerformedByUserId.HasValue && actors.TryGetValue(e.PerformedByUserId.Value, out var actor)
                         ? $"{actor.FirstName} {actor.LastName}".Trim() : null;
                     return new ActivityDto
                     {
                         Id = e.Id, EventKey = $"event:{e.Id}", Operation = e.Operation,
-                        ActivityType = e.ActivityType, Title = e.Title, Message = e.Message,
+                        ActivityType = e.ActivityType,
+                        Title = row.IsAccountCreation ? "Account created" : e.Title,
+                        Message = row.IsAccountCreation ? "Your Property Peace account was created." : e.Message,
                         CreatedAt = DateTime.SpecifyKind(e.CreatedAt, DateTimeKind.Utc),
                         RelatedId = e.RelatedId, RelatedEntityType = e.ActivityType,
                         OrganizationId = e.OrganizationId, PropertyId = e.PropertyId, LeaseId = e.LeaseId,

@@ -1,5 +1,5 @@
-import { useState, useEffect, useLayoutEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -15,11 +15,10 @@ import {
   DialogTitle,
   DialogContent,
   IconButton,
-  TextField,
-  Collapse,
+  Grid,
   useTheme
 } from '@mui/material';
-import { CreditCardOutlined, CheckCircleOutlined, CloseOutlined, BankOutlined, PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { CreditCardOutlined, CheckCircleOutlined, CloseOutlined, BankOutlined, ReloadOutlined, ExportOutlined } from '@ant-design/icons';
 import { loadConnectAndInitialize } from '@stripe/connect-js';
 import { ConnectAccountManagement, ConnectAccountOnboarding, ConnectComponentsProvider } from '@stripe/react-connect-js';
 import useAuth from 'hooks/useAuth';
@@ -32,15 +31,18 @@ import RentPaymentAccessPanel from 'components/rent-payments/RentPaymentAccessPa
 import ConnectOnboardingWizard from 'sections/landlord/payments/ConnectOnboardingWizard';
 import ShortStayConnect from 'pages/landlord/short-stay-connect.jsx';
 import { validateConnectOnboardingContext } from 'utils/connectOnboarding';
+import { ONLINE_PAYMENT_SETUP_PATH } from 'utils/onlinePaymentTabs';
+import { getStripeBankAccountStatus } from 'utils/stripeBankAccountStatus';
+import { getTrustedStripeAuthorizationUrl } from './stripeExistingAccountUrl.mjs';
 import { useOrganization } from 'contexts/OrganizationContext';
 import {
   canCreateInitialStripeAccount,
   canManageStripeAccount,
   createStripeOrganizationRequestLifecycle,
   getInitialStripeOnboardingUrl,
-  makeStripeOrganizationScopeKey
+  makeStripeOrganizationScopeKey,
+  readStripeAccountStatus
 } from 'utils/stripeOrganizationRequestLifecycle';
-import { Grid, Card, CardContent } from '@mui/material';
 
 function DemoStripePaymentsPreview() {
   const paymentBenefits = [
@@ -160,8 +162,9 @@ function DemoStripePaymentsPreview() {
   );
 }
 
-export function PaymentsSettingsContent({ rentPaymentAccess, headerActionElement = null }) {
+export function PaymentsSettingsContent({ rentPaymentAccess, showStripeSetup = false, initialSetupMode = 'new', onOpenStripeSetup, onCloseStripeSetup }) {
   const theme = useTheme();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { currentOrganization } = useOrganization();
   const stripeScopeKey = makeStripeOrganizationScopeKey(currentOrganization?.id ?? currentOrganization?.Id);
@@ -172,14 +175,11 @@ export function PaymentsSettingsContent({ rentPaymentAccess, headerActionElement
     error: rentReadinessError
   } = rentPaymentAccess;
   const rentCanInvoke = rentPresentation?.canConfigure === true;
-  const [loading, setLoading] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState(true);
   const [accountStatus, setAccountStatus] = useState(null);
-  const [accountStatusLoadedSuccessfully, setAccountStatusLoadedSuccessfully] = useState(false);
+  const [accountStatusScopeKey, setAccountStatusScopeKey] = useState(null);
   const [connecting, setConnecting] = useState(false);
-  const [showPreparation, setShowPreparation] = useState(false);
-  const [connectPreparation, setConnectPreparation] = useState(null);
-  const [preparationLoading, setPreparationLoading] = useState(false);
+  const [preparation, setPreparation] = useState({ status: 'idle' });
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [stripeConnectInstance, setStripeConnectInstance] = useState(null);
   const [fetchingSession, setFetchingSession] = useState(false);
@@ -190,8 +190,10 @@ export function PaymentsSettingsContent({ rentPaymentAccess, headerActionElement
   const [bankManagementMode, setBankManagementMode] = useState('manage');
   const [bankAccounts, setBankAccounts] = useState([]);
   const [loadingBankAccounts, setLoadingBankAccounts] = useState(false);
+  const [bankAccountsError, setBankAccountsError] = useState(false);
   const prevShowOnboardingRef = useRef(false);
   const connectSubmissionRef = useRef(false);
+  const existingAccountReturnHandled = useRef(false);
   const requestLifecycleRef = useRef(null);
   const connectCallbackGuardRef = useRef(null);
   const embeddedOnboardingRequestRef = useRef(null);
@@ -199,7 +201,7 @@ export function PaymentsSettingsContent({ rentPaymentAccess, headerActionElement
   const isDemo = user?.isDemo === true || user?.IsDemo === true;
   const canManageAccount = canManageStripeAccount(accountStatus);
   const canCreateInitialAccount = canCreateInitialStripeAccount({
-    statusLoadedSuccessfully: accountStatusLoadedSuccessfully,
+    statusLoadedSuccessfully: Boolean(stripeScopeKey) && accountStatusScopeKey === stripeScopeKey,
     status: accountStatus,
     rentCanInvoke,
     organizationId: currentOrganization?.id ?? currentOrganization?.Id
@@ -208,16 +210,14 @@ export function PaymentsSettingsContent({ rentPaymentAccess, headerActionElement
   if (!requestLifecycleRef.current) {
     requestLifecycleRef.current = createStripeOrganizationRequestLifecycle(() => {
       setAccountStatus(null);
-      setAccountStatusLoadedSuccessfully(false);
+      setAccountStatusScopeKey(null);
       setBankAccounts([]);
-      setConnectPreparation(null);
-      setShowPreparation(false);
+      setBankAccountsError(false);
+      setPreparation({ status: 'idle' });
       setShowOnboarding(false);
       setStripeConnectInstance(null);
-      setLoading(false);
       setCheckingStatus(false);
       setConnecting(false);
-      setPreparationLoading(false);
       setFetchingSession(false);
       setBankManagementOpen(false);
       setBankManagementInstance(null);
@@ -242,7 +242,6 @@ export function PaymentsSettingsContent({ rentPaymentAccess, headerActionElement
   useEffect(() => {
     if (!stripeScopeKey || isDemo || rentReadinessLoading || rentReadinessError || !rentCanInvoke) {
       setCheckingStatus(false);
-      setShowPreparation(false);
       setShowOnboarding(false);
       setStripeConnectInstance(null);
       return;
@@ -252,14 +251,57 @@ export function PaymentsSettingsContent({ rentPaymentAccess, headerActionElement
     fetchPublishableKey();
     fetchBankAccounts();
     
-    // Check if we're returning from Stripe connection
+    // Check if we're returning from Stripe connection.
     const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('stripe') === 'connected') {
-      // Remove the parameter from URL
+    const stripeReturn = urlParams.get('stripe');
+    if (stripeReturn === 'connected' || stripeReturn === 'refresh') {
       urlParams.delete('stripe');
-      const newUrl = window.location.pathname + (urlParams.toString() ? `?${urlParams.toString()}` : '');
-      window.history.replaceState({}, '', newUrl);
-      
+      navigate({ search: urlParams.toString() }, { replace: true });
+    }
+
+    const existingStripeReturn = window.__propertyPeaceExistingStripeReturn || (stripeReturn === 'existing-return'
+      ? { code: urlParams.get('code'), state: urlParams.get('state'), error: urlParams.get('error') }
+      : null);
+    if (existingStripeReturn) {
+      delete window.__propertyPeaceExistingStripeReturn;
+      const { code, state, error } = existingStripeReturn;
+      if (stripeReturn === 'existing-return') {
+        ['stripe', 'code', 'state', 'error'].forEach((name) => urlParams.delete(name));
+        navigate({ search: urlParams.toString() }, { replace: true });
+      }
+
+      if (!existingAccountReturnHandled.current) {
+        existingAccountReturnHandled.current = true;
+        requestLifecycleRef.current.run({
+          scopeKey: stripeScopeKey,
+          channel: 'existing-account-complete',
+          request: ({ signal }) => axiosServices.post('/api/stripe/existing-account/complete', { code, state, error }, { signal }),
+          onSuccess: (response) => {
+            if (response.data?.connected === true) {
+              checkAccountStatus();
+              fetchBankAccounts();
+              openSnackbar({ open: true, message: 'Stripe connection confirmed. Refreshing account status…', variant: 'alert', alert: { color: 'success' } });
+              return;
+            }
+            if (response.data?.cancelled === true) {
+              openSnackbar({ open: true, message: 'Connecting your existing Stripe account was cancelled.', variant: 'alert', alert: { color: 'info' } });
+              return;
+            }
+            openSnackbar({ open: true, message: 'Stripe did not confirm a connected account. Please try again.', variant: 'alert', alert: { color: 'warning' } });
+          },
+          onError: (completionError) => openSnackbar({
+            open: true,
+            message: completionError?.response?.status === 503
+              ? 'Connecting an existing Stripe account is not available yet. Please contact support or set up a new Stripe account.'
+              : completionError?.response?.data?.message || 'Unable to complete the Stripe account connection. Please try again.',
+            variant: 'alert',
+            alert: { color: 'error' }
+          })
+        });
+      }
+    }
+
+    if (stripeReturn === 'connected') {
       // Refresh account status after a short delay to ensure Stripe has processed
       const returnRefreshGuard = requestLifecycleRef.current.capture(stripeScopeKey);
       const returnRefreshTimeout = setTimeout(() => {
@@ -270,17 +312,27 @@ export function PaymentsSettingsContent({ rentPaymentAccess, headerActionElement
 
       return () => clearTimeout(returnRefreshTimeout);
     }
-  }, [user, stripeScopeKey, isDemo, rentCanInvoke, rentReadinessLoading, rentReadinessError]);
+  }, [user, stripeScopeKey, isDemo, rentCanInvoke, rentReadinessLoading, rentReadinessError, navigate]);
 
   const fetchBankAccounts = async () => {
     if (!stripeScopeKey || !requestLifecycleRef.current.isCurrent(stripeScopeKey)) return;
     setLoadingBankAccounts(true);
+    setBankAccountsError(false);
     return requestLifecycleRef.current.run({
       scopeKey: stripeScopeKey,
       channel: 'bank-accounts',
       request: () => bankAccountAPI.getBankAccounts(currentOrganization?.id ?? currentOrganization?.Id),
-      onSuccess: (response) => setBankAccounts(response.success && response.data ? response.data : []),
-      onError: (error) => console.error('Error fetching bank accounts:', error),
+      onSuccess: (response) => {
+        if (!response.success || !Array.isArray(response.data)) {
+          setBankAccountsError(true);
+          return;
+        }
+        setBankAccounts(response.data);
+      },
+      onError: (error) => {
+        console.error('Error fetching bank accounts:', error);
+        setBankAccountsError(true);
+      },
       onFinally: () => setLoadingBankAccounts(false)
     });
   };
@@ -333,50 +385,57 @@ export function PaymentsSettingsContent({ rentPaymentAccess, headerActionElement
       channel: 'account-status',
       request: ({ signal }) => axiosServices.get('/api/stripe/account-status', { signal }),
       onSuccess: (response) => {
-        const data = response.data?.success ? response.data.data : null;
+        const data = readStripeAccountStatus(response.data);
         setAccountStatus({
           AccountId: data?.accountId || null,
           Status: data?.status || null,
           IsEnabled: data?.isEnabled === true,
           ChargesEnabled: data?.chargesEnabled === true,
           PayoutsEnabled: data?.payoutsEnabled === true,
+          CardPaymentsCapabilityStatus: data?.cardPaymentsCapabilityStatus || null,
+          HasPastDueRequirements: data?.hasPastDueRequirements === true,
+          PastDueRequirementLabels: data?.pastDueRequirementLabels,
           DetailsSubmitted: data?.detailsSubmitted === true,
           IsAccountReadyForRentTransfers: data?.isAccountReadyForRentTransfers === true,
           AccountReadinessReason: data?.accountReadinessReason || null,
           CanManageAccount: data?.canManageAccount === true
         });
-        setAccountStatusLoadedSuccessfully(true);
+        setAccountStatusScopeKey(data ? stripeScopeKey : null);
       },
       onError: (error) => {
         console.error('Error checking Stripe account status:', error);
         setAccountStatus({ AccountId: null, CanManageAccount: false });
-        setAccountStatusLoadedSuccessfully(false);
+        setAccountStatusScopeKey(null);
       },
       onFinally: () => setCheckingStatus(false)
     });
   };
 
-  const openConnectPreparation = async () => {
+  const refreshStripeStatus = () => {
+    checkAccountStatus();
+    fetchBankAccounts();
+  };
+
+  const loadConnectPreparation = useCallback(async () => {
     if (!canCreateInitialAccount || !stripeScopeKey) return;
-    setShowPreparation(true);
-    setPreparationLoading(true);
+    setPreparation({ status: 'loading' });
     return requestLifecycleRef.current.run({
       scopeKey: stripeScopeKey,
       channel: 'connect-preparation',
       request: ({ signal }) => axiosServices.get('/api/stripe/connect-preparation', { signal }),
-      onSuccess: (response) => setConnectPreparation(response.data || null),
-      onError: (error) => {
-        setShowPreparation(false);
-        openSnackbar({
-          open: true,
-          message: error?.response?.data?.message || 'Your saved payout setup could not be loaded. Please try again.',
-          variant: 'alert',
-          alert: { color: 'error' }
-        });
-      },
-      onFinally: () => setPreparationLoading(false)
+      onSuccess: (response) => setPreparation({ status: 'ready', data: response.data || null }),
+      onError: (error) => setPreparation({
+        status: 'error',
+        error: error?.response?.data?.message || 'Your saved payout setup could not be loaded.'
+      })
     });
-  };
+  }, [canCreateInitialAccount, stripeScopeKey]);
+
+  useEffect(() => {
+    if (showStripeSetup && !isDemo && !rentReadinessLoading && !rentReadinessError && canCreateInitialAccount && preparation.status === 'idle') {
+      loadConnectPreparation();
+    }
+  }, [showStripeSetup, isDemo, rentReadinessLoading, rentReadinessError, canCreateInitialAccount, preparation.status, loadConnectPreparation]);
 
   const handlePreparedConnectAccount = async (context) => {
     if (!canCreateInitialAccount || !stripeScopeKey || connectSubmissionRef.current) return;
@@ -420,11 +479,9 @@ export function PaymentsSettingsContent({ rentPaymentAccess, headerActionElement
         if (!onboardingUrl) {
           throw new Error(createResponse.data?.message || 'Stripe account creation did not return an onboarding URL.');
         }
-        return { savedPreparation, onboardingUrl };
+        return onboardingUrl;
       },
-      onSuccess: ({ savedPreparation, onboardingUrl }) => {
-        setConnectPreparation(savedPreparation);
-        setShowPreparation(false);
+      onSuccess: (onboardingUrl) => {
         window.location.assign(onboardingUrl);
       },
       onError: (error) => {
@@ -443,14 +500,58 @@ export function PaymentsSettingsContent({ rentPaymentAccess, headerActionElement
     });
   };
 
+  const handlePreparedExistingAccount = async (context) => {
+    if (!canCreateInitialAccount || !stripeScopeKey || connectSubmissionRef.current) return;
+    const validationErrors = validateConnectOnboardingContext(
+      context,
+      properties.map((property) => property?.id ?? property?.Id).filter((propertyId) => propertyId != null)
+    );
+    if (Object.keys(validationErrors).length > 0) {
+      openSnackbar({ open: true, message: 'Confirm your property authority before continuing to Stripe.', variant: 'alert', alert: { color: 'warning' } });
+      return;
+    }
+
+    connectSubmissionRef.current = true;
+    setConnecting(true);
+    return requestLifecycleRef.current.run({
+      scopeKey: stripeScopeKey,
+      channel: 'existing-account-authorize',
+      request: async ({ signal }) => {
+        const { ein: _ein, ...preparationContext } = context;
+        const preparationResponse = await axiosServices.post('/api/stripe/connect-preparation', preparationContext, { signal });
+        const savedPreparation = preparationResponse.data;
+        if (!savedPreparation?.id || !Array.isArray(savedPreparation.propertyIds) || !savedPreparation.updatedAt) {
+          throw new Error('Property Peace could not confirm the saved payout setup.');
+        }
+        const authorizationResponse = await axiosServices.post('/api/stripe/existing-account/authorize', {}, { signal });
+        const authorizationUrl = getTrustedStripeAuthorizationUrl(authorizationResponse.data?.authorizationUrl);
+        if (!authorizationUrl) throw new Error('Stripe did not return a valid account connection link.');
+        return authorizationUrl;
+      },
+      onSuccess: (authorizationUrl) => window.location.assign(authorizationUrl),
+      onError: (error) => openSnackbar({
+        open: true,
+        message: error?.response?.status === 503
+          ? 'Connecting an existing Stripe account is not available yet. Please contact support or set up a new Stripe account.'
+          : error?.response?.data?.message || error?.message || 'Unable to connect the existing Stripe account.',
+        variant: 'alert',
+        alert: { color: 'error' }
+      }),
+      onFinally: () => {
+        connectSubmissionRef.current = false;
+        setConnecting(false);
+      }
+    });
+  };
+
   // Full-dashboard Standard accounts use Stripe-hosted onboarding, not embedded sessions.
-  const openStripeHostedOnboarding = async () => {
+  const openStripeHostedOnboarding = useCallback(async () => {
     if (!canManageAccount || !stripeScopeKey || !accountStatus?.AccountId) return;
     setFetchingSession(true);
     return requestLifecycleRef.current.run({
       scopeKey: stripeScopeKey,
       channel: 'hosted-onboarding',
-      request: ({ signal }) => axiosServices.post('/api/stripe/account-link', {}, { signal }),
+      request: ({ signal }) => axiosServices.post('/api/stripe/account-link', { type: 'account_onboarding' }, { signal }),
       onSuccess: (response) => {
         const url = response.data?.onboardingUrl;
         if (!url) throw new Error('Stripe did not return an onboarding link.');
@@ -459,7 +560,7 @@ export function PaymentsSettingsContent({ rentPaymentAccess, headerActionElement
       onError: (error) => openSnackbar({ open: true, message: error?.response?.data?.message || error.message || 'Unable to open Stripe onboarding.', variant: 'alert', alert: { color: 'error' } }),
       onFinally: () => setFetchingSession(false)
     });
-  };
+  }, [canManageAccount, stripeScopeKey, accountStatus?.AccountId]);
 
   const openStripeDashboard = () => {
     if (!canManageAccount || !stripeScopeKey || !accountStatus?.AccountId) return;
@@ -691,26 +792,72 @@ export function PaymentsSettingsContent({ rentPaymentAccess, headerActionElement
     );
   }
 
-  if (checkingStatus) {
+  const statusLoaded = Boolean(stripeScopeKey) && accountStatusScopeKey === stripeScopeKey;
+
+  if (checkingStatus && !statusLoaded) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}>
-        <CircularProgress />
+        <CircularProgress aria-label="Loading Stripe status" />
       </Box>
     );
   }
 
-  const needsOnboarding = accountStatus?.AccountId && !accountStatus?.DetailsSubmitted;
-  const hasNoAccount = !accountStatus?.AccountId || accountStatus?.AccountId === '' || accountStatus?.AccountId === null;
+  if (!statusLoaded) {
+    return (
+      <Alert severity="error" action={<Button color="inherit" onClick={refreshStripeStatus}>Retry</Button>}>
+        Unable to check your Stripe account status.
+      </Alert>
+    );
+  }
+
+  const openStripeSetup = onOpenStripeSetup ?? (() => navigate(ONLINE_PAYMENT_SETUP_PATH));
+  const openExistingStripeSetup = () => {
+    if (onOpenStripeSetup) {
+      onOpenStripeSetup('existing');
+      return;
+    }
+    navigate(`${ONLINE_PAYMENT_SETUP_PATH}&setupMode=existing`);
+  };
+
+  if (showStripeSetup && canCreateInitialAccount) {
+    if (preparation.status === 'error') {
+      return (
+        <Alert severity="error" action={<Button color="inherit" onClick={loadConnectPreparation}>Retry</Button>}>
+          {preparation.error}
+        </Alert>
+      );
+    }
+    if (preparation.status !== 'ready') {
+      return <Alert severity="info">Loading your saved payout setup…</Alert>;
+    }
+    return (
+      <ConnectOnboardingWizard
+        embedded
+        onClose={onCloseStripeSetup}
+        onContinue={handlePreparedConnectAccount}
+        properties={properties}
+        propertiesLoading={propertiesLoading}
+        propertiesError={propertiesError}
+        onRetryProperties={propertiesRefetch}
+        user={user}
+        initialDraft={preparation.data}
+        initialSetupMode={initialSetupMode}
+        onConnectExisting={handlePreparedExistingAccount}
+        loading={connecting}
+      />
+    );
+  }
+
   const renderedBankManagementGuard = bankManagementCallbackGuardRef.current;
   const organizationName = currentOrganization?.name ?? currentOrganization?.Name ?? 'Your organization';
   const entityName = bankAccounts.find((account) => account.accountName)?.accountName || organizationName;
-  const entityStatus = accountStatus?.IsEnabled === true
-    ? { label: 'Enabled', color: 'success', variant: 'filled' }
-    : needsOnboarding
-        ? { label: 'Setup required', color: 'warning', variant: 'outlined' }
-        : accountStatus?.DetailsSubmitted === true
-          ? { label: 'Stripe verification pending', color: 'info', variant: 'outlined' }
-          : { label: 'Not connected', color: 'default', variant: 'outlined' };
+  const stripeStatus = getStripeBankAccountStatus(accountStatus);
+  const hasStripeAccount = Boolean(accountStatus.AccountId);
+  const showBankAccounts = hasStripeAccount || bankAccounts.length > 0 || bankAccountsError;
+  const canOpenStripeAction = hasStripeAccount ? canManageAccount : canCreateInitialAccount;
+  const needsHostedOnboarding = stripeStatus.setupRequired || accountStatus.HasPastDueRequirements;
+  const stripeAction = !hasStripeAccount ? openStripeSetup : needsHostedOnboarding ? openStripeHostedOnboarding : openStripeDashboard;
+  const stripeActionLabel = !hasStripeAccount ? 'Set up Stripe' : stripeStatus.actionLabel ?? (needsHostedOnboarding ? 'Continue Stripe setup' : 'Manage in Stripe');
   const bankManagementTitle = bankManagementMode === 'entity'
     ? 'Edit payment entity'
     : bankManagementMode === 'remove'
@@ -718,226 +865,119 @@ export function PaymentsSettingsContent({ rentPaymentAccess, headerActionElement
       : bankManagementMode === 'add'
         ? 'Add a Stripe bank account'
         : 'Manage Stripe bank accounts';
-  const addAccountButton = (
-    <Button
-      variant="contained"
-      startIcon={openingBankManagement ? <CircularProgress size={16} color="inherit" /> : <PlusOutlined />}
-      onClick={hasNoAccount
-        ? openConnectPreparation
-        : needsOnboarding
-          ? openStripeHostedOnboarding
-          : openStripeDashboard}
-      disabled={
-        (hasNoAccount ? !canCreateInitialAccount : !canManageAccount) ||
-        connecting ||
-        loading ||
-        fetchingSession ||
-        openingBankManagement
-      }
-      sx={{ whiteSpace: 'nowrap', width: { xs: '100%', sm: 'auto' }, bgcolor: 'brand.forest', color: '#fff', '&:hover': { bgcolor: 'primary.dark' } }}
-    >
-      {connecting
-        ? 'Connecting…'
-        : fetchingSession || openingBankManagement
-          ? 'Opening Stripe…'
-          : hasNoAccount
-            ? 'Add Stripe account'
-            : needsOnboarding
-              ? 'Complete Stripe setup'
-              : 'Add bank account'}
-    </Button>
-  );
 
   return (
     <Box>
-      {headerActionElement && createPortal(addAccountButton, headerActionElement)}
-      <Stack spacing={3}>
-        <Stack
-          direction={{ xs: 'column', sm: 'row' }}
-          spacing={1.5}
-          alignItems={{ xs: 'stretch', sm: 'center' }}
-          justifyContent="space-between"
-        >
-          <Box>
-            <Typography variant="h5" fontWeight={700}>
-              Bank accounts
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Manage the payment entity and payout accounts connected to this organization.
-            </Typography>
-          </Box>
-          {!headerActionElement && addAccountButton}
-        </Stack>
+      <Stack spacing={2}>
+        <Typography component="h2" variant="h5" fontWeight={700}>
+          Stripe account
+        </Typography>
 
-        <RentPaymentAccessPanel
-          {...rentPaymentAccess}
-          onRefresh={rentPaymentAccess.refresh}
-          onConfigure={hasNoAccount
-            ? (canCreateInitialAccount ? openConnectPreparation : undefined)
-            : (canManageAccount ? openStripeHostedOnboarding : undefined)}
-        />
-
-        {/* Payment entity */}
-        <Paper variant="outlined" sx={{ overflow: 'hidden', bgcolor: 'background.paper' }}>
+        <Paper variant="outlined">
           <Stack
-            direction={{ xs: 'column', sm: 'row' }}
+            direction={{ xs: 'column', md: 'row' }}
             spacing={2}
-            alignItems={{ xs: 'stretch', sm: 'center' }}
+            alignItems={{ xs: 'flex-start', md: 'center' }}
             justifyContent="space-between"
-            sx={{ p: { xs: 2.5, md: 3 }, borderBottom: '1px solid', borderColor: 'divider' }}
+            sx={{ p: { xs: 2, sm: 2.5 } }}
           >
-            <Stack direction="row" spacing={1.5} alignItems="center">
+            <Stack direction="row" spacing={1.5} alignItems="flex-start">
               <Box
                 sx={{
-                  width: 42,
-                  height: 42,
+                  width: 40,
+                  height: 40,
+                  flexShrink: 0,
                   display: 'grid',
                   placeItems: 'center',
-                  borderRadius: 2,
+                  borderRadius: 1.5,
                   bgcolor: (t) => alpha(t.palette.primary.main, 0.1),
                   color: 'primary.main'
                 }}
               >
-                <CreditCardOutlined style={{ fontSize: 21 }} />
+                <CreditCardOutlined aria-hidden="true" style={{ fontSize: 20 }} />
               </Box>
-              <Box>
-                <Typography variant="overline" color="text.secondary" sx={{ lineHeight: 1.2 }}>
-                  Payment entity
-                </Typography>
+              <Box aria-live="polite">
                 <Stack direction="row" spacing={1} alignItems="center" useFlexGap flexWrap="wrap">
-                  <Typography variant="h6" fontWeight={700}>
+                  <Typography component="h3" variant="h6" fontWeight={700} sx={{ overflowWrap: 'anywhere' }}>
                     {entityName}
                   </Typography>
-                  <Chip
-                    size="small"
-                    label={entityStatus.label}
-                    color={entityStatus.color}
-                    variant={entityStatus.variant}
-                    sx={{ fontWeight: 700 }}
-                  />
+                  <Chip label={stripeStatus.label} color={stripeStatus.color} size="small" variant="outlined" />
                 </Stack>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                  {stripeStatus.message}
+                </Typography>
+                {stripeStatus.requirements?.length > 0 && (
+                  <Box component="ul" sx={{ m: 0, mt: 0.75, pl: 2.5, color: 'text.secondary' }}>
+                    {stripeStatus.requirements.map((requirement) => (
+                      <Typography key={requirement} component="li" variant="body2">{requirement}</Typography>
+                    ))}
+                  </Box>
+                )}
               </Box>
             </Stack>
-            {canManageAccount && (
-              <Button
-                variant="outlined"
-                startIcon={<EditOutlined />}
-                onClick={needsOnboarding ? openStripeHostedOnboarding : openStripeDashboard}
-                disabled={fetchingSession || openingBankManagement}
-              >
-                Edit entity
-              </Button>
-            )}
+            <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ flexShrink: 0, maxWidth: '100%' }}>
+              {showBankAccounts && (
+                <Button onClick={refreshStripeStatus} disabled={checkingStatus || loadingBankAccounts} startIcon={<ReloadOutlined aria-hidden="true" />}>
+                  {checkingStatus || loadingBankAccounts ? 'Refreshing…' : 'Refresh status'}
+                </Button>
+              )}
+              {canOpenStripeAction && (
+                <Button
+                  variant="contained"
+                  endIcon={hasStripeAccount ? <ExportOutlined aria-hidden="true" /> : undefined}
+                  onClick={stripeAction}
+                  disabled={connecting || fetchingSession}
+                >
+                  {fetchingSession ? 'Opening Stripe…' : stripeActionLabel}
+                </Button>
+              )}
+              {!hasStripeAccount && canCreateInitialAccount && (
+                <Button variant="outlined" onClick={openExistingStripeSetup} disabled={connecting || fetchingSession}>
+                  Connect existing Stripe account
+                </Button>
+              )}
+            </Stack>
           </Stack>
 
-          {needsOnboarding && (
-            <Alert severity="warning" sx={{ m: { xs: 2.5, md: 3 }, mb: 0 }}>
-              Additional business information is required before Stripe can finish setting up payouts.
-            </Alert>
-          )}
-
-          <Box
-            sx={{
-              p: { xs: 2.5, md: 3 },
-              display: 'grid',
-              gridTemplateColumns: { xs: '1fr', sm: 'minmax(150px, 0.35fr) minmax(0, 1fr)' },
-              rowGap: 1.5,
-              columnGap: 3
-            }}
-          >
-            <Typography variant="subtitle2">Account type</Typography>
-            <Typography variant="body2" color="text.secondary">Business</Typography>
-            <Typography variant="subtitle2">Name</Typography>
-            <Typography variant="body2" color="text.secondary">{entityName}</Typography>
-            <Typography variant="subtitle2">Doing business as</Typography>
-            <Typography variant="body2" color="text.secondary">{entityName}</Typography>
-          </Box>
-        </Paper>
-
-        {/* Bank Accounts Section */}
-        <Paper variant="outlined" sx={{ p: 3, bgcolor: (t) => alpha(t.palette.background.paper, 0.6) }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-            <BankOutlined style={{ fontSize: 20, color: '#1890ff' }} />
-            <Typography variant="h6" fontWeight="bold">
-              Connected bank accounts
-            </Typography>
-          </Box>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Payout destinations connected beneath this payment entity. Bank details are added, edited, and removed securely in Stripe.
-          </Typography>
-          {bankManagementError && <Alert severity="error" sx={{ mb: 2 }}>{bankManagementError}</Alert>}
-
-          {loadingBankAccounts ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-              <CircularProgress />
-            </Box>
-          ) : bankAccounts.length === 0 ? (
-            <Alert severity="info">
-              No payout account found. Complete Stripe setup to add the bank account that will receive rent payouts.
-            </Alert>
-          ) : (
-            <Grid container spacing={2}>
-              {bankAccounts.map((account) => (
-                <Grid item xs={12} sm={6} key={account.id}>
-                  <Card variant="outlined" sx={{ height: '100%' }}>
-                    <CardContent>
-                      <Stack spacing={2}>
-                        <Box>
-                          <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-                            <BankOutlined style={{ fontSize: 18, color: '#1890ff' }} />
-                            <Typography variant="subtitle1" fontWeight="600">
-                              {account.bankName || account.accountName || 'Unnamed Account'}
-                              {account.last4 && (
-                                <Typography component="span" variant="subtitle1" fontWeight="600" sx={{ ml: 1, color: 'text.secondary' }}>
-                                  •••• {account.last4}
-                                </Typography>
-                              )}
-                            </Typography>
-                          </Stack>
-                          {account.stripeAccountId && (
-                            <Typography variant="body2" color="text.secondary" sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
-                              {account.stripeAccountId}
+          {showBankAccounts && (
+            <>
+              <Divider />
+              <Box sx={{ px: { xs: 2, sm: 2.5 }, py: 2 }}>
+                <Typography component="h3" variant="subtitle1" fontWeight={700}>
+                  Connected bank accounts
+                </Typography>
+                {loadingBankAccounts ? (
+                  <CircularProgress size={20} aria-label="Loading bank accounts" sx={{ mt: 1 }} />
+                ) : bankAccountsError ? (
+                  <Alert severity="error" sx={{ mt: 1 }}>Unable to load bank accounts. Refresh status to try again.</Alert>
+                ) : bankAccounts.length === 0 ? (
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                    No payout bank accounts are listed yet.
+                  </Typography>
+                ) : (
+                  <Stack component="ul" divider={<Divider component="li" />} sx={{ listStyle: 'none', m: 0, p: 0 }}>
+                    {bankAccounts.map((account) => (
+                      <Stack key={account.id} component="li" direction="row" spacing={1.25} alignItems="center" sx={{ py: 1.25 }}>
+                        <Box sx={{ color: 'primary.main', display: 'flex' }}>
+                          <BankOutlined aria-hidden="true" />
+                        </Box>
+                        <Typography variant="body2" fontWeight={600} sx={{ overflowWrap: 'anywhere' }}>
+                          {account.bankName || account.accountName || 'Unnamed bank account'}
+                          {account.last4 && (
+                            <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 1, whiteSpace: 'nowrap' }}>
+                              •••• {account.last4}
                             </Typography>
                           )}
-                        </Box>
-
-                        {canManageAccount && (
-                          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-                            <Button
-                              variant="outlined"
-                              size="small"
-                              startIcon={<EditOutlined />}
-                              onClick={openStripeDashboard}
-                              disabled={openingBankManagement}
-                            >
-                              Manage in Stripe
-                            </Button>
-                          </Stack>
-                        )}
+                        </Typography>
                       </Stack>
-                    </CardContent>
-                  </Card>
-                </Grid>
-              ))}
-            </Grid>
+                    ))}
+                  </Stack>
+                )}
+              </Box>
+            </>
           )}
         </Paper>
-
       </Stack>
-
-      <ConnectOnboardingWizard
-        open={showPreparation}
-        onClose={() => setShowPreparation(false)}
-        onContinue={handlePreparedConnectAccount}
-        properties={properties}
-        propertiesLoading={propertiesLoading}
-        propertiesError={propertiesError}
-        onRetryProperties={propertiesRefetch}
-        user={user}
-        initialDraft={connectPreparation}
-        preparationLoading={preparationLoading}
-        loading={connecting}
-      />
 
       {/* Embedded Onboarding Dialog */}
       <Dialog

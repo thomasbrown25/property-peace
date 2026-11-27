@@ -46,13 +46,12 @@ import MainCard from 'components/MainCard';
 import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
 import DueDateSelector from 'components/input/DueDateSelector';
 import ConfigureLateFeesModal from 'components/dialogs/ConfigureLateFeesModal';
-import StripeConnectOnboardingDialog from 'components/dialogs/StripeConnectOnboardingDialog';
+import OnlinePaymentSetupButton from 'components/rent-payments/OnlinePaymentSetupButton';
 import { formatCurrency, formatDate } from 'utils/formatters';
 import { openSnackbar } from 'api/snackbar';
 import useFetchProperties from 'hooks/useFetchProperties';
 import { updateLease } from 'store/lease/lease.action';
 import { getBankAccounts, getBankAccount } from 'api/bankAccount';
-import axiosServices from 'utils/axios';
 import FeatureReadinessNotice from 'components/feature-readiness/FeatureReadinessNotice';
 import useFeatureReadiness from 'hooks/useFeatureReadiness';
 import { FEATURE_KEYS } from 'utils/featureReadiness';
@@ -129,7 +128,6 @@ export default function LeaseCharges() {
   const [loadingBankAccounts, setLoadingBankAccounts] = useState(false);
   const [selectedAccountId, setSelectedAccountId] = useState(null);
   const [savingBankAccount, setSavingBankAccount] = useState(false);
-  const [showStripeOnboarding, setShowStripeOnboarding] = useState(false);
 
   // Fetch operating account details for the lease
   useEffect(() => {
@@ -195,7 +193,6 @@ export default function LeaseCharges() {
   useEffect(() => {
     if (!rentCanInvoke) {
       setBankingModalOpen(false);
-      setShowStripeOnboarding(false);
       setBankAccounts([]);
       setSelectedAccountId(null);
     }
@@ -244,24 +241,6 @@ export default function LeaseCharges() {
       });
     } finally {
       setSavingBankAccount(false);
-    }
-  };
-
-  const handleStripeOnboardingComplete = async () => {
-    if (!rentCanInvoke) return;
-    setShowStripeOnboarding(false);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    try {
-      await axiosServices.post('/api/stripe/sync-bank-account');
-      propertiesRefetch();
-      if (bankingModalOpen) {
-        const response = await getBankAccounts();
-        if (response.success && response.data) {
-          setBankAccounts(response.data || []);
-        }
-      }
-    } catch (err) {
-      console.error('Error syncing bank account:', err);
     }
   };
 
@@ -1235,14 +1214,14 @@ export default function LeaseCharges() {
                 </Select>
               </FormControl>
             )}
-            <Button
+            <OnlinePaymentSetupButton
               variant="outlined"
               startIcon={<PlusOutlined />}
-              onClick={() => setShowStripeOnboarding(true)}
+              onClick={() => setBankingModalOpen(false)}
               sx={{ alignSelf: 'flex-start', textTransform: 'none' }}
             >
               Add new bank account
-            </Button>
+            </OnlinePaymentSetupButton>
           </Stack>
         </DialogContent>
         <DialogActions>
@@ -1259,14 +1238,6 @@ export default function LeaseCharges() {
           </Button>
         </DialogActions>
       </Dialog>
-      )}
-
-      {rentCanInvoke && showStripeOnboarding && (
-      <StripeConnectOnboardingDialog
-        open={showStripeOnboarding}
-        onClose={() => setShowStripeOnboarding(false)}
-        onComplete={handleStripeOnboardingComplete}
-      />
       )}
     </Box>
   );

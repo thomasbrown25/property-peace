@@ -4,13 +4,13 @@ import assert from 'node:assert/strict';
 
 const source = (path) => readFileSync(new URL(path, import.meta.url), 'utf8');
 
-test('admin drawer and standalone property onboarding remain route-scoped', () => {
+test('admin and landlord drawers remain scoped to their respective portals', () => {
   const layout = source('../layout/Dashboard/index.jsx');
   const drawer = source('../layout/Dashboard/Drawer/index.jsx');
   assert.match(layout, /pathname === '\/admin' \|\| pathname\.startsWith\('\/admin\/'\)/);
-  assert.match(layout, /\{isAdminPortal && <MainDrawer mobileOpen=\{adminMobileMenuOpen\}/);
-  assert.match(layout, /const isLandlordPortal = .*pathname\.startsWith\('\/landlord\/'\).*&& !isAddPropertyPage/);
-  assert.match(layout, /\{isLandlordPortal && <LandlordSidebar mobileOpen=\{landlordMobileMenuOpen\}/);
+  assert.match(layout, /\{isAdminPortal && \(\s*<MainDrawer\b[^<]*mobileOpen=\{adminMobileMenuOpen\}/);
+  assert.match(layout, /const isLandlordPortal = pathname === '\/landlord' \|\| pathname\.startsWith\('\/landlord\/'\);/);
+  assert.match(layout, /\{isLandlordPortal && \(\s*<LandlordSidebar\b[^<]*mobileOpen=\{landlordMobileMenuOpen\}/);
   assert.match(drawer, /variant="permanent"/);
   assert.match(drawer, /variant="temporary"/);
 });
@@ -33,7 +33,8 @@ test('landlord shell reserves one green property rail rather than two sidebars',
   const header = source('../layout/Dashboard/Header/index.jsx');
   const sidebar = source('../layout/Dashboard/LandlordSidebar.jsx');
   assert.match(sidebar, /LANDLORD_SIDEBAR_WIDTH = 260/);
-  for (const text of [layout, header]) assert.match(text, /lg: `calc\(100% - \$\{LANDLORD_SIDEBAR_WIDTH\}px\)`/);
+  assert.match(layout, /lg: `calc\(100% - \$\{landlordSidebarWidth\}px\)`/);
+  assert.match(header, /lg: `calc\(100% - \$\{sidebarWidth\}px\)`/);
   assert.doesNotMatch(sidebar, /LANDLORD_PROPERTY_SIDEBAR_WIDTH|LANDLORD_PRIMARY_SIDEBAR_WIDTH|aria-label="Property sidebar"|\{navigation\}/);
   assert.match(sidebar, /const sidebarBackground = brand\.forest/);
   assert.match(source('../themes/brand.js'), /forest: '#102C29'/);
@@ -42,17 +43,48 @@ test('landlord shell reserves one green property rail rather than two sidebars',
   assert.match(sidebar, /<Logo darkSurface[\s\S]*?to="\/landlord\/dashboard"/);
 });
 
-test('desktop top bar has ordered landlord links, More, and icon search', () => {
+test('the desktop property rail shares its width with the shell and is toggled from the top bar', () => {
+  const layout = source('../layout/Dashboard/index.jsx');
+  const header = source('../layout/Dashboard/Header/index.jsx');
+  const sidebar = source('../layout/Dashboard/LandlordSidebar.jsx');
+  assert.match(layout, /selectIsEmptyPropertyPortfolio\(state, organizationId\)/);
+  assert.match(layout, /const landlordSidebarWidth = landlordDesktopMenuOpen \? LANDLORD_SIDEBAR_WIDTH : MINI_DRAWER_WIDTH/);
+  assert.match(layout, /landlordSidebarWidth=\{landlordSidebarWidth\}/);
+  assert.match(layout, /desktopWidth=\{landlordSidebarWidth\}/);
+  assert.match(layout, /<Header\b[\s\S]*?landlordDesktopMenuOpen=\{landlordDesktopMenuOpen\}[\s\S]*?onLandlordMenuToggle=\{emptyPropertyPortfolio \? \(\) => setLandlordDesktopMenu\(\{ organizationId, open: !landlordDesktopMenuOpen \}\) : undefined\}/);
+  assert.match(header, /const sidebarWidth = .* : landlordSidebarWidth;/);
+  assert.match(sidebar, /<Drawer variant="permanent" open sx=\{\{[^\n]*width: desktopWidth/);
+  assert.match(sidebar, /'& \.MuiDrawer-paper': \{ width: desktopWidth/);
+  assert.match(header, /<Toolbar\b[\s\S]*?\{landlordPortal && onLandlordMenuToggle && \([\s\S]*?aria-controls="landlord-property-navigation"\s+aria-expanded=\{landlordDesktopMenuOpen\}\s+onClick=\{onLandlordMenuToggle\}[\s\S]*?<HeaderContent\b/);
+  assert.match(sidebar, /id="landlord-property-navigation"/);
+  assert.doesNotMatch(sidebar, /aria-controls="landlord-property-navigation"/);
+});
+
+test('a populated portfolio expands the desktop sidebar even after a manual collapse', () => {
+  const layout = source('../layout/Dashboard/index.jsx');
+  const expression = layout.match(/const landlordDesktopMenuOpen = ([^;]+);/)?.[1];
+  assert.ok(expression, 'Missing the desktop sidebar state');
+  const sidebarIsOpen = new Function('emptyPropertyPortfolio', 'landlordDesktopMenu', 'organizationId', `return (${expression});`);
+
+  assert.equal(sidebarIsOpen(false, { organizationId: 7, open: false }, 7), true);
+  assert.equal(sidebarIsOpen(true, null, 7), false);
+  assert.equal(sidebarIsOpen(true, { organizationId: 7, open: true }, 7), true);
+  assert.equal(sidebarIsOpen(true, { organizationId: 8, open: true }, 7), false);
+});
+
+test('the collapsed property rail shows the white logo as a dashboard link at the top', () => {
+  const sidebar = source('../layout/Dashboard/LandlordSidebar.jsx');
+  assert.match(sidebar, /import compactLogo from 'assets\/images\/logos\/logo-white\.png'/);
+  assert.match(sidebar, /desktopOpen \? \(\s*<Logo[^>]*>\s*\) : \(\s*<Box component=\{Link\} to="\/landlord\/dashboard"[\s\S]*?<Box component="img" src=\{compactLogo\} alt="Property Peace home"[\s\S]*?id="landlord-property-navigation"/);
+});
+
+test('desktop top bar has ordered landlord links and More', () => {
   const content = source('../layout/Dashboard/Header/HeaderContent/index.jsx');
   const primary = source('../layout/Dashboard/Header/HeaderContent/LandlordPrimaryNavigation.jsx');
   const more = source('../layout/Dashboard/Header/HeaderContent/TopNavigation.jsx');
   assert.match(content, /landlordPortal && <LandlordPrimaryNavigation \/>/);
   assert.match(content, /gridTemplateColumns: 'minmax\(0, 1fr\) auto minmax\(max-content, 1fr\)'/);
-  assert.match(content, /gridTemplateAreas: '"\. navigation actions"'/);
   assert.match(content, /gap: landlordPortal \? \{ xs: 0\.5, sm: 0\.75, xl: 1\.25 \}/);
-  assert.match(content, /!hasTenantRole && <MobileSearch \/>[\s\S]*?<Message \/>/);
-  assert.doesNotMatch(content, /<Search \/>/);
-  assert.match(source('../layout/Dashboard/Header/HeaderContent/MobileSearch.jsx'), /<AppIcon name="magnifier" \/>/);
   assert.match(source('../layout/Dashboard/Header/HeaderContent/Message.jsx'), /<AppIcon name=\{isAdmin \? 'support' : 'chatBubbles'\} \/>/);
   assert.match(source('../layout/Dashboard/Header/HeaderContent/Notification.jsx'), /<AppIcon name="notification" \/>/);
   assert.match(primary, /landlordPrimaryLinks\.map/);
@@ -62,6 +94,27 @@ test('desktop top bar has ordered landlord links, More, and icon search', () => 
   assert.match(more, /groupLandlordMoreNavigation\(landlordPagesForInventory/);
   assert.match(more, /primaryDestinations\.has\(item\.url\)/);
   assert.doesNotMatch(more, /const tenantsItem/);
+});
+
+test('landlord top bar uses a left-aligned search field on desktop and a search button on smaller screens', () => {
+  const content = source('../layout/Dashboard/Header/HeaderContent/index.jsx');
+  const mobileSearch = source('../layout/Dashboard/Header/HeaderContent/MobileSearch.jsx');
+  assert.match(content, /const downLG = useMediaQuery\(\(theme\) => theme\.breakpoints\.down\('lg'\)\)/);
+  assert.match(content, /gridTemplateAreas: '"search navigation actions"'/);
+  assert.match(content, /landlordPortal && !hasTenantRole && !downLG && \(\s*<Box sx=\{\{ gridArea: 'search',[^\n]*justifySelf: 'start'[^\n]*\}\}>\s*<Search \/>/);
+  assert.match(content, /!hasTenantRole && \(!landlordPortal \|\| downLG\) && <MobileSearch \/>[\s\S]*?<Message \/>/);
+  assert.match(mobileSearch, /<AppIcon name="magnifier" \/>/);
+  assert.match(mobileSearch, /<Search autoFocus /);
+});
+
+test('mobile landlord navigation renders primary and More menu labels in white', () => {
+  const sidebar = source('../layout/Dashboard/LandlordSidebar.jsx');
+  const mobileMenu = sidebar.match(/aria-label="Landlord pages"[\s\S]*?<\/List>/)?.[0];
+  assert.ok(mobileMenu);
+  assert.match(mobileMenu, /<List\b[^>]*\[`& \.\$\{listItemTextClasses\.primary\}`\]: \{ color: '#FFFFFF' \}/);
+  assert.match(mobileMenu, /landlordPrimaryLinks\.map[\s\S]*?<ListItemText primary=\{label\}/);
+  assert.match(mobileMenu, /<ListItemText primary="More"/);
+  assert.match(mobileMenu, /landlordMoreLinks[\s\S]*?<ListItemText primary=\{label\}/);
 });
 
 test('property rail snapshots visit order until page reload, while still recording clicks for the next load', () => {
@@ -100,6 +153,12 @@ test('properties are searchable, accessible, and scroll in the single green rail
   assert.match(sidebar, /<AppIcon name="settings" \/>/);
 });
 
+test('long property addresses truncate within the sidebar layout', () => {
+  const sidebar = source('../layout/Dashboard/LandlordSidebar.jsx');
+  assert.match(sidebar, /aria-label="Property navigation" sx=\{\{[^\n]*minWidth: 0/);
+  assert.match(sidebar, /secondaryTypographyProps=\{\{[^\n]*noWrap: true, title: property\.address/);
+});
+
 test('the property rail keeps the count and rows hidden until the current list is ready', () => {
   const sidebar = source('../layout/Dashboard/LandlordSidebar.jsx');
   assert.match(sidebar, /selectPropertiesLoadStatus\(state, organizationId\)/);
@@ -117,4 +176,31 @@ test('the property rail offers to add a property when the loaded portfolio is em
   assert.match(sidebar, /const isEmptyPortfolio = total === 0/);
   assert.match(sidebar, /const addPropertyPath = '\/landlord\/properties\/add'/);
   assert.match(sidebar, /\{isEmptyPortfolio && \([\s\S]*?No properties yet[\s\S]*?<Button component=\{Link\} to=\{addPropertyPath\}[\s\S]*?disabled=\{disabled\} onClick=\{onNavigate\}[\s\S]*?>\s*Add property\s*<\/Button>/);
+});
+
+test('the property rail expands in place with six compact icon-and-title actions', () => {
+  const sidebar = source('../layout/Dashboard/LandlordSidebar.jsx');
+  const actions = sidebar.match(/const propertyActions = \[([\s\S]*?)\];/)?.[1] || '';
+  assert.deepEqual(Array.from(actions.matchAll(/label: '([^']+)', icon: '([^']+)'/g), ([, label, icon]) => [label, icon]), [
+    ['View property', 'house'], ['Edit property', 'edit'], ['Record payment', 'payments'],
+    ['Create lease', 'leaseAdd'], ['Create task', 'checklists'], ['Upload document', 'uploadDocument']
+  ]);
+  assert.match(sidebar, /component="button"[\s\S]*?aria-expanded=\{expanded\}[\s\S]*?setExpandedPropertyId\(expanded \? null : property\.id\)/);
+  const dropdown = sidebar.match(/<Collapse in=\{expanded\}[\s\S]*?<\/Collapse>/)?.[0];
+  assert.ok(dropdown);
+  assert.match(dropdown, /timeout=\{reducedMotion \? 0 : 240\}/);
+  assert.match(dropdown, /minHeight: 36/);
+  assert.match(dropdown, /<AppIcon name=\{icon\}[\s\S]*?<Typography[^>]*>\{label\}<\/Typography>/);
+  assert.match(sidebar, /const propertySubtitleColor = 'rgba\(255,255,255,0\.72\)'/);
+  assert.match(sidebar, /secondaryTypographyProps=\{\{[^\n]*color: propertySubtitleColor/);
+  assert.match(dropdown, /<Typography[^>]*color: propertySubtitleColor[^>]*>\{label\}<\/Typography>/);
+  assert.doesNotMatch(dropdown, /secondary|subtitle|description/);
+});
+
+test('sidebar actions keep the selected property when opening a page or drawer', () => {
+  const sidebar = source('../layout/Dashboard/LandlordSidebar.jsx');
+  assert.match(sidebar, /navigate\(to, \{ state: \{ propertySidebarAction: action \} \}\)/);
+  assert.match(sidebar, /drawer\.openPaymentAddDrawer\(\{ property: \{ id: property\.id, name: property\.name \} \}\)/);
+  assert.match(sidebar, /setTaskDraft\(\{ propertyId: property\.id \}\)/);
+  assert.match(sidebar, /<TaskEditorDrawer[\s\S]*?initialValues=\{taskDraft\}[\s\S]*?dispatch\(createTask\(form\)\)/);
 });

@@ -43,7 +43,7 @@ import { completeLeaseDraft } from 'api/lease';
 import { getMoveInReportTemplate, getChecklistsByLease } from 'api/checklist';
 import { useModal } from 'contexts/ModalContext';
 import PaymentModal from 'components/drawers/PaymentModal';
-import StripeConnectOnboardingDialog from 'components/dialogs/StripeConnectOnboardingDialog';
+import OnlinePaymentSetupButton from 'components/rent-payments/OnlinePaymentSetupButton';
 import AddTenantDialog from 'components/dialogs/AddTenantDialog';
 import FeatureReadinessNotice from 'components/feature-readiness/FeatureReadinessNotice';
 import useFeatureReadiness from 'hooks/useFeatureReadiness';
@@ -289,7 +289,6 @@ export default function LeasePage() {
   const [loadingBankAccounts, setLoadingBankAccounts] = useState(false);
   const [selectedAccountId, setSelectedAccountId] = useState(null);
   const [savingBankAccount, setSavingBankAccount] = useState(false);
-  const [showStripeOnboarding, setShowStripeOnboarding] = useState(false);
 
   // Fetch tenants by leaseId when lease changes
   useEffect(() => {
@@ -900,45 +899,6 @@ export default function LeasePage() {
     } finally {
       setSavingBankAccount(false);
     }
-  };
-
-  // Handler for when Stripe onboarding completes
-  const handleStripeOnboardingComplete = async () => {
-    if (!rentCanInvoke) return;
-    // Close the Stripe onboarding dialog
-    setShowStripeOnboarding(false);
-    
-    // Wait a moment for Stripe to process, then sync bank account
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    try {
-      // Sync bank account with backend
-      await axiosServices.post('/api/stripe/sync-bank-account');
-    } catch (error) {
-      console.error('Error syncing bank account:', error);
-    }
-    
-    // Wait a bit more, then refresh bank accounts list
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    try {
-      const response = await bankAccountAPI.getBankAccounts();
-      if (response.success && response.data) {
-        setBankAccounts(response.data || []);
-        // Auto-select the most recently created account
-        if (response.data.length > 0) {
-          const newestAccount = response.data[0];
-          setSelectedAccountId(newestAccount.id);
-        }
-      }
-    } catch (error) {
-      console.error('Error refreshing bank accounts after onboarding:', error);
-    }
-  };
-
-  const handleOpenStripeOnboarding = () => {
-    if (!rentCanInvoke) return;
-    setShowStripeOnboarding(true);
   };
 
   // Calculate rent record and deposit status - MUST be called before any early returns (Rules of Hooks)
@@ -1978,10 +1938,10 @@ export default function LeasePage() {
               </FormControl>
             )}
 
-            <Button
+            <OnlinePaymentSetupButton
               variant="outlined"
               startIcon={<AppIcon name="add" />}
-              onClick={handleOpenStripeOnboarding}
+              onClick={() => setBankingModalOpen(false)}
               disabled={!rentCanInvoke}
               sx={{
                 alignSelf: 'flex-start',
@@ -1989,7 +1949,7 @@ export default function LeasePage() {
               }}
             >
               Add New Bank Account
-            </Button>
+            </OnlinePaymentSetupButton>
             <FeatureReadinessNotice presentation={rentReadiness} featureName="Online rent collection" compact />
           </Stack>
         </DialogContent>
@@ -2007,15 +1967,6 @@ export default function LeasePage() {
           </Button>
         </DialogActions>
       </Dialog>
-
-      {/* Stripe Connect Onboarding Dialog */}
-      {rentCanInvoke && (
-        <StripeConnectOnboardingDialog
-          open={showStripeOnboarding}
-          onClose={() => setShowStripeOnboarding(false)}
-          onComplete={handleStripeOnboardingComplete}
-        />
-      )}
 
       {/* Payment Modal */}
       <PaymentModal 

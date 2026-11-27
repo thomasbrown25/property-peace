@@ -10,6 +10,25 @@ const apiRoot = path.resolve(root, '../../property-peace-api');
 const dto = fs.readFileSync(path.join(apiRoot, 'Dtos/Tenant/LoadTenantDto.cs'), 'utf8');
 const mapper = fs.readFileSync(path.join(apiRoot, 'AutoMapperProfile.cs'), 'utf8');
 
+test('landlord and tenant chat send buttons use the branded icon and a transparent background', () => {
+  const styles = fs.readFileSync(path.join(root, 'themes/chatStyles.js'), 'utf8');
+  const sendStyle = styles.split('export const chatSendButtonSx = {')[1]?.split('\n};')[0] ?? '';
+  assert.match(sendStyle, /bgcolor: 'transparent'/);
+  assert.match(sendStyle, /'&:hover': \{ bgcolor: 'transparent'/);
+  assert.match(sendStyle, /'&\.Mui-disabled': \{ bgcolor: 'transparent'/);
+
+  for (const [file, expectedCount] of [['landlord/messages', 2], ['tenant/messages', 1], ['tenant/TenantNewChat', 1]]) {
+    const source = fs.readFileSync(path.join(root, `pages/${file}.jsx`), 'utf8');
+    const buttons = [...source.matchAll(/<IconButton\b(?:(?!<\/IconButton>)[\s\S])*?<\/IconButton>/g)]
+      .filter(([button]) => /aria-label="Send (?:first )?message"/.test(button));
+    assert.equal(buttons.length, expectedCount, file);
+    for (const [button] of buttons) {
+      assert.match(button, /sx=\{(?:\{ \.\.\.)?chatSendButtonSx\b/);
+      assert.match(button, /<AppIcon name="send"/);
+    }
+  }
+});
+
 test('new Chat opens a recipient dropdown with the specified prompt and scrollable four-row preview', () => {
   assert.match(page, /Enter tenant name, email or lease/);
   assert.match(page, /id="tenant-recipient-options"[\s\S]*?maxHeight: 280[\s\S]*?overflowY: 'auto'[\s\S]*?scrollbarWidth: 'none'/);

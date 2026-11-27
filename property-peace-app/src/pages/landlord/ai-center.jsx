@@ -55,7 +55,6 @@ import {
   makeAICenterScope
 } from 'utils/aiCenterScope';
 
-const NAVY = '#061e35';
 const GREEN = '#41a541';
 const STARTER_PROMPTS = [
   { label: 'Rent at risk', prompt: 'Which tenants are behind on rent?', icon: <DollarCircleOutlined /> },
@@ -78,9 +77,10 @@ function PercyAvatar({ size = 32, elevated = false }) {
         borderRadius: size >= 50 ? 2.25 : 1.25,
         display: 'grid',
         placeItems: 'center',
-        bgcolor: darkMode ? alpha('#fff', 0.07) : alpha(theme.palette.brand.forest, 0.055),
-        border: `1px solid ${darkMode ? alpha('#fff', 0.1) : alpha(NAVY, 0.07)}`,
-        boxShadow: elevated ? `0 12px 24px ${alpha(NAVY, darkMode ? 0.34 : 0.14)}` : 'none'
+        bgcolor: alpha(theme.palette.text.primary, darkMode ? 0.07 : 0.055),
+        border: '1px solid',
+        borderColor: alpha(theme.palette.text.primary, darkMode ? 0.1 : 0.07),
+        boxShadow: elevated ? `0 12px 24px ${alpha(theme.palette.text.primary, darkMode ? 0.34 : 0.14)}` : 'none'
       }}
     >
       <Box
@@ -159,7 +159,7 @@ const errorMessage = (error, fallback) =>
 
 function ToolStatus({ tool }) {
   return (
-    <Box sx={{ mt: 1.5, px: 1.25, py: 1, borderRadius: 1.75, bgcolor: (theme) => alpha(theme.palette.brand.forest, 0.035), border: `1px solid ${alpha(NAVY, 0.08)}` }}>
+    <Box sx={{ mt: 1.5, px: 1.25, py: 1, borderRadius: 1.75, bgcolor: 'surface.nested', border: '1px solid', borderColor: 'divider' }}>
       <Stack direction="row" spacing={1} alignItems="center">
         <Box
           sx={{ width: 28, height: 28, borderRadius: 1, display: 'grid', placeItems: 'center', bgcolor: alpha(GREEN, 0.1), color: GREEN }}
@@ -167,7 +167,7 @@ function ToolStatus({ tool }) {
           <ApiOutlined />
         </Box>
         <Box sx={{ minWidth: 0, flex: 1 }}>
-          <Typography variant="caption" fontWeight={800} sx={{ display: 'block', color: NAVY }}>
+          <Typography variant="caption" fontWeight={800} sx={{ display: 'block', color: 'text.primary' }}>
             {tool.label}
           </Typography>
           <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
@@ -204,11 +204,11 @@ function AssistantMessage({ message, progressText, onResolveConfirmation, confir
       <PercyAvatar />
       <Box sx={{ minWidth: 0, maxWidth: 760, flex: 1 }}>
         {message.streaming && !message.content ? (
-          <Typography variant="body2" fontWeight={700} sx={{ color: NAVY }}>
+          <Typography variant="body2" fontWeight={700} sx={{ color: 'text.primary' }}>
             {progressText}
           </Typography>
         ) : (
-          <Typography variant="body1" sx={{ color: NAVY, lineHeight: 1.75 }}>
+          <Typography variant="body1" sx={{ color: 'text.primary', lineHeight: 1.75 }}>
             {message.content}
           </Typography>
         )}
@@ -229,11 +229,11 @@ function AssistantMessage({ message, progressText, onResolveConfirmation, confir
             }}
           >
             {message.metrics.map((metric) => (
-              <Box key={metric.label} sx={{ p: 1.25, borderRadius: 1.5, border: `1px solid ${alpha(NAVY, 0.09)}`, bgcolor: '#fff' }}>
+              <Box key={metric.label} sx={{ p: 1.25, borderRadius: 1.5, border: '1px solid', borderColor: 'divider', bgcolor: 'background.paper' }}>
                 <Typography variant="caption" color="text.secondary">
                   {metric.label}
                 </Typography>
-                <Typography variant="subtitle1" fontWeight={800} sx={{ color: NAVY, mt: 0.2 }}>
+                <Typography variant="subtitle1" fontWeight={800} sx={{ color: 'text.primary', mt: 0.2 }}>
                   {formatPercyMetricValue(metric)}
                 </Typography>
               </Box>
@@ -249,7 +249,7 @@ function AssistantMessage({ message, progressText, onResolveConfirmation, confir
                 direction="row"
                 justifyContent="space-between"
                 spacing={2}
-                sx={{ px: 1.25, py: 1, borderRadius: 1.5, border: `1px solid ${alpha(NAVY, 0.08)}`, bgcolor: '#fff' }}
+                sx={{ px: 1.25, py: 1, borderRadius: 1.5, border: '1px solid', borderColor: 'divider', bgcolor: 'background.paper' }}
               >
                 <Box sx={{ minWidth: 0 }}>
                   <Typography variant="body2" fontWeight={750} noWrap>
@@ -260,7 +260,7 @@ function AssistantMessage({ message, progressText, onResolveConfirmation, confir
                   </Typography>
                 </Box>
                 {item.value !== undefined && (
-                  <Typography variant="body2" fontWeight={750} sx={{ flexShrink: 0, color: NAVY }}>
+                  <Typography variant="body2" fontWeight={750} sx={{ flexShrink: 0, color: 'text.primary' }}>
                     {typeof item.value === 'number'
                       ? item.value.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
                       : item.value}
@@ -344,7 +344,7 @@ function ConnectionRow({ icon, title, detail, active = false }) {
           display: 'grid',
           placeItems: 'center',
           bgcolor: active ? alpha(GREEN, 0.09) : (theme) => alpha(theme.palette.brand.forest, 0.05),
-          color: active ? GREEN : NAVY
+          color: active ? GREEN : 'text.primary'
         }}
       >
         {icon}
@@ -718,9 +718,10 @@ export default function AICenter() {
           display: 'flex',
           overflow: 'hidden',
           borderRadius: 3,
-          border: `1px solid ${alpha(NAVY, 0.11)}`,
-          bgcolor: '#fff',
-          boxShadow: `0 18px 45px ${alpha(NAVY, 0.07)}`
+          border: '1px solid',
+          borderColor: 'divider',
+          bgcolor: 'background.paper',
+          boxShadow: (theme) => `0 18px 45px ${alpha(theme.palette.text.primary, 0.07)}`
         }}
       >
         <Box
@@ -729,15 +730,16 @@ export default function AICenter() {
             flexShrink: 0,
             display: { xs: 'none', md: 'flex' },
             flexDirection: 'column',
-            bgcolor: (theme) => alpha(theme.palette.brand.forest, 0.025),
-            borderRight: `1px solid ${alpha(NAVY, 0.08)}`
+            bgcolor: 'surface.nested',
+            borderRight: '1px solid',
+            borderColor: 'divider'
           }}
         >
           <Box sx={{ p: 2 }}>
             <Stack direction="row" spacing={1.1} alignItems="center" sx={{ mb: 2 }}>
               <PercyAvatar size={34} />
               <Box>
-                <Typography variant="subtitle1" fontWeight={850} sx={{ color: NAVY, lineHeight: 1.1 }}>
+                <Typography variant="subtitle1" fontWeight={850} sx={{ color: 'text.primary', lineHeight: 1.1 }}>
                   Percy
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
@@ -824,7 +826,7 @@ export default function AICenter() {
                       }}
                     >
                       <Stack direction="row" spacing={1} alignItems="flex-start">
-                        <MessageOutlined style={{ color: NAVY, marginTop: 3 }} />
+                        <MessageOutlined style={{ color: theme.palette.text.primary, marginTop: 3 }} />
                         <Box sx={{ minWidth: 0 }}>
                           <Typography variant="body2" fontWeight={selected ? 750 : 600} noWrap>
                             {readField(conversation, 'title', 'Title') || 'Untitled conversation'}
@@ -876,12 +878,12 @@ export default function AICenter() {
           </Box>
         </Box>
 
-        <Box sx={{ minWidth: 0, flex: 1, display: 'flex', flexDirection: 'column', bgcolor: '#fff' }}>
+        <Box sx={{ minWidth: 0, flex: 1, display: 'flex', flexDirection: 'column', bgcolor: 'background.paper' }}>
           <Stack
             direction="row"
             alignItems="center"
             justifyContent="space-between"
-            sx={{ height: 58, flexShrink: 0, px: { xs: 1.5, sm: 2.25 }, borderBottom: `1px solid ${alpha(NAVY, 0.07)}` }}
+            sx={{ height: 58, flexShrink: 0, px: { xs: 1.5, sm: 2.25 }, borderBottom: '1px solid', borderColor: 'divider' }}
           >
             <Stack direction="row" spacing={1} alignItems="center">
               <IconButton onClick={() => setMobilePanelOpen(true)} sx={{ display: { xl: 'none' } }}>
@@ -889,7 +891,7 @@ export default function AICenter() {
               </IconButton>
               <Box>
                 <Stack direction="row" spacing={0.75} alignItems="center">
-                  <Typography variant="subtitle1" fontWeight={800} sx={{ color: NAVY }}>
+                  <Typography variant="subtitle1" fontWeight={800} sx={{ color: 'text.primary' }}>
                     Percy workspace
                   </Typography>
                   <Chip
@@ -912,7 +914,7 @@ export default function AICenter() {
             </Tooltip>
           </Stack>
 
-          <Box sx={{ flex: 1, overflowY: 'auto', px: { xs: 2, sm: 3, lg: 5 }, py: 3, bgcolor: alpha('#f8fafc', 0.55) }}>
+          <Box sx={{ flex: 1, overflowY: 'auto', px: { xs: 2, sm: 3, lg: 5 }, py: 3, bgcolor: 'surface.nested' }}>
             {summaryError && (
               <Alert severity="warning" sx={{ maxWidth: 760, mx: 'auto', mb: 2 }}>
                 Percy could not load all portfolio context. You can still navigate tools from the workspace.
@@ -946,7 +948,7 @@ export default function AICenter() {
                 }}
               >
                 <PercyAvatar size={58} elevated />
-                <Typography variant="h2" fontWeight={800} sx={{ mt: 2, color: NAVY, letterSpacing: -0.7 }}>
+                <Typography variant="h2" fontWeight={800} sx={{ mt: 2, color: 'text.primary', letterSpacing: -0.7 }}>
                   What can Percy help with?
                 </Typography>
                 <Typography variant="body1" color="text.secondary" sx={{ mt: 1, maxWidth: 560, lineHeight: 1.7 }}>
@@ -973,15 +975,16 @@ export default function AICenter() {
                       sx={{
                         p: 1.5,
                         borderRadius: 2,
-                        border: `1px solid ${alpha(NAVY, 0.1)}`,
-                        bgcolor: '#fff',
-                        color: NAVY,
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        bgcolor: 'background.paper',
+                        color: 'text.primary',
                         textAlign: 'left',
                         cursor: 'pointer',
                         transition: 'all 160ms ease',
                         '&:hover': {
-                          borderColor: alpha(NAVY, 0.25),
-                          boxShadow: `0 8px 20px ${alpha(NAVY, 0.07)}`,
+                          borderColor: 'text.secondary',
+                          boxShadow: (theme) => `0 8px 20px ${alpha(theme.palette.text.primary, 0.07)}`,
                           transform: 'translateY(-1px)'
                         }
                       }}
@@ -1040,8 +1043,9 @@ export default function AICenter() {
               px: { xs: 1.5, sm: 3, lg: 5 },
               pt: 1.5,
               pb: 1.25,
-              borderTop: `1px solid ${alpha(NAVY, 0.07)}`,
-              bgcolor: '#fff'
+              borderTop: '1px solid',
+              borderColor: 'divider',
+              bgcolor: 'background.paper'
             }}
           >
             <Box sx={{ maxWidth: 860, mx: 'auto' }}>
@@ -1053,9 +1057,10 @@ export default function AICenter() {
                   p: 0.75,
                   pl: 1.5,
                   borderRadius: 2.25,
-                  border: `1px solid ${alpha(NAVY, 0.16)}`,
-                  boxShadow: `0 5px 18px ${alpha(NAVY, 0.06)}`,
-                  '&:focus-within': { borderColor: alpha(NAVY, 0.38), boxShadow: `0 0 0 3px ${alpha(NAVY, 0.05)}` }
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  boxShadow: (theme) => `0 5px 18px ${alpha(theme.palette.text.primary, 0.06)}`,
+                  '&:focus-within': { borderColor: 'primary.main', boxShadow: (theme) => `0 0 0 3px ${alpha(theme.palette.primary.main, 0.12)}` }
                 }}
               >
                 <InputBase
@@ -1099,13 +1104,14 @@ export default function AICenter() {
             flexShrink: 0,
             display: { xs: 'none', xl: 'flex' },
             flexDirection: 'column',
-            borderLeft: `1px solid ${alpha(NAVY, 0.08)}`,
-            bgcolor: (theme) => alpha(theme.palette.brand.forest, 0.018),
+            borderLeft: '1px solid',
+            borderColor: 'divider',
+            bgcolor: 'surface.nested',
             overflowY: 'auto'
           }}
         >
           <Box sx={{ p: 2 }}>
-            <Typography variant="subtitle2" fontWeight={850} sx={{ color: NAVY }}>
+            <Typography variant="subtitle2" fontWeight={850} sx={{ color: 'text.primary' }}>
               Workspace connections
             </Typography>
             <Typography variant="caption" color="text.secondary">
@@ -1132,7 +1138,7 @@ export default function AICenter() {
           <Divider />
 
           <Box sx={{ p: 2 }}>
-            <Typography variant="subtitle2" fontWeight={850} sx={{ color: NAVY, mb: 1 }}>
+            <Typography variant="subtitle2" fontWeight={850} sx={{ color: 'text.primary', mb: 1 }}>
               Tool shortcuts
             </Typography>
             <Stack spacing={0.25}>
@@ -1194,7 +1200,7 @@ export default function AICenter() {
               height: '100%',
               ml: 'auto',
               p: 2,
-              bgcolor: '#fff',
+              bgcolor: 'background.paper',
               overflowY: 'auto',
               boxShadow: `-12px 0 40px ${alpha('#000', 0.16)}`
             }}

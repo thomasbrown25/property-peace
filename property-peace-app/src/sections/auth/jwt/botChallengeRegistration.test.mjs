@@ -20,19 +20,48 @@ test('public email signup renders a Turnstile checkbox and sends its one-time to
   assert.match(widget, /'error-callback'/);
 });
 
-test('signup account step uses the concise heading and Sign Up action', () => {
+test('signup account step uses the concise heading and sentence-case Sign up action', () => {
   const form = read('./EmailEntryForm.jsx');
 
   assert.doesNotMatch(form, /Step 1 of 3 · Account/);
   assert.doesNotMatch(form, /Use your work email and choose a secure password/);
-  assert.match(form, /emailAlreadyVerified \? 'Continue securely' : 'Sign Up'/);
+  assert.match(form, /isSubmitting \? 'Please wait…' : 'Sign up'/);
 });
 
 test('email signup advances to verification while trusted Google signup skips to details', () => {
   const registerPage = read('../../../pages/auth/jwt/register-landlord.jsx');
 
-  assert.match(registerPage, /go\(alreadyVerified \? 'details' : 'verify'\)/);
+  assert.match(registerPage, /onNext=\{\(email, nextPassword\) => \{[\s\S]*?go\('verify'\)/);
   assert.match(registerPage, /onGoogleSuccess=\{\(profile\) => \{[\s\S]*?go\('details'\)/);
+});
+
+test('resend uses a fresh Turnstile token and discards it after each attempt', () => {
+  const form = read('./EmailVerifierForm.jsx');
+
+  assert.match(form, /<TurnstileCheckbox[\s\S]*?onToken=\{setResendToken\}/);
+  assert.match(form, /if \(siteKey && !resendToken\) return/);
+  assert.match(form, /post\('\/api\/user\/send-verification-code', \{ email, botChallengeToken: resendToken \}\)/);
+  assert.match(form, /finally \{\s*setResendToken\(null\)/);
+});
+
+test('expired registration proof returns to verification with an immediate resend and keeps the signup draft', () => {
+  const registerPage = read('../../../pages/auth/jwt/register-landlord.jsx');
+  const verifier = read('./EmailVerifierForm.jsx');
+  const entry = read('./EmailEntryForm.jsx');
+
+  assert.match(registerPage, /onVerificationRequired=\{\(\) => \{\s*setMustReverify\(true\);\s*go\('verify', true\);/);
+  assert.match(registerPage, /mustReverify=\{mustReverify\}/);
+  assert.match(registerPage, /email=\{draft.email\}/);
+  assert.match(verifier, /useState\(mustReverify \? 0 : RESEND_SECONDS\)/);
+  assert.doesNotMatch(registerPage + verifier + entry, /emailAlreadyVerified|sessionStorage\.setItem\('emailVerified'/);
+});
+
+test('signup marks the workspace setup and completion navigations so the guest guard can leave them mounted', () => {
+  const registerPage = read('../../../pages/auth/jwt/register-landlord.jsx');
+
+  assert.match(registerPage, /go\('creating', false, \{ registrationCompleting: true \}\)/);
+  assert.match(registerPage, /go\('complete', true, \{ registrationCompleting: true \}\)/);
+  assert.match(registerPage, /redirectOnly=\{signedInCompletion\}/);
 });
 
 test('both frontend deployment workflows inject an environment-specific Turnstile site key', () => {

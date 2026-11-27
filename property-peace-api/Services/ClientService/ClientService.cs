@@ -377,7 +377,7 @@ Property Peace Team
         .header {{ background-color: #1890ff; color: white; padding: 20px; text-align: center; }}
         .content {{ padding: 30px; }}
         .button {{ display: inline-block; padding: 12px 30px; background-color: #1890ff; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }}
-        .footer {{ background-color: #f4f4f4; padding: 20px; text-align: center; font-size: 12px; color: #666; }}
+        .footer {{ background-color: #102C29; padding: 20px; text-align: center; font-size: 12px; color: #E1EFE8; }}
     </style>
 </head>
 <body>
@@ -579,7 +579,7 @@ Property Peace Team
         .header {{ background-color: #1890ff; color: white; padding: 20px; text-align: center; }}
         .content {{ padding: 30px; }}
         .button {{ display: inline-block; padding: 12px 30px; background-color: #1890ff; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }}
-        .footer {{ background-color: #f4f4f4; padding: 20px; text-align: center; font-size: 12px; color: #666; }}
+        .footer {{ background-color: #102C29; padding: 20px; text-align: center; font-size: 12px; color: #E1EFE8; }}
     </style>
 </head>
 <body>

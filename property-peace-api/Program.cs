@@ -662,6 +662,10 @@ services.AddScoped<IStripeRentGateway, StripeRentGateway>();
 services.AddScoped<IStripeConnectedAccountGateway, StripeConnectedAccountGateway>();
 services.AddStripeShortStayIdentity(builder.Configuration);
 services.AddScoped<IStripeConnectedPayeeService, StripeConnectedPayeeService>();
+services.AddScoped<IStripeConnectOAuthReplayStore, StripeConnectOAuthReplayStore>();
+services.AddScoped<StripeConnectOAuth>();
+services.AddHttpClient(StripeConnectOAuth.HttpClientName, client => client.Timeout = TimeSpan.FromSeconds(15))
+    .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AllowAutoRedirect = false });
 services.AddScoped<IStripeConnectPreparationService, StripeConnectPreparationService>();
 services.AddScoped<IStripeRentRiskService, StripeRentRiskService>();
 services.AddScoped<IStripeRentPaymentService, StripeRentPaymentService>();
@@ -751,6 +755,7 @@ foreach (var key in allKeys)
 
 services.Configure<AzureCommunicationSettings>(azureCommSection);
 services.AddScoped<IEmailService, AzureCommunicationEmailService>();
+services.AddScoped<MarketingEmailUnsubscribeService>();
 
 // SMS Service Configuration - Support both Azure and Twilio
 var smsProvider = configuration["SmsProvider"] ?? "Azure"; // Default to Azure for backward compatibility

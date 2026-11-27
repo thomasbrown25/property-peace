@@ -27,7 +27,7 @@ export function getActivityDestination(activity = {}) {
     case 'LeaseAgreement': return '/landlord/lease-agreements';
     case 'Lease': return detail('/landlord/leases', `/landlord/leases/${id}`);
     case 'Property': return detail('/landlord/properties', `/landlord/property/${id}`);
-    case 'BankAccount': return '/landlord/online-payments';
+    case 'BankAccount': return '/landlord/settings?tab=payments';
     case 'TeamMember': return '/landlord/admin-members';
     case 'Listing': return detail('/landlord/listings', `/landlord/listings/${id}`);
     case 'Calendar': return '/landlord/calendar';

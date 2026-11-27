@@ -159,6 +159,25 @@ public sealed class RentCollectionSettlementSummaryTests : IDisposable
         record.RentDueIsOverdue.Should().BeFalse();
         record.CurrentMonthRentDue.Should().Be(1_000m);
         record.OverdueAmount.Should().Be(0m);
+        result.Data.Summary.Period.Should().Be(DateTime.Today.ToString("yyyy-MM"));
+        record.OldestOverdueRentDueDate.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetRentCollection_ProjectsOldestOverdueRentDueDate()
+    {
+        var lease = ActiveLease(101);
+        lease.RentAmount = 1_000m;
+        lease.RentDueDay = 1;
+        lease.StartDate = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1).AddMonths(-2);
+        lease.EndDate = DateTime.Today.AddYears(1);
+        _leases.Setup(repository => repository.GetLeasesByOrganizationId(OrganizationId, true)).ReturnsAsync([lease]);
+
+        var result = await _sut.GetRentCollection(OrganizationId);
+
+        result.Success.Should().BeTrue();
+        result.Data!.Summary.Overdue.Should().BeGreaterThan(0m);
+        result.Data.RentRecords.Single().OldestOverdueRentDueDate.Should().Be(lease.StartDate.Value);
     }
 
     [Fact]
@@ -211,6 +230,7 @@ public sealed class RentCollectionSettlementSummaryTests : IDisposable
         var result = await _sut.GetRentCollection(OrganizationId, month: period);
 
         result.Success.Should().BeTrue();
+        result.Data!.Summary.Period.Should().Be(period.ToString("yyyy-MM"));
         result.Data!.Summary.ExpectedThisMonth.Should().Be(1_000m);
         result.Data.Summary.CollectedThisMonth.Should().Be(400m);
         result.Data.RentRecords.Should().ContainSingle();

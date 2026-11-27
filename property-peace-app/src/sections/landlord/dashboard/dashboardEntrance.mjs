@@ -11,3 +11,26 @@ export const dashboardSlideDownSx = {
 };
 
 export const dashboardEntranceDelay = (index) => `${Math.min(index * 75, 450)}ms`;
+
+export const dashboardRowHoverColor = 'action.hover';
+
+export const dashboardRowHoverSx = {
+  '@media (hover: hover)': {
+    '&:hover': { bgcolor: dashboardRowHoverColor }
+  },
+  '@media (hover: hover) and (prefers-reduced-motion: no-preference)': {
+    transition: 'background-color 180ms ease-out',
+    '& > *': { transition: 'translate 180ms ease-out' },
+    '&:hover > *': { translate: '0 -2px' }
+  }
+};
+
+export const dashboardRowLinkSx = {
+  color: 'inherit',
+  textDecoration: 'none',
+  '&:focus-visible': {
+    outline: '2px solid',
+    outlineColor: 'primary.main',
+    outlineOffset: -2
+  }
+};

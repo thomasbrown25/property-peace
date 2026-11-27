@@ -11,9 +11,15 @@ New accounts request Standard-equivalent controller settings:
 - `controller.requirement_collection = stripe`
 - `controller.stripe_dashboard.type = full`
 
-Card and US bank account ACH capabilities are requested. Stripe verification, active organization authority, payout readiness and explicit security holds remain required. Stripe-managed automatic payout schedules are accepted. Stripe fees and payment losses follow the account's Stripe controller configuration; direct charges alone are not a liability guarantee.
+New accounts request `card_payments`, `transfers`, and `us_bank_account_ach_payments`. Stripe requires `transfers` when requesting `card_payments`. Stripe verification, active organization authority, payout readiness and explicit security holds remain required. Stripe-managed automatic payout schedules are accepted. Stripe fees and payment losses follow the account's Stripe controller configuration; direct charges alone are not a liability guarantee.
 
 Existing Express test accounts are not converted or deleted. Create fresh accounts using the new setup flow for this configuration. Stripe Dashboard type cannot simply be changed on an existing Account.
+
+## Connecting an existing account
+
+Landlords can authorize an eligible U.S. account with the full Stripe Dashboard from Online Rent Payments. The flow requires the same saved payout preparation and property-authority attestation as new-account setup. The resulting account enters the existing payment approval process. Linking does not backfill prior Stripe transactions.
+
+To enable the option for an environment, apply migration `20261127124500_AddStripeConnectOAuthReplays`, set `Stripe:ConnectOAuthClientId` to that environment's Connect client ID, and enable OAuth in Stripe Connect settings. Register the exact redirect URI based on the configured `FrontendBaseUrl`, for example `https://app.example.com/landlord/settings?tab=payments&paymentTab=stripe&stripe=existing-return`. Use a Stripe secret key in the same test or live mode as the Connect client ID. Use the shared ASP.NET Core Data Protection key ring across API replicas so any replica can validate a callback.
 
 ## Browser and saved methods
 
@@ -41,7 +47,7 @@ Landlords manage their Stripe account, refunds/disputes and payout/bank settings
 
 1. Apply migration `20261111044829_AddRentDirectChargeAccountProvenance` (and preceding unapplied migrations) before serving updated payment routes. It adds the immutable charge-owner column and connected Customer table/index. Do not modify existing charge ownership.
 2. Configure a Stripe Connect webhook destination delivering **connected-account** events to the existing `/api/stripe/webhook` route. Check the controller's route if deploying behind a gateway prefix. Configure its signing secret as `Stripe:ConnectWebhookSecret`; retain the platform endpoint secret as `Stripe:WebhookSecret`.
-3. Include `payment_intent.succeeded`, `.processing`, `.payment_failed`, `.canceled`, `charge.refunded`, `refund.created`, `refund.updated`, `charge.dispute.created`, `charge.dispute.closed`, `account.updated`, and external-account created/updated/deleted events.
+3. Include `payment_intent.succeeded`, `.processing`, `.payment_failed`, `.canceled`, `charge.refunded`, `refund.created`, `refund.updated`, `charge.dispute.created`, `charge.dispute.closed`, `account.updated`, `account.application.deauthorized`, and external-account created/updated/deleted events.
 4. Keep platform subscription event delivery unchanged. Keep short-stay delivery on its separate endpoint.
 5. Create a fresh Standard-equivalent sandbox landlord account, finish onboarding, associate the correct operating account with a test lease, and verify connected card and ACH checkout, saved methods, refunds, disputes and account switching. Confirm Stripe records the charge on the landlord account with no platform transfer.
 6. Enable `Stripe:RentPaymentsEnabled` only in the intended environment after sandbox verification. New direct charges do not require `Stripe:TransfersEnabled`; that switch remains for legacy transfers. Checked-in rollout defaults remain disabled; local environment overrides can differ.
@@ -53,4 +59,5 @@ Code verification does not replace a Stripe sandbox end-to-end test. No live acc
 - https://docs.stripe.com/connect/direct-charges
 - https://docs.stripe.com/connect/migrate-to-controller-properties
 - https://docs.stripe.com/connect/standard-accounts
+- https://docs.stripe.com/connect/oauth-standard-accounts
 - https://docs.stripe.com/connect/account-balances

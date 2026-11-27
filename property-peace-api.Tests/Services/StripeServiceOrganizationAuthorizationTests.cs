@@ -66,7 +66,7 @@ public sealed class StripeServiceOrganizationAuthorizationTests
     }
 
     [Fact]
-    public async Task CreateConnectAccount_ConcurrentFirstAccountCalls_CreateAndReturnOneAccount()
+    public async Task CreateConnectAccount_ConcurrentFirstAccountCalls_BypassRetiredKeyAndReturnOneAccount()
     {
         var users = new Mock<IUserRepository>(MockBehavior.Strict);
         users.Setup(repository => repository.GetUser(42))
@@ -79,7 +79,7 @@ public sealed class StripeServiceOrganizationAuthorizationTests
         await using var context = new DataContext(new DbContextOptionsBuilder<DataContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options);
         var payees = new Mock<IStripeConnectedPayeeService>(MockBehavior.Strict);
-        payees.Setup(service => service.RegisterAsync(42, "acct_first", false, It.IsAny<CancellationToken>()))
+        payees.Setup(service => service.RegisterInitialAccountAsync(42, "acct_first", false, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new StripeConnectedPayeeReview());
 
         var createdByIdempotencyKey = new System.Collections.Concurrent.ConcurrentDictionary<string, StripeConnectedAccountOnboardingResult>();
@@ -111,6 +111,12 @@ public sealed class StripeServiceOrganizationAuthorizationTests
                     Interlocked.Decrement(ref activeGatewayCalls);
                 }
             });
+        gateway.Setup(service => service.CreateOnboardingAccountAsync(
+                It.IsAny<Stripe.AccountCreateOptions>(),
+                It.IsAny<string>(),
+                "property-peace-connect-account-user-42-standard-v2",
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new Stripe.StripeException("Idempotency key was already used with different parameters."));
 
         var service = new StripeServiceImpl(
             users.Object,
@@ -140,6 +146,6 @@ public sealed class StripeServiceOrganizationAuthorizationTests
         createdByIdempotencyKey.Should().ContainSingle();
         maxConcurrentGatewayCalls.Should().Be(1);
         users.Verify(repository => repository.GetUser(42), Times.Exactly(2));
-        payees.Verify(service => service.RegisterAsync(42, "acct_first", false, It.IsAny<CancellationToken>()), Times.Exactly(2));
+        payees.Verify(service => service.RegisterInitialAccountAsync(42, "acct_first", false, It.IsAny<CancellationToken>()), Times.Exactly(2));
     }
 }

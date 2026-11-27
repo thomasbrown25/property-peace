@@ -14,7 +14,7 @@ import SimpleBar from 'components/third-party/SimpleBar';
 import { getNavigationItemVerticalPadding } from './navigationItemSpacing';
 
 // third-party
-import { FormattedMessage } from 'react-intl';
+import { FormattedMessage, useIntl } from 'react-intl';
 
 import { MenuOrientation, NavActionType } from 'config';
 import useConfig from 'hooks/useConfig';
@@ -47,6 +47,7 @@ const PopperStyled = styled(Popper)(({ theme }) => ({
 
 export default function NavItem({ item, level, isParents = false, setSelectedID, setSelectedItems, selectedItems }) {
   const theme = useTheme();
+  const intl = useIntl();
   const { menuMaster } = useGetMenuMaster();
   const drawerOpen = menuMaster.isDashboardDrawerOpened;
 
@@ -145,7 +146,7 @@ export default function NavItem({ item, level, isParents = false, setSelectedID,
       {menuOrientation === MenuOrientation.VERTICAL || downLG ? (
         <Box sx={{ position: 'relative' }}>
           <Tooltip
-            title={!drawerOpen && level === 1 ? <FormattedMessage id={item.title} /> : ''}
+            title={!drawerOpen && level === 1 && item.title ? intl.formatMessage({ id: item.title, defaultMessage: item.title }) : ''}
             placement="right"
             arrow
             disableHoverListener={drawerOpen || level !== 1 || dropdownOpen}
@@ -163,7 +164,7 @@ export default function NavItem({ item, level, isParents = false, setSelectedID,
                 const selectedColor = foreground;
                 return {
                   zIndex: 1201,
-                  pl: drawerOpen ? `${level * 28}px` : 1.5,
+                  ...(drawerOpen ? { pl: `${level * 28}px` } : { px: 0, justifyContent: 'center' }),
                   py: getNavigationItemVerticalPadding({ drawerOpen, level }),
                   ...(drawerOpen && {
                     '&:hover': { bgcolor: hoverBg },
@@ -209,25 +210,26 @@ export default function NavItem({ item, level, isParents = false, setSelectedID,
                   {itemIcon}
                 </ListItemIcon>
               )}
-            {(drawerOpen || (!drawerOpen && level !== 1)) && (
-              <ListItemText
-                primary={
-                  <Typography variant="h6" sx={{ color: isSelected ? iconSelectedColor : textColor, fontFamily: "'Inter', sans-serif", fontSize: '0.875rem', fontWeight: 700 }}>
-                    {item.title && <FormattedMessage id={item.title} defaultMessage={item.title} />}
-                  </Typography>
-                }
-              />
-            )}
-            {(drawerOpen || (!drawerOpen && level !== 1)) && item.chip && (
-              <Chip
-                color={item.chip.color}
-                variant={item.chip.variant}
-                size={item.chip.size}
-                label={item.chip.label}
-                avatar={item.chip.avatar && <Avatar>{item.chip.avatar}</Avatar>}
-              />
-            )}
-          </ListItemButton>
+              {(drawerOpen || level !== 1) && (
+                <ListItemText
+                  primary={
+                    <Typography variant="h6" sx={{ color: isSelected ? iconSelectedColor : textColor, fontFamily: "'Inter', sans-serif", fontSize: '0.875rem', fontWeight: 700 }}>
+                      {item.title && <FormattedMessage id={item.title} defaultMessage={item.title} />}
+                    </Typography>
+                  }
+                />
+              )}
+              {(drawerOpen || level !== 1) && item.chip && (
+                <Chip
+                  color={item.chip.color}
+                  variant={item.chip.variant}
+                  size={item.chip.size}
+                  label={item.chip.label}
+                  avatar={item.chip.avatar && <Avatar>{item.chip.avatar}</Avatar>}
+                />
+              )}
+            </ListItemButton>
+          </Tooltip>
           {drawerOpen && item.hasDropdown && item.dropdownItems && (
             <PopperStyled
               id={popperId}
@@ -358,7 +360,6 @@ export default function NavItem({ item, level, isParents = false, setSelectedID,
                 </IconButton>
               );
             })}
-          </Tooltip>
         </Box>
       ) : (
         <ListItemButton

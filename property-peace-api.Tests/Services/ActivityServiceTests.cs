@@ -122,6 +122,32 @@ public sealed class ActivityServiceTests
     }
 
     [Fact]
+    public async Task Signup_labels_the_viewing_owners_account_without_relabeling_team_changes()
+    {
+        await using var f = new Fixture();
+        await f.Seed();
+        f.Db.Organizations.Add(new Organization { Id = 17, OwnerId = 42, Name = "Portfolio" });
+        var owner = await f.Db.OrganizationMembers.SingleAsync();
+        var manager = new OrganizationMember { OrganizationId = 17, UserId = 88, Role = "Manager", InvitedBy = 42 };
+        f.Db.OrganizationMembers.Add(manager);
+        await f.Db.SaveChangesAsync();
+        f.Db.ActivityEvents.Add(new ActivityEvent { OrganizationId = 17, RelatedId = owner.Id, ActivityType = "TeamMember",
+            Operation = "Created", Title = "Team member created", CreatedAt = DateTime.UtcNow, PerformedByUserId = 42 });
+        await f.Db.SaveChangesAsync();
+
+        var result = await f.Service.GetActivities(42, new ActivityFilterDto { ActivityTypes = ["TeamMember"] });
+
+        Assert.True(result.Success, result.Message);
+        var activities = result.Data!.Activities;
+        Assert.Equal(3, result.Data.TotalCount);
+        var signup = Assert.Single(activities, activity => activity.RelatedId == owner.Id && activity.PerformedByUserId == null);
+        Assert.Equal("Account created", signup.Title);
+        Assert.Equal("Your Property Peace account was created.", signup.Message);
+        Assert.Equal("Team member created", Assert.Single(activities, activity => activity.RelatedId == manager.Id).Title);
+        Assert.Equal("Team member created", Assert.Single(activities, activity => activity.PerformedByUserId == 42).Title);
+    }
+
+    [Fact]
     public async Task Actor_names_are_batched_and_legacy_staff_filter_alias_is_supported()
     {
         await using var f = new Fixture();

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import {
   Box,
@@ -39,12 +39,10 @@ import MainCard from 'components/MainCard';
 import AddressFieldWithPlaces from 'components/input/AddressFieldWithPlaces';
 import FormInput from 'components/input/FormInput';
 import FormSelect from 'components/input/FormSelect';
-import StripeConnectOnboardingDialog from 'components/dialogs/StripeConnectOnboardingDialog';
 import useCreateProperty from 'hooks/useCreateProperty';
 import { useGooglePlacePhotos } from 'hooks/useGooglePlacePhotos';
 import placeholderImage from 'assets/images/placeholder-house.png';
 import { useSubscriptionStatus } from 'hooks/useSubscription';
-import { bankAccountAPI } from 'api';
 import { openSnackbar } from 'api/snackbar';
 import useAuth from 'hooks/useAuth';
 import { useDrawer } from 'contexts/DrawerContext';
@@ -112,6 +110,7 @@ export default function PropertyAddPage({ onClose } = {}) {
 
 function PropertyAddWorkflow({ onClose, initialAddress, onBackToRental }) {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const dispatch = useDispatch();
   const drawer = useDrawer();
   const theme = useTheme();
@@ -135,9 +134,6 @@ function PropertyAddWorkflow({ onClose, initialAddress, onBackToRental }) {
   const addressInputRef = useRef(null);
 
   // Bank accounts state
-  const [bankAccounts, setBankAccounts] = useState([]);
-  const [loadingBankAccounts, setLoadingBankAccounts] = useState(false);
-  const [showStripeOnboarding, setShowStripeOnboarding] = useState(false);
   const unitsInitializedRef = useRef(false);
 
   // Custom StepConnector for property workflow
@@ -272,43 +268,6 @@ function PropertyAddWorkflow({ onClose, initialAddress, onBackToRental }) {
     }
   }, [currentStep, values.units?.length, setFieldValue]); // Track length to detect additions
 
-  // Fetch bank accounts
-  useEffect(() => {
-    if (!rentCanInvoke) {
-      setBankAccounts([]);
-      setShowStripeOnboarding(false);
-      setLoadingBankAccounts(false);
-      return;
-    }
-
-    const fetchBankAccounts = async () => {
-      try {
-        setLoadingBankAccounts(true);
-        const response = await bankAccountAPI.getBankAccounts();
-        if (response.success && response.data) {
-          setBankAccounts(response.data.map(acc => ({
-            id: acc.id,
-            value: acc.id,
-            label: acc.displayName || (acc.last4 ? `Bank Account (****${acc.last4})` : 'Bank Account'),
-            stripeAccountId: acc.stripeAccountId,
-            displayName: acc.displayName,
-            last4: acc.last4,
-            bankName: acc.bankName
-          })));
-        } else {
-          setBankAccounts([]);
-        }
-      } catch (error) {
-        console.error('Error fetching bank accounts:', error);
-        setBankAccounts([]);
-      } finally {
-        setLoadingBankAccounts(false);
-      }
-    };
-
-    fetchBankAccounts();
-  }, [showStripeOnboarding, rentCanInvoke]);
-
   // The standalone address modal bypasses the legacy address picker; look up
   // imagery for its confirmed address while the user completes the remaining steps.
   useEffect(() => {
@@ -323,34 +282,6 @@ function PropertyAddWorkflow({ onClose, initialAddress, onBackToRental }) {
     lookupPropertyImage(place, address);
   };
 
-
-  // Handler for Stripe onboarding complete
-  const handleStripeOnboardingComplete = async () => {
-    if (!rentCanInvoke) return;
-
-    try {
-      await axiosServices.post('/api/stripe/sync-bank-account');
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      const response = await bankAccountAPI.getBankAccounts();
-      if (response.success && response.data) {
-        const mappedAccounts = response.data.map(acc => ({
-          id: acc.id,
-          value: acc.id,
-          label: acc.displayName || (acc.last4 ? `Bank Account (****${acc.last4})` : 'Bank Account'),
-          stripeAccountId: acc.stripeAccountId,
-          displayName: acc.displayName,
-          last4: acc.last4,
-          bankName: acc.bankName
-        }));
-        setBankAccounts(mappedAccounts);
-        if (mappedAccounts.length > 0) {
-          setFieldValue('bankAccountId', mappedAccounts[0].id);
-        }
-      }
-    } catch (error) {
-      console.error('Error refreshing bank accounts after onboarding:', error);
-    }
-  };
 
   const transitionToStep = (newStep, direction) => {
     setSlideDirection(direction);
@@ -641,6 +572,10 @@ function PropertyAddWorkflow({ onClose, initialAddress, onBackToRental }) {
       }
 
       if (onClose) onClose();
+      if (!onClose && searchParams.get('from') === 'signup') {
+        window.location.replace('/landlord/dashboard');
+        return;
+      }
       navigate(`/landlord/property/${created.id}`);
       openSnackbar({ open: true, message: 'Property created successfully!', variant: 'alert', alert: { color: 'success' } });
     } catch (error) {
@@ -1268,22 +1203,21 @@ function PropertyAddWorkflow({ onClose, initialAddress, onBackToRental }) {
 
   return (
     <FormikProvider value={formik}>
-      <Box sx={!onClose ? { position: 'fixed', inset: 0, zIndex: 1400, overflowY: 'auto', bgcolor: '#fff', px: { xs: 2, md: 6 } } : undefined}>
-        {!onClose && <Box component="header" sx={{ height: { xs: 76, md: 96 }, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Box component="img" src="/listing-onboarding-logo.png" alt="Property Peace" sx={{ width: { xs: 148, md: 185 } }} />
+      <Box sx={!onClose ? { maxWidth: 1140, mx: 'auto' } : undefined}>
+        {!onClose && <Stack direction="row" justifyContent="flex-end" sx={{ pt: 1 }}>
           <Button variant="outlined" onClick={() => navigate('/landlord/properties')} sx={{ textTransform: 'none', borderRadius: 6 }}>Save &amp; exit</Button>
-        </Box>}
+        </Stack>}
 
         <MainCard
           border={false}
           boxShadow={false}
           sx={{
-            mt: onClose ? 0 : 3,
-            minHeight: '600px',
+            minHeight: onClose ? '600px' : undefined,
             display: 'flex',
             flexDirection: 'column',
             boxShadow: 'none',
             border: 'none',
+            ...(!onClose && { bgcolor: 'transparent', backgroundImage: 'none' }),
             '&:hover': { boxShadow: 'none' }
           }}
         >
@@ -1312,18 +1246,18 @@ function PropertyAddWorkflow({ onClose, initialAddress, onBackToRental }) {
             flex: 1,
             display: 'flex',
             flexDirection: 'column',
-            minHeight: '500px'
+            minHeight: onClose ? '500px' : undefined
           }}>
             <Box sx={{
               flex: 1,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              py: 6,
-              px: 3,
+              py: onClose ? 6 : { xs: 3, md: 5 },
+              px: onClose ? 3 : 0,
               position: 'relative',
               overflow: 'hidden',
-              minHeight: '400px'
+              minHeight: onClose ? '400px' : undefined
             }}>
               <Box sx={{ width: '100%', maxWidth: '800px', position: 'relative' }}>
                 <Slide
@@ -1352,13 +1286,15 @@ function PropertyAddWorkflow({ onClose, initialAddress, onBackToRental }) {
                 pb: 2,
                 px: 3,
                 borderTop: `1px solid ${alpha(theme.palette.divider, 0.5)}`,
-                ...(!onClose ? { position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 1, bgcolor: '#fff', px: { xs: 3, md: 6 }, py: 2.5 } : {})
+                ...(!onClose && { position: 'relative', px: 0, py: 2.5 })
               }}>
                 {!onClose && <Box sx={{ position: 'absolute', top: -2, left: 0, width: `${Math.min(90, 54 + getStepperStep() * 12)}%`, height: 3, bgcolor: 'primary.main' }} />}
                 <Button
                   onClick={() => {
                     if (currentStep === STEPS.PROPERTY_TYPE_SELECTION && !onClose) {
-                      navigate('/landlord/properties/add?step=rental');
+                      const nextParams = new URLSearchParams(searchParams);
+                      nextParams.set('step', 'rental');
+                      setSearchParams(nextParams, { replace: searchParams.get('from') === 'signup' });
                       onBackToRental?.();
                     } else {
                       handleBack();
@@ -1366,7 +1302,7 @@ function PropertyAddWorkflow({ onClose, initialAddress, onBackToRental }) {
                   }}
                   disabled={processing || (Boolean(onClose) && currentStep === STEPS.PROPERTY_TYPE_SELECTION)}
                   startIcon={onClose ? <ArrowLeftOutlined /> : undefined}
-                  sx={{ textTransform: 'none', px: onClose ? 3 : 0, color: !onClose ? '#172b3d' : undefined }}
+                  sx={{ textTransform: 'none', px: onClose ? 3 : 0, color: !onClose ? 'text.primary' : undefined }}
                 >
                   Back
                 </Button>
@@ -1385,15 +1321,6 @@ function PropertyAddWorkflow({ onClose, initialAddress, onBackToRental }) {
           </Box>
         </MainCard>
       </Box>
-
-      {/* Stripe Connect Onboarding Dialog */}
-      {rentCanInvoke && (
-        <StripeConnectOnboardingDialog
-          open={showStripeOnboarding}
-          onClose={() => setShowStripeOnboarding(false)}
-          onComplete={handleStripeOnboardingComplete}
-        />
-      )}
     </FormikProvider>
   );
 }

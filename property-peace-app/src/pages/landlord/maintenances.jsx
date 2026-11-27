@@ -25,6 +25,7 @@ import ActionsDrawer from 'components/drawers/shared/ActionsDrawer';
 import { creationActionSx, managementPageHeaderActionSx, managementPageHeaderTitleSx } from 'components/headers/managementPageHeaderStyles';
 import { useDashboardLoading } from 'contexts/DashboardLoadingContext';
 import { useDrawer } from 'contexts/DrawerContext';
+import useAuth from 'hooks/useAuth';
 import useFetchMaintenances from 'hooks/useFetchMaintenances';
 import useFetchProperties from 'hooks/useFetchProperties';
 
@@ -37,7 +38,7 @@ import { setProperty } from 'store/property/property.action';
 import { selectProperties, selectProperty } from 'store/property/property.selector';
 import { getManagementGridTableStyles } from 'themes/tableStyles';
 import { maintenanceFilterControlSx, maintenanceFilterGridSx, maintenanceRequestColumns, maintenanceSearchControlSx } from 'utils/maintenanceListLayout';
-import { clearMaintenanceListFilters, maintenanceListEmptyMessage, maintenanceScopeFromStatus } from 'utils/maintenanceWorkflow';
+import { clearMaintenanceListFilters, maintenanceListAssignment, maintenanceListEmptyMessage, maintenanceScopeFromStatus, maintenanceUserId } from 'utils/maintenanceWorkflow';
 
 const PAGE_SIZE = 10;
 const ACTIVE_STATUSES = ['reported', 'acknowledged', 'awaitingapproval', 'assigned', 'scheduled', 'inprogress', 'awaitingtenant'];
@@ -77,16 +78,6 @@ function getCategory(request) {
 
 function titleCase(value) {
   return String(value || '').replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
-
-function getAssignment(request) {
-  const { vendorId, assignedToUserId } = request.assignment || request;
-  if (vendorId || (!request.assignment && request.vendorName)) return { name: request.vendorName || `Vendor #${vendorId}`, type: 'Vendor' };
-  if (assignedToUserId || (Number(request.assignedToType) === 4 && request.assignedContactName)) {
-    return { name: request.assignedContactName || `Team member #${assignedToUserId}`, type: 'Team member' };
-  }
-  if (request?.assignedContactName) return { name: request.assignedContactName, type: 'Assigned' };
-  return null;
 }
 
 function getRequestLocation(request, property) {
@@ -179,9 +170,9 @@ function FilterSelect({ label, children, ...props }) {
   );
 }
 
-function MaintenanceRow({ request, property, rowSx }) {
+function MaintenanceRow({ request, property, rowSx, currentUserId }) {
   const navigate = useNavigate();
-  const assignment = getAssignment(request);
+  const assignment = maintenanceListAssignment(request, currentUserId);
   const scheduled = formatDate(request.scheduledDate);
   const reported = formatDate(reportedAt(request));
   const requestPath = `/landlord/maintenance/${request.id}`;
@@ -222,7 +213,7 @@ function MaintenanceRow({ request, property, rowSx }) {
         {assignment ? (
           <Stack gap={0.1}>
             <Typography variant="body2" fontWeight={650}>{assignment.name}</Typography>
-            <Typography variant="caption" color="text.secondary">{assignment.type}</Typography>
+            {assignment.name !== assignment.type && <Typography variant="caption" color="text.secondary">{assignment.type}</Typography>}
           </Stack>
         ) : <Typography variant="body2" fontWeight={650}>Unassigned</Typography>}
         {scheduled && <Typography variant="caption" color="text.secondary">Scheduled {scheduled}</Typography>}
@@ -239,6 +230,8 @@ export default function Maintenances() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const drawer = useDrawer();
+  const { user } = useAuth();
+  const currentUserId = maintenanceUserId(user);
   const [searchParams] = useSearchParams();
   const { setMaintenancesLoading } = useDashboardLoading();
   const requests = useSelector(selectMaintenanceRequests) || [];
@@ -293,7 +286,7 @@ export default function Maintenances() {
     return {
       open: active.length,
       triage: active.filter((request) => normalizeStatus(request.status) === 'reported').length,
-      unassigned: active.filter((request) => !getAssignment(request)).length,
+      unassigned: active.filter((request) => !maintenanceListAssignment(request)).length,
       high: active.filter((request) => normalizeToken(request.priority) === 'high').length
     };
   }, [allRequests]);
@@ -310,7 +303,7 @@ export default function Maintenances() {
       if (selectedProperty?.id && Number(request.propertyId) !== Number(selectedProperty.id)) return false;
       if (priorityFilter !== 'all' && normalizeToken(request.priority) !== priorityFilter) return false;
       if (categoryFilter !== 'all' && getCategory(request) !== categoryFilter) return false;
-      const assignment = getAssignment(request);
+      const assignment = maintenanceListAssignment(request, currentUserId);
       if (assignmentFilter === 'unassigned' && assignment) return false;
       if (assignmentFilter === 'vendor' && assignment?.type !== 'Vendor') return false;
       if (assignmentFilter === 'team' && assignment?.type !== 'Team member') return false;
@@ -334,7 +327,7 @@ export default function Maintenances() {
       const priorityDifference = (priorityRank[normalizeToken(a.priority)] ?? 9) - (priorityRank[normalizeToken(b.priority)] ?? 9);
       return priorityDifference || oldestFirst;
     });
-  }, [allRequests, assignmentFilter, categoryFilter, metric, priorityFilter, propertiesById, scope, search, selectedProperty, sort]);
+  }, [allRequests, assignmentFilter, categoryFilter, currentUserId, metric, priorityFilter, propertiesById, scope, search, selectedProperty, sort]);
 
   useEffect(() => setPage(1), [assignmentFilter, categoryFilter, metric, priorityFilter, scope, search, selectedProperty, sort]);
 
@@ -462,7 +455,7 @@ export default function Maintenances() {
                 {['Request', 'Property & timing', 'Status & priority', 'Assigned to'].map((label) => <Typography key={label} sx={tableStyles.heading}>{label}</Typography>)}
               </Box>
               <Box component="ul" sx={{ listStyle: 'none', p: 0, m: 0 }}>
-                {paginated.map((request) => <MaintenanceRow key={request.id} request={request} property={propertiesById.get(String(request.propertyId))} rowSx={tableStyles.row} />)}
+                {paginated.map((request) => <MaintenanceRow key={request.id} request={request} property={propertiesById.get(String(request.propertyId))} rowSx={tableStyles.row} currentUserId={currentUserId} />)}
               </Box>
               {pageCount > 1 && (
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} justifyContent="space-between" alignItems="center" sx={{ p: 2 }}>

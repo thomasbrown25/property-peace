@@ -112,34 +112,31 @@ test('tax workspace header keeps utility controls distinct from primary actions'
 });
 
 test('Finances and mobile Accounting navigation expose state to assistive technology', async () => {
-  const [finances, disclosure, activity, drawer] = await Promise.all([
+  const [finances, status, activity, drawer] = await Promise.all([
     read('../pages/landlord/finances.jsx'),
-    read('../sections/landlord/finances/CalculationDisclosure.jsx'),
+    read('../sections/landlord/finances/FinancesDataStatus.jsx'),
     read('../sections/landlord/finances/ActivityTab.jsx'),
     read('../sections/landlord/finances/FinanceDetailDrawer.jsx')
   ]);
   const mobile = await read('../layout/Dashboard/BottomNavBar/index.jsx');
 
-  assert.match(finances, /<CalculationDisclosure/);
+  assert.match(finances, /<FinancesDataStatus/);
   assert.match(finances, /<ActivityTab/);
   assert.match(finances, /<FinanceDetailDrawer/);
-  assert.match(disclosure, /<Box aria-live="polite" aria-atomic="false">/);
-  assert.match(disclosure, /role="status"/);
+  assert.match(status, /<Box aria-live="polite" aria-atomic="false">/);
+  assert.match(status, /role="status"/);
   assert.match(activity, /role="status" aria-live="polite"/);
-  assert.match(disclosure, /aria-controls="finances-calculation-details"/);
-  assert.match(disclosure, /aria-expanded={expanded}/);
-  assert.match(disclosure, /<Collapse id="finances-calculation-details"/);
   assert.match(
     drawer,
     /slotProps={{\s*paper: {\s*role: 'dialog',\s*'aria-modal': true,\s*'aria-labelledby': 'finance-detail-title',/
   );
   assert.doesNotMatch(drawer, /onClose={onClose}\s+aria-labelledby=/);
   assert.match(drawer, /id="finance-detail-title"/);
-  assert.match(disclosure, /The activity export could not be prepared/);
-  assert.match(disclosure, /Some financial fields were unavailable\. Available recorded values are shown; missing values and sections are not estimated\./);
-  assert.match(disclosure, /overviewError && itemsError/);
-  assert.match(disclosure, /Summary totals are unavailable\. Activity records that loaded successfully remain available\./);
-  assert.match(disclosure, /Activity records are unavailable\. Summary totals that loaded successfully remain available\./);
+  assert.match(status, /The activity export could not be prepared/);
+  assert.match(status, /Some financial fields were unavailable\. Available recorded values are shown; missing values and sections are not estimated\./);
+  assert.match(status, /overviewError && itemsError/);
+  assert.match(status, /Summary totals are unavailable\. Activity records that loaded successfully remain available\./);
+  assert.match(status, /Activity records are unavailable\. Summary totals that loaded successfully remain available\./);
   assert.match(
     activity,
     /\) : error \? \([\s\S]*This is not confirmation that the selected period has no posted activity\.[\s\S]*\) : visibleEntries\.length === 0 \? \(/

@@ -438,6 +438,9 @@ namespace brownstone_hub_api.Controllers
                 case "account.external_account.deleted":
                     await _webhookService.HandleExternalAccountChangedAsync(stripeEvent);
                     break;
+                case "account.application.deauthorized":
+                    await _webhookService.HandleAccountApplicationDeauthorizedAsync(stripeEvent);
+                    break;
                 default:
                     _logger.LogInformation("Unhandled event type: {EventType}", stripeEvent.Type);
                     break;

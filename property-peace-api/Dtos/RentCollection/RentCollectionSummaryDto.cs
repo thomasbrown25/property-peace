@@ -3,6 +3,8 @@ namespace brownstone_hub_api.Dtos.RentCollection
     public class RentCollectionSummaryDto
     {
         public long? PropertyId { get; set; }
+        /// <summary>Selected collection period in YYYY-MM using the landlord's timezone.</summary>
+        public string Period { get; set; }
         public decimal TotalMonthlyRent { get; set; } // Sum of all lease rent amounts (not prorated)
         public decimal CollectedThisMonth { get; set; }
         public decimal ExpectedThisMonth { get; set; } // Prorated expected rent for current month

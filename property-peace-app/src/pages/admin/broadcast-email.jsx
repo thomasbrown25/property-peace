@@ -48,6 +48,7 @@ export default function AdminBroadcastEmail() {
   const theme = useTheme();
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
+  const [messageType, setMessageType] = useState('marketing');
   const [recipientMode, setRecipientMode] = useState('all'); // 'all' | 'selected'
   const [selectedUserIds, setSelectedUserIds] = useState([]);
   const [users, setUsers] = useState([]);
@@ -142,12 +143,18 @@ export default function AdminBroadcastEmail() {
       const payload = {
         subject: trimmedSubject,
         body: trimmedBody,
-        userIds: recipientMode === 'selected' ? selectedUserIds.map((id) => Number(id)) : undefined
+        userIds: recipientMode === 'selected' ? selectedUserIds.map((id) => Number(id)) : undefined,
+        isMarketing: messageType === 'marketing'
       };
       const res = await adminBroadcastEmailAPI.sendBroadcastEmail(payload);
-      if (res?.success && (res.sentCount ?? 0) > 0) {
-        const recipients =
-          recipientMode === 'selected'
+      const sentCount = Number(res?.sentCount ?? 0);
+      const skippedUnsubscribedCount = Number(res?.skippedUnsubscribedCount ?? 0);
+      const submittedUserIds = Array.isArray(res?.submittedUserIds) ? new Set(res.submittedUserIds.map(Number)) : null;
+
+      if (res?.success && sentCount > 0) {
+        const recipients = submittedUserIds
+          ? users.filter((u) => submittedUserIds.has(Number(u.id)))
+          : recipientMode === 'selected'
             ? users.filter((u) => selectedUserIds.includes(u.id))
             : users;
         setEmailHistory((prev) => [
@@ -162,13 +169,27 @@ export default function AdminBroadcastEmail() {
           },
           ...prev
         ]);
+        const skippedMessage =
+          skippedUnsubscribedCount > 0
+            ? ` ${skippedUnsubscribedCount} opted-out address${skippedUnsubscribedCount === 1 ? ' was' : 'es were'} skipped.`
+            : '';
         openSnackbar({
           open: true,
-          message: res.message || `Email sent to ${res.sentCount} recipient(s).`,
+          message: res.message || `Email sent to ${sentCount} recipient(s).${skippedMessage}`,
           variant: 'alert',
           alert: { color: 'success' }
         });
-      } else if (res?.success && (res.sentCount ?? 0) === 0) {
+      } else if (res?.success && sentCount === 0 && skippedUnsubscribedCount > 0) {
+        const msg =
+          res.message ||
+          `No email was sent because ${skippedUnsubscribedCount} recipient${skippedUnsubscribedCount === 1 ? ' has' : 's have'} opted out of marketing emails.`;
+        openSnackbar({
+          open: true,
+          message: msg,
+          variant: 'alert',
+          alert: { color: 'info' }
+        });
+      } else if (res?.success && sentCount === 0) {
         const msg = res.message || 'Email could not be delivered to any recipient. Check email service configuration (e.g. Azure Communication Services).';
         setError(msg);
         openSnackbar({
@@ -238,6 +259,24 @@ export default function AdminBroadcastEmail() {
                   {error}
                 </Alert>
               )}
+
+              <FormControl component="fieldset">
+                <FormLabel component="legend" id="broadcast-message-type">Message type</FormLabel>
+                <RadioGroup
+                  aria-labelledby="broadcast-message-type"
+                  value={messageType}
+                  onChange={(e) => setMessageType(e.target.value)}
+                >
+                  <FormControlLabel value="marketing" control={<Radio />} label="Marketing" />
+                  <Typography variant="caption" color="text.secondary" sx={{ ml: 4, mt: -0.5 }}>
+                    Product news, offers, and other promotional updates. Adds an unsubscribe link and skips addresses that opted out.
+                  </Typography>
+                  <FormControlLabel value="service" control={<Radio />} label="Service notice" sx={{ mt: 1 }} />
+                  <Typography variant="caption" color="text.secondary" sx={{ ml: 4, mt: -0.5 }}>
+                    Necessary account, security, or service information.
+                  </Typography>
+                </RadioGroup>
+              </FormControl>
 
               <FormControl component="fieldset">
                 <FormLabel component="legend">Recipients</FormLabel>
@@ -383,8 +422,8 @@ export default function AdminBroadcastEmail() {
                   {sending ? 'Sending…' : 'Send email'}
                 </Button>
                 <Typography variant="body2" color="text.secondary">
-                  {recipientMode === 'all' && `Will send to ${users.length} user(s) with email.`}
-                  {recipientMode === 'selected' && `Will send to ${selectedUserIds.length} selected user(s).`}
+                  {recipientMode === 'all' && `Audience: ${users.length} user(s) with email.`}
+                  {recipientMode === 'selected' && `Audience: ${selectedUserIds.length} selected user(s).`}
                 </Typography>
               </Stack>
 
@@ -410,7 +449,7 @@ export default function AdminBroadcastEmail() {
                       </AccordionSummary>
                       <AccordionDetails sx={{ pt: 0 }}>
                         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-                          Sent to:
+                          Submitted for delivery to
                         </Typography>
                         <List dense disablePadding sx={{ maxHeight: 200, overflow: 'auto' }}>
                           {entry.recipients.map((r, i) => (

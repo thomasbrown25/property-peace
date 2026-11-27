@@ -20,6 +20,7 @@ namespace brownstone_hub_api.Services.StripeService
         Task HandleRefundCreatedAsync(Event stripeEvent);
         Task HandleAccountUpdatedAsync(Event stripeEvent);
         Task HandleExternalAccountChangedAsync(Event stripeEvent);
+        Task HandleAccountApplicationDeauthorizedAsync(Event stripeEvent);
     }
 }
 

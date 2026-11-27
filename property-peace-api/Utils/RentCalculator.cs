@@ -19,7 +19,8 @@ namespace brownstone_hub_api.Utils
             decimal OverdueAmount,
             decimal RentDue,
             bool IsOverdue,
-            DateTime? CurrentMonthRentDueDate);
+            DateTime? CurrentMonthRentDueDate,
+            DateTime? OldestOverdueRentDueDate);
 
         private static readonly HashSet<string> BalanceCreditingStatuses = new(StringComparer.OrdinalIgnoreCase)
         {
@@ -403,7 +404,7 @@ namespace brownstone_hub_api.Utils
             if (!lease.IsActive || !lease.StartDate.HasValue || !lease.EndDate.HasValue ||
                 !lease.RentAmount.HasValue || lease.RentAmount.Value <= 0m || !lease.RentDueDay.HasValue ||
                 lease.StartDate.Value.Date > localToday)
-                return new(0m, 0m, 0m, 0m, false, null);
+                return new(0m, 0m, 0m, 0m, false, null, null);
 
             var leaseStart = lease.StartDate.Value.Date;
             var leaseEnd = lease.EndDate.Value.Date;
@@ -425,6 +426,7 @@ namespace brownstone_hub_api.Utils
             var priorOverdue = 0m;
             var currentPeriodOverdue = 0m;
             DateTime? latestAccruedDueDate = null;
+            DateTime? oldestOverdueRentDueDate = null;
 
             // Allocate finalized rent credits oldest-first, then classify each unpaid accrued
             // installment by its own grace deadline. Future installments are not yet rent due.
@@ -441,6 +443,7 @@ namespace brownstone_hub_api.Utils
 
                 if (localToday > dueDate.AddDays(GetGraceDays(lease)))
                 {
+                    oldestOverdueRentDueDate ??= dueDate;
                     if (dueDate.Year == localToday.Year && dueDate.Month == localToday.Month)
                         currentPeriodOverdue += unpaid;
                     else
@@ -461,7 +464,8 @@ namespace brownstone_hub_api.Utils
                 overdue,
                 rentDue,
                 overdue > 0m,
-                latestAccruedDueDate);
+                latestAccruedDueDate,
+                oldestOverdueRentDueDate);
         }
 
         private static DateTime NextMonthlyDueDate(DateTime dueDate, int? rentDueDay)

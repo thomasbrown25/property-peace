@@ -1,6 +1,8 @@
 using brownstone_hub_api.Data;
 using brownstone_hub_api.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
+using System.Data;
 using System.Text.RegularExpressions;
 
 namespace brownstone_hub_api.Services.StripeRentPayments
@@ -11,6 +13,12 @@ namespace brownstone_hub_api.Services.StripeRentPayments
 
     public interface IStripeConnectedPayeeService
     {
+        /// <summary>
+        /// Persists a user's first Stripe connected account without allowing an existing user or
+        /// review binding to be replaced. This is intentionally stricter than RegisterAsync,
+        /// which remains the explicit resume/re-registration path.
+        /// </summary>
+        Task<StripeConnectedPayeeReview> RegisterInitialAccountAsync(long userId, string stripeAccountId, bool detailsSubmitted, CancellationToken cancellationToken = default);
         Task<StripeConnectedPayeeReview> RegisterAsync(long? userId, string stripeAccountId, bool detailsSubmitted, CancellationToken cancellationToken = default);
         Task<IReadOnlyList<StripeConnectedPayeeReview>> ListAsync(StripePayeeReviewStatus? status, CancellationToken cancellationToken = default);
         Task<StripeConnectedPayeeReview> BeginReviewAsync(string stripeAccountId, CancellationToken cancellationToken = default);
@@ -47,6 +55,132 @@ namespace brownstone_hub_api.Services.StripeRentPayments
             new(@"\b(?:passport|driver'?s?[-_ ]*licen[cs]e|identity[-_ ]*document|id[-_ ]*document|kyc)[^\r\n]{0,80}\.(?:jpe?g|png|gif|webp|tiff?|bmp)\b", RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant),
             new(@"https?://\S+\.(?:jpe?g|png|gif|webp|tiff?|bmp)(?:[?#]\S*)?", RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)
         ];
+
+        public async Task<StripeConnectedPayeeReview> RegisterInitialAccountAsync(long userId, string stripeAccountId, bool detailsSubmitted,
+            CancellationToken cancellationToken = default)
+        {
+            if (userId <= 0) throw new ArgumentException("A user is required.", nameof(userId));
+            if (string.IsNullOrWhiteSpace(stripeAccountId)) throw new ArgumentException("Stripe account ID is required.", nameof(stripeAccountId));
+            stripeAccountId = stripeAccountId.Trim();
+
+            // The unique indexes on UserId and StripeAccountId are the durable backstop. Serializable
+            // prevents two first-bind attempts from both observing an empty binding on SQL Server.
+            // In-memory tests do not support transactions, so keep that provider on the same guarded logic.
+            IDbContextTransaction? transaction = null;
+
+            try
+            {
+                if (context.Database.IsRelational())
+                    transaction = await context.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
+
+                var review = await RegisterInitialAccountCoreAsync(userId, stripeAccountId, detailsSubmitted, cancellationToken);
+                if (transaction != null)
+                    await transaction.CommitAsync(cancellationToken);
+                return review;
+            }
+            catch (DbUpdateException exception) when (IsInitialBindingUniqueConstraint(exception))
+            {
+                if (transaction != null)
+                {
+                    await transaction.RollbackAsync(cancellationToken);
+                    await transaction.DisposeAsync();
+                    transaction = null;
+                }
+
+                // A concurrent initial-bind attempt can lose either unique index. Re-read after
+                // clearing failed tracked entities and accept only the exact same durable binding.
+                context.ChangeTracker.Clear();
+                return await ResolveConcurrentInitialRegistrationAsync(userId, stripeAccountId, cancellationToken);
+            }
+            finally
+            {
+                if (transaction != null)
+                    await transaction.DisposeAsync();
+            }
+        }
+
+        private async Task<StripeConnectedPayeeReview> RegisterInitialAccountCoreAsync(long userId, string stripeAccountId,
+            bool detailsSubmitted, CancellationToken cancellationToken)
+        {
+            var user = await context.Users.SingleOrDefaultAsync(x => x.Id == userId, cancellationToken)
+                ?? throw new InvalidOperationException("The user no longer exists.");
+            var existingUserAccountId = NormalizeStripeAccountId(user.StripeAccountId);
+            if (existingUserAccountId != null && !string.Equals(existingUserAccountId, stripeAccountId, StringComparison.Ordinal))
+                throw new InvalidOperationException("This user already has a different Stripe connected account.");
+            if (await context.Users.AnyAsync(x => x.Id != userId && x.StripeAccountId == stripeAccountId, cancellationToken))
+                throw new InvalidOperationException("This Stripe connected account is already assigned to another user.");
+
+            var userReview = await context.StripeConnectedPayeeReviews
+                .SingleOrDefaultAsync(x => x.UserId == userId, cancellationToken);
+            if (userReview != null && !string.Equals(userReview.StripeAccountId, stripeAccountId, StringComparison.Ordinal))
+                throw new InvalidOperationException("This user already has a different Stripe connected account review.");
+
+            var accountReview = await context.StripeConnectedPayeeReviews
+                .SingleOrDefaultAsync(x => x.StripeAccountId == stripeAccountId, cancellationToken);
+            if (accountReview != null && accountReview.UserId != userId)
+                throw new InvalidOperationException("This Stripe connected account is already assigned to another user.");
+            if (accountReview != null && userReview != null && accountReview.Id != userReview.Id)
+                throw new InvalidOperationException("This Stripe connected account conflicts with the user's existing review.");
+
+            if (accountReview != null)
+            {
+                // Same account + same owner is an idempotent retry. Do not refresh onboarding,
+                // reset approval, or otherwise alter the financial-review decision.
+                await DisableLinkedUserForReviewAsync(userId, stripeAccountId, accountReview.Status, cancellationToken);
+                await context.SaveChangesAsync(cancellationToken);
+                return accountReview;
+            }
+
+            var now = timeProvider.GetUtcNow();
+            var review = new StripeConnectedPayeeReview
+            {
+                UserId = userId,
+                StripeAccountId = stripeAccountId,
+                Status = detailsSubmitted ? StripePayeeReviewStatus.StripeVerified : StripePayeeReviewStatus.Onboarding,
+                StripeDetailsSubmitted = detailsSubmitted,
+                PayoutSchedulePolicy = "manual",
+                InstantPayoutsAllowed = false,
+                CreatedAt = now,
+                UpdatedAt = now
+            };
+            context.StripeConnectedPayeeReviews.Add(review);
+            await DisableLinkedUserForReviewAsync(userId, stripeAccountId, review.Status, cancellationToken);
+            await context.SaveChangesAsync(cancellationToken);
+            return review;
+        }
+
+        private async Task<StripeConnectedPayeeReview> ResolveConcurrentInitialRegistrationAsync(long userId, string stripeAccountId,
+            CancellationToken cancellationToken)
+        {
+            var user = await context.Users.AsNoTracking().SingleOrDefaultAsync(x => x.Id == userId, cancellationToken)
+                ?? throw new InvalidOperationException("The user no longer exists.");
+            var userReview = await context.StripeConnectedPayeeReviews.AsNoTracking()
+                .SingleOrDefaultAsync(x => x.UserId == userId, cancellationToken);
+            var accountReview = await context.StripeConnectedPayeeReviews.AsNoTracking()
+                .SingleOrDefaultAsync(x => x.StripeAccountId == stripeAccountId, cancellationToken);
+
+            if (accountReview?.UserId == userId
+                && userReview?.Id == accountReview.Id
+                && string.Equals(NormalizeStripeAccountId(user.StripeAccountId), stripeAccountId, StringComparison.Ordinal))
+                return accountReview;
+
+            if (accountReview != null && accountReview.UserId != userId)
+                throw new InvalidOperationException("This Stripe connected account is already assigned to another user.");
+
+            throw new InvalidOperationException("This user already has a different Stripe connected account.");
+        }
+
+        private static string? NormalizeStripeAccountId(string? stripeAccountId) =>
+            string.IsNullOrWhiteSpace(stripeAccountId) ? null : stripeAccountId.Trim();
+
+        private static bool IsInitialBindingUniqueConstraint(DbUpdateException exception)
+        {
+            var message = exception.InnerException?.Message ?? exception.Message;
+            return message.Contains("IX_StripeConnectedPayeeReviews_UserId", StringComparison.OrdinalIgnoreCase)
+                || message.Contains("IX_StripeConnectedPayeeReviews_StripeAccountId", StringComparison.OrdinalIgnoreCase)
+                || message.Contains("StripeConnectedPayeeReviews.UserId", StringComparison.OrdinalIgnoreCase)
+                || message.Contains("StripeConnectedPayeeReviews.StripeAccountId", StringComparison.OrdinalIgnoreCase);
+        }
 
         public async Task<StripeConnectedPayeeReview> RegisterAsync(long? userId, string stripeAccountId, bool detailsSubmitted, CancellationToken cancellationToken = default)
         {
