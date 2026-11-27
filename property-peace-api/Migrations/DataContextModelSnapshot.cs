@@ -5916,6 +5916,20 @@ namespace brownstone_hub_api.Migrations
                     b.ToTable("MaintenanceWorkOrders", "maintenance");
                 });
 
+            modelBuilder.Entity("brownstone_hub_api.Models.MarketingEmailOptOut", b =>
+                {
+                    b.Property<string>("EmailHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)");
+
+                    b.Property<DateTimeOffset>("UnsubscribedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("EmailHash");
+
+                    b.ToTable("MarketingEmailOptOuts", "communication");
+                });
+
             modelBuilder.Entity("brownstone_hub_api.Models.Message", b =>
                 {
                     b.Property<long>("Id")

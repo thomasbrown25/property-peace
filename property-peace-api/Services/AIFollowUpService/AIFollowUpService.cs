@@ -855,9 +855,9 @@ namespace brownstone_hub_api.Services.AIFollowUpService
                 <div style='font-weight: 600; color: #042238; margin-top: 4px;'>{encodedOrganizationName} Team</div>
             </div>
         </div>
-        <div style='background-color: #042238; padding: 28px 30px; text-align: center;'>
-            <p style='color: rgba(255,255,255,0.65); font-size: 12px; margin: 0;'>This is an automated notification from Property Peace.</p>
-            <p style='color: rgba(255,255,255,0.65); font-size: 12px; margin: 8px 0 0;'>You can manage your notification preferences in your account settings.</p>
+        <div style='background-color: #102C29; padding: 28px 30px; text-align: center;'>
+            <p style='color: #E1EFE8; font-size: 12px; margin: 0;'>This is an automated notification from Property Peace.</p>
+            <p style='color: #E1EFE8; font-size: 12px; margin: 8px 0 0;'>You can manage your notification preferences in your account settings.</p>
         </div>
     </div>
 </body>

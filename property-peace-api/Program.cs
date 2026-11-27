@@ -751,6 +751,7 @@ foreach (var key in allKeys)
 
 services.Configure<AzureCommunicationSettings>(azureCommSection);
 services.AddScoped<IEmailService, AzureCommunicationEmailService>();
+services.AddScoped<MarketingEmailUnsubscribeService>();
 
 // SMS Service Configuration - Support both Azure and Twilio
 var smsProvider = configuration["SmsProvider"] ?? "Azure"; // Default to Azure for backward compatibility

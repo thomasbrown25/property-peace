@@ -321,10 +321,10 @@ Property Peace Team
             margin-right: 8px;
         }}
         .footer {{
-            background-color: #f8f9fa;
+            background-color: #102C29;
             padding: 20px 30px;
             text-align: center;
-            color: #999999;
+            color: #E1EFE8;
             font-size: 14px;
         }}
     </style>
