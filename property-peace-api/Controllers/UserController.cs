@@ -476,14 +476,14 @@ namespace brownstone_hub_api.Controllers
             color: #1976d2;
         }}
         .footer {{
-            background-color: #f8f9fa;
+            background-color: #102C29;
             padding: 24px 30px;
             text-align: center;
             border-top: 1px solid #e0e0e0;
         }}
         .footer p {{
             font-size: 12px;
-            color: #999999;
+            color: #E1EFE8;
             margin: 0;
         }}
     </style>

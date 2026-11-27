@@ -1,9 +1,6 @@
-using System.IO;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using brownstone_hub_api.Dtos.Admin;
-using brownstone_hub_api.Dtos.User;
 using brownstone_hub_api.Services.UserService;
 using brownstone_hub_api.Services.EmailService;
 using brownstone_hub_api.Services.OpenAIService;
@@ -19,23 +16,20 @@ namespace brownstone_hub_api.Controllers
         private readonly IUserService _userService;
         private readonly IEmailService _emailService;
         private readonly IOpenAIService _openAIService;
-        private readonly IConfiguration _configuration;
-        private readonly IWebHostEnvironment _env;
+        private readonly MarketingEmailUnsubscribeService _marketingUnsubscribe;
         private readonly ILogger<AdminBroadcastEmailController> _logger;
 
         public AdminBroadcastEmailController(
             IUserService userService,
             IEmailService emailService,
             IOpenAIService openAIService,
-            IConfiguration configuration,
-            IWebHostEnvironment env,
+            MarketingEmailUnsubscribeService marketingUnsubscribe,
             ILogger<AdminBroadcastEmailController> logger)
         {
             _userService = userService;
             _emailService = emailService;
             _openAIService = openAIService;
-            _configuration = configuration;
-            _env = env;
+            _marketingUnsubscribe = marketingUnsubscribe;
             _logger = logger;
         }
 
@@ -58,7 +52,8 @@ namespace brownstone_hub_api.Controllers
         /// Send a broadcast email to all users or to selected user IDs (admin only).
         /// </summary>
         [HttpPost]
-        public async Task<IActionResult> SendBroadcastEmail([FromBody] AdminBroadcastEmailRequestDto request)
+        public async Task<IActionResult> SendBroadcastEmail(
+            [FromBody] AdminBroadcastEmailRequestDto request, CancellationToken cancellationToken = default)
         {
             if (request == null || string.IsNullOrWhiteSpace(request.Subject) || string.IsNullOrWhiteSpace(request.Body))
             {
@@ -83,19 +78,9 @@ namespace brownstone_hub_api.Controllers
 
                 var recipients = users
                     .Where(u => !string.IsNullOrWhiteSpace(u.Email))
-                    .Select(u => new { Email = u.Email!.Trim(), FirstName = u.Firstname ?? "", LastName = u.Lastname ?? "" })
+                    .Select(u => new { u.Id, Email = u.Email!.Trim(), FirstName = u.Firstname ?? "", LastName = u.Lastname ?? "" })
                     .DistinctBy(r => r.Email, StringComparer.OrdinalIgnoreCase)
                     .ToList();
-
-                if (recipients.Count == 0)
-                {
-                    return Ok(new
-                    {
-                        success = true,
-                        message = "No recipients with email addresses found.",
-                        sentCount = 0
-                    });
-                }
 
                 var subjectBase = request.Subject.Trim();
                 var bodyBase = request.Body;
@@ -105,34 +90,63 @@ namespace brownstone_hub_api.Controllers
                 var plainBase = bodyBase;
                 var signatureHtml = GetPropertyPeaceSignatureHtml();
 
-                int sentCount = 0;
+                var submittedUserIds = new List<long>();
+                int skippedUnsubscribedCount = 0;
                 foreach (var r in recipients)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (request.IsMarketing && await _marketingUnsubscribe.IsUnsubscribedAsync(r.Email, cancellationToken))
+                    {
+                        skippedUnsubscribedCount++;
+                        continue;
+                    }
+
                     var firstName = string.IsNullOrWhiteSpace(r.FirstName) ? "there" : r.FirstName.Trim();
                     var lastName = (r.LastName ?? "").Trim();
                     var subject = subjectBase.Replace("{{FirstName}}", firstName).Replace("{{LastName}}", lastName);
-                    var htmlContent = htmlBase.Replace("{{FirstName}}", WebUtility.HtmlEncode(firstName)).Replace("{{LastName}}", WebUtility.HtmlEncode(lastName)) + signatureHtml;
+                    var htmlContent = htmlBase.Replace("{{FirstName}}", WebUtility.HtmlEncode(firstName)).Replace("{{LastName}}", WebUtility.HtmlEncode(lastName));
                     var plainText = plainBase.Replace("{{FirstName}}", firstName).Replace("{{LastName}}", lastName) + SignaturePlainText;
-
-                    var sent = await _emailService.SendEmailAsync(r.Email, subject, htmlContent, plainText);
-                    if (sent) sentCount++;
-                }
-
-                _logger.LogInformation("Admin broadcast email sent to {SentCount}/{Total} recipients. Subject: {Subject}", sentCount, recipients.Count, request.Subject);
-
-                if (sentCount == 0)
-                {
-                    return Ok(new
+                    var footer = signatureHtml;
+                    if (request.IsMarketing)
                     {
-                        success = false,
-                        message = "Email could not be delivered to any recipient. Please check your email service configuration (Azure Communication Services connection and sender address).",
-                        sentCount = 0
-                    });
+                        var unsubscribeUrl = _marketingUnsubscribe.BuildUnsubscribeUrl(r.Email, HttpContext?.Request.Host.Host);
+                        footer += "<div style='margin-top: 24px; padding: 20px; background-color: #102C29; text-align: center;'>"
+                            + $"<a href='{WebUtility.HtmlEncode(unsubscribeUrl)}' style='color: #ffffff; text-decoration: underline;'>Unsubscribe from marketing emails</a>"
+                            + "</div>";
+                        plainText += $"\n\nUnsubscribe from marketing emails: {unsubscribeUrl}";
+                    }
+
+                    var bodyEnd = htmlContent.LastIndexOf("</body>", StringComparison.OrdinalIgnoreCase);
+                    htmlContent = bodyEnd >= 0 ? htmlContent.Insert(bodyEnd, footer) : htmlContent + footer;
+
+                    if (await _emailService.SendEmailAsync(r.Email, subject, htmlContent, plainText, cancellationToken))
+                    {
+                        submittedUserIds.Add(r.Id);
+                    }
                 }
 
-                return Ok(new { success = true, message = $"Email sent to {sentCount} recipient(s).", sentCount });
+                var sentCount = submittedUserIds.Count;
+                var attemptedCount = recipients.Count - skippedUnsubscribedCount;
+                _logger.LogInformation(
+                    "Admin broadcast email submitted to {SentCount}/{AttemptedCount} attempted recipients; {SkippedCount} unsubscribed",
+                    sentCount, attemptedCount, skippedUnsubscribedCount);
+
+                var success = sentCount > 0 || attemptedCount == 0;
+                var message = recipients.Count == 0
+                    ? "No recipients with email addresses found."
+                    : attemptedCount == 0
+                        ? "Everyone in the selected audience has unsubscribed from marketing emails."
+                        : sentCount == 0
+                            ? "Email could not be submitted for any eligible recipient. Check the email service configuration."
+                            : $"Email submitted for {sentCount} of {attemptedCount} eligible recipient(s).";
+                if (skippedUnsubscribedCount > 0 && attemptedCount > 0)
+                {
+                    message += $" Skipped {skippedUnsubscribedCount} unsubscribed address(es).";
+                }
+
+                return Ok(new { success, message, sentCount, skippedUnsubscribedCount, submittedUserIds });
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
             {
                 _logger.LogError(ex, "Error sending admin broadcast email");
                 return StatusCode(500, new { success = false, message = "An error occurred while sending the email." });

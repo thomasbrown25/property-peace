@@ -3631,13 +3631,13 @@ Feel free to reach out using the contact details in the signature below — I re
             <p style='font-size: 15px; color: #4a4a4a; margin-bottom: 16px;'>Feel free to reach out using the contact details in the signature below — I read everything.</p>
             <div style='margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0; font-size: 14px; color: #666666; white-space: pre-line;'>{signature}</div>
         </div>
-        <div style='background-color: #042238; padding: 28px 30px; text-align: center;'>
+        <div style='background-color: #102C29; padding: 28px 30px; text-align: center;'>
             <div style='margin-bottom: 14px;'>
                 <a href='https://propertypeace.io' style='color: #ffffff; text-decoration: none; font-size: 13px; margin: 0 12px; opacity: 0.9;'>Website</a>
                 <a href='https://x.com/BrownstoneHubCo' style='color: #ffffff; text-decoration: none; font-size: 13px; margin: 0 12px; opacity: 0.9;'>Twitter / X</a>
                 <a href='https://www.instagram.com/propertypeace.io/' style='color: #ffffff; text-decoration: none; font-size: 13px; margin: 0 12px; opacity: 0.9;'>Instagram</a>
             </div>
-            <p style='color: rgba(255,255,255,0.5); font-size: 11px; margin: 0;'>© 2026 Property Peace. All rights reserved.</p>
+            <p style='color: #B9E4CB; font-size: 11px; margin: 0;'>© 2026 Property Peace. All rights reserved.</p>
         </div>
     </div>
 </body>
@@ -3677,13 +3677,13 @@ You can use the Feedback page inside the portal or reach out using the contact d
             <p style='font-size: 15px; color: #4a4a4a; margin-bottom: 16px;'>You can use the <strong>Feedback</strong> page inside the portal or reach out using the contact details in the signature below.</p>
             <div style='margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0; font-size: 14px; color: #666666; white-space: pre-line;'>{signature}</div>
         </div>
-        <div style='background-color: #042238; padding: 28px 30px; text-align: center;'>
+        <div style='background-color: #102C29; padding: 28px 30px; text-align: center;'>
             <div style='margin-bottom: 14px;'>
                 <a href='https://propertypeace.io' style='color: #ffffff; text-decoration: none; font-size: 13px; margin: 0 12px; opacity: 0.9;'>Website</a>
                 <a href='https://x.com/BrownstoneHubCo' style='color: #ffffff; text-decoration: none; font-size: 13px; margin: 0 12px; opacity: 0.9;'>Twitter / X</a>
                 <a href='https://www.instagram.com/propertypeace.io/' style='color: #ffffff; text-decoration: none; font-size: 13px; margin: 0 12px; opacity: 0.9;'>Instagram</a>
             </div>
-            <p style='color: rgba(255,255,255,0.5); font-size: 11px; margin: 0;'>© 2026 Property Peace. All rights reserved.</p>
+            <p style='color: #B9E4CB; font-size: 11px; margin: 0;'>© 2026 Property Peace. All rights reserved.</p>
         </div>
     </div>
 </body>
@@ -3712,7 +3712,7 @@ You can use the Feedback page inside the portal or reach out using the contact d
                 }
 
                 var firstName = newUser.Firstname ?? "there";
-                var subject = "Thanks for checking out Property Peace";
+                var subject = "Welcome to Property Peace";
 
                 var signature = @"Thanks,
 

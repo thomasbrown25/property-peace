@@ -11,6 +11,9 @@ public class AdminBroadcastEmailRequestDto
     /// <summary>Plain text or HTML body. If HTML, it will be sent as HTML with a plain-text fallback.</summary>
     public string Body { get; set; } = string.Empty;
 
+    /// <summary>Marketing broadcasts honor unsubscribes. Use false only for necessary service notices.</summary>
+    public bool IsMarketing { get; set; } = true;
+
     /// <summary>Optional. If null or empty, email is sent to all non-deleted users with an email. Otherwise only to these user IDs.</summary>
     public List<long>? UserIds { get; set; }
 }

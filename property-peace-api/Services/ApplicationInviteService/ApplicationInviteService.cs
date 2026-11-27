@@ -643,13 +643,13 @@ Property Peace Team
             color: #1976d2;
         }}
         .footer {{
-            background-color: #042238;
+            background-color: #102C29;
             padding: 28px 30px;
             text-align: center;
         }}
         .footer p {{
             font-size: 12px;
-            color: rgba(255,255,255,0.65);
+            color: #E1EFE8;
             margin: 0;
         }}
         @media only screen and (max-width: 600px) {{
