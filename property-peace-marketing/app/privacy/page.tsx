@@ -116,6 +116,7 @@ export default function PrivacyPage() {
               <li><strong>Stripe</strong> — For approved organizations and user-initiated payments, Stripe processes payment and connected-account information under its own terms. Property Peace stores provider identifiers, status, and ledger records, not raw bank/card credentials.</li>
               <li><strong>DocuSign</strong> — A document signing provider used only if and when integrated digital lease signing is operationally enabled. Integrated digital lease signing is currently unavailable.</li>
               <li><strong>Google</strong> — Optional authentication, aggregate analytics, and advertising measurement. Google storage is denied by default and is granted only after you accept analytics cookies.</li>
+              <li><strong>OpenAI Ads</strong> — Optional advertising measurement. After you accept analytics cookies, we may store the OpenAI ad click reference for up to 30 days so a completed registration can be attributed to the ad that referred you.</li>
               <li><strong>Plausible Analytics</strong> — Privacy-focused aggregate measurement of marketing-site traffic and selected actions, without setting analytics cookies or collecting form contents.</li>
               <li><strong>Microsoft Clarity</strong> — Optional session insights and heatmaps that load only after you accept analytics cookies. Sensitive form fields are not intentionally included in analytics events.</li>
             </ul>
@@ -129,7 +130,7 @@ export default function PrivacyPage() {
               Cookies and Similar Technologies
             </h2>
             <p className="text-brand-slate leading-relaxed">
-              We use essential storage to operate the website and remember your privacy choice. Our marketing site may use privacy-focused, cookie-free aggregate analytics automatically. Google Analytics, Google advertising storage, and Microsoft Clarity session insights remain denied or unloaded unless you choose “Accept all.” You can decline optional analytics using the cookie notice or clear your saved choice through your browser storage settings.
+              We use essential storage to operate the website and remember your privacy choice. Our marketing site may use privacy-focused, cookie-free aggregate analytics automatically. Google Analytics, Google advertising storage, OpenAI Ads measurement, and Microsoft Clarity session insights remain denied or unloaded unless you choose “Accept all.” You can decline optional analytics using the cookie notice or clear your saved choice through your browser storage settings.
             </p>
           </section>
 

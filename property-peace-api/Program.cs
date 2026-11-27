@@ -299,6 +299,12 @@ services.AddSingleton(x =>
 
 // Services
 services.AddHttpClient();
+services.AddHttpClient("OpenAiAdsConversions", client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(5);
+    client.DefaultRequestHeaders.Accept.ParseAdd("application/json");
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("PropertyPeace-Ads/1.0");
+});
 services.AddHttpClient("StateLawSources").ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
 {
     AllowAutoRedirect = false,
@@ -525,6 +531,8 @@ services.AddAutoMapper(cfg =>
 services.AddHttpClient<IGoogleAuthService, GoogleAuthService>();
 services.AddHttpClient<IAppleAuthService, AppleAuthService>();
 services.AddScoped<IUserService, UserService>();
+services.AddScoped<brownstone_hub_api.Services.AdvertisingConversions.IRegistrationConversionReporter,
+    brownstone_hub_api.Services.AdvertisingConversions.OpenAiAdsRegistrationConversionService>();
 services.AddScoped<brownstone_hub_api.Services.PasswordReset.IPasswordResetService,
     brownstone_hub_api.Services.PasswordReset.PasswordResetService>();
 services.AddScoped<brownstone_hub_api.Services.Activation.IActivationService, brownstone_hub_api.Services.Activation.ActivationService>();

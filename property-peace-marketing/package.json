@@ -16,6 +16,7 @@
     "test:hero-background": "npm run build && node --test scripts/hero-background.contract.test.mjs",
     "test:light-heroes": "npm run build && node --test scripts/light-hero.contract.test.mjs",
     "test:cookie-consent": "node --test scripts/cookie-consent.contract.test.mjs",
+    "test:openai-ads-click": "tsx --test scripts/openai-ads-click.test.ts",
     "test:homepage-order": "node --test scripts/homepage-section-order.contract.test.mjs",
     "test:feature-wheel": "npm run build && node --test scripts/property-management-wheel.contract.test.mjs && tsx --test scripts/property-management-wheel.interaction.test.tsx",
     "test:mobile-hero-actions": "node --test scripts/mobile-hero-actions.contract.test.mjs",

@@ -17,6 +17,7 @@ import { openSnackbar } from 'api/snackbar';
 import { organizationAPI } from 'api';
 import OrganizationForm from 'sections/auth/jwt/OrganizationForm';
 import { trackSignUpConversion } from 'utils/googleAds';
+import { trackOpenAiRegistration } from 'utils/openAiAds';
 
 // ================================|| JWT - SETTING UP PROFILE ||================================ //
 
@@ -147,6 +148,7 @@ export default function SettingUpProfile({ hideWrapper = false, redirectOnly = f
             sessionStorage.removeItem('registerOrganizationDescription');
 
             trackSignUpConversion();
+            void trackOpenAiRegistration(axiosServices.post);
 
             openSnackbar({
               open: true,
@@ -196,6 +198,7 @@ export default function SettingUpProfile({ hideWrapper = false, redirectOnly = f
         sessionStorage.removeItem('registerOrganizationDescription');
 
         trackSignUpConversion();
+        void trackOpenAiRegistration(axiosServices.post);
 
         openSnackbar({
           open: true,
