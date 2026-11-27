@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { JSDOM } from 'jsdom';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const readPage = (route) => fs.readFileSync(path.join(root, 'out', route, 'index.html'), 'utf8');
@@ -75,9 +76,25 @@ test('shared feature pages render forest heroes with contrasting headings and co
   [...sharedFeatureRoutes, ...featureDetailRoutes].forEach(assertForestHero);
 });
 
-test('Maintenance Tracking retains its framed-image forest hero', () => {
-  assertForestHero('features/maintenance-tracking');
-  assert.match(readMarkedHero('features/maintenance-tracking'), /maintenance-tracking-hero\.jpg/);
+const maintenanceTrackingRoute = 'features/maintenance-tracking';
+
+test('Maintenance Tracking renders its hero photo without a white frame', () => {
+  assertForestHero(maintenanceTrackingRoute);
+  const hero = JSDOM.fragment(readMarkedHero(maintenanceTrackingRoute));
+  const photo = hero.querySelector('[role="img"][style*="maintenance-tracking-hero.jpg"]');
+  assert.ok(photo, 'the hero should render the maintenance tracking photo');
+  assert.equal(photo.closest('[class~="bg-brand-surface"], [class~="border-[var(--brand-border)]"]'), null);
+});
+
+test('Maintenance Tracking renders only the signup and pricing links in its hero', () => {
+  const hero = JSDOM.fragment(readMarkedHero(maintenanceTrackingRoute));
+  const links = [...hero.querySelectorAll('a')].map((link) => link.getAttribute('href'));
+  assert.deepEqual(links, ['https://app.propertypeace.io/register', '/pricing/']);
+});
+
+test('Maintenance Tracking omits the benefit chips from its hero', () => {
+  const hero = JSDOM.fragment(readMarkedHero(maintenanceTrackingRoute));
+  assert.doesNotMatch(hero.textContent, /Tenant maintenance request portal|Work order creation and tracking/);
 });
 
 const standaloneRoutes = ['about', 'resources', 'resources/starter-pack', 'comparison/turbotenant', 'lease-shield/blog'];
