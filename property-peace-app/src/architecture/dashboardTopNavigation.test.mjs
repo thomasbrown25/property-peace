@@ -92,7 +92,7 @@ test('properties are searchable, accessible, and scroll in the single green rail
   assert.match(sidebar, /renderPropertyNavigation\('desktop'\)/);
   assert.match(sidebar, /renderPropertyNavigation\('mobile'\)/);
   assert.match(sidebar, /aria-label="Search properties" title="Search properties"[\s\S]*?<AppIcon name="search" \/>[\s\S]*?aria-label="Add property"/);
-  assert.match(sidebar, /\{!loading && <Collapse in=\{searchOpen\} timeout=\{reducedMotion \? 0 : 240\} unmountOnExit/);
+  assert.match(sidebar, /\{!loading && !isEmptyPortfolio && <Collapse in=\{searchOpen\} timeout=\{reducedMotion \? 0 : 240\} unmountOnExit/);
   assert.match(sidebar, /onKeyDown=\{\(event\) => \{ if \(event\.key === 'Escape'\)/);
   assert.match(sidebar, /disabled=\{trialExpired\}/);
   assert.match(sidebar, /borderBottom: '1px solid', borderColor: 'rgba\(255, 255, 255, 0\.14\)'/);
@@ -102,13 +102,19 @@ test('properties are searchable, accessible, and scroll in the single green rail
 
 test('the property rail keeps the count and rows hidden until the current list is ready', () => {
   const sidebar = source('../layout/Dashboard/LandlordSidebar.jsx');
-  assert.ok(!/Loading properties|No properties yet/.test(sidebar), 'Loading and empty portfolios need no placeholder text');
   assert.match(sidebar, /selectPropertiesLoadStatus\(state, organizationId\)/);
   assert.match(sidebar, /const propertiesReady = propertiesStatus === 'ready'/);
   assert.match(sidebar, /properties=\{propertiesReady \? visibleProperties : \[\]\} total=\{propertiesReady \? propertyRows\.length : null\}/);
   assert.match(sidebar, /loading=\{propertiesStatus === 'pending'\}/);
   assert.match(sidebar, /total != null && <Typography component="span"/);
-  assert.match(sidebar, /\{!loading && <Box[^\n]*\n\s*<IconButton ref=\{searchButtonRef\}/);
+  assert.match(sidebar, /\{!loading && !isEmptyPortfolio && <Box[^\n]*\n\s*<IconButton ref=\{searchButtonRef\}/);
   assert.match(sidebar, /status=\{propertiesStatus === 'failed' \? 'Failed to load properties' : propertiesReady && propertyRows\.length \? 'No matching properties\.' : null\}/);
   assert.match(sidebar, /!properties\.length && status && <Typography role="status"/);
+});
+
+test('the property rail offers to add a property when the loaded portfolio is empty', () => {
+  const sidebar = source('../layout/Dashboard/LandlordSidebar.jsx');
+  assert.match(sidebar, /const isEmptyPortfolio = total === 0/);
+  assert.match(sidebar, /const addPropertyPath = '\/landlord\/properties\/add'/);
+  assert.match(sidebar, /\{isEmptyPortfolio && \([\s\S]*?No properties yet[\s\S]*?<Button component=\{Link\} to=\{addPropertyPath\}[\s\S]*?disabled=\{disabled\} onClick=\{onNavigate\}[\s\S]*?>\s*Add property\s*<\/Button>/);
 });

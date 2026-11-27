@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import { Link, useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import AppIcon from 'components/AppIcon';
-import { Box, Collapse, Drawer, IconButton, List, ListItemButton, ListItemText, TextField, Typography, useMediaQuery } from '@mui/material';
+import { Box, Button, Collapse, Drawer, IconButton, List, ListItemButton, ListItemText, TextField, Typography, useMediaQuery } from '@mui/material';
 import Logo from 'components/logo';
 import { brand } from 'themes/brand';
 import placeholderImage from 'assets/images/placeholder-house.png';
@@ -18,6 +18,7 @@ import { dashboardEntranceDelay, dashboardSlideDownSx } from 'sections/landlord/
 
 export const LANDLORD_SIDEBAR_WIDTH = 260;
 const sidebarBackground = brand.forest;
+const addPropertyPath = '/landlord/properties/add';
 
 // One visit-order snapshot per account/organization for this page load. A route
 // remount must not move a clicked property; a full reload creates fresh snapshots.
@@ -106,6 +107,7 @@ export default function LandlordSidebar({ mobileOpen, onMobileClose }) {
 }
 
 function PropertyNavigation({ properties, total, loading, search, searchId, onSearch, pathname, disabled, user, onNavigate, status }) {
+  const isEmptyPortfolio = total === 0;
   const scrollRef = useRef(null);
   const searchButtonRef = useRef(null);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -145,17 +147,17 @@ function PropertyNavigation({ properties, total, loading, search, searchId, onSe
         <Typography component="h2" variant="subtitle1" sx={{ fontWeight: 700, color: 'inherit' }}>Properties</Typography>
         {total != null && <Typography component="span" variant="caption" sx={{ color: 'inherit', fontWeight: 600 }}>{total}</Typography>}
       </Box>
-      {!loading && <Box sx={{ display: 'flex', alignItems: 'center' }}>
+    {!loading && !isEmptyPortfolio && <Box sx={{ display: 'flex', alignItems: 'center' }}>
         <IconButton ref={searchButtonRef} aria-label="Search properties" title="Search properties"
           aria-expanded={searchOpen} aria-controls={searchOpen ? searchId : undefined}
           onClick={() => { if (searchOpen) closeSearch(); else setSearchOpen(true); }} size="small" sx={{ color: 'inherit' }}>
           <AppIcon name="search" />
         </IconButton>
-        <IconButton component={Link} to="/landlord/properties/add" aria-label="Add property" title="Add property"
+        <IconButton component={Link} to={addPropertyPath} aria-label="Add property" title="Add property"
           disabled={disabled} onClick={onNavigate} size="small" sx={{ color: 'inherit' }}><AppIcon name="add" /></IconButton>
       </Box>}
     </Box>
-    {!loading && <Collapse in={searchOpen} timeout={reducedMotion ? 0 : 240} unmountOnExit sx={{ flexShrink: 0 }}>
+    {!loading && !isEmptyPortfolio && <Collapse in={searchOpen} timeout={reducedMotion ? 0 : 240} unmountOnExit sx={{ flexShrink: 0 }}>
       <Box id={searchId} sx={{ px: 1.5, pt: 1, pb: 1 }}>
         <TextField size="small" fullWidth placeholder="Search properties" value={search} onChange={(event) => onSearch(event.target.value)}
           inputRef={(node) => { if (node && searchOpen && document.activeElement === searchButtonRef.current) node.focus(); }}
@@ -168,6 +170,25 @@ function PropertyNavigation({ properties, total, loading, search, searchId, onSe
       <Box ref={scrollRef} onScroll={updateOverflow} aria-busy={loading || undefined} sx={{ height: '100%', overflowY: 'auto', scrollbarWidth: 'thin',
         scrollbarColor: 'rgba(255,255,255,0.4) transparent',
         '&::-webkit-scrollbar': { width: 6 }, '&::-webkit-scrollbar-thumb': { bgcolor: 'rgba(255,255,255,0.4)', borderRadius: 3 } }}>
+        {isEmptyPortfolio && (
+          <Box sx={{ mx: 1.5, my: 1, p: 2, border: '1px solid rgba(185, 228, 203, 0.24)', borderRadius: 2, bgcolor: 'rgba(185, 228, 203, 0.08)' }}>
+            <Box sx={{ display: 'grid', placeItems: 'center', width: 36, height: 36, mb: 1.5, borderRadius: 1.5, color: brand.mint, bgcolor: 'rgba(185, 228, 203, 0.14)' }}>
+              <AppIcon name="properties" />
+            </Box>
+            <Typography component="h3" variant="subtitle2" sx={{ color: 'inherit', fontWeight: 700 }}>No properties yet</Typography>
+            <Typography variant="body2" sx={{ mt: 0.5, mb: 1.5, color: 'rgba(255, 255, 255, 0.8)' }}>
+              Add your first property to manage its units, leases, and tenants.
+            </Typography>
+            <Button component={Link} to={addPropertyPath} variant="outlined" fullWidth
+              startIcon={<AppIcon name="add" />} disabled={disabled} onClick={onNavigate}
+              sx={{ minHeight: 40, color: brand.mint, borderColor: 'rgba(185, 228, 203, 0.48)',
+                '&:hover': { borderColor: brand.mint, bgcolor: 'rgba(185, 228, 203, 0.12)' },
+                '&.Mui-focusVisible': { outline: '2px solid', outlineColor: brand.mint, outlineOffset: 2 },
+                '&.Mui-disabled': { color: 'rgba(255, 255, 255, 0.45)', borderColor: 'rgba(255, 255, 255, 0.18)' } }}>
+              Add property
+            </Button>
+          </Box>
+        )}
         <List disablePadding sx={{ pb: 2 }}>
           {properties.map((property, index) => {
             const to = `/landlord/property/${encodeURIComponent(property.id)}`;
