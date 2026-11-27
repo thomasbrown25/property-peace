@@ -1,9 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Script from "next/script";
 import { FiX } from "react-icons/fi";
+import {
+  getOpenAiAdsClickReference,
+  isValidOpenAiAdsClickReference,
+  shouldRequestOpenAiAdsMeasurementConsent,
+  syncOpenAiAdsClickReference,
+} from "@/lib/openai-ads-click";
 
 type ConsentChoice = "essential" | "all";
 
@@ -15,6 +21,9 @@ type CookieConsentProps = {
 
 const STORAGE_KEY = "propertyPeaceCookieConsent";
 const COOKIE_NAME = "property_peace_cookie_consent";
+const OPENAI_ADS_MEASUREMENT_CONSENT_KEY = "propertyPeaceOpenAiAdsMeasurementConsentV1";
+const OPENAI_ADS_MEASUREMENT_GRANTED = "granted";
+const OPENAI_ADS_MEASUREMENT_DENIED = "denied";
 const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365;
 
 function writeConsentCookie(choice: ConsentChoice) {
@@ -33,10 +42,19 @@ function updateGoogleConsent(choice: ConsentChoice) {
 export default function CookieConsent({ gaId, googleAdsId, clarityId }: CookieConsentProps) {
   const [choice, setChoice] = useState<ConsentChoice | null>(null);
   const [isReady, setIsReady] = useState(false);
+  const [requiresOpenAiAdsConsent, setRequiresOpenAiAdsConsent] = useState(false);
+  const landingOpenAiAdsReference = useRef<string | null>(null);
 
   useEffect(() => {
     queueMicrotask(() => {
       const savedChoice = window.localStorage.getItem(STORAGE_KEY) as ConsentChoice | null;
+      const savedOpenAiAdsDecision = window.localStorage.getItem(OPENAI_ADS_MEASUREMENT_CONSENT_KEY);
+      const hasOpenAiAdsDecision = savedOpenAiAdsDecision === OPENAI_ADS_MEASUREMENT_GRANTED
+        || savedOpenAiAdsDecision === OPENAI_ADS_MEASUREMENT_DENIED;
+      const oppref = getOpenAiAdsClickReference(window.location.search);
+      if (!hasOpenAiAdsDecision && savedChoice !== "essential" && isValidOpenAiAdsClickReference(oppref)) {
+        landingOpenAiAdsReference.current = oppref;
+      }
 
       if (savedChoice === "essential" || savedChoice === "all") {
         setChoice(savedChoice);
@@ -44,6 +62,12 @@ export default function CookieConsent({ gaId, googleAdsId, clarityId }: CookieCo
         updateGoogleConsent(savedChoice);
       }
 
+      syncOpenAiAdsClickReference(savedChoice === "all" && savedOpenAiAdsDecision === OPENAI_ADS_MEASUREMENT_GRANTED);
+      setRequiresOpenAiAdsConsent(shouldRequestOpenAiAdsMeasurementConsent(
+        savedChoice === "all",
+        hasOpenAiAdsDecision,
+        oppref,
+      ));
       setIsReady(true);
     });
   }, []);
@@ -52,11 +76,28 @@ export default function CookieConsent({ gaId, googleAdsId, clarityId }: CookieCo
     window.localStorage.setItem(STORAGE_KEY, nextChoice);
     writeConsentCookie(nextChoice);
     updateGoogleConsent(nextChoice);
+    window.localStorage.setItem(
+      OPENAI_ADS_MEASUREMENT_CONSENT_KEY,
+      nextChoice === "all" ? OPENAI_ADS_MEASUREMENT_GRANTED : OPENAI_ADS_MEASUREMENT_DENIED,
+    );
+    syncOpenAiAdsClickReference(nextChoice === "all", landingOpenAiAdsReference.current);
+    landingOpenAiAdsReference.current = null;
     setChoice(nextChoice);
+    setRequiresOpenAiAdsConsent(false);
+  };
+
+  const saveOpenAiAdsMeasurementChoice = (isGranted: boolean) => {
+    window.localStorage.setItem(
+      OPENAI_ADS_MEASUREMENT_CONSENT_KEY,
+      isGranted ? OPENAI_ADS_MEASUREMENT_GRANTED : OPENAI_ADS_MEASUREMENT_DENIED,
+    );
+    syncOpenAiAdsClickReference(isGranted, landingOpenAiAdsReference.current);
+    landingOpenAiAdsReference.current = null;
+    setRequiresOpenAiAdsConsent(false);
   };
 
   const hasAcceptedAnalytics = choice === "all";
-  const shouldShowBanner = isReady && choice === null;
+  const shouldShowBanner = isReady && (choice === null || requiresOpenAiAdsConsent);
   const primaryGoogleTagId = googleAdsId || gaId;
 
   return (
@@ -118,31 +159,52 @@ export default function CookieConsent({ gaId, googleAdsId, clarityId }: CookieCo
           <button
             type="button"
             className="ppNoticeClose"
-            aria-label="Dismiss message and keep required site storage only"
-            onClick={() => saveChoice("essential")}
+            aria-label={requiresOpenAiAdsConsent
+              ? "Decline OpenAI Ads measurement"
+              : "Dismiss message and keep required site storage only"}
+            onClick={() => requiresOpenAiAdsConsent ? saveOpenAiAdsMeasurementChoice(false) : saveChoice("essential")}
           >
             <FiX aria-hidden="true" />
           </button>
 
           <div className="cookieConsent__content">
-            <h2 className="cookieConsent__title">Cookies & privacy</h2>
-            <p>
-              Essential storage and privacy-friendly aggregate analytics help us improve Property Peace.
-              Google Analytics and session insights only get full access if you accept. See our{" "}
-              <Link href="/privacy">Privacy Policy</Link>.
-            </p>
+            <h2 className="cookieConsent__title">
+              {requiresOpenAiAdsConsent ? "OpenAI Ads measurement" : "Cookies & privacy"}
+            </h2>
+            {requiresOpenAiAdsConsent ? (
+              <p>
+                You previously accepted analytics cookies. May we also store the OpenAI Ads click reference for up to 30 days
+                to measure registrations from this ad? See our <Link href="/privacy">Privacy Policy</Link>.
+              </p>
+            ) : (
+              <p>
+                Essential storage and privacy-friendly aggregate analytics help us improve Property Peace.
+                Google Analytics, Microsoft Clarity session insights, and OpenAI Ads measurement only get full access if you accept. See our{" "}
+                <Link href="/privacy">Privacy Policy</Link>.
+              </p>
+            )}
 
             <div className="ppNoticeActions">
-              <button type="button" className="ppNoticeSecondary" onClick={() => saveChoice("essential")}>
-                Essential only
+              <button
+                type="button"
+                className="ppNoticeSecondary"
+                onClick={() => requiresOpenAiAdsConsent ? saveOpenAiAdsMeasurementChoice(false) : saveChoice("essential")}
+              >
+                {requiresOpenAiAdsConsent ? "No thanks" : "Essential only"}
               </button>
-              <button type="button" className="ppNoticePrimary" onClick={() => saveChoice("all")}>
-                Accept all
+              <button
+                type="button"
+                className="ppNoticePrimary"
+                onClick={() => requiresOpenAiAdsConsent ? saveOpenAiAdsMeasurementChoice(true) : saveChoice("all")}
+              >
+                {requiresOpenAiAdsConsent ? "Allow OpenAI Ads" : "Accept all"}
               </button>
             </div>
 
             <p className="cookieConsent__fineprint">
-              Google storage remains denied unless you choose “Accept all”
+              {requiresOpenAiAdsConsent
+                ? "Declining does not change your existing analytics choice"
+                : "Google storage and OpenAI Ads measurement remain denied unless you choose “Accept all”"}
             </p>
           </div>
         </section>

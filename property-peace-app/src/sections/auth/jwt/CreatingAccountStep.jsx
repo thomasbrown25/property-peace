@@ -18,6 +18,7 @@ import { openSnackbar } from 'api/snackbar';
 import { organizationAPI } from 'api';
 import axiosServices from 'utils/axios';
 import { trackSignUpConversion } from 'utils/googleAds';
+import { trackOpenAiRegistration } from 'utils/openAiAds';
 import { authPrimaryButtonSx, authSecondaryButtonSx } from './authFormStyles';
 
 // ============================|| CREATING ACCOUNT STEP ||============================ //
@@ -103,6 +104,7 @@ export default function CreatingAccountStep({ password = '', onComplete, onBack,
           ].forEach((key) => sessionStorage.removeItem(key));
 
           trackSignUpConversion();
+          void trackOpenAiRegistration(axiosServices.post);
 
           openSnackbar({
             open: true,
@@ -158,6 +160,7 @@ export default function CreatingAccountStep({ password = '', onComplete, onBack,
           ].forEach((key) => sessionStorage.removeItem(key));
 
           trackSignUpConversion();
+          void trackOpenAiRegistration(axiosServices.post);
 
           openSnackbar({
             open: true,

@@ -129,7 +129,7 @@ axiosServices.interceptors.request.use(async (config) => {
   const authEndpoint = isAuthEndpoint(config.url);
   if (authEndpoint) removeInheritedAuthContext(config.headers);
   if (accessToken && !authEndpoint) {
-    if (shouldRefreshToken(accessToken)) {
+    if (!config.skipTokenRefresh && shouldRefreshToken(accessToken)) {
       try {
         accessToken = await ensureActiveAccessToken();
       } catch (error) {
