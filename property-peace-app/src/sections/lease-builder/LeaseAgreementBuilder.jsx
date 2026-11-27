@@ -716,7 +716,7 @@ export default function LeaseAgreementBuilder({ onComplete }) {
     const unitName = unit?.name || 'N/A';
 
     return (
-      <Card variant="outlined" sx={{ mb: 3, bgcolor: 'grey.50' }}>
+      <Card variant="outlined" sx={{ mb: 3, bgcolor: 'surface.nested' }}>
         <CardContent>
           <Typography variant="h6" sx={{ mb: 2 }}>Lease Information</Typography>
           <Grid container spacing={2}>

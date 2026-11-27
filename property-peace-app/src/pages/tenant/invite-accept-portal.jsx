@@ -117,7 +117,7 @@ export default function TenantInviteAcceptPortal() {
                 You&apos;ve been invited to join <strong>{invite.tenant?.propertyName || invite.propertyName || 'a property'}</strong>.
               </Typography>
             </Alert>
-            <Stack spacing={1} sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+            <Stack spacing={1} sx={{ p: 2, bgcolor: 'surface.nested', borderRadius: 1 }}>
               <Typography variant="body2">
                 <strong>Property:</strong> {invite.tenant?.propertyName || invite.propertyName || 'N/A'}
               </Typography>

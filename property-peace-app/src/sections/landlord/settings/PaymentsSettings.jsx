@@ -33,6 +33,7 @@ import ShortStayConnect from 'pages/landlord/short-stay-connect.jsx';
 import { validateConnectOnboardingContext } from 'utils/connectOnboarding';
 import { ONLINE_PAYMENT_SETUP_PATH } from 'utils/onlinePaymentTabs';
 import { getStripeBankAccountStatus } from 'utils/stripeBankAccountStatus';
+import { getTrustedStripeAuthorizationUrl } from './stripeExistingAccountUrl.mjs';
 import { useOrganization } from 'contexts/OrganizationContext';
 import {
   canCreateInitialStripeAccount,
@@ -161,7 +162,7 @@ function DemoStripePaymentsPreview() {
   );
 }
 
-export function PaymentsSettingsContent({ rentPaymentAccess, showStripeSetup = false, onOpenStripeSetup, onCloseStripeSetup }) {
+export function PaymentsSettingsContent({ rentPaymentAccess, showStripeSetup = false, initialSetupMode = 'new', onOpenStripeSetup, onCloseStripeSetup }) {
   const theme = useTheme();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -192,6 +193,7 @@ export function PaymentsSettingsContent({ rentPaymentAccess, showStripeSetup = f
   const [bankAccountsError, setBankAccountsError] = useState(false);
   const prevShowOnboardingRef = useRef(false);
   const connectSubmissionRef = useRef(false);
+  const existingAccountReturnHandled = useRef(false);
   const requestLifecycleRef = useRef(null);
   const connectCallbackGuardRef = useRef(null);
   const embeddedOnboardingRequestRef = useRef(null);
@@ -249,12 +251,54 @@ export function PaymentsSettingsContent({ rentPaymentAccess, showStripeSetup = f
     fetchPublishableKey();
     fetchBankAccounts();
     
-    // Check if we're returning from Stripe connection
+    // Check if we're returning from Stripe connection.
     const urlParams = new URLSearchParams(window.location.search);
     const stripeReturn = urlParams.get('stripe');
     if (stripeReturn === 'connected' || stripeReturn === 'refresh') {
       urlParams.delete('stripe');
       navigate({ search: urlParams.toString() }, { replace: true });
+    }
+
+    const existingStripeReturn = window.__propertyPeaceExistingStripeReturn || (stripeReturn === 'existing-return'
+      ? { code: urlParams.get('code'), state: urlParams.get('state'), error: urlParams.get('error') }
+      : null);
+    if (existingStripeReturn) {
+      delete window.__propertyPeaceExistingStripeReturn;
+      const { code, state, error } = existingStripeReturn;
+      if (stripeReturn === 'existing-return') {
+        ['stripe', 'code', 'state', 'error'].forEach((name) => urlParams.delete(name));
+        navigate({ search: urlParams.toString() }, { replace: true });
+      }
+
+      if (!existingAccountReturnHandled.current) {
+        existingAccountReturnHandled.current = true;
+        requestLifecycleRef.current.run({
+          scopeKey: stripeScopeKey,
+          channel: 'existing-account-complete',
+          request: ({ signal }) => axiosServices.post('/api/stripe/existing-account/complete', { code, state, error }, { signal }),
+          onSuccess: (response) => {
+            if (response.data?.connected === true) {
+              checkAccountStatus();
+              fetchBankAccounts();
+              openSnackbar({ open: true, message: 'Stripe connection confirmed. Refreshing account status…', variant: 'alert', alert: { color: 'success' } });
+              return;
+            }
+            if (response.data?.cancelled === true) {
+              openSnackbar({ open: true, message: 'Connecting your existing Stripe account was cancelled.', variant: 'alert', alert: { color: 'info' } });
+              return;
+            }
+            openSnackbar({ open: true, message: 'Stripe did not confirm a connected account. Please try again.', variant: 'alert', alert: { color: 'warning' } });
+          },
+          onError: (completionError) => openSnackbar({
+            open: true,
+            message: completionError?.response?.status === 503
+              ? 'Connecting an existing Stripe account is not available yet. Please contact support or set up a new Stripe account.'
+              : completionError?.response?.data?.message || 'Unable to complete the Stripe account connection. Please try again.',
+            variant: 'alert',
+            alert: { color: 'error' }
+          })
+        });
+      }
     }
 
     if (stripeReturn === 'connected') {
@@ -449,6 +493,50 @@ export function PaymentsSettingsContent({ rentPaymentAccess, showStripeSetup = f
           alert: { color: 'error' }
         });
       },
+      onFinally: () => {
+        connectSubmissionRef.current = false;
+        setConnecting(false);
+      }
+    });
+  };
+
+  const handlePreparedExistingAccount = async (context) => {
+    if (!canCreateInitialAccount || !stripeScopeKey || connectSubmissionRef.current) return;
+    const validationErrors = validateConnectOnboardingContext(
+      context,
+      properties.map((property) => property?.id ?? property?.Id).filter((propertyId) => propertyId != null)
+    );
+    if (Object.keys(validationErrors).length > 0) {
+      openSnackbar({ open: true, message: 'Confirm your property authority before continuing to Stripe.', variant: 'alert', alert: { color: 'warning' } });
+      return;
+    }
+
+    connectSubmissionRef.current = true;
+    setConnecting(true);
+    return requestLifecycleRef.current.run({
+      scopeKey: stripeScopeKey,
+      channel: 'existing-account-authorize',
+      request: async ({ signal }) => {
+        const { ein: _ein, ...preparationContext } = context;
+        const preparationResponse = await axiosServices.post('/api/stripe/connect-preparation', preparationContext, { signal });
+        const savedPreparation = preparationResponse.data;
+        if (!savedPreparation?.id || !Array.isArray(savedPreparation.propertyIds) || !savedPreparation.updatedAt) {
+          throw new Error('Property Peace could not confirm the saved payout setup.');
+        }
+        const authorizationResponse = await axiosServices.post('/api/stripe/existing-account/authorize', {}, { signal });
+        const authorizationUrl = getTrustedStripeAuthorizationUrl(authorizationResponse.data?.authorizationUrl);
+        if (!authorizationUrl) throw new Error('Stripe did not return a valid account connection link.');
+        return authorizationUrl;
+      },
+      onSuccess: (authorizationUrl) => window.location.assign(authorizationUrl),
+      onError: (error) => openSnackbar({
+        open: true,
+        message: error?.response?.status === 503
+          ? 'Connecting an existing Stripe account is not available yet. Please contact support or set up a new Stripe account.'
+          : error?.response?.data?.message || error?.message || 'Unable to connect the existing Stripe account.',
+        variant: 'alert',
+        alert: { color: 'error' }
+      }),
       onFinally: () => {
         connectSubmissionRef.current = false;
         setConnecting(false);
@@ -723,6 +811,13 @@ export function PaymentsSettingsContent({ rentPaymentAccess, showStripeSetup = f
   }
 
   const openStripeSetup = onOpenStripeSetup ?? (() => navigate(ONLINE_PAYMENT_SETUP_PATH));
+  const openExistingStripeSetup = () => {
+    if (onOpenStripeSetup) {
+      onOpenStripeSetup('existing');
+      return;
+    }
+    navigate(`${ONLINE_PAYMENT_SETUP_PATH}&setupMode=existing`);
+  };
 
   if (showStripeSetup && canCreateInitialAccount) {
     if (preparation.status === 'error') {
@@ -746,6 +841,8 @@ export function PaymentsSettingsContent({ rentPaymentAccess, showStripeSetup = f
         onRetryProperties={propertiesRefetch}
         user={user}
         initialDraft={preparation.data}
+        initialSetupMode={initialSetupMode}
+        onConnectExisting={handlePreparedExistingAccount}
         loading={connecting}
       />
     );
@@ -832,6 +929,11 @@ export function PaymentsSettingsContent({ rentPaymentAccess, showStripeSetup = f
                   disabled={connecting || fetchingSession}
                 >
                   {fetchingSession ? 'Opening Stripe…' : stripeActionLabel}
+                </Button>
+              )}
+              {!hasStripeAccount && canCreateInitialAccount && (
+                <Button variant="outlined" onClick={openExistingStripeSetup} disabled={connecting || fetchingSession}>
+                  Connect existing Stripe account
                 </Button>
               )}
             </Stack>

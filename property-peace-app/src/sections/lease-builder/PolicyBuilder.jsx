@@ -599,7 +599,7 @@ export default function PolicyBuilder({
                   </Stack>
                 )}
                 {formattedPolicies.markdown && (
-                  <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+                  <Box sx={{ mt: 2, p: 2, bgcolor: 'surface.nested', borderRadius: 1 }}>
                     <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
                       Formatted Markdown:
                     </Typography>

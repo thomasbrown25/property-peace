@@ -21,3 +21,6 @@ export const selectPropertiesLoadStatus = (state, organizationId) => {
   const request = state.property.propertiesRequest;
   return organizationId != null && request?.organizationId === organizationId ? request.status : 'pending';
 };
+
+export const selectIsEmptyPropertyPortfolio = (state, organizationId) =>
+  selectPropertiesLoadStatus(state, organizationId) === 'ready' && selectPropertyCount(state) === 0;

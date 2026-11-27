@@ -252,7 +252,7 @@ namespace brownstone_hub_api.Services.StripeService
                     $"property-peace-connect-account-user-{userId}-standard-v3");
 
                 // DetailsSubmitted alone is insufficient: a fresh capability, bank and payout snapshot is required.
-                await _stripeConnectedPayeeService.RegisterAsync(userId, account.AccountId, account.DetailsSubmitted);
+                await _stripeConnectedPayeeService.RegisterInitialAccountAsync(userId, account.AccountId, account.DetailsSubmitted);
 
                 response.Data = new CreateStripeAccountResponseDto
                 {

@@ -190,7 +190,7 @@ export default function PetsSmokingOtherPage({ embedded = false, onSaved, leaseD
   }
 
   return (
-    <Box sx={embedded ? { bgcolor: 'transparent' } : { minHeight: '100vh', bgcolor: 'background.default', display: 'flex', justifyContent: 'center' }}>
+    <Box sx={embedded ? undefined : { minHeight: '100vh', display: 'flex', justifyContent: 'center' }}>
       <Container maxWidth={embedded ? false : "md"} disableGutters={embedded} sx={{ py: embedded ? 0 : 3 }}>
         {!embedded && <BuildLeaseAgreementHeader onBack={handleBack} onSaveDraft={handleSaveDraft} showTitle={false} />}
         <MainCard>

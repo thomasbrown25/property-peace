@@ -70,8 +70,7 @@ export default function LeaseAddedPage() {
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
-          minHeight: '100vh',
-          bgcolor: 'background.default'
+          minHeight: '100vh'
         }}
       >
         <CircularProgress />
@@ -87,7 +86,6 @@ export default function LeaseAddedPage() {
           justifyContent: 'center',
           alignItems: 'center',
           minHeight: '100vh',
-          bgcolor: 'background.default',
           p: 3
         }}
       >
@@ -119,7 +117,6 @@ export default function LeaseAddedPage() {
         justifyContent: 'center',
         alignItems: 'center',
         minHeight: '100vh',
-        bgcolor: 'background.default',
         p: 3
       }}
     >

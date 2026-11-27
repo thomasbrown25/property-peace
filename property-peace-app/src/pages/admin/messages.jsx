@@ -509,7 +509,7 @@ export default function AdminMessages() {
                         overflowY: 'auto',
                         overflowX: 'hidden',
                         p: 2,
-                        bgcolor: 'grey.50',
+                        bgcolor: 'surface.nested',
                         '&::-webkit-scrollbar': { width: '8px' },
                         '&::-webkit-scrollbar-track': { bgcolor: 'transparent' },
                         '&::-webkit-scrollbar-thumb': { bgcolor: 'grey.300', borderRadius: '4px' }

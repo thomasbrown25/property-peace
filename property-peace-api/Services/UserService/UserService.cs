@@ -2521,9 +2521,8 @@ namespace brownstone_hub_api.Services.UserService
                 var user = await _userRepository.GetUserByIdIncludingDeleted(userId);
                 if (user == null)
                 {
-                    response.Success = false;
-                    response.Message = "User not found";
-                    return response;
+                    return ServiceResponse<string>.CreateError(
+                        "User not found", statusCode: StatusCodes.Status404NotFound);
                 }
 
                 _logger.LogWarning("Starting complete hard delete for user {UserId} ({Email})", userId, user.Email);
@@ -2777,8 +2776,8 @@ namespace brownstone_hub_api.Services.UserService
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Exception occurred while hard deleting user {UserId}", userId);
-                response.Success = false;
-                response.Message = $"Error deleting user: {ex.Message}";
+                return ServiceResponse<string>.CreateError(
+                    "Failed to delete user", statusCode: StatusCodes.Status500InternalServerError);
             }
 
             return response;

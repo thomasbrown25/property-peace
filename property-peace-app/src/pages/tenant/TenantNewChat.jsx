@@ -1,7 +1,7 @@
 import AppIcon from 'components/AppIcon';
 import { useId, useState } from 'react';
 import { Alert, Avatar, Box, Chip, CircularProgress, IconButton, List, ListItem, ListItemButton, Stack, TextField, Typography, alpha, useTheme } from '@mui/material';
-import { getChatStyles } from 'themes/chatStyles';
+import { chatSendButtonSx, getChatStyles } from 'themes/chatStyles';
 
 export default function TenantNewChat({
   landlords, loading, loadError, landlord, onSelect, onClearLandlord, draft, onDraftChange, isSending, sendError, maxLength, onSend, onClose
@@ -135,8 +135,14 @@ export default function TenantNewChat({
             }}
             slotProps={{ htmlInput: { maxLength, 'aria-label': 'First message' } }}
           />
-          <IconButton aria-label="Send first message" color="primary" disabled={!landlord || !draft.trim() || isSending} onClick={onSend}>
-            {isSending ? <CircularProgress size={20} /> : <AppIcon name="send" />}
+          <IconButton
+            aria-label="Send first message"
+            disableRipple
+            disabled={!landlord || !draft.trim() || isSending}
+            onClick={onSend}
+            sx={chatSendButtonSx}
+          >
+            {isSending ? <CircularProgress size={20} /> : <AppIcon name="send" size={20} />}
           </IconButton>
         </Stack>
       </Box>

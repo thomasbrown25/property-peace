@@ -1,7 +1,35 @@
 import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
+import { after, before, describe, it } from 'node:test';
 
-import { canManageGroupConversation, getConversationBubbleSx } from './conversationPresentation.js';
+import { canManageGroupConversation, getConversationBubbleSx, parseMessageDate, sortConversationMessages } from './conversationPresentation.js';
+
+describe('chat message timestamps in New York', () => {
+  const originalTimeZone = process.env.TZ;
+  before(() => {
+    process.env.TZ = 'America/New_York';
+  });
+  after(() => {
+    if (originalTimeZone === undefined) delete process.env.TZ;
+    else process.env.TZ = originalTimeZone;
+  });
+
+  it('keeps a new tenant reply below the earlier landlord message before and after confirmation', () => {
+    const landlord = { id: 1, createdAt: '2026-11-27T17:31:00.1234567' };
+    const pending = { id: 'temp-2', createdAt: '2026-11-27T18:00:00.000Z' };
+    const confirmed = { id: 2, createdAt: '2026-11-27T18:00:01' };
+
+    assert.deepEqual(sortConversationMessages([landlord, pending]), [landlord, pending]);
+    assert.deepEqual(sortConversationMessages([confirmed, landlord]), [landlord, confirmed]);
+  });
+
+  it('puts equivalent UTC and offset timestamps on the same local day around midnight UTC', () => {
+    const serverDate = parseMessageDate('2026-11-28T01:00:00');
+    const offsetDate = parseMessageDate('2026-11-27T20:00:00-05:00');
+
+    assert.equal(serverDate.getTime(), offsetDate.getTime());
+    assert.equal(serverDate.getDate(), 27);
+  });
+});
 
 describe('getConversationBubbleSx', () => {
   it('gives sent and received messages the same readable light-blue and black palette', () => {

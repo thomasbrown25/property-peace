@@ -7,6 +7,7 @@ import { Box, Collapse, Drawer, IconButton, List, ListItemButton, ListItemText, 
 import Logo from 'components/logo';
 import { brand } from 'themes/brand';
 import placeholderImage from 'assets/images/placeholder-house.png';
+import compactLogo from 'assets/images/logos/logo-white.png';
 import useFetchProperties from 'hooks/useFetchProperties';
 import useAuth from 'hooks/useAuth';
 import { useDrawer } from 'contexts/DrawerContext';
@@ -43,7 +44,7 @@ function visitDatesForSidebar(user) {
   return sidebarVisitDates.get(scope);
 }
 
-export default function LandlordSidebar({ mobileOpen, onMobileClose }) {
+export default function LandlordSidebar({ desktopOpen, desktopWidth, mobileOpen, onMobileClose }) {
   const { pathname, search } = useLocation();
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -100,12 +101,39 @@ export default function LandlordSidebar({ mobileOpen, onMobileClose }) {
     status={propertiesStatus === 'failed' ? 'Failed to load properties' : propertiesReady && propertyRows.length ? 'No matching properties.' : null} />;
 
   return <>
-    <Drawer variant="permanent" open sx={{ display: { xs: 'none', lg: 'block' }, width: LANDLORD_SIDEBAR_WIDTH, flexShrink: 0,
-      '& .MuiDrawer-paper': { width: LANDLORD_SIDEBAR_WIDTH, boxSizing: 'border-box', height: '100dvh', bgcolor: sidebarBackground, borderRight: '1px solid', borderColor: 'rgba(255, 255, 255, 0.14)' } }}>
-      <Box sx={{ height: 60, flexShrink: 0, display: 'flex', alignItems: 'center', px: 3, bgcolor: sidebarBackground, borderBottom: '1px solid', borderColor: 'rgba(255, 255, 255, 0.14)' }}>
-        <Logo darkSurface disableTopPadding width={120} to="/landlord/dashboard" />
+    <Drawer variant="permanent" open sx={{ display: { xs: 'none', lg: 'block' }, width: desktopWidth, flexShrink: 0,
+      '& .MuiDrawer-paper': { width: desktopWidth, boxSizing: 'border-box', height: '100dvh', bgcolor: sidebarBackground, borderRight: '1px solid', borderColor: 'rgba(255, 255, 255, 0.14)' } }}>
+      <Box sx={{ height: 60, flexShrink: 0, display: 'flex', alignItems: 'center',
+        justifyContent: desktopOpen ? 'flex-start' : 'center', px: desktopOpen ? 3 : 0,
+        bgcolor: sidebarBackground, borderBottom: '1px solid', borderColor: 'rgba(255, 255, 255, 0.14)' }}>
+        {desktopOpen ? (
+          <Logo darkSurface disableTopPadding width={120} to="/landlord/dashboard" />
+        ) : (
+          <Box component={Link} to="/landlord/dashboard" sx={{ display: 'grid', placeItems: 'center', width: 44, height: 60,
+            '&:focus-visible': { outline: `2px solid ${brand.mint}`, outlineOffset: -2 } }}>
+            <Box component="img" src={compactLogo} alt="Property Peace home" width={36} sx={{ display: 'block', height: 'auto' }} />
+          </Box>
+        )}
       </Box>
-      {renderPropertyNavigation('desktop')}
+      <Box id="landlord-property-navigation" sx={{ display: desktopOpen ? 'flex' : 'none', flex: 1, minHeight: 0 }}>
+        {renderPropertyNavigation('desktop')}
+      </Box>
+      {!desktopOpen && (
+        <Box component="nav" aria-label="Property shortcuts"
+          sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5, py: 1, color: '#FFFFFF',
+            '& .MuiIconButton-root': { width: 40, height: 40, '&:focus-visible': { outline: `2px solid ${brand.mint}` } } }}>
+          <IconButton component={Link} to="/landlord/properties" aria-label="Properties" title="Properties"
+            aria-current={pathname === '/landlord/properties' ? 'page' : undefined} disabled={trialExpired} color="inherit">
+            <AppIcon name="properties" size={18} />
+          </IconButton>
+          <IconButton component={Link} to="/landlord/properties/add" aria-label="Add property" title="Add property" disabled={trialExpired} color="inherit">
+            <AppIcon name="add" size={18} />
+          </IconButton>
+          <IconButton component={Link} to="/landlord/settings" aria-label="Settings" title="Settings" color="inherit" sx={{ mt: 'auto' }}>
+            <AppIcon name="settings" size={18} />
+          </IconButton>
+        </Box>
+      )}
     </Drawer>
     <Drawer variant="temporary" open={mobileOpen} onClose={onMobileClose} ModalProps={{ keepMounted: true }}
       sx={{ display: { xs: 'block', lg: 'none' }, '& .MuiDrawer-paper': { width: 300, maxWidth: '90vw', boxSizing: 'border-box', bgcolor: sidebarBackground } }}>
@@ -175,7 +203,7 @@ function PropertyNavigation({ properties, total, loading, search, searchId, onSe
     '&.Mui-selected': { bgcolor: 'rgba(185, 228, 203, 0.16)', '&:hover': { bgcolor: 'rgba(185, 228, 203, 0.22)' } },
     '&:focus-visible': { outline: '2px solid', outlineColor: brand.mint, outlineOffset: -2 }
   };
-  return <Box component="nav" aria-label="Property navigation" sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, bgcolor: sidebarBackground, color: '#FFFFFF' }}>
+  return <Box component="nav" aria-label="Property navigation" sx={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, bgcolor: sidebarBackground, color: '#FFFFFF' }}>
     <Box sx={{ px: 2.5, pt: 2.5, pb: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
       <Box component={Link} to="/landlord/properties" onClick={(event) => { if (disabled) event.preventDefault(); else onNavigate?.(); }}
         aria-disabled={disabled || undefined} tabIndex={disabled ? -1 : undefined}
@@ -269,7 +297,12 @@ function PropertyNavigation({ properties, total, loading, search, searchId, onSe
   </Box>;
 }
 
-LandlordSidebar.propTypes = { mobileOpen: PropTypes.bool, onMobileClose: PropTypes.func };
+LandlordSidebar.propTypes = {
+  desktopOpen: PropTypes.bool.isRequired,
+  desktopWidth: PropTypes.number.isRequired,
+  mobileOpen: PropTypes.bool,
+  onMobileClose: PropTypes.func
+};
 PropertyNavigation.propTypes = {
   properties: PropTypes.array.isRequired, total: PropTypes.number, loading: PropTypes.bool.isRequired, search: PropTypes.string.isRequired,
   searchId: PropTypes.string.isRequired, onSearch: PropTypes.func.isRequired, pathname: PropTypes.string.isRequired, disabled: PropTypes.bool,

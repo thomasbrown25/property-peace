@@ -11,6 +11,8 @@ namespace brownstone_hub_api.Repositories.Organizations
         Task<List<OrganizationMember>> GetMembersByUserIdAsync(long userId);
         Task<OrganizationMember> AddMemberAsync(OrganizationMember member);
         Task<OrganizationMember> UpdateMemberAsync(OrganizationMember member);
+        Task<bool?> GetOnlinePaymentsSetupDismissalAsync(long organizationId, long userId, CancellationToken cancellationToken);
+        Task<bool> DismissOnlinePaymentsSetupAsync(long organizationId, long userId, CancellationToken cancellationToken);
         Task<bool> RemoveMemberAsync(long organizationId, long userId);
         Task<bool> RemoveMemberByIdAsync(long organizationId, long memberId);
         Task<OrganizationMemberRemovalResult> RemoveMemberAndRepairCurrentOrganizationAsync(long organizationId, long memberId);

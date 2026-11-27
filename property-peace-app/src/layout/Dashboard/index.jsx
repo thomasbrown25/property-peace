@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSelector } from 'react-redux';
 import { matchPath, Outlet, useLocation } from 'react-router-dom';
 import NewMaintenancePanel from 'components/maintenance/NewMaintenancePanel';
 import ExpenseAddDrawer from 'components/expense/ExpenseAddDrawer';
@@ -7,13 +8,13 @@ import RecordPaymentDrawer from 'components/drawers/RecordPaymentDrawer';
 import PropertyAddWorkflowDrawer from 'components/drawers/PropertyAddWorkflowDrawer';
 import ScheduleInspectionDrawer from 'components/drawers/ScheduleInspectionDrawer';
 
-import { Container, Toolbar, Box, alpha } from '@mui/material';
+import { Container, Toolbar, Box } from '@mui/material';
+import { portalPageBackground } from 'themes/portalPageBackground';
 
 // project imports
 import Header, { TENANT_HEADER_HEIGHT } from './Header';
 import MainDrawer from './Drawer';
 import LandlordSidebar, { LANDLORD_SIDEBAR_WIDTH } from './LandlordSidebar';
-import { DRAWER_WIDTH } from 'config';
 import Footer from './Footer';
 import Loader from 'components/Loader';
 
@@ -24,6 +25,9 @@ import PageTransition from 'components/PageTransition';
 import useAuth from 'hooks/useAuth';
 import { useDrawer } from 'contexts/DrawerContext';
 import { useDashboardLoading } from 'contexts/DashboardLoadingContext';
+import { useOrganization } from 'contexts/OrganizationContext';
+import { selectIsEmptyPropertyPortfolio } from 'store/property/property.selector';
+import { MINI_DRAWER_WIDTH } from 'config';
 
 
 import { useGetMenuMaster } from 'api/menu';
@@ -35,11 +39,16 @@ export default function DashboardLayout() {
   const isAdminPortal = pathname === '/admin' || pathname.startsWith('/admin/');
   const isTenantPortal = pathname === '/tenant' || pathname.startsWith('/tenant/');
 
-  const isAddPropertyPage = pathname === '/landlord/properties/add' || pathname === '/landlord/property-add-workflow';
-  const isLandlordPortal = (pathname === '/landlord' || pathname.startsWith('/landlord/')) && !isAddPropertyPage;
+  const isLandlordPortal = pathname === '/landlord' || pathname.startsWith('/landlord/');
   const [adminMobileMenuOpen, setAdminMobileMenuOpen] = useState(false);
+  const [adminDesktopMenuOpen, setAdminDesktopMenuOpen] = useState(true);
   const [landlordMobileMenuOpen, setLandlordMobileMenuOpen] = useState(false);
-  // Standalone property onboarding supplies its own logo, Save & exit, and step footer.
+  const [landlordDesktopMenu, setLandlordDesktopMenu] = useState(null);
+  const { currentOrganization } = useOrganization();
+  const organizationId = currentOrganization?.id ?? currentOrganization?.Id ?? null;
+  const emptyPropertyPortfolio = useSelector((state) => isLandlordPortal && selectIsEmptyPropertyPortfolio(state, organizationId));
+  const landlordDesktopMenuOpen = !emptyPropertyPortfolio || (landlordDesktopMenu?.organizationId === organizationId && landlordDesktopMenu.open);
+  const landlordSidebarWidth = landlordDesktopMenuOpen ? LANDLORD_SIDEBAR_WIDTH : MINI_DRAWER_WIDTH;
   const { menuMasterLoading, menuMaster } = useGetMenuMaster();
   const { user } = useAuth();
   const drawer = useDrawer();
@@ -110,7 +119,7 @@ export default function DashboardLayout() {
   const isReportsPage = pathname === '/landlord/reports' || pathname.startsWith('/landlord/reports?');
   const isLandlordSettingsPage = Boolean(matchPath('/landlord/settings', pathname));
   const isSettingsPage = isLandlordSettingsPage || Boolean(matchPath('/tenant/settings', pathname));
-  const isFullWidthPage = isAddPropertyPage || isSettingsPage;
+  const isFullWidthPage = isSettingsPage;
   // Check if it's the accounting page (e.g., /landlord/accounting)
   const isAccountingPage = pathname === '/landlord/accounting' || pathname.startsWith('/landlord/accounting');
   const hasPageScopedMaintenanceDrawer =
@@ -141,29 +150,36 @@ export default function DashboardLayout() {
       {/* Show top loading bar when layout is loading OR dashboard components are loading */}
       {showLoader && <Loader />}
       <Box
-        sx={(theme) => ({
-          display: 'flex',
-          width: '100%',
-          bgcolor: 'background.default',
-          minHeight: '100vh',
-          ...(theme.palette.mode === 'dark' && {
-            backgroundImage: `
-              radial-gradient(circle at 20% 0%, ${alpha(theme.palette.primary.main, 0.12)} 0, transparent 28%),
-              radial-gradient(circle at 86% 12%, ${alpha(theme.palette.warning.main, 0.08)} 0, transparent 24%),
-              linear-gradient(180deg, ${theme.palette.background.default} 0%, ${alpha('#050a12', 0.98)} 100%)
-            `,
-            backgroundAttachment: 'fixed'
-          })
-        })}
+        sx={[portalPageBackground, { display: 'flex', width: '100%', minHeight: '100vh' }]}
       >
-        {!isAddPropertyPage && <Header adminPortal={isAdminPortal} landlordPortal={isLandlordPortal} tenantPortal={isTenantPortal} onAdminMenuOpen={() => setAdminMobileMenuOpen(true)} onLandlordMenuOpen={() => setLandlordMobileMenuOpen(true)} />}
-        {isAdminPortal && <MainDrawer mobileOpen={adminMobileMenuOpen} onMobileClose={() => setAdminMobileMenuOpen(false)} />}
-        {isLandlordPortal && <LandlordSidebar mobileOpen={landlordMobileMenuOpen} onMobileClose={() => setLandlordMobileMenuOpen(false)} />}
+        <Header
+          adminPortal={isAdminPortal}
+          landlordPortal={isLandlordPortal}
+          tenantPortal={isTenantPortal}
+          adminDesktopMenuOpen={adminDesktopMenuOpen}
+          landlordDesktopMenuOpen={landlordDesktopMenuOpen}
+          landlordSidebarWidth={landlordSidebarWidth}
+          onAdminMenuToggle={() => setAdminDesktopMenuOpen((open) => !open)}
+          onAdminMenuOpen={() => setAdminMobileMenuOpen(true)}
+          onLandlordMenuToggle={emptyPropertyPortfolio ? () => setLandlordDesktopMenu({ organizationId, open: !landlordDesktopMenuOpen }) : undefined}
+          onLandlordMenuOpen={() => setLandlordMobileMenuOpen(true)}
+        />
+        {isAdminPortal && (
+          <MainDrawer desktopOpen={adminDesktopMenuOpen} mobileOpen={adminMobileMenuOpen} onMobileClose={() => setAdminMobileMenuOpen(false)} />
+        )}
+        {isLandlordPortal && (
+          <LandlordSidebar
+            desktopOpen={landlordDesktopMenuOpen}
+            desktopWidth={landlordSidebarWidth}
+            mobileOpen={landlordMobileMenuOpen}
+            onMobileClose={() => setLandlordMobileMenuOpen(false)}
+          />
+        )}
 
         <Box 
           component="main" 
           sx={{ 
-            width: isAdminPortal ? { xs: '100%', lg: `calc(100% - ${DRAWER_WIDTH}px)` } : isLandlordPortal ? { xs: '100%', lg: `calc(100% - ${LANDLORD_SIDEBAR_WIDTH}px)` } : '100%',
+            width: isLandlordPortal ? { xs: '100%', lg: `calc(100% - ${landlordSidebarWidth}px)` } : '100%',
             flexGrow: 1, 
             p: isFullWidthPage ? 0 : 2.5,
             pb: 0,
@@ -173,7 +189,7 @@ export default function DashboardLayout() {
             minWidth: 0
           }}
         >
-          {!isAddPropertyPage && <Toolbar sx={{ minHeight: { xs: '52px !important', sm: '60px !important' }, height: isTenantPortal ? TENANT_HEADER_HEIGHT : undefined }} />}
+          <Toolbar sx={{ minHeight: { xs: '52px !important', sm: '60px !important' }, height: isTenantPortal ? TENANT_HEADER_HEIGHT : undefined }} />
           <Container
             maxWidth={false}
             disableGutters
@@ -229,14 +245,14 @@ export default function DashboardLayout() {
                   <Outlet />
                 </PageTransition>
               </Box>
-              {!isAddPropertyPage && <Box sx={{
+              <Box sx={{
                 flexShrink: 0,
                 width: '100%',
                 px: isSettingsPage ? 2.5 : 0,
                 mt: 'auto',
               }}>
                 <Footer />
-              </Box>}
+              </Box>
             </Box>
           </Container>
         </Box>

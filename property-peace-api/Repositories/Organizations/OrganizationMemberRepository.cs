@@ -78,10 +78,28 @@ namespace brownstone_hub_api.Repositories.Organizations
 
         public async Task<OrganizationMember> UpdateMemberAsync(OrganizationMember member)
         {
-            _context.OrganizationMembers.Update(member);
+            var entry = _context.OrganizationMembers.Update(member);
+            // A membership edit may have loaded the row before a dashboard dismissal was saved.
+            entry.Property(m => m.HasDismissedOnlinePaymentsSetup).IsModified = false;
             await _context.SaveChangesAsync();
             return member;
         }
+
+        public Task<bool?> GetOnlinePaymentsSetupDismissalAsync(long organizationId, long userId, CancellationToken cancellationToken) =>
+            ActiveMembership(organizationId, userId)
+                .Select(member => (bool?)member.HasDismissedOnlinePaymentsSetup)
+                .SingleOrDefaultAsync(cancellationToken);
+
+        public async Task<bool> DismissOnlinePaymentsSetupAsync(long organizationId, long userId, CancellationToken cancellationToken)
+        {
+            var updated = await ActiveMembership(organizationId, userId)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(member => member.HasDismissedOnlinePaymentsSetup, true), cancellationToken);
+            return updated == 1;
+        }
+
+        private IQueryable<OrganizationMember> ActiveMembership(long organizationId, long userId) =>
+            _context.OrganizationMembers.Where(member => member.OrganizationId == organizationId && member.UserId == userId &&
+                member.IsActive && member.Organization.IsActive && !member.Organization.IsDeleted);
 
         public async Task<bool> RemoveMemberAsync(long organizationId, long userId)
         {

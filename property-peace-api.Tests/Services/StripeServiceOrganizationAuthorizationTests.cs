@@ -79,7 +79,7 @@ public sealed class StripeServiceOrganizationAuthorizationTests
         await using var context = new DataContext(new DbContextOptionsBuilder<DataContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options);
         var payees = new Mock<IStripeConnectedPayeeService>(MockBehavior.Strict);
-        payees.Setup(service => service.RegisterAsync(42, "acct_first", false, It.IsAny<CancellationToken>()))
+        payees.Setup(service => service.RegisterInitialAccountAsync(42, "acct_first", false, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new StripeConnectedPayeeReview());
 
         var createdByIdempotencyKey = new System.Collections.Concurrent.ConcurrentDictionary<string, StripeConnectedAccountOnboardingResult>();
@@ -146,6 +146,6 @@ public sealed class StripeServiceOrganizationAuthorizationTests
         createdByIdempotencyKey.Should().ContainSingle();
         maxConcurrentGatewayCalls.Should().Be(1);
         users.Verify(repository => repository.GetUser(42), Times.Exactly(2));
-        payees.Verify(service => service.RegisterAsync(42, "acct_first", false, It.IsAny<CancellationToken>()), Times.Exactly(2));
+        payees.Verify(service => service.RegisterInitialAccountAsync(42, "acct_first", false, It.IsAny<CancellationToken>()), Times.Exactly(2));
     }
 }

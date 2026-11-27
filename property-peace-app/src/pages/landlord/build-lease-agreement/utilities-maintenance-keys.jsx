@@ -275,7 +275,7 @@ export default function UtilitiesMaintenanceKeysPage({ embedded = false, onSaved
   }
 
   return (
-    <Box sx={embedded ? { bgcolor: 'transparent' } : { minHeight: '100vh', bgcolor: 'background.default', display: 'flex', justifyContent: 'center' }}>
+    <Box sx={embedded ? undefined : { minHeight: '100vh', display: 'flex', justifyContent: 'center' }}>
       <Container maxWidth={embedded ? false : "md"} disableGutters={embedded} sx={{ py: embedded ? 0 : 3 }}>
         {!embedded && <BuildLeaseAgreementHeader onBack={handleBack} onSaveDraft={handleSaveDraft} showTitle={false} />}
         <MainCard>
@@ -354,8 +354,8 @@ export default function UtilitiesMaintenanceKeysPage({ embedded = false, onSaved
                       sx={{
                         '& .MuiToggleButton-root.Mui-selected': {
                           backgroundColor: 'primary.main',
-                          color: 'white',
-                          '&:hover': { backgroundColor: 'primary.dark', color: 'white' }
+                          color: 'primary.contrastText',
+                          '&:hover': { backgroundColor: 'primary.dark', color: 'primary.contrastText' }
                         }
                       }}
                     >
@@ -485,8 +485,8 @@ export default function UtilitiesMaintenanceKeysPage({ embedded = false, onSaved
                       sx={{
                         '& .MuiToggleButton-root.Mui-selected': {
                           backgroundColor: 'primary.main',
-                          color: 'white',
-                          '&:hover': { backgroundColor: 'primary.dark', color: 'white' }
+                          color: 'primary.contrastText',
+                          '&:hover': { backgroundColor: 'primary.dark', color: 'primary.contrastText' }
                         }
                       }}
                     >

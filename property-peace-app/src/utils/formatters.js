@@ -1,6 +1,7 @@
 import moment from 'moment';
 import { maintenancePriorityOptions, maintenanceStatusOptions, propertyTypeOptions } from './models';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
+import { parseMessageDate } from './conversationPresentation';
 
 export const formatPhone = (raw) => {
   // Handle null, undefined, or empty values
@@ -351,23 +352,7 @@ export const formatMessageTime = (dateString) => {
     return '';
   }
 
-  // Parse the date - handle both ISO strings and Date objects
-  let date;
-  if (dateString instanceof Date) {
-    date = dateString;
-  } else {
-    // Backend sends dates in UTC. If the string doesn't have timezone info (no 'Z' or offset),
-    // we need to treat it as UTC.
-    let dateStr = String(dateString).trim();
-    
-    // If it's an ISO string without timezone info, append 'Z' to indicate UTC
-    // Format: YYYY-MM-DDTHH:mm:ss or YYYY-MM-DDTHH:mm:ss.sss
-    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?$/.test(dateStr)) {
-      dateStr += 'Z';
-    }
-    
-    date = new Date(dateStr);
-  }
+  const date = parseMessageDate(dateString);
   
   const now = new Date();
   

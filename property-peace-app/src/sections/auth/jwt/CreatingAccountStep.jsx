@@ -108,7 +108,7 @@ export default function CreatingAccountStep({ password = '', onComplete, onBack,
 
           openSnackbar({
             open: true,
-            message: 'Your organization has been created successfully. Redirecting to dashboard...',
+            message: 'Your organization has been created.',
             variant: 'alert',
             alert: { color: 'success' }
           });
@@ -164,7 +164,7 @@ export default function CreatingAccountStep({ password = '', onComplete, onBack,
 
           openSnackbar({
             open: true,
-            message: 'Your registration has been successfully completed. Redirecting to dashboard...',
+            message: 'Your registration is complete.',
             variant: 'alert',
             alert: { color: 'success' }
           });

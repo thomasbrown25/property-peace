@@ -10,8 +10,11 @@ public static class ConversationUnreadQuery
         this IQueryable<ConversationTimelineEntry> entries, DataContext db,
         long organizationId, long userId, bool isStaff, long lastReadSequence)
     {
+        // Chat saves per-message receipts, while the timeline saves a read position.
         var unread = entries.Where(entry => entry.Sequence > lastReadSequence &&
-            (!entry.ActorUserId.HasValue || entry.ActorUserId.Value != userId));
+            (!entry.ActorUserId.HasValue || entry.ActorUserId.Value != userId) &&
+            (!entry.MessageId.HasValue || !db.MessageReads.Any(receipt =>
+                receipt.MessageId == entry.MessageId && receipt.UserId == userId)));
         if (isStaff)
         {
             // Legacy notification attempts may not have an actor. They are outbound activity,

@@ -25,3 +25,16 @@ export function getConversationBubbleSx({ isOwn = false, isConsecutive = false, 
 export function canManageGroupConversation(conversation) {
   return Boolean(conversation && (conversation.isGroupChat ?? conversation.IsGroupChat));
 }
+
+export function parseMessageDate(value) {
+  if (value instanceof Date) return value;
+
+  const timestamp = String(value).trim();
+  // API message timestamps are UTC even when serialized without a time zone.
+  const lacksTimeZone = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?$/.test(timestamp);
+  return new Date(lacksTimeZone ? `${timestamp}Z` : timestamp);
+}
+
+export function sortConversationMessages(messages) {
+  return [...messages].sort((a, b) => parseMessageDate(a.createdAt) - parseMessageDate(b.createdAt));
+}
