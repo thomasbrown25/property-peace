@@ -539,8 +539,6 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
   );
 
   const renderMaintenanceTrackingHero = () => {
-    const trustItems = feature.benefits.slice(0, 2);
-
     return (
       <div
         data-marketing-hero-theme="dark"
@@ -548,9 +546,6 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
       >
         <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 pb-20 pt-32 sm:px-6 sm:pt-36 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
           <div className="text-center lg:text-left">
-            <Link href="/features" className="mb-8 inline-flex items-center text-sm font-semibold text-white/75 hover:text-brand-mint">
-              <FiArrowLeft className="mr-2 h-4 w-4" />Back to Features
-            </Link>
             <p className="mb-4 text-xs font-bold uppercase tracking-[0.18em] text-brand-mint">Maintenance tracking</p>
             <h1 className="text-[2.3rem] font-extrabold leading-[1.08] text-white sm:text-5xl md:text-6xl">
               Maintenance Tracking for <span className="text-brand-mint">Landlords</span>
@@ -564,22 +559,13 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
                 View Pricing
               </Link>
             </div>
-            <div className="mt-5 flex flex-wrap justify-center gap-2 text-[13px] font-semibold text-brand-forest lg:justify-start">
-              {trustItems.map((item) => (
-                <span key={item} className="inline-flex min-h-[38px] items-center gap-2 rounded-full border border-[var(--brand-border)] bg-brand-surface px-3 py-1.5 shadow-sm">
-                  <FiCheck className="h-4 w-4 text-brand-teal" />{item}
-                </span>
-              ))}
-            </div>
           </div>
-          <div className="overflow-hidden border border-[var(--brand-border)] bg-brand-surface p-3 shadow-[0_24px_60px_rgba(16,44,41,0.12)]">
-            <div
-              className="min-h-[360px] bg-cover bg-center sm:min-h-[430px]"
-              style={{ backgroundImage: 'url(/images/landing/maintenance-tracking-hero.jpg)' }}
-              role="img"
-              aria-label="A landlord reviewing a maintenance visit at a rental property"
-            />
-          </div>
+          <div
+            className="min-h-[360px] bg-cover bg-center shadow-[0_24px_60px_rgba(16,44,41,0.12)] sm:min-h-[430px]"
+            style={{ backgroundImage: 'url(/images/landing/maintenance-tracking-hero.jpg)' }}
+            role="img"
+            aria-label="A landlord reviewing a maintenance visit at a rental property"
+          />
         </div>
       </div>
     );

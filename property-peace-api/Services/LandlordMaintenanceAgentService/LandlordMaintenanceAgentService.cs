@@ -56,28 +56,45 @@ namespace brownstone_hub_api.Services.LandlordMaintenanceAgentService
 
             if (preselectedPropertyId.HasValue)
             {
-                var unitLine = preselectedUnitId.HasValue
-                    ? $"\n- Pre-selected unit: \"{preselectedUnitName}\" (unit_id: {preselectedUnitId})"
-                    : string.Empty;
+                var singleFamilyHome = await _dataContext.Properties
+                    .AsNoTracking()
+                    .Where(p => p.Id == preselectedPropertyId.Value && p.LandlordId == currentUser.Id &&
+                        !p.IsDeleted && p.PropertyType == EPropertyType.SingleFamily && p.Units.Count <= 1)
+                    .Select(p => new
+                    {
+                        Name = string.IsNullOrWhiteSpace(p.Name) ? p.StreetAddress : p.Name,
+                        UnitId = p.Units.Select(u => (long?)u.Id).FirstOrDefault()
+                    })
+                    .FirstOrDefaultAsync(cancellationToken);
 
-                var unitConfirm = preselectedUnitId.HasValue
-                    ? $", {preselectedUnitName}"
-                    : string.Empty;
+                var propertyName = singleFamilyHome?.Name ?? preselectedPropertyName;
+                var unitId = preselectedUnitId ?? singleFamilyHome?.UnitId;
+                var unitLine = string.Empty;
+                var greeting = $"I'll create a maintenance ticket for {propertyName}. What's the issue?";
 
-                var unitSubmit = preselectedUnitId.HasValue
-                    ? $" and unit_id={preselectedUnitId}"
-                    : string.Empty;
+                if (singleFamilyHome != null)
+                {
+                    unitLine = "\n- This is a single-family home. Refer to the property by name or address in replies and keep any unit information internal.";
+                    greeting = $"I'll file the request for {propertyName}. What's the issue?";
+                }
+                else if (preselectedUnitId.HasValue)
+                {
+                    unitLine = $"\n- Pre-selected unit: \"{preselectedUnitName}\" (unit_id: {preselectedUnitId})";
+                    greeting = $"I'll create a maintenance ticket for {propertyName}, {preselectedUnitName}. What's the issue?";
+                }
+
+                var unitSubmit = unitId.HasValue ? $" and unit_id={unitId}" : string.Empty;
 
                 systemPrompt = $"""
                     You are a Maintenance Agent for a property management platform. Your job is to help landlords
                     quickly create maintenance tickets through natural conversation.
 
-                    CONTEXT: The landlord opened this from a specific property page. The property and unit are already known:
-                    - Pre-selected property: "{preselectedPropertyName}" (property_id: {preselectedPropertyId}){unitLine}
+                    CONTEXT: The landlord opened this with a specific property already selected:
+                    - Pre-selected property: "{propertyName}" (property_id: {preselectedPropertyId}){unitLine}
 
                     WORKFLOW:
                     1. DO NOT call get_landlord_properties or get_property_units — they are already known.
-                       Start by confirming: "I'll create a maintenance ticket for {preselectedPropertyName}{unitConfirm}. What's the issue?"
+                       Start by confirming: "{greeting}"
                     2. Ask clear, concise questions to understand the issue — 1 or 2 at a time:
                        - What is the problem?
                        - Where specifically (kitchen, bathroom, roof, etc.)?
@@ -114,13 +131,15 @@ namespace brownstone_hub_api.Services.LandlordMaintenanceAgentService
 
                     WORKFLOW:
                     1. On the very first message, call get_landlord_properties.
-                       - If they have 1 property, say which property you'll file the request for, then skip to step 3.
+                       - If they have 1 property, use it as the selected property and go to step 2.
                        - If they have multiple properties, ask which property has the issue.
                        - When the landlord replies with a displayed list number (for example "1"), treat it as selection_number, not property_id.
                     2. Call get_property_units for the selected property using the real property_id from the tool result, or selection_number if the landlord answered with the displayed number.
-                       - If the property has 1 unit, confirm which unit and proceed.
-                       - If it has multiple units, ask which unit has the issue (or if it's a common area).
-                       - If it has no units (single-family), skip unit selection.
+                       - If is_single_family_home is true, say "I'll file the request for [property name or address]. What's the issue?"
+                         Refer only to the property in replies. Use default_unit_id as unit_id when submitting if it is present.
+                       - Otherwise, if the tool returns 1 unit, confirm which unit and proceed.
+                       - If the tool returns multiple units, ask which unit has the issue (or if it's a common area).
+                       - If the tool returns an empty unit list, follow the guidance returned by the tool.
                     3. Ask clear, concise questions to understand the issue — 1 or 2 at a time:
                        - What is the problem?
                        - Where specifically (kitchen, bathroom, roof, etc.)?
@@ -136,7 +155,7 @@ namespace brownstone_hub_api.Services.LandlordMaintenanceAgentService
                        - Low: cosmetic issues, non-urgent repairs, painting
                     7. Briefly recap the issue and ask: "Ready to submit the ticket?"
                        Do NOT mention priority, category, or technical fields in the recap.
-                    8. Once confirmed, call submit_maintenance_request.
+                    8. Once confirmed, call submit_maintenance_request. Look up the selected property and unit IDs again if needed.
                     9. After submission, the application will show the created maintenance ID and ask whether they are done,
                        want to submit another ticket for the same property, or want to start one for a different property.
                        - If yes / same property: restart from step 3 (you already know the property/unit context).
@@ -338,7 +357,7 @@ namespace brownstone_hub_api.Services.LandlordMaintenanceAgentService
                 .Where(p => p.LandlordId == landlordUserId && !p.IsDeleted)
                 .OrderBy(p => string.IsNullOrWhiteSpace(p.Name) ? p.StreetAddress : p.Name)
                 .ThenBy(p => p.StreetAddress)
-                .Select(p => new { p.Id, p.Name, p.StreetAddress })
+                .Select(p => new { p.Id, p.Name, p.StreetAddress, p.PropertyType })
                 .ToListAsync();
 
             if (selectionNumber.HasValue && selectionNumber.Value >= 1 && selectionNumber.Value <= properties.Count)
@@ -363,6 +382,15 @@ namespace brownstone_hub_api.Services.LandlordMaintenanceAgentService
                 .OrderBy(u => u.Name)
                 .Select(u => new { u.Id, u.Name })
                 .ToListAsync();
+
+            if (selectedProperty.PropertyType == EPropertyType.SingleFamily && units.Count <= 1)
+                return JsonSerializer.Serialize(new
+                {
+                    property_id = selectedProperty.Id,
+                    property_name = string.IsNullOrWhiteSpace(selectedProperty.Name) ? selectedProperty.StreetAddress : selectedProperty.Name,
+                    is_single_family_home = true,
+                    default_unit_id = units.SingleOrDefault()?.Id
+                });
 
             if (units.Count == 0)
                 return JsonSerializer.Serialize(new
@@ -534,7 +562,7 @@ namespace brownstone_hub_api.Services.LandlordMaintenanceAgentService
                     getLandlordPropertiesSchema),
 
                 new Function("get_property_units",
-                    "Get the units for a specific property",
+                    "Get unit selection or the internal filing unit for a specific property",
                     getPropertyUnitsSchema),
 
                 new Function("get_maintenance_categories",
