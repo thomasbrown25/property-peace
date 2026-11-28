@@ -69,7 +69,7 @@ public sealed record MaintenanceTroubleshootingStepDto(
     string? TenantResponse,
     DateTimeOffset? AttemptedAtUtc);
 
-public sealed record PercyTroubleshootingCommandDto(
+public sealed record WrenTroubleshootingCommandDto(
     string ResolutionCycleKey,
     string StepKey,
     string StepCode,
@@ -77,6 +77,6 @@ public sealed record PercyTroubleshootingCommandDto(
     bool HasNewEmergency,
     string? ClientInstruction = null);
 
-public sealed record PercyTroubleshootingOutcomeCommandDto(
+public sealed record WrenTroubleshootingOutcomeCommandDto(
     MaintenanceTroubleshootingOutcome Outcome,
     string? TenantResponse);

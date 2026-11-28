@@ -34,7 +34,7 @@ import { createPortfolioScopeGuard, makePortfolioScopeKey } from 'utils/portfoli
 function extractSuggestedActions(data) {
   const suggested = [];
 
-  // Rent guidance is navigation-only. Percy mutations are intentionally
+  // Rent guidance is navigation-only. Wren AI mutations are intentionally
   // unavailable until they can execute through the confirmation policy.
   if (data?.rentStatus?.overdue?.length > 0) {
     const first = data.rentStatus.overdue[0];

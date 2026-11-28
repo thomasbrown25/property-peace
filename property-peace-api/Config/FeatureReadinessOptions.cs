@@ -17,15 +17,16 @@ public static class FeatureKeys
     public const string ESignature = "ESignature";
     public const string OnlineRentCollection = "OnlineRentCollection";
     public const string DedicatedSmsNumber = "DedicatedSmsNumber";
-    public const string Percy = "Percy";
+    public const string WrenAi = "WrenAI";
 
     public static IReadOnlyList<string> All { get; } =
-    [TenantScreening, ListingSyndication, ESignature, OnlineRentCollection, DedicatedSmsNumber, Percy];
+    [TenantScreening, ListingSyndication, ESignature, OnlineRentCollection, DedicatedSmsNumber, WrenAi];
 }
 
 public sealed class FeatureReadinessOptions
 {
     public const string SectionName = "FeatureReadiness";
+    private const string LegacyWrenFeatureKey = "Percy";
 
     public Dictionary<string, FeatureReadinessState> Features { get; set; } =
         new(StringComparer.OrdinalIgnoreCase);
@@ -37,15 +38,28 @@ public sealed class FeatureReadinessOptions
 
     // E-signature is not a rollout switch. Operational provider and authorization
     // checks still determine whether a request may invoke DocuSign.
-    public FeatureReadinessState GetState(string feature) =>
-        feature.Equals(FeatureKeys.ESignature, StringComparison.OrdinalIgnoreCase)
-            ? FeatureReadinessState.Available
-            : Features.TryGetValue(feature, out var state) && Enum.IsDefined(state)
-                ? state
-                : FeatureReadinessState.Unavailable;
+    public FeatureReadinessState GetState(string feature)
+    {
+        if (feature.Equals(FeatureKeys.ESignature, StringComparison.OrdinalIgnoreCase))
+            return FeatureReadinessState.Available;
+
+        if (TryGetFeatureValue(Features, feature, out var state) && Enum.IsDefined(state))
+            return state;
+
+        return FeatureReadinessState.Unavailable;
+    }
 
     public bool IsPilotOrganization(string feature, long organizationId) =>
-        PilotOrganizations.FirstOrDefault(entry =>
-                entry.Key.Equals(feature, StringComparison.OrdinalIgnoreCase)).Value?
-            .Contains(organizationId) == true;
+        TryGetFeatureValue(PilotOrganizations, feature, out var organizations)
+        && organizations.Contains(organizationId);
+
+    private static bool TryGetFeatureValue<T>(Dictionary<string, T> values, string feature, out T value)
+    {
+        if (values.TryGetValue(feature, out value!))
+            return true;
+
+        // Existing production configuration may still use the pre-rebrand key.
+        return feature.Equals(FeatureKeys.WrenAi, StringComparison.OrdinalIgnoreCase)
+            && values.TryGetValue(LegacyWrenFeatureKey, out value!);
+    }
 }

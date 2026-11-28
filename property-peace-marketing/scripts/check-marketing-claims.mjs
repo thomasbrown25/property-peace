@@ -11,11 +11,11 @@ const checks = [
   ['lib/blog-posts.ts', /How Property Peace Helps With Digital Rent Payments|With Property Peace[\s\S]{0,500}Online rent collection workflows/i],
   ['lib/blog-posts.ts', /Property Peace includes all 10 essential features|our \[integrated payment processing\]|Property Peace's automated payment system|Start collecting rent online today|including \[online rent collection\][\s\S]{0,120}\[tenant screening tools\]/i],
   ['components/Marketing/FeatureHeroMock.tsx', /label: 'Payment link'|Link generated|Stripe payments|Card\/ACH|status: 'Webhook'|Receipt', value: '(?:Auto|Sent)'|payments update rent tracking automatically/i],
-  ['lib/otto-seo.ts', /Property Peace AI|Property Peace's AI|and Percy-assisted portfolio summaries\.|AI-powered efficiency|see how AI simplifies|AI categorizes/i],
+  ['lib/otto-seo.ts', /Property Peace AI|Property Peace's AI|and Wren AI-assisted portfolio summaries\.|AI-powered efficiency|see how AI simplifies|AI categorizes/i],
 
   ['app/blog/[slug]/layout.tsx', /\.match\(\/rent\|payment\/i\)|availabilityNote/i],
-  ['components/Sections/Hero.tsx', /Percy Pilot lease administration/i],
-  ['components/Sections/PricingPlans.tsx', /['"]Percy-powered features['"]/i],
+  ['components/Sections/Hero.tsx', /Wren AI Pilot lease administration/i],
+  ['components/Sections/PricingPlans.tsx', /['"]Wren AI-powered features['"]/i],
   ['lib/blog-posts.ts', /Real-time updates across all features/i],
   ['lib/otto-seo.ts', /#1 free rental management software|24\/7 support/i],
   ['app/page.tsx', /#1 free rental management software/i],
@@ -66,9 +66,9 @@ const required = [
   ['app/lease/e-sign-docusign/page.tsx', /not currently available/i],
   ['app/listings/page.tsx', /does not currently syndicate/i],
   ['app/features/[slug]/page.tsx', /does not currently provide credit, criminal, eviction/i],
-  ['components/Sections/PricingPlans.tsx', /Percy Pilot/i],
+  ['components/Sections/PricingPlans.tsx', /Wren AI Pilot/i],
 
-  ['lib/otto-seo.ts', /limited Percy Pilot/i],
+  ['lib/otto-seo.ts', /limited Wren AI Pilot/i],
   ['components/Sections/Hero.tsx', /Get Started Free/i],
 
   ['app/privacy/page.tsx', /<li><strong>DocuSign<\/strong>[\s\S]{0,300}only if and when integrated digital lease signing is operationally enabled[\s\S]{0,150}currently unavailable[\s\S]{0,100}<\/li>/i],
@@ -144,7 +144,7 @@ const freeRequirements = [
   /Advanced accounting & Schedule E/i,
   /Rent estimates/i,
   /LeaseShield protection/i,
-  /Percy Pilot workflows \(limited availability\)/i,
+  /Wren AI Pilot workflows \(limited availability\)/i,
   /Start for free/i,
 ];
 for (const requirement of freeRequirements) {
@@ -167,8 +167,8 @@ for (const file of await sourceFiles(new URL('../', import.meta.url))) {
   if (/no setup costs/i.test(source)) {
     failures.push(`${file.pathname}: do not claim no setup costs without explicit billing evidence`);
   }
-  if (/Percy(?:-powered| AI)/i.test(source)) {
-    failures.push(`${file.pathname}: Percy availability must be labeled as a Pilot`);
+  if (/Wren AI(?:-powered| AI)/i.test(source)) {
+    failures.push(`${file.pathname}: Wren AI availability must be labeled as a Pilot`);
   }
   if (/free 30-day trial|30-day free trial|start free trial/i.test(source)) {
     failures.push(`${file.pathname}: Property Peace public CTA must say Start Free, not a trial`);

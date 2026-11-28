@@ -18,7 +18,7 @@ const expectedGroups = [
     id: 'group-property-operations',
     title: 'Property Operations',
     items: [
-      ['ai-center', 'Percy', '/landlord/ai-center'],
+      ['ai-center', 'Wren AI', '/landlord/ai-center'],
       ['inspections', 'Checklists', '/landlord/checklists'],
       ['maintenances', 'Maintenance', '/landlord/maintenances'],
       ['vendors', 'Vendors', '/landlord/vendors']

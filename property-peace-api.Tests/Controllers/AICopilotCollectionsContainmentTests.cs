@@ -4,7 +4,7 @@ using brownstone_hub_api.Repositories.Organizations;
 using brownstone_hub_api.Repositories.Users;
 using brownstone_hub_api.Services.AICopilotService;
 using brownstone_hub_api.Services.AgentFollowUpService;
-using brownstone_hub_api.Services.PercyActions;
+using brownstone_hub_api.Services.WrenActions;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -35,12 +35,12 @@ public sealed class AICopilotCollectionsContainmentTests
         var blocked = result.Should().BeOfType<ObjectResult>().Subject;
         blocked.StatusCode.Should().Be(StatusCodes.Status409Conflict);
         var body = JsonSerializer.SerializeToElement(blocked.Value);
-        body.GetProperty("code").GetString().Should().Be("percy_action_unavailable");
-        body.GetProperty("actionType").GetString().Should().Be(PercyActionTypes.CollectionsForceFollowUp);
+        body.GetProperty("code").GetString().Should().Be("wren_action_unavailable");
+        body.GetProperty("actionType").GetString().Should().Be(WrenActionTypes.CollectionsForceFollowUp);
         body.GetProperty("confirmationRequired").GetBoolean().Should().BeTrue();
         body.GetProperty("executionEnabled").GetBoolean().Should().BeFalse();
         body.GetProperty("message").GetString().Should().Be(
-            "No follow-up was sent. This action requires organization-scoped Percy confirmation execution, which is not enabled yet.");
+            "No follow-up was sent. This action requires organization-scoped Wren AI confirmation execution, which is not enabled yet.");
         agent.VerifyNoOtherCalls();
     }
 }

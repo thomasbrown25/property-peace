@@ -485,12 +485,12 @@ namespace brownstone_hub_api.Data
         // Collections Agent History
         public DbSet<CollectionsAgentAction> CollectionsAgentActions => Set<CollectionsAgentAction>();
 
-        // Percy (dedicated AI conversation persistence)
-        public DbSet<PercyConversation> PercyConversations => Set<PercyConversation>();
-        public DbSet<PercyMessage> PercyMessages => Set<PercyMessage>();
-        public DbSet<PercyActionConfirmation> PercyActionConfirmations => Set<PercyActionConfirmation>();
-        public DbSet<PercyAuditRecord> PercyAuditRecords => Set<PercyAuditRecord>();
-        public DbSet<PercyChatOperation> PercyChatOperations => Set<PercyChatOperation>();
+        // Wren AI (dedicated AI conversation persistence)
+        public DbSet<WrenConversation> WrenConversations => Set<WrenConversation>();
+        public DbSet<WrenMessage> WrenMessages => Set<WrenMessage>();
+        public DbSet<WrenActionConfirmation> WrenActionConfirmations => Set<WrenActionConfirmation>();
+        public DbSet<WrenAuditRecord> WrenAuditRecords => Set<WrenAuditRecord>();
+        public DbSet<WrenChatOperation> WrenChatOperations => Set<WrenChatOperation>();
 
         // Time Tracking
         public DbSet<StaffMember> StaffMembers => Set<StaffMember>();

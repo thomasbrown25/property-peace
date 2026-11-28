@@ -82,7 +82,7 @@ public sealed class FeatureReadinessService(
         // Provisioning needs credentials/inventory access; it must work before an org owns a From.
         // Messaging readiness is evaluated separately with the org's active-primary number.
         FeatureKeys.DedicatedSmsNumber => HasValue("Twilio:AccountSid") && HasValue("Twilio:AuthToken"),
-        FeatureKeys.Percy => HasValue("Anthropic:ApiKey") || HasValue("OpenAI:ApiKey"),
+        FeatureKeys.WrenAi => HasValue("Anthropic:ApiKey") || HasValue("OpenAI:ApiKey"),
         _ => false,
     };
 

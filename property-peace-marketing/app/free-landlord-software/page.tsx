@@ -30,7 +30,7 @@ const config: NicheLandingPageConfig = {
   faq: [
     { question: 'Is Property Peace really free for landlords?', answer: 'Yes. Property Peace is free for unlimited units, so rental owners can start without a credit card.' },
     { question: 'Who is Property Peace best for?', answer: 'Property Peace is built for independent landlords and small rental owners managing roughly 1–50 units, especially people replacing spreadsheets and scattered messages.' },
-    { question: 'Do I need to upgrade as my portfolio grows?', answer: 'No. You can manage unlimited units for free. Percy Pilot tools have limited availability, and some provider-backed features require activation or approval.' },
+    { question: 'Do I need to upgrade as my portfolio grows?', answer: 'No. You can manage unlimited units for free. Wren AI Pilot tools have limited availability, and some provider-backed features require activation or approval.' },
   ],
   relatedLinks: [
     { href: '/landlord-software', label: 'Landlord software' },

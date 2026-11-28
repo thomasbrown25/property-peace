@@ -9,12 +9,12 @@ const STEP_DURATIONS = [3000, 6600, 3000];
 const steps = [
   {
     label: 'Rent overdue',
-    caption: 'Percy spots overdue rent before you even notice.',
+    caption: 'Wren AI spots overdue rent before you even notice.',
     microcopy: 'No spreadsheets. No manual checking.',
     callout: 'Overdue detected',
   },
   {
-    label: 'Percy reaches out',
+    label: 'Wren AI reaches out',
     caption: 'An automated, friendly follow-up goes out instantly.',
     microcopy: 'The right nudge at the right time — no effort from you.',
     callout: 'Message sent',
@@ -55,12 +55,12 @@ function Step1Mock() {
         </div>
       </div>
 
-      {/* Percy activating */}
+      {/* Wren AI activating */}
       <div className="bg-brand-ivory border border-[var(--brand-border)] rounded-lg px-3 py-2 flex items-center gap-2 mb-3">
         <div className="w-5 h-5 rounded-full bg-brand-teal flex items-center justify-center flex-shrink-0">
           <span className="text-[8px] font-bold text-white">P</span>
         </div>
-        <span className="text-xs text-brand-teal font-medium">Percy activated</span>
+        <span className="text-xs text-brand-teal font-medium">Wren AI activated</span>
         <div className="ml-auto flex gap-0.5 items-center">
           {[0, 150, 300].map((d) => (
             <div
@@ -139,7 +139,7 @@ function Step2Mock() {
           <span className="text-[9px] font-bold text-white">P</span>
         </div>
         <div>
-          <p className="text-xs font-semibold text-gray-800 leading-tight">Percy</p>
+          <p className="text-xs font-semibold text-gray-800 leading-tight">Wren AI</p>
           <p className="text-[10px] text-green-500 font-medium">● Active</p>
         </div>
         <div className="ml-auto">

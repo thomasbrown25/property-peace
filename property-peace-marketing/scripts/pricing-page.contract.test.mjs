@@ -14,7 +14,7 @@ test('pricing ends after its FAQ without the generic final CTA section', () => {
   assert.match(html, /No credit card required\./);
   assert.match(html, /Unlimited units/);
   assert.match(html, /LeaseShield protection/);
-  assert.match(html, /Percy Pilot workflows \(limited availability\)/);
+  assert.match(html, /Wren AI Pilot workflows \(limited availability\)/);
   assert.match(html, /Online rent payments \(approval required\)/);
   assert.match(html, /FAQ/);
   assert.doesNotMatch(html, /Toggle annual billing|Billed \$|Everything in Free|Up to 5 units|included with Premium/);

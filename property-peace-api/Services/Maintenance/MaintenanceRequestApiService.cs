@@ -47,8 +47,8 @@ public interface IMaintenanceRequestApiService
     Task<MaintenanceApiResult<IReadOnlyList<MaintenanceRequestDetailDto>>> ListAsync(CancellationToken cancellationToken = default);
     Task<MaintenanceApiResult<MaintenanceRequestDetailDto>> AcknowledgeAsync(long id, CancellationToken cancellationToken = default);
     Task<MaintenanceApiResult<MaintenanceRequestDetailDto>> ChangeStatusAsync(long id, ChangeMaintenanceStatusDto command, CancellationToken cancellationToken = default);
-    Task<MaintenanceApiResult<MaintenanceTroubleshootingStepDto>> TroubleshootAsync(long id, PercyTroubleshootingCommandDto command, CancellationToken cancellationToken = default);
-    Task<MaintenanceApiResult<MaintenanceTroubleshootingStepDto>> RecordTroubleshootingOutcomeAsync(long id, long stepId, PercyTroubleshootingOutcomeCommandDto command, CancellationToken cancellationToken = default);
+    Task<MaintenanceApiResult<MaintenanceTroubleshootingStepDto>> TroubleshootAsync(long id, WrenTroubleshootingCommandDto command, CancellationToken cancellationToken = default);
+    Task<MaintenanceApiResult<MaintenanceTroubleshootingStepDto>> RecordTroubleshootingOutcomeAsync(long id, long stepId, WrenTroubleshootingOutcomeCommandDto command, CancellationToken cancellationToken = default);
     Task<MaintenanceApiResult<MaintenanceAssignmentDto>> AssignAsync(long id, AssignMaintenanceCommandDto command, CancellationToken cancellationToken = default);
     Task<MaintenanceApiResult<MaintenanceEstimateDto>> SubmitEstimateAsync(long id, SubmitMaintenanceEstimateDto command, CancellationToken cancellationToken = default);
     Task<MaintenanceApiResult<MaintenanceEstimateDto>> ApproveEstimateAsync(long id, long estimateId, EstimateVersionCommandDto command, CancellationToken cancellationToken = default);
@@ -84,7 +84,7 @@ public sealed partial class MaintenanceRequestApiService(
         Converters = { new JsonStringEnumConverter() }
     };
 
-    // Percy never executes or repeats arbitrary text. Only these non-invasive observation/reset steps can be stored.
+    // Wren AI never executes or repeats arbitrary text. Only these non-invasive observation/reset steps can be stored.
     private static readonly IReadOnlyDictionary<string, string> SafeSteps = new Dictionary<string, string>(StringComparer.Ordinal)
     {
         ["check-thermostat-settings"] = "Confirm the thermostat is on, set to the intended mode, and set above or below the current room temperature as appropriate.",
@@ -295,7 +295,7 @@ public sealed partial class MaintenanceRequestApiService(
         return MaintenanceApiResult<MaintenanceRequestDetailDto>.Success(Map(request));
     }
 
-    public async Task<MaintenanceApiResult<MaintenanceTroubleshootingStepDto>> TroubleshootAsync(long id, PercyTroubleshootingCommandDto command, CancellationToken cancellationToken = default)
+    public async Task<MaintenanceApiResult<MaintenanceTroubleshootingStepDto>> TroubleshootAsync(long id, WrenTroubleshootingCommandDto command, CancellationToken cancellationToken = default)
     {
         var actor = await actors.GetCurrentAsync(cancellationToken);
         if (actor is null) return MaintenanceApiResult<MaintenanceTroubleshootingStepDto>.Error(MaintenanceApiResultCode.Unauthorized, "Authentication is required.");
@@ -309,7 +309,7 @@ public sealed partial class MaintenanceRequestApiService(
 
         var cycleKey = request.ResolutionCycle.ToString(System.Globalization.CultureInfo.InvariantCulture);
         if (request.Urgency == MaintenanceUrgency.Emergency)
-            return MaintenanceApiResult<MaintenanceTroubleshootingStepDto>.Error(MaintenanceApiResultCode.Conflict, "Percy troubleshooting is disabled for emergency requests.");
+            return MaintenanceApiResult<MaintenanceTroubleshootingStepDto>.Error(MaintenanceApiResultCode.Conflict, "Wren AI troubleshooting is disabled for emergency requests.");
         if (request.StopTroubleshooting)
             return MaintenanceApiResult<MaintenanceTroubleshootingStepDto>.Error(MaintenanceApiResultCode.Conflict, "Troubleshooting has stopped for safety.");
         if (command.IsWorsening || command.HasNewEmergency)
@@ -350,7 +350,7 @@ public sealed partial class MaintenanceRequestApiService(
     }
 
     public async Task<MaintenanceApiResult<MaintenanceTroubleshootingStepDto>> RecordTroubleshootingOutcomeAsync(
-        long id, long stepId, PercyTroubleshootingOutcomeCommandDto command, CancellationToken cancellationToken = default)
+        long id, long stepId, WrenTroubleshootingOutcomeCommandDto command, CancellationToken cancellationToken = default)
     {
         var actor = await actors.GetCurrentAsync(cancellationToken);
         if (actor is null) return Unauthorized<MaintenanceTroubleshootingStepDto>();

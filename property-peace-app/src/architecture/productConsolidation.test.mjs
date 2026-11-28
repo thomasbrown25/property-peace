@@ -159,23 +159,25 @@ test('retired standalone finance modules are absent and no production source ref
   assert.deepEqual(moneyCenterReferences, []);
 });
 
-test('Percy starter prompts and composer fail closed when the runtime is unavailable', async () => {
+test('Wren starter prompts and composer fail closed when the runtime is unavailable', async () => {
   const aiCenter = await source('pages/landlord/ai-center.jsx');
   const mobilePanel = aiCenter.slice(aiCenter.indexOf('{mobilePanelOpen &&'));
 
-  assert.doesNotMatch(aiCenter, /settings\?tab=aiSummary|Percy settings/);
+  assert.doesNotMatch(aiCenter, /settings\?tab=aiSummary|Wren settings/);
   assert.doesNotMatch(aiCenter, /Property Peace data reviewed/);
-  assert.match(aiCenter, /disabled=\{!aiRuntimeReady \|\| !percyReadiness\.canInvoke \|\| thinking \|\| conversationLoading\}/);
-  assert.match(aiCenter, /disabled=\{!aiRuntimeReady \|\| !percyReadiness\.canInvoke \|\| summaryLoading \|\| conversationLoading\}/);
+  assert.match(aiCenter, /disabled=\{!aiRuntimeReady \|\| !wrenReadiness\.canInvoke \|\| thinking \|\| conversationLoading\}/);
+  assert.match(aiCenter, /disabled=\{!aiRuntimeReady \|\| !wrenReadiness\.canInvoke \|\| summaryLoading \|\| conversationLoading\}/);
   assert.match(mobilePanel, /to="\/landlord\/ai-center\/collections-history"/);
   assert.match(mobilePanel, />\s*Activity history\s*<\/Button>/);
 });
 
-test('Percy uses theme-aware brand avatars and a single assistant row while streaming', async () => {
+test('Wren shares its resting mascot across the sidenav and AI workspace and streams in one assistant row', async () => {
   const aiCenter = await source('pages/landlord/ai-center.jsx');
+  const sidebar = await source('layout/Dashboard/LandlordSidebar.jsx');
 
-  assert.match(aiCenter, /favicon-transparent\.png/);
-  assert.match(aiCenter, /favicon-transparent-dark\.png/);
+  assert.match(aiCenter, /wren-mascot-resting\.webp/);
+  assert.match(sidebar, /wren-mascot-resting\.webp/);
+  assert.match(aiCenter, /How can I help today\?/);
   assert.match(aiCenter, /theme\.palette\.mode === 'dark'/);
   assert.match(aiCenter, /streaming: true/);
   assert.match(aiCenter, /<AssistantMessage[\s\S]*?progressText=\{progressText\}/);

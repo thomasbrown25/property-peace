@@ -64,3 +64,12 @@ test('landlord and tenant Settings sit flush against the dashboard navigation', 
   assert.equal(spacingValue(main, 'p', true), 0);
   assert.equal(contentValue('px', true), 0);
 });
+
+test('Wren chat fills the viewport and scrolls the transcript independently of the composer', () => {
+  const wren = readFileSync(new URL('../../pages/landlord/ai-center.jsx', import.meta.url), 'utf8');
+  assert.match(main, /height: isWrenAiPage \? '100dvh' : 'auto'/);
+  assert.match(content, /<PageTransition stretch=\{isSettingsPage \|\| isWrenAiPage\}>/);
+  assert.doesNotMatch(wren, /calc\(100dvh - /);
+  assert.match(wren, /flex: 1, minHeight: 0, overflowY: 'auto'/);
+  assert.match(wren, /flexShrink: 0,\s+px:[\s\S]*?env\(safe-area-inset-bottom, 0px\)/);
+});

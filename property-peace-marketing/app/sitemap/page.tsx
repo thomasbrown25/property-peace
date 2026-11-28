@@ -33,14 +33,14 @@ const sitemapSections = [
   {
     title: "Maintenance Requests",
     links: [
-      { href: "/maintenance/ai-maintenance", label: "Percy Pilot Maintenance Management" },
+      { href: "/maintenance/ai-maintenance", label: "Wren AI Pilot Maintenance Management" },
       { href: "/maintenance/in-app-messaging", label: "In-App Messaging" },
     ],
   },
   {
     title: "Lease Agreements",
     links: [
-      { href: "/lease/ai-lease-creation", label: "Percy Pilot Lease Creation" },
+      { href: "/lease/ai-lease-creation", label: "Wren AI Pilot Lease Creation" },
       { href: "/lease/e-sign-docusign", label: "E-Signature Roadmap" },
       { href: "/lease/online-condition-reports", label: "Online Condition Reports" },
     ],

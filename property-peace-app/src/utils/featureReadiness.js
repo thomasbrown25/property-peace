@@ -4,7 +4,7 @@ export const FEATURE_KEYS = Object.freeze({
   eSignature: 'ESignature',
   onlineRentCollection: 'OnlineRentCollection',
   dedicatedSmsNumber: 'DedicatedSmsNumber',
-  percy: 'Percy'
+  wrenAi: 'WrenAI'
 });
 
 const result = (status, title, message, severity, canInvoke = false, action = null) => ({

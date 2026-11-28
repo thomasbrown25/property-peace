@@ -124,7 +124,7 @@ public class FeatureGateOrganizationIsolationTests
     [InlineData("ListingSyndicationExtended")]
     [InlineData("ESignature")]
     [InlineData("DedicatedSmsNumber")]
-    [InlineData("Percy")]
+    [InlineData("WrenAI")]
     public async Task Free_organization_includes_legacy_subscription_features(string feature)
     {
         await using var context = CreateContext();

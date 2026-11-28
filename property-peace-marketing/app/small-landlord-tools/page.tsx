@@ -180,7 +180,7 @@ export default function SmallLandlordToolsPage() {
             className="text-lg text-white/80 mb-8"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
-            Unlike enterprise solutions that cost hundreds per month, Property Peace is designed for small landlords. Free for unlimited units — no credit card required. Percy Pilot tools have limited availability.
+            Unlike enterprise solutions that cost hundreds per month, Property Peace is designed for small landlords. Free for unlimited units — no credit card required. Wren AI Pilot tools have limited availability.
           </p>
           <div className="bg-brand-surface rounded-lg p-8 border border-[var(--brand-border)]">
             <p

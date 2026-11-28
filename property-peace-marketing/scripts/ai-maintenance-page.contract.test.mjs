@@ -24,6 +24,6 @@ test('AI maintenance renders a light split hero with an accessible triage previe
 test('AI maintenance discloses pilot availability and offers registration', () => {
   const html = readPage();
 
-  assert.match(html, /limited Percy Pilot/i);
+  assert.match(html, /limited Wren AI Pilot/i);
   assert.match(html, /href="https:\/\/app\.propertypeace\.io\/register"/);
 });

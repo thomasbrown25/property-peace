@@ -7165,7 +7165,7 @@ namespace brownstone_hub_api.Migrations
                     b.ToTable("Payments", "financial");
                 });
 
-            modelBuilder.Entity("brownstone_hub_api.Models.PercyActionConfirmation", b =>
+            modelBuilder.Entity("brownstone_hub_api.Models.WrenActionConfirmation", b =>
                 {
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
@@ -7237,7 +7237,7 @@ namespace brownstone_hub_api.Migrations
                     b.ToTable("ActionConfirmations", "percy");
                 });
 
-            modelBuilder.Entity("brownstone_hub_api.Models.PercyAuditRecord", b =>
+            modelBuilder.Entity("brownstone_hub_api.Models.WrenAuditRecord", b =>
                 {
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
@@ -7294,7 +7294,7 @@ namespace brownstone_hub_api.Migrations
                     b.ToTable("AuditRecords", "percy");
                 });
 
-            modelBuilder.Entity("brownstone_hub_api.Models.PercyChatOperation", b =>
+            modelBuilder.Entity("brownstone_hub_api.Models.WrenChatOperation", b =>
                 {
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
@@ -7368,7 +7368,7 @@ namespace brownstone_hub_api.Migrations
                     b.ToTable("ChatOperations", "percy");
                 });
 
-            modelBuilder.Entity("brownstone_hub_api.Models.PercyConversation", b =>
+            modelBuilder.Entity("brownstone_hub_api.Models.WrenConversation", b =>
                 {
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
@@ -7386,6 +7386,9 @@ namespace brownstone_hub_api.Migrations
                         .HasColumnType("bit");
 
                     b.Property<long>("OrganizationId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("PropertyId")
                         .HasColumnType("bigint");
 
                     b.Property<string>("Title")
@@ -7411,7 +7414,7 @@ namespace brownstone_hub_api.Migrations
                     b.ToTable("Conversations", "percy");
                 });
 
-            modelBuilder.Entity("brownstone_hub_api.Models.PercyMessage", b =>
+            modelBuilder.Entity("brownstone_hub_api.Models.WrenMessage", b =>
                 {
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
@@ -15244,9 +15247,9 @@ namespace brownstone_hub_api.Migrations
                     b.Navigation("Organization");
                 });
 
-            modelBuilder.Entity("brownstone_hub_api.Models.PercyActionConfirmation", b =>
+            modelBuilder.Entity("brownstone_hub_api.Models.WrenActionConfirmation", b =>
                 {
-                    b.HasOne("brownstone_hub_api.Models.PercyConversation", "Conversation")
+                    b.HasOne("brownstone_hub_api.Models.WrenConversation", "Conversation")
                         .WithMany("Confirmations")
                         .HasForeignKey("ConversationId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -15271,7 +15274,7 @@ namespace brownstone_hub_api.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("brownstone_hub_api.Models.PercyAuditRecord", b =>
+            modelBuilder.Entity("brownstone_hub_api.Models.WrenAuditRecord", b =>
                 {
                     b.HasOne("brownstone_hub_api.Models.Organization", "Organization")
                         .WithMany()
@@ -15290,14 +15293,14 @@ namespace brownstone_hub_api.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("brownstone_hub_api.Models.PercyChatOperation", b =>
+            modelBuilder.Entity("brownstone_hub_api.Models.WrenChatOperation", b =>
                 {
-                    b.HasOne("brownstone_hub_api.Models.PercyMessage", "AssistantMessage")
+                    b.HasOne("brownstone_hub_api.Models.WrenMessage", "AssistantMessage")
                         .WithMany()
                         .HasForeignKey("AssistantMessageId")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("brownstone_hub_api.Models.PercyConversation", "Conversation")
+                    b.HasOne("brownstone_hub_api.Models.WrenConversation", "Conversation")
                         .WithMany()
                         .HasForeignKey("ConversationId")
                         .OnDelete(DeleteBehavior.Restrict);
@@ -15314,7 +15317,7 @@ namespace brownstone_hub_api.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("brownstone_hub_api.Models.PercyMessage", "UserMessage")
+                    b.HasOne("brownstone_hub_api.Models.WrenMessage", "UserMessage")
                         .WithMany()
                         .HasForeignKey("UserMessageId")
                         .OnDelete(DeleteBehavior.Restrict);
@@ -15330,7 +15333,7 @@ namespace brownstone_hub_api.Migrations
                     b.Navigation("UserMessage");
                 });
 
-            modelBuilder.Entity("brownstone_hub_api.Models.PercyConversation", b =>
+            modelBuilder.Entity("brownstone_hub_api.Models.WrenConversation", b =>
                 {
                     b.HasOne("brownstone_hub_api.Models.Organization", "Organization")
                         .WithMany()
@@ -15349,9 +15352,9 @@ namespace brownstone_hub_api.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("brownstone_hub_api.Models.PercyMessage", b =>
+            modelBuilder.Entity("brownstone_hub_api.Models.WrenMessage", b =>
                 {
-                    b.HasOne("brownstone_hub_api.Models.PercyConversation", "Conversation")
+                    b.HasOne("brownstone_hub_api.Models.WrenConversation", "Conversation")
                         .WithMany("Messages")
                         .HasForeignKey("ConversationId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -16982,7 +16985,7 @@ namespace brownstone_hub_api.Migrations
                     b.Navigation("StripePaymentMethod");
                 });
 
-            modelBuilder.Entity("brownstone_hub_api.Models.PercyConversation", b =>
+            modelBuilder.Entity("brownstone_hub_api.Models.WrenConversation", b =>
                 {
                     b.Navigation("Confirmations");
 

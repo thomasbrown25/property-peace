@@ -1,6 +1,6 @@
 const TIMELINE_KINDS = new Set([
   'message', 'system', 'statusChanged', 'payment', 'maintenance', 'inAppMessage',
-  'inboundSms', 'outboundSms', 'email', 'reminder', 'screening', 'lease', 'percyFollowUp'
+  'inboundSms', 'outboundSms', 'email', 'reminder', 'screening', 'lease', 'wrenFollowUp', 'percyFollowUp'
 ]);
 
 const CONTEXT_KINDS = new Set(['property', 'unit', 'listing', 'lead', 'rentalapplication', 'lease', 'payment', 'maintenance']);
@@ -62,7 +62,7 @@ export function normalizeTimelinePage(payload) {
 const KIND_LABELS = {
   message: 'Message', system: 'Activity', statusChanged: 'Status', payment: 'Payment', maintenance: 'Maintenance',
   inAppMessage: 'In-app', inboundSms: 'SMS', outboundSms: 'SMS', email: 'Email', reminder: 'Reminder',
-  screening: 'Screening', lease: 'Lease', percyFollowUp: 'Follow-up'
+  screening: 'Screening', lease: 'Lease', wrenFollowUp: 'Follow-up', percyFollowUp: 'Follow-up'
 };
 const CHANNEL_LABELS = { inApp: 'In-app', sms: 'SMS', email: 'Email' };
 const STATUS_PRESENTATION = {

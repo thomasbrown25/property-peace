@@ -29,7 +29,7 @@ export function getAICenterReadinessMarker(presentation) {
   return Object.freeze({
     label: presentation?.title || 'Unavailable',
     active,
-    toolDetail: active ? 'Organization-scoped tools available' : 'Unavailable until Percy readiness opens'
+    toolDetail: active ? 'Organization-scoped tools available' : 'Unavailable until Wren AI readiness opens'
   });
 }
 

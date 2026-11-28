@@ -1,3 +1,4 @@
+import Image, { type ImageProps } from 'next/image';
 import Link from 'next/link';
 import { FiArrowRight, FiCheck, FiFileText, FiMessageSquare, FiTool, FiTrendingUp } from 'react-icons/fi';
 import StructuredData from '@/components/SEO/StructuredData';
@@ -18,6 +19,7 @@ export type NicheLandingPageConfig = {
   title: string;
   description: string;
   proofPoints: string[];
+  heroImage?: Pick<ImageProps, 'src' | 'alt' | 'width' | 'height'>;
   primaryCta?: string;
   secondaryCta?: string;
   painTitle: string;
@@ -110,17 +112,27 @@ export default function NicheLandingPage({ config }: { config: NicheLandingPageC
                 </Link>
               </div>
             </div>
+            {config.heroImage && (
+              <Image
+                src={config.heroImage.src}
+                alt={config.heroImage.alt}
+                width={config.heroImage.width}
+                height={config.heroImage.height}
+                loading="eager"
+                className="mx-auto h-auto w-full max-w-[200px] sm:max-w-[260px] lg:max-w-[340px]"
+              />
+            )}
             <div
               data-marketing-hero-proof="artifact"
-              className="border border-[var(--brand-border)] bg-brand-surface p-6 shadow-[0_24px_60px_rgba(16,44,41,0.10)] sm:p-8"
+              className={`border border-[var(--brand-border)] bg-brand-surface p-6 shadow-[0_24px_60px_rgba(16,44,41,0.10)] sm:p-8${config.heroImage ? ' lg:col-span-2' : ''}`}
             >
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-              {config.proofPoints.map((point) => (
-                <span key={point} className="inline-flex min-h-[52px] items-center gap-3 border border-[var(--brand-border)] bg-brand-ivory px-4 py-3 text-left text-sm font-semibold leading-snug text-brand-slate">
-                  <FiCheck className="h-4 w-4 flex-shrink-0 text-brand-teal" />
-                  {point}
-                </span>
-              ))}
+              <div className={`grid gap-3 sm:grid-cols-2 ${config.heroImage ? 'lg:grid-cols-4' : 'lg:grid-cols-1'}`}>
+                {config.proofPoints.map((point) => (
+                  <span key={point} className="inline-flex min-h-[52px] items-center gap-3 border border-[var(--brand-border)] bg-brand-ivory px-4 py-3 text-left text-sm font-semibold leading-snug text-brand-slate">
+                    <FiCheck className="h-4 w-4 flex-shrink-0 text-brand-teal" />
+                    {point}
+                  </span>
+                ))}
               </div>
             </div>
           </div>

@@ -12,7 +12,7 @@ test('AI Center readiness marker and tool availability fail closed', () => {
   assert.deepEqual(getAICenterReadinessMarker({ canInvoke: false, title: 'Setup required' }), {
     label: 'Setup required',
     active: false,
-    toolDetail: 'Unavailable until Percy readiness opens'
+    toolDetail: 'Unavailable until Wren AI readiness opens'
   });
   assert.deepEqual(getAICenterReadinessMarker({ canInvoke: true, title: 'Pilot access' }), {
     label: 'Pilot access',

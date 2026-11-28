@@ -332,7 +332,7 @@ public sealed class MaintenanceRequestApiServiceTests
     }
 
     [Fact]
-    public async Task Percy_IsTenantOnly_DeniesEmergency_AndNeverPersistsClientInstruction()
+    public async Task Wren_IsTenantOnly_DeniesEmergency_AndNeverPersistsClientInstruction()
     {
         await using var db = CreateDb();
         SeedTenantLease(db, 10, 20, 30, 40, 50, 60);
@@ -341,7 +341,7 @@ public sealed class MaintenanceRequestApiServiceTests
         await db.SaveChangesAsync();
 
         var denied = await CreateService(db, new MaintenanceActor(10, true, false)).TroubleshootAsync(100,
-            new PercyTroubleshootingCommandDto("cycle-a", "step-a", "check-gfci-reset", false, false, "Turn off the breaker and remove the panel"));
+            new WrenTroubleshootingCommandDto("cycle-a", "step-a", "check-gfci-reset", false, false, "Turn off the breaker and remove the panel"));
 
         denied.Code.Should().Be(MaintenanceApiResultCode.Conflict);
         denied.Message.Should().Contain("emergency");
@@ -349,7 +349,7 @@ public sealed class MaintenanceRequestApiServiceTests
     }
 
     [Fact]
-    public async Task Percy_AllowlistIsDeterministic_IdempotentAndBoundedToThreePerCycle()
+    public async Task Wren_AllowlistIsDeterministic_IdempotentAndBoundedToThreePerCycle()
     {
         await using var db = CreateDb();
         SeedTenantLease(db, 10, 20, 30, 40, 50, 60);
@@ -372,7 +372,7 @@ public sealed class MaintenanceRequestApiServiceTests
     }
 
     [Fact]
-    public async Task Percy_ReplaysServerStepCodePerCycle_EvenWhenClientChangesStepKey()
+    public async Task Wren_ReplaysServerStepCodePerCycle_EvenWhenClientChangesStepKey()
     {
         await using var db = CreateDb();
         SeedTenantLease(db, 10, 20, 30, 40, 50, 60);
@@ -407,7 +407,7 @@ public sealed class MaintenanceRequestApiServiceTests
     }
 
     [Fact]
-    public async Task Percy_IsHiddenFromLandlordTeamAndAssignedVendor()
+    public async Task Wren_IsHiddenFromLandlordTeamAndAssignedVendor()
     {
         foreach (var actor in new[]
         {
@@ -433,7 +433,7 @@ public sealed class MaintenanceRequestApiServiceTests
     [Theory]
     [InlineData(true, false)]
     [InlineData(false, true)]
-    public async Task Percy_WorseningOrNewEmergencyStopsFurtherTroubleshooting(bool worsening, bool newEmergency)
+    public async Task Wren_WorseningOrNewEmergencyStopsFurtherTroubleshooting(bool worsening, bool newEmergency)
     {
         await using var db = CreateDb();
         SeedTenantLease(db, 10, 20, 30, 40, 50, 60);
@@ -451,7 +451,7 @@ public sealed class MaintenanceRequestApiServiceTests
     }
 
     [Fact]
-    public async Task Percy_UsesServerResolutionCycle_AndSafetySignalWinsOverIdempotentReplay()
+    public async Task Wren_UsesServerResolutionCycle_AndSafetySignalWinsOverIdempotentReplay()
     {
         await using var db = CreateDb();
         SeedTenantLease(db, 10, 20, 30, 40, 50, 60);
@@ -470,7 +470,7 @@ public sealed class MaintenanceRequestApiServiceTests
     }
 
     [Fact]
-    public async Task PercyOutcome_CompletesPendingStep_OrStopsEntireFlowForSafety()
+    public async Task WrenOutcome_CompletesPendingStep_OrStopsEntireFlowForSafety()
     {
         await using var db = CreateDb();
         SeedTenantLease(db, 10, 20, 30, 40, 50, 60);

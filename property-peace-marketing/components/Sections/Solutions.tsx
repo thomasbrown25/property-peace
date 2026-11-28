@@ -19,8 +19,8 @@ export default function Solutions() {
     },
     {
       icon: FiZap,
-      title: 'Percy Pilot Summaries',
-      description: 'Percy summarizes your entire portfolio, shows you items that need attention, and recommends actions you can trigger with a click.',
+      title: 'Wren AI Pilot Summaries',
+      description: 'Wren AI summarizes your entire portfolio, shows you items that need attention, and recommends actions you can trigger with a click.',
       benefit: 'Smart insights, instant actions'
     }
   ];

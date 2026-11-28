@@ -120,6 +120,12 @@ export default function DashboardLayout() {
   const isLandlordSettingsPage = Boolean(matchPath('/landlord/settings', pathname));
   const isSettingsPage = isLandlordSettingsPage || Boolean(matchPath('/tenant/settings', pathname));
   const isFullWidthPage = isSettingsPage;
+  const isWrenAiPage = Boolean(matchPath('/landlord/ai-center', pathname));
+  const pageHeightSx = isWrenAiPage ? { minHeight: 0 } : {
+    minHeight: 'auto !important',
+    height: 'auto !important',
+    '& > *': { minHeight: 'auto !important', height: 'auto !important' }
+  };
   // Check if it's the accounting page (e.g., /landlord/accounting)
   const isAccountingPage = pathname === '/landlord/accounting' || pathname.startsWith('/landlord/accounting');
   const hasPageScopedMaintenanceDrawer =
@@ -150,7 +156,7 @@ export default function DashboardLayout() {
       {/* Show top loading bar when layout is loading OR dashboard components are loading */}
       {showLoader && <Loader />}
       <Box
-        sx={[portalPageBackground, { display: 'flex', width: '100%', minHeight: '100vh' }]}
+        sx={[portalPageBackground, { display: 'flex', width: '100%', minHeight: isWrenAiPage ? '100dvh' : '100vh' }]}
       >
         <Header
           adminPortal={isAdminPortal}
@@ -182,10 +188,12 @@ export default function DashboardLayout() {
             width: isLandlordPortal ? { xs: '100%', lg: `calc(100% - ${landlordSidebarWidth}px)` } : '100%',
             flexGrow: 1, 
             p: isFullWidthPage ? 0 : 2.5,
+            pt: isWrenAiPage ? 0 : undefined,
+            pl: isWrenAiPage ? { lg: 0 } : undefined,
             pb: 0,
             display: 'flex',
             flexDirection: 'column',
-            height: 'auto',
+            height: isWrenAiPage ? '100dvh' : 'auto',
             minWidth: 0
           }}
         >
@@ -196,16 +204,11 @@ export default function DashboardLayout() {
             sx={{
               position: 'relative',
               flexGrow: 1,
-              flexShrink: 0,
-              flexBasis: 'auto',
+              flexShrink: isWrenAiPage ? 1 : 0,
+              flexBasis: isWrenAiPage ? 0 : 'auto',
               display: 'flex',
               flexDirection: 'column',
-              minHeight: 'auto !important',
-              height: 'auto !important',
-              '& > *': {
-                minHeight: 'auto !important',
-                height: 'auto !important'
-              }
+              ...pageHeightSx
             }}
           >
             <ImpersonationBanner />
@@ -216,12 +219,7 @@ export default function DashboardLayout() {
               display: 'flex', 
               flexDirection: 'column', 
               flex: 1, 
-              minHeight: 'auto !important',
-              height: 'auto !important',
-              '& > *': {
-                minHeight: 'auto !important',
-                height: 'auto !important'
-              }
+              ...pageHeightSx
             }}>
               {/* Keep page gutters separate from the header and footer. */}
               <Box data-testid="main-app-page-content" sx={{
@@ -229,30 +227,28 @@ export default function DashboardLayout() {
                 maxWidth: 'none',
                 mx: 'auto',
                 px: isFullWidthPage ? 0 : { xs: 0, sm: 1, md: 1.5, lg: 2 },
+                pl: isWrenAiPage ? { lg: 0 } : undefined,
                 boxSizing: 'border-box',
                 minWidth: 0,
                 flex: 1,
-                minHeight: 'auto !important',
-                height: 'auto !important',
                 display: 'flex', 
                 flexDirection: 'column',
-                '& > *': {
-                  minHeight: 'auto !important',
-                  height: 'auto !important'
-                }
+                ...pageHeightSx
               }}>
-                <PageTransition stretch={isSettingsPage}>
+                <PageTransition stretch={isSettingsPage || isWrenAiPage}>
                   <Outlet />
                 </PageTransition>
               </Box>
-              <Box sx={{
-                flexShrink: 0,
-                width: '100%',
-                px: isSettingsPage ? 2.5 : 0,
-                mt: 'auto',
-              }}>
-                <Footer />
-              </Box>
+              {!isWrenAiPage && (
+                <Box sx={{
+                  flexShrink: 0,
+                  width: '100%',
+                  px: isSettingsPage ? 2.5 : 0,
+                  mt: 'auto',
+                }}>
+                  <Footer />
+                </Box>
+              )}
             </Box>
           </Container>
         </Box>

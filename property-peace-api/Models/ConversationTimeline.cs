@@ -16,7 +16,7 @@ public enum TimelineEntryKind
     Reminder = 10,
     Screening = 11,
     Lease = 12,
-    PercyFollowUp = 13
+    WrenFollowUp = 13
 }
 
 public enum TimelineVisibility

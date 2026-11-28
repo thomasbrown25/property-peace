@@ -15,6 +15,12 @@ const config: NicheLandingPageConfig = {
   title: 'Make rent collection easier to track, remind, and reconcile',
   description: 'Property Peace helps small landlords stay on top of rent status, payment records, overdue balances, reminders, tenants, and units from one organized dashboard.',
   proofPoints: ['Start free', 'Payment history in one place', 'Overdue rent visibility', 'Built for small portfolios'],
+  heroImage: {
+    src: '/images/rent-collection/hero-wren.webp',
+    alt: 'Wren AI floats above a green ring and points to a checkmark on a payment tablet.',
+    width: 1128,
+    height: 1128,
+  },
   painTitle: 'Rent should not live in texts, memory, and a messy spreadsheet',
   painIntro: 'When rent tracking is manual, small issues become late-night follow-ups and end-of-month cleanup. Property Peace keeps the rent workflow visible and connected to each tenant and unit.',
   painPoints: ['See who has paid and who still needs a reminder', 'Keep rent records connected to each tenant and unit', 'Reduce awkward manual follow-up with clearer workflows', 'Connect rent activity with expenses and reports'],

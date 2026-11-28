@@ -132,7 +132,7 @@ export default function LandlordSoftwarePage() {
                 className="text-white/80"
                 style={{ fontFamily: '"Inter", sans-serif' }}
               >
-                Free for unlimited units. No per-unit fees. Percy Pilot tools have limited availability.
+                Free for unlimited units. No per-unit fees. Wren AI Pilot tools have limited availability.
               </p>
             </div>
             <div>

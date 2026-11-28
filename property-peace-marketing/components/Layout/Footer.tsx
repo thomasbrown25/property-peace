@@ -85,7 +85,7 @@ export default function Footer() {
             <ul className="space-y-3">
               <li>
                 <Link href="/maintenance/ai-maintenance" className="inline-flex min-h-11 items-center justify-center font-semibold text-white hover:text-white/90 transition-colors text-sm">
-                  Percy Pilot Maintenance
+                  Wren AI Pilot Maintenance
                 </Link>
               </li>
               <li>
@@ -107,7 +107,7 @@ export default function Footer() {
             <ul className="space-y-3">
               <li>
                 <Link href="/lease/ai-lease-creation" className="inline-flex min-h-11 items-center justify-center font-semibold text-white hover:text-white/90 transition-colors text-sm">
-                  Percy Pilot Lease Creation
+                  Wren AI Pilot Lease Creation
                 </Link>
               </li>
               <li>

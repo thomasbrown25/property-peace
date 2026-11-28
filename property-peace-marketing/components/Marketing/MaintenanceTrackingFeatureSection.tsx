@@ -17,12 +17,12 @@ export default function MaintenanceTrackingFeatureSection({ description }: Maint
 
       <div className="mx-auto max-w-2xl text-center lg:mx-0 lg:text-left">
         <h2 className="mb-4 text-3xl font-extrabold leading-tight text-white md:text-4xl" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>
-          Percy guides tenants through the request
+          Wren AI guides tenants through the request
         </h2>
         <div className="space-y-4 text-lg leading-relaxed md:text-xl" style={{ fontFamily: '"Inter", sans-serif' }}>
           <p className="text-brand-ivory">{description}</p>
           <p className="text-brand-ivory">
-            Percy automatically categorizes the request and assigns a priority. You can see what needs attention first and share the details with your vendor when you assign the repair.
+            Wren AI automatically categorizes the request and assigns a priority. You can see what needs attention first and share the details with your vendor when you assign the repair.
           </p>
         </div>
       </div>

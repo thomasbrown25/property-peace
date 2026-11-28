@@ -21,7 +21,7 @@ public static class ConversationUnreadQuery
             // not a new resident message for staff. Other staff members' sends are outbound too.
             unread = unread.Where(entry =>
                 (entry.Producer != "notification-service" ||
-                 (entry.Kind != TimelineEntryKind.Reminder && entry.Kind != TimelineEntryKind.PercyFollowUp)) &&
+                 (entry.Kind != TimelineEntryKind.Reminder && entry.Kind != TimelineEntryKind.WrenFollowUp)) &&
                 !db.OrganizationMembers.Any(member => member.OrganizationId == organizationId &&
                     member.IsActive && member.UserId == entry.ActorUserId));
         }
