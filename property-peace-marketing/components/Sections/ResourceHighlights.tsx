@@ -3,9 +3,9 @@ import { FiArrowRight, FiBookOpen, FiDownload } from 'react-icons/fi';
 
 const highlights = [
   {
-    type: '5 Downloads',
+    type: '7 Downloads',
     title: 'Free Landlord Starter Pack',
-    description: 'Print four practical checklists and worksheets, then edit the rental cash-flow workbook for each property.',
+    description: 'Print move-in and move-out handoff checklists, a condition report, and practical worksheets for each property.',
     href: '/resources/starter-pack',
     icon: FiDownload,
   },
@@ -49,7 +49,7 @@ export default function ResourceHighlights() {
             return (
               <Link key={highlight.href} href={highlight.href} className="group flex h-full flex-col border border-[color-mix(in_srgb,var(--brand-forest)_10%,transparent)] bg-brand-surface p-6 transition hover:-translate-y-1 hover:border-brand-teal hover:shadow-[0_14px_36px_rgba(16,44,41,0.12)]">
                 <div className="flex items-center justify-between gap-4">
-                  <span className="flex h-11 w-11 items-center justify-center bg-brand-forest text-white transition group-hover:bg-brand-teal"><Icon className="h-5 w-5" /></span>
+                  <Icon className="h-6 w-6 text-brand-teal transition group-hover:text-brand-teal-hover" aria-hidden="true" />
                   <span className="text-xs font-bold uppercase tracking-[0.16em] text-brand-teal">{highlight.type}</span>
                 </div>
                 <h3 className="mt-6 text-xl font-bold text-brand-forest" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>{highlight.title}</h3>

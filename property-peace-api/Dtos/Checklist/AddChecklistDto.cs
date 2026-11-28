@@ -10,6 +10,11 @@ namespace brownstone_hub_api.Dtos.Checklist
         public long? LeaseId { get; set; }
         public long? CounterpartChecklistId { get; set; }
         public long? TenantId { get; set; }
+        /// <summary>
+        /// A caller-supplied idempotency key for a standalone condition-report visit.
+        /// It is intentionally optional so existing checklist clients remain unchanged.
+        /// </summary>
+        public string? RequestId { get; set; }
         public string Title { get; set; } = string.Empty;
         public DateTime? InspectionDate { get; set; }
         public string? GeneralNotes { get; set; }

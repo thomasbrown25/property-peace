@@ -82,7 +82,7 @@ public sealed class PropertyDeleteConnectPreparationTests
             await connection.OpenAsync();
             var db = new DataContext(new DbContextOptionsBuilder<DataContext>().UseSqlite(connection).Options);
             var ddl = db.Database.GenerateCreateScript();
-            foreach (var table in new[] { "Properties", "StripeConnectPreparations", "StripeConnectPreparationProperties", "ActivityEvents" })
+            foreach (var table in new[] { "Properties", "StripeConnectPreparations", "StripeConnectPreparationProperties", "ActivityEvents", "LeaseTransitionChecklists" })
             {
                 var match = Regex.Match(ddl, $"CREATE TABLE \"{table}\"[^;]*;", RegexOptions.Singleline);
                 Assert.True(match.Success, $"Missing EF DDL for {table}");

@@ -8,11 +8,14 @@ const lease = fs.readFileSync(new URL('../pages/landlord/lease.jsx', import.meta
 const calendar = fs.readFileSync(new URL('../pages/landlord/calendar.jsx', import.meta.url), 'utf8');
 const drawer = fs.readFileSync(new URL('../components/drawers/ScheduleInspectionDrawer.jsx', import.meta.url), 'utf8');
 
-test('property overview routes redirect to the checklists table, while detail routes remain', () => {
+test('property overview routes retain rental context in condition-report history', () => {
   for (const route of ['landlord/checklists/property/:propertyId', 'landlord/checklists/property/:propertyId/unit/:unitId']) {
     const block = routes.slice(routes.indexOf(`path: '${route}'`), routes.indexOf('},', routes.indexOf(`path: '${route}'`)));
-    assert.match(block, /<Navigate to="\/landlord\/checklists" replace \/>/);
+    assert.match(block, /<LegacyInspectionRedirect \/>/);
   }
+  assert.match(routes, /new URLSearchParams\(\{ view: 'reports' \}\)/);
+  assert.match(routes, /if \(propertyId\) search.set\('propertyId', propertyId\)/);
+  assert.match(routes, /if \(unitId\) search.set\('unitId', unitId\)/);
   assert.match(routes, /path: 'landlord\/checklists\/property\/:propertyId\/checklist\/:checklistId'/);
 });
 

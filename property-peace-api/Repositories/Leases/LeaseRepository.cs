@@ -1136,6 +1136,9 @@ namespace brownstone_hub_api.Repositories.Leases
                 ?? throw new KeyNotFoundException($"Lease with ID {id} not found");
 
             var now = DateTime.UtcNow;
+            var handoffs = await _context.LeaseTransitionChecklists
+                .Where(checklist => checklist.LeaseId == id && checklist.OrganizationId == organizationId).ToListAsync();
+            foreach (var handoff in handoffs) handoff.LeaseId = null;
             if (options.DeleteLeaseDocuments)
             {
                 // Document records (including signed lease agreements) and blobs are retained,
@@ -1165,6 +1168,9 @@ namespace brownstone_hub_api.Repositories.Leases
                     .Where(c => c.CounterpartChecklistId.HasValue && checklistIds.Contains(c.CounterpartChecklistId.Value)
                         && !checklistIds.Contains(c.Id)).ToListAsync();
                 foreach (var counterpart in counterparts) counterpart.CounterpartChecklistId = null;
+                var reportLinks = await _context.LeaseTransitionChecklists
+                    .Where(handoff => handoff.ConditionReportId.HasValue && checklistIds.Contains(handoff.ConditionReportId.Value)).ToListAsync();
+                foreach (var handoff in reportLinks) handoff.ConditionReportId = null;
                 _context.Checklists.RemoveRange(checklists);
             }
             lease.IsDeleted = true;
@@ -1462,7 +1468,10 @@ namespace brownstone_hub_api.Repositories.Leases
                 .Where(l => l.IsActive && !l.IsDeleted &&
                     l.CreateChecklistOnStartDate &&
                     l.StartDate.HasValue && l.StartDate.Value.Date <= cutOff &&
-                    l.OrganizationId.HasValue)
+                    l.OrganizationId.HasValue &&
+                    !_context.LeaseTransitionChecklists.Any(handoff =>
+                        handoff.OrganizationId == l.OrganizationId.Value && handoff.LeaseId == l.Id &&
+                        handoff.Phase == ELeaseTransitionPhase.MoveIn && handoff.ConditionReportId.HasValue))
                 .Select(l => new LoadLeaseDto
                 {
                     Id = l.Id,
@@ -2031,6 +2040,9 @@ namespace brownstone_hub_api.Repositories.Leases
                 }
 
                 // Hard delete all leases for the property (cascade will handle TenantLeases, LeaseFees, and Deposits are included)
+                var handoffs = await _context.LeaseTransitionChecklists
+                    .Where(checklist => checklist.LeaseId.HasValue && leaseIds.Contains(checklist.LeaseId.Value)).ToListAsync();
+                foreach (var handoff in handoffs) handoff.LeaseId = null;
                 _context.Leases.RemoveRange(leases);
 
                 await _context.SaveChangesAsync();

@@ -5,22 +5,24 @@ import {
   FiArrowRight,
   FiCalendar,
   FiCheckCircle,
+  FiClipboard,
   FiDownload,
   FiFileText,
   FiGrid,
-  FiHome,
+  FiLogIn,
+  FiLogOut,
   FiShield,
 } from 'react-icons/fi';
 import { applyOttoSeo } from '@/lib/otto-seo';
 
 export const metadata: Metadata = applyOttoSeo('/resources/starter-pack/', {
   title: 'Free Landlord Starter Pack | Property Peace',
-  description: 'Download five practical landlord resources: inspection and turnover checklists, a maintenance calendar, a pre-screening worksheet, and an editable cash-flow workbook.',
+  description: 'Download seven practical landlord resources: move-in and move-out handoff checklists, a condition report, a turnover checklist, maintenance planning, pre-screening guidance, and a cash-flow workbook.',
   keywords: 'free landlord starter pack, landlord checklist PDF, rental property spreadsheet, move in checklist, turnover checklist, maintenance calendar',
   alternates: { canonical: '/resources/starter-pack' },
   openGraph: {
     title: 'Free Landlord Starter Pack | Property Peace',
-    description: 'Five real, printable or editable resources for organizing a small rental portfolio.',
+    description: 'Seven real, printable or editable resources for organizing a small rental portfolio.',
     type: 'website',
   },
 });
@@ -29,11 +31,25 @@ const base = '/downloads/landlord-starter-pack';
 
 const downloads = [
   {
-    title: 'Move-In / Move-Out Inspection Checklist',
-    description: 'A room-by-room PDF for condition notes, photographs, key counts, handoffs, and signatures.',
-    href: `${base}/move-in-move-out-inspection-checklist.pdf`,
+    title: 'What to Document Before Handing Over the Keys',
+    description: 'A move-in handoff checklist for the lease, records, readiness, keys, utilities, and a completed condition report.',
+    href: `${base}/move-in-checklist.pdf`,
     format: 'Printable PDF',
-    icon: FiHome,
+    icon: FiLogIn,
+  },
+  {
+    title: 'What to Document When Taking Back the Keys',
+    description: 'A move-out checklist for possession, access devices, condition records, deposit follow-up, and turnover work.',
+    href: `${base}/move-out-checklist.pdf`,
+    format: 'Printable PDF',
+    icon: FiLogOut,
+  },
+  {
+    title: 'Condition Report',
+    description: 'A room-by-room PDF for observed condition, photos, notes, access devices, and signatures at any property visit.',
+    href: `${base}/condition-report.pdf`,
+    format: 'Printable PDF',
+    icon: FiClipboard,
   },
   {
     title: 'Rental Turnover Checklist',
@@ -69,7 +85,7 @@ const pageSchema = {
   '@context': 'https://schema.org',
   '@type': 'CollectionPage',
   name: 'Property Peace Landlord Starter Pack',
-  description: 'Five practical landlord checklists, worksheets, and an editable cash-flow workbook.',
+  description: 'Seven practical landlord checklists, worksheets, and an editable cash-flow workbook.',
   url: 'https://propertypeace.io/resources/starter-pack/',
   isPartOf: { '@type': 'WebSite', name: 'Property Peace', url: 'https://propertypeace.io/' },
   mainEntity: {
@@ -99,7 +115,7 @@ export default function LandlordStarterPackPage() {
           <div className="grid gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-end">
             <div>
               <div className="mb-5 inline-flex items-center gap-2 border border-brand-mint bg-brand-surface px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-brand-teal">
-                <FiFileText className="h-4 w-4" /> Five real downloads
+                <FiFileText className="h-4 w-4" /> Seven real downloads
               </div>
               <h1 className="max-w-4xl text-4xl font-bold leading-tight text-white sm:text-5xl md:text-6xl" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>
                 A landlord starter pack you can actually use.
@@ -110,9 +126,9 @@ export default function LandlordStarterPackPage() {
             </div>
             <div className="border border-brand-mint bg-brand-surface p-6 shadow-xl md:p-8">
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-brand-teal">Download the complete pack</p>
-              <p className="mt-3 text-sm leading-6 text-brand-slate">One ZIP containing four printable PDFs, one editable spreadsheet, and a short README.</p>
+              <p className="mt-3 text-sm leading-6 text-brand-slate">One ZIP containing six printable PDFs, one editable spreadsheet, and a short README.</p>
               <a href={`${base}/property-peace-landlord-starter-pack.zip`} download className="mt-6 inline-flex min-h-[52px] w-full items-center justify-center gap-2 bg-brand-teal px-6 py-3.5 font-bold text-white transition hover:bg-brand-teal-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-teal">
-                <FiDownload className="h-5 w-5" /> Download all five resources
+                <FiDownload className="h-5 w-5" /> Download all seven resources
               </a>
               <p className="mt-3 text-center text-xs text-brand-slate">ZIP file • no email required</p>
             </div>
@@ -124,7 +140,7 @@ export default function LandlordStarterPackPage() {
         <div className="mx-auto max-w-6xl">
           <div className="max-w-3xl">
             <p className="mb-3 text-sm font-bold uppercase tracking-[0.2em] text-brand-mint">Choose only what you need</p>
-            <h2 className="text-3xl font-bold text-white md:text-4xl" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>Five practical files, not five thin articles</h2>
+            <h2 className="text-3xl font-bold text-white md:text-4xl" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>Seven practical files for the work in front of you</h2>
             <p className="mt-4 text-lg leading-8 text-white/80">Every resource is downloadable on its own. The PDFs are designed for printing, while the workbook is ready for property-level monthly inputs.</p>
           </div>
 
@@ -134,7 +150,7 @@ export default function LandlordStarterPackPage() {
               return (
                 <article key={item.href} className="group flex h-full flex-col border border-brand-mint bg-brand-surface p-6 transition hover:-translate-y-1 hover:border-brand-teal hover:shadow-xl md:p-7">
                   <div className="flex items-start justify-between gap-4">
-                    <span className="flex h-12 w-12 flex-shrink-0 items-center justify-center bg-brand-forest text-brand-mint transition group-hover:bg-brand-forest-hover"><Icon className="h-5 w-5" /></span>
+                    <Icon className="h-6 w-6 flex-shrink-0 text-brand-teal transition group-hover:text-brand-teal-hover" aria-hidden="true" />
                     <span className="bg-brand-ivory px-3 py-1.5 text-xs font-bold uppercase tracking-[0.14em] text-brand-teal">{item.format}</span>
                   </div>
                   <h3 className="mt-6 text-xl font-bold leading-snug text-brand-forest" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>{item.title}</h3>
@@ -161,7 +177,7 @@ export default function LandlordStarterPackPage() {
             <h2 className="mt-4 text-2xl font-bold text-white md:text-3xl" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>Keep the completed work organized in Property Peace.</h2>
             <p className="mt-4 leading-7 text-white/70">Bring properties, tenants, lease records, maintenance, documents, rent tracking, and expenses into one property-first workspace.</p>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              <Link href="https://app.propertypeace.io/register" className="inline-flex min-h-[48px] items-center justify-center gap-2 bg-brand-mint px-6 py-3 font-bold text-brand-forest transition hover:bg-brand-ivory">Start free <FiArrowRight className="h-4 w-4" /></Link>
+              <Link href="https://app.propertypeace.io/register?intent=move-in-checklist" className="inline-flex min-h-[48px] items-center justify-center gap-2 bg-brand-mint px-6 py-3 font-bold text-brand-forest transition hover:bg-brand-ivory">Start my move-in checklist <FiArrowRight className="h-4 w-4" /></Link>
               <Link href="/features" className="inline-flex min-h-[48px] items-center justify-center gap-2 border border-white/25 px-6 py-3 font-bold text-white transition hover:bg-white/10">See product workflows</Link>
             </div>
           </div>

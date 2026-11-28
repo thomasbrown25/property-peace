@@ -44,6 +44,16 @@ namespace brownstone_hub_api.Services.ChecklistService
             return null;
         }
 
+        private bool CanAccessChecklist(LoadChecklistDto checklist, long landlordId)
+        {
+            if (checklist.LandlordId != landlordId) return false;
+            var organizationId = GetOrganizationIdFromContext();
+            if (!organizationId.HasValue) return checklist.ChecklistType != ETenantDocumentType.ConditionReport;
+            if (checklist.OrganizationId.HasValue && checklist.OrganizationId != organizationId) return false;
+            if (checklist.PropertyOrganizationId.HasValue && checklist.PropertyOrganizationId != organizationId) return false;
+            return checklist.ChecklistType != ETenantDocumentType.ConditionReport || checklist.OrganizationId == organizationId;
+        }
+
         private LoadChecklistDto GenerateSasUrlsForChecklist(LoadChecklistDto checklist)
         {
             if (checklist == null) return checklist;
@@ -157,11 +167,68 @@ namespace brownstone_hub_api.Services.ChecklistService
                     Message = "Checklist created successfully"
                 };
             }
+            catch (InvalidOperationException ex) when (checklist.ChecklistType == ETenantDocumentType.ConditionReport)
+            {
+                return ServiceResponse<LoadChecklistDto>.CreateError(ex.Message, statusCode: 400);
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error adding checklist");
                 return ServiceResponse<LoadChecklistDto>.CreateError("An error occurred while creating the checklist", ex.Message);
             }
+        }
+
+        public async Task<ServiceResponse<LoadChecklistDto>> AddConditionReport(AddChecklistDto checklist)
+        {
+            checklist.ChecklistType = ETenantDocumentType.ConditionReport;
+            if (string.IsNullOrWhiteSpace(checklist.Title))
+                checklist.Title = "Condition Report";
+            if (checklist.RoomNames == null || checklist.RoomNames.Count == 0)
+                checklist.RoomNames = ["Kitchen", "Living room", "Bedroom", "Bathroom"];
+
+            // A report is useful out of the box; seed it from the organization's
+            // inspection template when the client has not supplied its own items.
+            if (checklist.Items.Count == 0)
+            {
+                var organizationId = GetOrganizationIdFromContext();
+                if (!organizationId.HasValue)
+                    return ServiceResponse<LoadChecklistDto>.CreateError("Organization not found", "An organization is required to create a condition report", "", 400);
+
+                var templateItems = await _organizationChecklistItemRepository
+                    .GetOrganizationChecklistItemsByOrganizationId(organizationId.Value);
+                if (templateItems.Count == 0)
+                {
+                    await _organizationChecklistItemRepository.SeedDefaultChecklistItems(organizationId.Value);
+                    templateItems = await _organizationChecklistItemRepository
+                        .GetOrganizationChecklistItemsByOrganizationId(organizationId.Value);
+                }
+
+                checklist.Items = templateItems.Select(item => new AddChecklistItemDto
+                {
+                    Name = item.Name,
+                    Description = item.Description,
+                    Category = item.Category,
+                    SortOrder = item.SortOrder
+                }).ToList();
+            }
+
+            return await AddChecklist(checklist);
+        }
+
+        public async Task<ServiceResponse<List<LoadChecklistDto>>> GetConditionReports(long? propertyId, long? unitId, long? leaseId)
+        {
+            var landlordId = await GetCurrentUserIdAsync();
+            if (!landlordId.HasValue)
+                return ServiceResponse<List<LoadChecklistDto>>.CreateError("User not found", "User not authenticated", "", 401);
+
+            var organizationId = GetOrganizationIdFromContext();
+            if (!organizationId.HasValue)
+                return ServiceResponse<List<LoadChecklistDto>>.CreateError("Organization not found", "An organization is required to view condition reports", "", 400);
+
+            var reports = await _checklistRepository.GetConditionReports(
+                landlordId.Value, organizationId.Value, propertyId, unitId, leaseId);
+            reports = reports.Select(GenerateSasUrlsForChecklist).ToList();
+            return new ServiceResponse<List<LoadChecklistDto>> { Success = true, Data = reports };
         }
 
         public async Task<ServiceResponse<LoadChecklistDto>> GetChecklistById(long id)
@@ -185,7 +252,7 @@ namespace brownstone_hub_api.Services.ChecklistService
                     };
                 }
 
-                if (checklist.LandlordId != landlordId.Value)
+                if (!CanAccessChecklist(checklist, landlordId.Value))
                 {
                     return ServiceResponse<LoadChecklistDto>.CreateError("Unauthorized access", "You can only access your own checklists", "", 403);
                 }
@@ -385,7 +452,7 @@ namespace brownstone_hub_api.Services.ChecklistService
                     };
                 }
 
-                if (existing.LandlordId != landlordId.Value)
+                if (!CanAccessChecklist(existing, landlordId.Value))
                 {
                     return ServiceResponse<LoadChecklistDto>.CreateError("Unauthorized access", "You can only update your own checklists", "", 403);
                 }
@@ -427,7 +494,7 @@ namespace brownstone_hub_api.Services.ChecklistService
                     };
                 }
 
-                if (existing.LandlordId != landlordId.Value)
+                if (!CanAccessChecklist(existing, landlordId.Value))
                 {
                     return new ServiceResponse<bool>
                     {
@@ -464,7 +531,7 @@ namespace brownstone_hub_api.Services.ChecklistService
 
                 // Get the checklist
                 var checklist = await _checklistRepository.GetChecklistById(checklistId, landlordId.Value);
-                if (checklist == null)
+                if (checklist == null || !CanAccessChecklist(checklist, landlordId.Value))
                 {
                     return ServiceResponse<LoadChecklistDto>.CreateError("Checklist not found", "The checklist does not exist", "", 404);
                 }
@@ -555,7 +622,7 @@ namespace brownstone_hub_api.Services.ChecklistService
                 }
 
                 var checklist = await _checklistRepository.GetChecklistById(checklistId, landlordId.Value);
-                if (checklist == null)
+                if (checklist == null || !CanAccessChecklist(checklist, landlordId.Value))
                 {
                     return ServiceResponse<LoadChecklistDto>.CreateError("Unauthorized access", "You can only update your own checklists", "", 403);
                 }
@@ -607,7 +674,7 @@ namespace brownstone_hub_api.Services.ChecklistService
 
                 // Get the checklist
                 var checklist = await _checklistRepository.GetChecklistById(checklistId, landlordId.Value);
-                if (checklist == null)
+                if (checklist == null || !CanAccessChecklist(checklist, landlordId.Value))
                 {
                     return ServiceResponse<LoadChecklistDto>.CreateError("Checklist not found", "The checklist does not exist", "", 404);
                 }
@@ -700,7 +767,7 @@ namespace brownstone_hub_api.Services.ChecklistService
                 }
 
                 var checklist = await _checklistRepository.GetChecklistById(checklistId, landlordId.Value);
-                if (checklist == null)
+                if (checklist == null || !CanAccessChecklist(checklist, landlordId.Value))
                 {
                     return ServiceResponse<LoadChecklistDto>.CreateError("Unauthorized access", "You can only update your own checklists", "", 403);
                 }

@@ -4,6 +4,7 @@ import { ChecklistsStackParamList } from './checklistsTypes';
 import ChecklistPropertySearchScreen from '../screens/landlord/ChecklistPropertySearchScreen';
 import PropertyChecklistsScreen from '../screens/landlord/PropertyChecklistsScreen';
 import ChecklistEditorScreen from '../screens/landlord/ChecklistEditorScreen';
+import LeaseTransitionChecklistScreen from '../screens/landlord/LeaseTransitionChecklistScreen';
 import { useAppTheme } from '../theme/AppTheme';
 import PageBackButton from '../components/PageBackButton';
 
@@ -29,7 +30,12 @@ export default function ChecklistsNavigator() {
         headerLeft: () => <PageBackButton inHeader onPress={() => navigation.goBack()} />,
       })} />
       <Stack.Screen name="ChecklistEditor" component={ChecklistEditorScreen} options={({ navigation }) => ({
-        title: 'Inspection',
+        title: 'Condition report',
+        headerBackVisible: false,
+        headerLeft: () => <PageBackButton inHeader onPress={() => navigation.goBack()} />,
+      })} />
+      <Stack.Screen name="LeaseTransitionChecklist" component={LeaseTransitionChecklistScreen} options={({ navigation }) => ({
+        title: 'Handoff checklist',
         headerBackVisible: false,
         headerLeft: () => <PageBackButton inHeader onPress={() => navigation.goBack()} />,
       })} />

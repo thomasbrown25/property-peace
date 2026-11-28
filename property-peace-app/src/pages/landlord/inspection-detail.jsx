@@ -44,6 +44,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import MainCard from 'components/MainCard';
 import { checklistAPI } from 'api';
+import { listConditionReports } from 'api/leaseTransitionChecklists';
 import { openSnackbar } from 'api/snackbar';
 import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
 import axiosServices from 'utils/axios';
@@ -58,6 +59,7 @@ import { createConditionSaveQueue } from 'utils/checklistConditionSaveQueue.mjs'
 
 const MOVE_IN = 'moveInChecklist';
 const MOVE_OUT = 'moveOutChecklist';
+const CONDITION_REPORT = 'conditionReport';
 
 function normalizeChecklistType(type) {
   return String(type ?? '').toLowerCase();
@@ -73,6 +75,10 @@ function isMoveOutChecklist(checklist) {
   const type = normalizeChecklistType(checklist?.checklistType);
   const typeName = normalizeChecklistType(checklist?.checklistTypeName);
   return type === MOVE_OUT.toLowerCase() || type === '41' || typeName.includes('moveout') || typeName.includes('move-out');
+}
+
+function isConditionReport(checklist) {
+  return ['44', 'conditionreport'].includes(normalizeChecklistType(checklist?.checklistType));
 }
 
 const CONDITION_OPTIONS = [
@@ -988,8 +994,8 @@ function InspectionColumn({ type, checklist, counterpartChecklist, relatedLease,
 
 
   const isMovein = type === MOVE_IN;
-  const label = isMovein ? 'Move-In' : 'Move-Out';
-  const accentColor = isMovein ? theme.palette.info.main : theme.palette.warning.main;
+  const label = type === CONDITION_REPORT ? 'Condition report' : isMovein ? 'Move-In' : 'Move-Out';
+  const accentColor = type === CONDITION_REPORT ? theme.palette.primary.main : isMovein ? theme.palette.info.main : theme.palette.warning.main;
 
   const roomSections = checklist ? groupItemsByRoom(checklist.items || [], [...(checklist.roomNames || []), ...customRooms]) : [];
 
@@ -1965,6 +1971,10 @@ export default function PropertyChecklistsPage() {
   const [relatedLease, setRelatedLease] = useState(null);
   const [checklistToDelete, setChecklistToDelete] = useState(null);
   const [deletingChecklist, setDeletingChecklist] = useState(false);
+  const [savingCompletion, setSavingCompletion] = useState(false);
+  const handoffId = searchParams.get('handoff');
+  const handoffPath = /^\d+$/.test(handoffId || '') ? `/landlord/checklists/handoff/${handoffId}` : null;
+  const reportListPath = `/landlord/checklists?${new URLSearchParams({ view: 'reports', propertyId, ...(unitId ? { unitId } : {}) })}`;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1988,11 +1998,9 @@ export default function PropertyChecklistsPage() {
         } catch {
           // The checklist history can still load if unit metadata is unavailable.
         }
-        const res = await checklistAPI.getChecklistsByUnit(unitId);
-        loadedChecklists = res?.success ? res.data || [] : [];
+        loadedChecklists = await listConditionReports({ propertyId, unitId });
       } else {
-        const res = await checklistAPI.getChecklistsByProperty(propertyId);
-        loadedChecklists = res?.success ? res.data || [] : [];
+        loadedChecklists = await listConditionReports({ propertyId });
       }
 
       try {
@@ -2053,14 +2061,14 @@ export default function PropertyChecklistsPage() {
     ? checklists.find((checklist) => String(checklist.id) === String(checklistId)) || null
     : null;
   const comparisonMoveIn = moveInId
-    ? checklists.find((checklist) => String(checklist.id) === String(moveInId) && isMoveInChecklist(checklist)) || null
+    ? checklists.find((checklist) => String(checklist.id) === String(moveInId) && (isMoveInChecklist(checklist) || isConditionReport(checklist))) || null
     : null;
   const comparisonMoveOut = moveOutId
-    ? checklists.find((checklist) => String(checklist.id) === String(moveOutId) && isMoveOutChecklist(checklist)) || null
+    ? checklists.find((checklist) => String(checklist.id) === String(moveOutId) && (isMoveOutChecklist(checklist) || isConditionReport(checklist))) || null
     : null;
   const isComparison = Boolean(moveInId && moveOutId);
   const activeType = selectedChecklist
-    ? (isMoveOutChecklist(selectedChecklist) ? MOVE_OUT : MOVE_IN)
+    ? (isConditionReport(selectedChecklist) ? CONDITION_REPORT : isMoveOutChecklist(selectedChecklist) ? MOVE_OUT : MOVE_IN)
     : typeParam === 'move-out'
     ? MOVE_OUT
     : typeParam === 'move-in'
@@ -2070,7 +2078,7 @@ export default function PropertyChecklistsPage() {
   const selectedUnitLease = selectedUnitData?.lease || selectedUnitData?.Lease || selectedUnitData?.activeLease || selectedUnitData?.ActiveLease || null;
   const selectedUnitLeaseIsActive = selectedUnitLease?.isActive ?? selectedUnitLease?.IsActive;
   const effectiveRelatedLease = relatedLease || (selectedUnitLease && selectedUnitLeaseIsActive !== false ? selectedUnitLease : null);
-  const counterpartCandidates = checklists.filter(activeType === MOVE_IN ? isMoveOutChecklist : isMoveInChecklist);
+  const counterpartCandidates = activeType === CONDITION_REPORT ? [] : checklists.filter(activeType === MOVE_IN ? isMoveOutChecklist : isMoveInChecklist);
   const relatedLeaseId = effectiveRelatedLease?.id ?? effectiveRelatedLease?.Id ?? null;
   const counterpartLeaseId = activeChecklist?.leaseId || relatedLeaseId;
   const requestedCounterpartId = searchParams.get('counterpart');
@@ -2090,7 +2098,7 @@ export default function PropertyChecklistsPage() {
       setChecklists((current) => current.filter((checklist) => String(checklist.id) !== String(checklistToDelete.id)));
       setChecklistToDelete(null);
       openSnackbar({ open: true, message: 'Checklist deleted', variant: 'alert', alert: { color: 'success' } });
-      navigate('/landlord/checklists');
+      navigate(handoffPath || reportListPath);
     } catch (error) {
       openSnackbar({
         open: true,
@@ -2102,13 +2110,31 @@ export default function PropertyChecklistsPage() {
       setDeletingChecklist(false);
     }
   };
+  const saveCompletion = async () => {
+    setSavingCompletion(true);
+    try {
+      const completing = !activeChecklist.isCompleted;
+      const result = await checklistAPI.updateChecklist(activeChecklist.id, {
+        Id: activeChecklist.id,
+        IsCompleted: completing,
+        CompletedAt: completing ? new Date().toISOString() : null
+      });
+      if (!result?.success) throw new Error(result?.message || 'Could not save report status.');
+      handleChecklistUpdated(result.data);
+    } catch (error) {
+      openSnackbar({ open: true, message: error?.response?.data?.message || error.message, variant: 'alert', alert: { color: 'error' } });
+    } finally {
+      setSavingCompletion(false);
+    }
+  };
+  const reportTitle = activeType === CONDITION_REPORT ? 'Condition report' : activeType === MOVE_OUT ? 'Move-out condition report' : 'Move-in condition report';
   return (
     <Box>
       <PageBreadcrumbs
         items={[
           { label: 'Dashboard', path: '/landlord/dashboard' },
           { label: 'Checklists', path: '/landlord/checklists' },
-          ...(activeType ? [{ label: activeType === MOVE_IN ? 'Move-In Checklist' : 'Move-Out Checklist' }] : []),
+          ...(activeType ? [{ label: reportTitle }] : []),
           ...(isComparison ? [{ label: 'Condition comparison' }] : [])
         ]}
       />
@@ -2120,8 +2146,8 @@ export default function PropertyChecklistsPage() {
             <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
               <AuditOutlined style={{ fontSize: 18, color: theme.palette.primary.main }} />
               <Typography variant="h5" fontWeight={700} sx={{ overflowWrap: 'anywhere' }}>
-                {activeType ? (activeType === MOVE_IN ? 'Move-in Checklist' : 'Move-out Checklist') : displayPropertyName}
-                {activeType && activeChecklist?.id != null ? ` #${activeChecklist.id}` : ''}
+                {activeType ? reportTitle : displayPropertyName}
+                {activeType && activeType !== CONDITION_REPORT && activeChecklist?.id != null ? ` #${activeChecklist.id}` : ''}
               </Typography>
             </Stack>
             {activeType ? (
@@ -2144,12 +2170,20 @@ export default function PropertyChecklistsPage() {
           </Box>
         </Stack>
         {activeChecklist && (
+          <Stack spacing={1} alignItems={{ md: 'flex-end' }}>
           <ScheduleVisitControl
             checklist={activeChecklist}
-            label={activeType === MOVE_IN ? 'Move-In' : 'Move-Out'}
+            label={activeType === CONDITION_REPORT ? 'Condition report' : activeType === MOVE_IN ? 'Move-In' : 'Move-Out'}
             onRefresh={handleChecklistUpdated}
             onDelete={() => setChecklistToDelete(activeChecklist)}
           />
+          <Stack direction="row" spacing={1} flexWrap="wrap">
+            <Button onClick={() => navigate(handoffPath || reportListPath)}>{handoffPath ? 'Back to checklist' : 'Back to condition reports'}</Button>
+            <Button variant="contained" onClick={saveCompletion} disabled={savingCompletion || (!activeChecklist.isCompleted && (!activeChecklist.items?.length || !activeChecklist.items.every(getItemComplete)))}>
+              {activeChecklist.isCompleted ? 'Reopen report' : 'Complete report'}
+            </Button>
+          </Stack>
+          </Stack>
         )}
       </Stack>
 
@@ -2168,6 +2202,11 @@ export default function PropertyChecklistsPage() {
             <Button onClick={() => navigate('/landlord/checklists')} sx={{ mt: 2, textTransform: 'none' }}>Return to checklists</Button>
           </MainCard>
         )
+      ) : checklistId && !activeChecklist ? (
+        <MainCard>
+          <Typography>That condition report is unavailable.</Typography>
+          <Button onClick={() => navigate(handoffPath || reportListPath)}>{handoffPath ? 'Back to checklist' : 'Back to condition reports'}</Button>
+        </MainCard>
       ) : activeType ? (
         // Single-type view (move-in OR move-out)
         <InspectionColumn

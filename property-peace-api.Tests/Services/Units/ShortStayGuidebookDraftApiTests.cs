@@ -179,13 +179,18 @@ public sealed class ShortStayGuidebookDraftApiTests
         await using var f = await Fixture.Create(foreignKeys: true);
         f.Db.ShortStayGuidebookDrafts.AddRange(new ShortStayGuidebookDraft { UnitId = 10 },
             new ShortStayGuidebookDraft { UnitId = 11 });
+        f.Db.LeaseTransitionChecklists.AddRange(
+            new LeaseTransitionChecklist { OrganizationId = 20, PropertyId = 7, UnitId = 10, RequestId = "target-unit" },
+            new LeaseTransitionChecklist { OrganizationId = 20, PropertyId = 7, UnitId = 11, RequestId = "other-unit" });
         await f.Db.SaveChangesAsync();
         f.Db.ChangeTracker.Clear();
         var repository = new UnitRepository(f.Db, NullLogger<UnitRepository>.Instance, MapperFactory.Create());
         await repository.DeleteUnit(10);
         Assert.Equal(11, (await f.Db.ShortStayGuidebookDrafts.SingleAsync()).UnitId);
+        Assert.Equal(11, (await f.Db.LeaseTransitionChecklists.SingleAsync()).UnitId);
         Assert.Equal(1, await repository.DeleteUnitsByPropertyId(7));
         Assert.Empty(await f.Db.ShortStayGuidebookDrafts.ToListAsync());
+        Assert.Empty(await f.Db.LeaseTransitionChecklists.ToListAsync());
     }
 
     [Fact]
@@ -237,7 +242,7 @@ public sealed class ShortStayGuidebookDraftApiTests
         protected override void OnModelCreating(Microsoft.EntityFrameworkCore.ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
-            var keep = new[] { typeof(Property), typeof(Organization), typeof(OrganizationMember), typeof(Unit), typeof(ShortStayGuidebookDraft) };
+            var keep = new[] { typeof(Property), typeof(Organization), typeof(OrganizationMember), typeof(Unit), typeof(ShortStayGuidebookDraft), typeof(LeaseTransitionChecklist), typeof(LeaseTransitionChecklistItem) };
             foreach (var entity in modelBuilder.Model.GetEntityTypes().ToList())
                 if (entity.ClrType != typeof(ActivityEvent) && !keep.Contains(entity.ClrType)) modelBuilder.Ignore(entity.ClrType);
             foreach (var entity in modelBuilder.Model.GetEntityTypes())

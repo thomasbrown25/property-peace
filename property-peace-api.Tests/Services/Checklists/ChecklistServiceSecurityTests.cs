@@ -1,6 +1,7 @@
 using Azure.Storage.Blobs;
 using brownstone_hub_api.Dtos.Checklist;
 using brownstone_hub_api.Dtos.User;
+using brownstone_hub_api.Enums;
 using brownstone_hub_api.Repositories.Checklists;
 using brownstone_hub_api.Repositories.Users;
 using brownstone_hub_api.Services.AzureBlobService;
@@ -43,6 +44,57 @@ public sealed class ChecklistServiceSecurityTests
         response.Success.Should().BeTrue();
         response.Data.Should().ContainSingle(checklist => checklist.Id == 8);
         fixture.Checklists.Verify(repository => repository.GetChecklistsByLeaseId(19, 42), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetConditionReports_ScopesReadToCurrentOrganizationAndLandlord()
+    {
+        var fixture = CreateFixture(organizationId: 7);
+        fixture.Checklists
+            .Setup(repository => repository.GetConditionReports(42, 7, 3, 12, 19))
+            .ReturnsAsync([new LoadChecklistDto { Id = 8, LandlordId = 42, PropertyId = 3, UnitId = 12, LeaseId = 19 }]);
+
+        var response = await fixture.Service.GetConditionReports(3, 12, 19);
+
+        response.Success.Should().BeTrue();
+        response.Data.Should().ContainSingle(report => report.Id == 8);
+        fixture.Checklists.Verify(repository => repository.GetConditionReports(42, 7, 3, 12, 19), Times.Once);
+    }
+
+    [Fact]
+    public async Task ConditionReportInAnotherOrganization_CannotBeReadOrUpdatedByTheSameLandlord()
+    {
+        var fixture = CreateFixture(strictBlobs: true, organizationId: 7);
+        var report = new LoadChecklistDto
+        {
+            Id = 8, LandlordId = 42, OrganizationId = 9, PropertyOrganizationId = 9,
+            ChecklistType = ETenantDocumentType.ConditionReport
+        };
+        fixture.Checklists.Setup(repository => repository.GetChecklistById(8, It.IsAny<long?>())).ReturnsAsync(report);
+
+        (await fixture.Service.GetChecklistById(8)).StatusCode.Should().Be(403);
+        (await fixture.Service.UpdateChecklist(new UpdateChecklistDto { Id = 8, Title = "Other organization" })).StatusCode.Should().Be(403);
+        fixture.Checklists.Verify(repository => repository.UpdateChecklist(It.IsAny<UpdateChecklistDto>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task AddConditionReport_InitializesDefaultRoomsAndOrganizationItems()
+    {
+        var fixture = CreateFixture(organizationId: 7);
+        fixture.OrganizationItems.Setup(repository => repository.GetOrganizationChecklistItemsByOrganizationId(7))
+            .ReturnsAsync([new LoadOrganizationChecklistItemDto { Name = "Smoke detector", Category = "Safety", SortOrder = 3 }]);
+        fixture.Checklists.Setup(repository => repository.AddChecklist(It.IsAny<AddChecklistDto>(), 42, 7))
+            .ReturnsAsync(new LoadChecklistDto { Id = 55, LandlordId = 42 });
+
+        var response = await fixture.Service.AddConditionReport(new AddChecklistDto { PropertyId = 3 });
+
+        response.Success.Should().BeTrue();
+        fixture.Checklists.Verify(repository => repository.AddChecklist(
+            It.Is<AddChecklistDto>(dto => dto.ChecklistType == ETenantDocumentType.ConditionReport &&
+                dto.RoomNames!.SequenceEqual(new[] { "Kitchen", "Living room", "Bedroom", "Bathroom" }) &&
+                dto.Items.Count == 1 && dto.Items[0].Name == "Smoke detector"),
+            42,
+            7), Times.Once);
     }
 
     [Fact]
@@ -131,7 +183,7 @@ public sealed class ChecklistServiceSecurityTests
             Times.Never);
     }
 
-    private static Fixture CreateFixture(bool strictBlobs = false)
+    private static Fixture CreateFixture(bool strictBlobs = false, long? organizationId = null)
     {
         var checklists = new Mock<IChecklistRepository>();
         var users = new Mock<IUserRepository>();
@@ -140,16 +192,23 @@ public sealed class ChecklistServiceSecurityTests
         var blobs = strictBlobs
             ? new Mock<BlobServiceClient>(MockBehavior.Strict)
             : new Mock<BlobServiceClient>();
+        var context = new HttpContextAccessor { HttpContext = new DefaultHttpContext() };
+        if (organizationId.HasValue)
+            context.HttpContext.Items["OrganizationId"] = organizationId.Value;
+        var organizationItems = new Mock<IOrganizationChecklistItemRepository>();
         var service = new ChecklistService(
             checklists.Object,
             users.Object,
-            new HttpContextAccessor(),
+            context,
             blobs.Object,
             Mock.Of<IAzureBlobService>(),
-            Mock.Of<IOrganizationChecklistItemRepository>(),
+            organizationItems.Object,
             NullLogger<ChecklistService>.Instance);
-        return new Fixture(service, checklists);
+        return new Fixture(service, checklists, organizationItems);
     }
 
-    private sealed record Fixture(ChecklistService Service, Mock<IChecklistRepository> Checklists);
+    private sealed record Fixture(
+        ChecklistService Service,
+        Mock<IChecklistRepository> Checklists,
+        Mock<IOrganizationChecklistItemRepository> OrganizationItems);
 }

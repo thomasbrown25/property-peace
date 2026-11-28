@@ -107,7 +107,7 @@ export default function ChecklistPropertySearchScreen({ navigation, route }: Pro
       ListHeaderComponent={(
         <View>
           <View style={themed.hero}>
-            <View style={themed.heroIcon}><Ionicons name="clipboard-outline" size={28} color={mode === 'dark' ? '#86dc9a' : '#2f8f46'} /></View>
+            <View style={themed.heroIcon}><Ionicons name="clipboard-outline" size={28} color={colors.accent} /></View>
             <View style={themed.heroCopy}>
               <Text style={themed.eyebrow}>PROPERTY INSPECTIONS</Text>
               <Text style={themed.title}>Find the home</Text>
@@ -149,7 +149,7 @@ export default function ChecklistPropertySearchScreen({ navigation, route }: Pro
               accessibilityState={needsUnit ? { expanded: selected } : undefined}
               accessibilityLabel={`${needsUnit ? 'Show units for' : 'Open checklists for'} ${getChecklistPropertyLabel(item)}`}
             >
-              <View style={[themed.propertyIcon, selected && themed.propertyIconSelected]}><Ionicons name="home-outline" size={23} color={selected ? '#fff' : mode === 'dark' ? colors.accent : '#0b3558'} /></View>
+              <View style={themed.propertyIcon}><Ionicons name="home-outline" size={23} color={selected ? colors.accent : mode === 'dark' ? colors.accent : '#0b3558'} /></View>
               <View style={themed.flex}>
                 <Text style={themed.propertyName}>{getChecklistPropertyLabel(item)}</Text>
                 {!!address && <Text style={themed.propertyAddress}>{address}</Text>}
@@ -193,7 +193,7 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff' },
   flex: { flex: 1 },
   hero: { flexDirection: 'row', gap: 14, marginBottom: 24 },
-  heroIcon: { width: 54, height: 54, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: '#edf9ef' },
+  heroIcon: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   heroCopy: { flex: 1 },
   eyebrow: { color: '#2f8f46', fontSize: 10, fontWeight: '900', letterSpacing: 1.1, marginBottom: 3 },
   title: { color: '#102d43', fontSize: 28, lineHeight: 33, fontWeight: '900', letterSpacing: -0.7 },
@@ -205,8 +205,7 @@ const styles = StyleSheet.create({
   errorText: { color: '#8f6b3b', marginTop: 2, fontSize: 12 },
   propertyCard: { minHeight: 82, flexDirection: 'row', alignItems: 'center', gap: 12, borderBottomWidth: 1, borderBottomColor: '#e2e8ed', paddingVertical: 14, paddingHorizontal: 4 },
   propertyCardSelected: { borderBottomColor: '#65aa62', backgroundColor: '#f0f8ef' },
-  propertyIcon: { width: 46, height: 46, borderRadius: 15, backgroundColor: '#eaf3ff', alignItems: 'center', justifyContent: 'center' },
-  propertyIconSelected: { backgroundColor: '#2f8f46' },
+  propertyIcon: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center' },
   propertyName: { color: '#102d43', fontSize: 16, lineHeight: 21, fontWeight: '900' },
   propertyAddress: { color: '#697887', fontSize: 12, lineHeight: 17, marginTop: 2 },
   separator: { height: 0 },
@@ -228,7 +227,7 @@ const darkStyles = StyleSheet.create({
   ...styles,
   container: { ...styles.container, backgroundColor: '#101923' },
   center: { ...styles.center, backgroundColor: '#101923' },
-  heroIcon: { ...styles.heroIcon, backgroundColor: '#1c3a34' },
+  heroIcon: { ...styles.heroIcon },
   eyebrow: { ...styles.eyebrow, color: '#86dc9a' },
   title: { ...styles.title, color: '#f2f6fa' },
   subtitle: { ...styles.subtitle, color: '#b4c3d0' },
@@ -239,8 +238,7 @@ const darkStyles = StyleSheet.create({
   errorText: { ...styles.errorText, color: '#e5c59d' },
   propertyCard: { ...styles.propertyCard, borderBottomColor: '#35495b' },
   propertyCardSelected: { ...styles.propertyCardSelected, backgroundColor: '#1c3a34', borderBottomColor: '#5baf73' },
-  propertyIcon: { ...styles.propertyIcon, backgroundColor: '#25394b' },
-  propertyIconSelected: { ...styles.propertyIconSelected, backgroundColor: '#2f8f46' },
+  propertyIcon: { ...styles.propertyIcon },
   propertyName: { ...styles.propertyName, color: '#f2f6fa' },
   propertyAddress: { ...styles.propertyAddress, color: '#b4c3d0' },
   empty: { ...styles.empty, borderTopColor: '#35495b' },

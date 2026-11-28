@@ -9,6 +9,7 @@ import EmailVerifierForm from 'sections/auth/jwt/EmailVerifierForm';
 import LandlordPersonalInfoStep from 'sections/auth/jwt/LandlordPersonalInfoStep';
 import CreatingAccountStep from 'sections/auth/jwt/CreatingAccountStep';
 import SettingUpProfile from 'pages/auth/jwt/setting-up-profile';
+import { rememberChecklistIntent } from 'utils/leaseTransitionChecklists.mjs';
 
 const validSteps = ['account', 'verify', 'details', 'creating', 'complete'];
 const readDraft = () => ({
@@ -44,6 +45,10 @@ export default function RegisterLandlord() {
   const signedInCompletion = isLoggedIn && registrationCompleting && ['creating', 'complete'].includes(requestedStep);
   const needsPasswordAfterRefresh = requestedStep !== 'account' && !googleProfile && !password && !signedInCompletion;
   const step = !validSteps.includes(requestedStep) || needsPasswordAfterRefresh ? 'account' : requestedStep;
+
+  useEffect(() => {
+    rememberChecklistIntent(location.search);
+  }, [location.search]);
 
   useEffect(() => {
     if (location.pathname !== '/register' || step !== requestedStep) {

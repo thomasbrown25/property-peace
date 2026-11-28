@@ -40,6 +40,7 @@ namespace brownstone_hub_api.Models
         public string? GeneralNotes { get; set; }
         public string? ConditionNotes { get; set; } // Overall condition assessment
         public string? RoomNamesJson { get; set; } // JSON array keeps empty/custom rooms persisted and linked across move-in/out
+        public string? RequestId { get; set; } // Stable client request key for neutral condition-report retries
         
         // Before/After Images (for move-in/move-out)
         public string? BeforeMoveInImagesBlobNames { get; set; } // JSON array of blob names for before move-in images

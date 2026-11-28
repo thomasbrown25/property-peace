@@ -41,6 +41,7 @@ import useFetchRentCollection from 'hooks/useFetchRentCollection';
 import useSignalRNotifications from 'hooks/useSignalRNotifications';
 import { completeLeaseDraft } from 'api/lease';
 import { getMoveInReportTemplate, getChecklistsByLease } from 'api/checklist';
+import { listTransitionChecklists } from 'api/leaseTransitionChecklists';
 import { useModal } from 'contexts/ModalContext';
 import PaymentModal from 'components/drawers/PaymentModal';
 import OnlinePaymentSetupButton from 'components/rent-payments/OnlinePaymentSetupButton';
@@ -53,8 +54,6 @@ import { normalizeRentBalance } from 'utils/rentBalance';
 import { leaseById } from 'utils/leaseById.mjs';
 import { leaseDetailTitle } from 'utils/leaseDetailTitle.mjs';
 import { getPropertyLeasesPath } from 'utils/leaseNavigation.mjs';
-import { buildChecklistWorkspacePath } from 'utils/checklistPortfolio';
-import { findLinkedChecklist } from 'utils/checklistLeaseOptions.mjs';
 import { isDetachedSingleUnitType } from 'utils/propertyType';
 
 // E-Signature Status Labels
@@ -964,6 +963,7 @@ export default function LeasePage() {
 
   // Keep the report list tied to the exact lease so navigation cannot show stale evidence.
   const [leaseChecklistRecord, setLeaseChecklistRecord] = useState(null);
+  const [transitionChecklistRecord, setTransitionChecklistRecord] = useState(null);
   useEffect(() => {
     if (!leaseId) return;
     let cancelled = false;
@@ -977,6 +977,15 @@ export default function LeasePage() {
     return () => { cancelled = true; };
   }, [leaseId]);
   const leaseChecklists = String(leaseChecklistRecord?.leaseId) === String(leaseId) ? leaseChecklistRecord?.records : null;
+  useEffect(() => {
+    if (!leaseId) return;
+    let cancelled = false;
+    listTransitionChecklists({ leaseId })
+      .then((records) => { if (!cancelled) setTransitionChecklistRecord({ leaseId, records }); })
+      .catch(() => { if (!cancelled) setTransitionChecklistRecord({ leaseId, records: null }); });
+    return () => { cancelled = true; };
+  }, [leaseId]);
+  const transitionChecklists = String(transitionChecklistRecord?.leaseId) === String(leaseId) ? transitionChecklistRecord?.records : null;
 
   // Authoritative readiness is shared with the rendered move-in card.
   const moveInReadiness = useMemo(() => buildLeaseMoveInReadiness({
@@ -986,8 +995,9 @@ export default function LeasePage() {
     rentRecord,
     property,
     signatureStatus,
-    checklists: leaseChecklists
-  }), [lease, tenants, leaseAgreement, rentRecord, property, signatureStatus, leaseChecklists]);
+    checklists: leaseChecklists,
+    transitionChecklists
+  }), [lease, tenants, leaseAgreement, rentRecord, property, signatureStatus, leaseChecklists, transitionChecklists]);
 
   // A lease is a draft only when the persisted draft flag says so, or when
   // required lease terms are genuinely missing. Signature state is a separate
@@ -1576,6 +1586,7 @@ export default function LeasePage() {
         leaseAgreement={leaseAgreement}
         moveInReadiness={moveInReadiness}
         leaseChecklists={leaseChecklists}
+        transitionChecklists={transitionChecklists}
         eSignatureReadiness={eSignatureReadiness}
         handleEndLeaseClick={handleEndLeaseClick}
         handleReopenLeaseClick={handleReopenLeaseClick}
@@ -1587,23 +1598,19 @@ export default function LeasePage() {
         onOpenSignature={handleOpenSignatures}
         onViewChecklists={async (type = 'move-in') => {
           try {
-            // Resolve the exact lease before deciding to create, including when the
-            // initial checklist request is still loading or failed.
-            const response = await getChecklistsByLease(leaseId);
-            if (!response?.success || !Array.isArray(response.data)) throw new Error('Could not load lease checklists. Please try again.');
-            const existing = findLinkedChecklist(response.data, leaseId, type);
+            const phase = type === 'move-out' ? 'moveOut' : 'moveIn';
+            const records = await listTransitionChecklists({ leaseId });
+            if (!Array.isArray(records)) throw new Error('Could not load lease checklists. Please try again.');
+            const existing = records.find((record) => String(record.leaseId) === String(leaseId) && record.phase === phase);
             if (existing) {
-              navigate(buildChecklistWorkspacePath({
-                ...existing,
-                id: existing.id ?? existing.Id,
-                propertyId: existing.propertyId ?? existing.PropertyId ?? propertyId,
-                unitId: existing.unitId ?? existing.UnitId
-              }));
+              navigate(`/landlord/checklists/handoff/${existing.id}`);
               return;
             }
             if (!propertyId) throw new Error('The lease property is not available. Please reload the lease.');
-            const params = new URLSearchParams({ propertyId: String(propertyId) });
-            navigate(`/landlord/leases/${leaseId}/checklists/${type}/new?${params}`, { state: { propertyId } });
+            const unitId = lease?.unitId ?? lease?.unit?.id;
+            const params = new URLSearchParams({ propertyId: String(propertyId), leaseId: String(leaseId), phase });
+            if (unitId) params.set('unitId', String(unitId));
+            navigate(`/landlord/checklists?${params}`);
           } catch (error) {
             openSnackbar({ open: true, message: error?.response?.data?.message || error.message || 'Could not open checklist', variant: 'alert', alert: { color: 'error' } });
           }

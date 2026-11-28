@@ -81,6 +81,7 @@ export default function LeaseDetailScreen() {
   const statusLabel = archived ? 'Archived' : draft ? 'Draft' : isActive === false ? 'Inactive' : isActive === true ? 'Active' : 'Status unavailable';
   const nextDue = lease && !archived && !draft && isActive === true ? nextRentDueDate(lease, today) : null;
   const propertyId = lease ? field(lease, 'propertyId') : null;
+  const unitId = lease ? field(lease, 'unitId') : null;
 
   const detailRow = (icon: keyof typeof Ionicons.glyphMap, label: string, value: string, last = false) => (
     <View style={[styles.detailRow, { borderBottomColor: line }, last && styles.lastRow]}>
@@ -132,6 +133,14 @@ export default function LeaseDetailScreen() {
             <Text style={[styles.propertyLinkText, { color: ink }]}>View property</Text>
             <Ionicons name="arrow-forward" size={19} color={muted} />
           </TouchableOpacity> : null}
+          {propertyId && unitId && !archived && <TouchableOpacity style={[styles.propertyLink, { borderColor: line }]} accessibilityRole="button"
+            onPress={() => navigation.getParent<any>()?.navigate('Checklists', {
+              screen: 'PropertyChecklists', params: { propertyId: String(propertyId), propertyName: property, unitId: String(unitId), unitName: unit || undefined, leaseId }
+            })}>
+            <Ionicons name="clipboard-outline" size={21} color={accent} />
+            <Text style={[styles.propertyLinkText, { color: ink }]}>Move-in and move-out checklists</Text>
+            <Ionicons name="arrow-forward" size={19} color={muted} />
+          </TouchableOpacity>}
           {!signed && !archived && <TouchableOpacity style={[styles.propertyLink, { borderColor: line }]} accessibilityRole="button" accessibilityLabel="Edit lease" onPress={() => navigation.navigate('AddLease' as any, { leaseId } as any)}><Ionicons name="create-outline" size={21} color={accent} /><Text style={[styles.propertyLinkText, { color: ink }]}>Edit lease terms</Text><Ionicons name="arrow-forward" size={19} color={muted} /></TouchableOpacity>}
           <Text style={[styles.footnote, { color: muted }]}>Renewal, signatures, and payments are not managed here. Amounts shown are lease terms, not payment balances.</Text>
         </>}

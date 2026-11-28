@@ -8147,119 +8147,52 @@ Explore our [complete feature list](/features) that scales with your portfolio, 
   {
     slug: 'landlord-move-in-move-out-checklist',
     title: 'Landlord Move-In and Move-Out Checklist: What to Document Before and After Tenancy',
-    description: 'A practical move-in and move-out checklist for landlords. Learn what to inspect, document, photograph, and store so deposits, repairs, and tenant handoffs stay organized.',
+    description: 'A practical checklist for handing over and taking back a rental, with a separate condition report for room-by-room documentation.',
     content: `
 # Landlord Move-In and Move-Out Checklist: What to Document Before and After Tenancy
 
-Move-in and move-out are two of the most important moments in the rental lifecycle. Good documentation protects your property, helps tenants understand expectations, and reduces disputes when it is time to return a security deposit.
+Handing over keys and taking them back are bigger jobs than an inspection. A simple handoff checklist keeps the tenancy records, access devices, utilities, and next steps together. Use a separate condition report for the room-by-room record of what you observed.
 
-## Why Checklists Matter
+## What to Document Before Handing Over the Keys
 
-A consistent checklist helps you:
+Before move-in, keep these records together:
 
-- **Create a baseline**: Document the exact condition before the tenant takes possession
-- **Reduce disputes**: Compare move-in and move-out condition side by side
-- **Track repairs**: Turn issues into maintenance tasks instead of relying on memory
-- **Support deposit decisions**: Keep photos, notes, and timestamps organized
-- **Improve turnover speed**: Know what must be cleaned, repaired, or replaced
+- The move-in date, handoff time, and a reliable tenant contact method
+- The signed lease and any applicable addenda or disclosures
+- Move-in funds and receipts, where applicable
+- Confirmation that cleaning, repairs, locks, and safety devices are ready
+- Utility status or meter readings, where applicable
+- Every key, remote, pass, and access device handed over
+- Emergency and maintenance contact details shared with the tenant
 
-## Move-In Checklist
+## Complete a Condition Report
 
-Before handing over keys, document the property room by room.
+The condition report is one item on the move-in checklist. It is the room-by-room record of observed condition, dated photos, notes, fixtures, and access devices. Use it at move-in to create a baseline, at move-out to document the later condition, or during another property visit.
 
-### Property Details
+Take both wide shots and close-ups. Record pre-existing wear, stains, scratches, and damage before the tenant takes possession. Keep follow-up repair work separate from the report so the original record remains clear.
 
-Record the basics:
+## What to Document When Taking Back the Keys
 
-- Tenant name
-- Property address and unit
-- Move-in date
-- Lease start date
-- Key and access device handoff
-- Utility transfer status
+At move-out, use a separate checklist to record:
 
-### Photos and Videos
+- The move-out date and possession handoff
+- Returned keys, remotes, passes, and access devices
+- The completed move-out condition report and comparison with the move-in report, if available
+- Photos, notes, estimates, and receipts before cleaning or repairing
+- Final utilities or meter readings, where applicable
+- A forwarding address or agreed contact method, where applicable
+- Deposit itemization, return, or follow-up required for the rental
+- Repairs and cleaning that must be completed before the next tenancy
 
-Take clear photos of:
+## Keep the Right Record in the Right Place
 
-- Walls, flooring, ceilings, and doors
-- Appliances and fixtures
-- Windows and screens
-- Bathrooms and plumbing fixtures
-- Cabinets, counters, and closets
-- Existing wear, stains, scratches, or damage
+The move-in and move-out checklists document the handoff process. The condition report documents the property itself. Keeping those two records separate makes the checklist easier to follow and the condition evidence easier to compare later.
 
-Use wide shots and close-ups. The goal is to make the condition obvious months later.
+Requirements for deposits, notices, disclosures, access, and abandoned property vary by state and locality. Verify the current rules for the rental before relying on a generic checklist.
 
-### Safety Items
+## Put the Checklist Into a Workflow
 
-Confirm:
-
-- Smoke detectors work
-- Carbon monoxide detectors work where required
-- Locks function correctly
-- Windows open and lock
-- Exterior lighting works
-- Stairways, handrails, and walkways are safe
-
-## Move-Out Checklist
-
-At move-out, compare the current condition against your move-in records.
-
-### Inspect Each Room
-
-Look for:
-
-- New wall damage beyond normal wear
-- Flooring stains, burns, cracks, or pet damage
-- Missing fixtures or hardware
-- Appliance damage
-- Trash or abandoned items
-- Cleaning issues
-
-### Document Before Repairing
-
-Before you clean or repair anything, capture:
-
-- Photos
-- Videos
-- Written notes
-- Contractor estimates
-- Receipts
-- Dates of inspection and repair
-
-This creates a clear record if the tenant asks about deductions.
-
-## Security Deposit Documentation
-
-A good deposit file includes:
-
-- Signed lease
-- Move-in checklist
-- Move-out checklist
-- Photos from both inspections
-- Repair invoices or estimates
-- Itemized deposit statement
-- Communication with the tenant
-
-State rules vary, so always verify deadlines and itemization requirements for your property location.
-
-## Turn Checklist Items Into Workflows
-
-The checklist should not live in a drawer. After move-out, convert issues into action:
-
-- Create maintenance requests
-- Assign vendors
-- Track repair status
-- Store receipts
-- Update property notes
-- Prepare the unit for the next listing
-
-## The Bottom Line
-
-A move-in and move-out checklist is simple, but it can save landlords hours of confusion and hundreds or thousands of dollars in disputes. The key is consistency: document the same way every time, store everything in one place, and connect inspection findings to your maintenance and lease workflows.
-
-Use [document management](/features/document-management), [maintenance tracking](/features/maintenance-tracking), and [tenant communication](/features/tenant-communication) in Property Peace to keep move-in and move-out records organized from one tenancy to the next.
+Use [document management](/features/document-management), [maintenance tracking](/features/maintenance-tracking), and [tenant communication](/features/tenant-communication) in Property Peace to keep the handoff and condition records connected to the property and tenancy.
     `,
     date: '2026-01-18',
     author: 'Property Peace Team',

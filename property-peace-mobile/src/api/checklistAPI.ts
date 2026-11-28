@@ -15,6 +15,12 @@ import type {
   Id,
   UpdateChecklistPayload,
 } from '../features/checklists/checklistTypes';
+import {
+  normalizeTransitionChecklist,
+  type LeaseTransitionChecklist,
+  type LeaseTransitionChecklistItem,
+  type LeaseTransitionPhase,
+} from '../features/checklists/leaseTransitionChecklistModel';
 
 export type { Checklist, ChecklistItem } from '../features/checklists/checklistTypes';
 
@@ -40,6 +46,54 @@ class ChecklistAPI {
   async create(payload: AddChecklistPayload): Promise<Checklist> {
     const response = await apiClient.post<ApiResponse<unknown>>('/api/Checklist', payload);
     return normalizeChecklist(response.data);
+  }
+
+  async getConditionReports(scope: { propertyId: Id; unitId?: Id; leaseId?: Id | null }): Promise<Checklist[]> {
+    const params = new URLSearchParams({ propertyId: String(scope.propertyId) });
+    if (scope.unitId != null) params.set('unitId', String(scope.unitId));
+    if (scope.leaseId != null) params.set('leaseId', String(scope.leaseId));
+    const response = await apiClient.get<ApiResponse<unknown[]>>(`/api/condition-reports?${params.toString()}`);
+    return (response.data ?? []).map(normalizeChecklist);
+  }
+
+  async createConditionReport(payload: AddChecklistPayload & { requestId: string }): Promise<Checklist> {
+    const response = await apiClient.post<ApiResponse<unknown>>('/api/condition-reports', payload);
+    return normalizeChecklist(response.data);
+  }
+
+  async getTransitionChecklists(scope: { propertyId: Id; unitId?: Id; leaseId?: Id | null }): Promise<LeaseTransitionChecklist[]> {
+    const params = new URLSearchParams({ propertyId: String(scope.propertyId) });
+    if (scope.unitId != null) params.set('unitId', String(scope.unitId));
+    if (scope.leaseId != null) params.set('leaseId', String(scope.leaseId));
+    const response = await apiClient.get<ApiResponse<unknown[]>>(`/api/lease-transition-checklists?${params.toString()}`);
+    return (response.data ?? []).map(normalizeTransitionChecklist);
+  }
+
+  async getTransitionChecklistById(id: Id): Promise<LeaseTransitionChecklist> {
+    const response = await apiClient.get<ApiResponse<unknown>>(`/api/lease-transition-checklists/${encodeURIComponent(String(id))}`);
+    return normalizeTransitionChecklist(response.data);
+  }
+
+  async createTransitionChecklist(input: { propertyId: Id; unitId?: Id; leaseId?: Id | null; phase: LeaseTransitionPhase; requestId?: string }): Promise<LeaseTransitionChecklist> {
+    const requestId = input.requestId ?? `mobile-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+    const response = await apiClient.post<ApiResponse<unknown>>('/api/lease-transition-checklists', { ...input, requestId });
+    return normalizeTransitionChecklist(response.data);
+  }
+
+  async updateTransitionItem(checklistId: Id, item: Pick<LeaseTransitionChecklistItem, 'key' | 'status' | 'notApplicableReason'>): Promise<LeaseTransitionChecklist> {
+    const payload = { status: item.status, ...(item.notApplicableReason ? { notApplicableReason: item.notApplicableReason } : {}) };
+    const response = await apiClient.put<ApiResponse<unknown>>(`/api/lease-transition-checklists/${encodeURIComponent(String(checklistId))}/items/${encodeURIComponent(item.key)}`, payload);
+    return normalizeTransitionChecklist(response.data);
+  }
+
+  async linkConditionReport(checklistId: Id, conditionReportId?: Id | null): Promise<LeaseTransitionChecklist> {
+    const response = await apiClient.put<ApiResponse<unknown>>(`/api/lease-transition-checklists/${encodeURIComponent(String(checklistId))}/condition-report`, conditionReportId == null ? {} : { conditionReportId });
+    return normalizeTransitionChecklist(response.data);
+  }
+
+  async detachConditionReport(checklistId: Id): Promise<LeaseTransitionChecklist> {
+    const response = await apiClient.delete<ApiResponse<unknown>>(`/api/lease-transition-checklists/${encodeURIComponent(String(checklistId))}/condition-report`);
+    return normalizeTransitionChecklist(response.data);
   }
 
   async update(id: Id, checklist: Checklist | UpdateChecklistPayload): Promise<Checklist> {

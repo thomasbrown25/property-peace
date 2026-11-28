@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
+from shutil import copyfile
 from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 
 from openpyxl import Workbook
@@ -14,6 +15,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import inch
 from reportlab.platypus import (
+    Flowable,
     KeepTogether,
     PageBreak,
     Paragraph,
@@ -89,14 +91,29 @@ def normalize_zip_metadata(path: Path) -> None:
     temporary.replace(path)
 
 
-def check_table(items, widths=(0.28 * inch, 4.12 * inch, 2.55 * inch), bottom_padding=14):
-    data = [[Paragraph("□", styles["CellBold"]), Paragraph(item, styles["Cell"]), Paragraph("Notes / date / initials", styles["Tiny"])] for item in items]
+class Checkbox(Flowable):
+    """A vector checkbox that remains visible in every PDF renderer."""
+
+    def __init__(self):
+        super().__init__()
+        self.size = 0.11 * inch
+
+    def wrap(self, available_width, available_height):
+        return self.size, self.size
+
+    def draw(self):
+        self.canv.setStrokeColor(GREEN)
+        self.canv.setLineWidth(0.85)
+        self.canv.rect(0, 0, self.size, self.size, stroke=1, fill=0)
+
+
+def check_table(items, widths=(0.28 * inch, 4.12 * inch, 2.55 * inch), bottom_padding=14, notes_label="Notes / date / initials"):
+    data = [[Checkbox(), Paragraph(item, styles["Cell"]), Paragraph(notes_label, styles["Tiny"])] for item in items]
     table = Table(data, colWidths=list(widths), repeatRows=0)
     table.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ("BOX", (0, 0), (-1, -1), 0.55, LIGHT),
         ("INNERGRID", (0, 0), (-1, -1), 0.35, LIGHT),
-        ("BACKGROUND", (0, 0), (0, -1), PALE_GREEN),
         ("BACKGROUND", (2, 0), (2, -1), PALE_BLUE),
         ("TOPPADDING", (0, 0), (-1, -1), 6),
         ("BOTTOMPADDING", (0, 0), (-1, -1), bottom_padding),
@@ -133,21 +150,50 @@ def signature_fields(labels):
 
 created = []
 
-# 1. Move-in / move-out inspection
-story = [blank_fields(["Property address", "Unit", "Inspection type (move-in / move-out)", "Inspection date", "Landlord / agent", "Tenant(s)"]), Spacer(1, 8)]
-rooms = {
-    "Entry, halls, and safety": ["Doors, locks, keys, handles, and weatherstripping", "Walls, ceilings, trim, floors, and stairs", "Smoke alarms and carbon-monoxide alarms; record test date", "Railings, exterior steps, lighting, mailbox, and house numbers"],
+
+def build_condition_report_story():
+    story = [blank_fields(["Property address", "Unit", "Report date", "Landlord / agent", "Tenant(s)", "Lease or tenancy reference"]), Spacer(1, 8)]
+    rooms = {
+    "Entry, halls, and safety": ["Doors, locks, handles, and weatherstripping", "Walls, ceilings, trim, floors, and stairs", "Smoke alarms and carbon-monoxide alarms; record test date", "Railings, exterior steps, lighting, mailbox, and house numbers"],
     "Kitchen": ["Cabinets, drawers, counters, backsplash, and sink", "Faucet, drain, disposal, and visible plumbing; check for leaks", "Range / oven, hood, refrigerator, dishwasher, and supplied appliances", "Outlets, GFCI protection, lights, windows, screens, and flooring"],
     "Bathrooms": ["Tub / shower, surround, caulk, grout, toilet, vanity, and mirror", "Faucets, drains, water pressure, exhaust fan, and visible plumbing", "Walls, ceiling, doors, hardware, outlets, lights, windows, and flooring", "Check for moisture, staining, mildew, loose fixtures, or slow drains"],
     "Bedrooms and living areas": ["Walls, ceilings, trim, doors, closets, and flooring", "Windows, screens, coverings, locks, outlets, switches, and lights", "Heating / cooling vents or equipment", "Photograph existing marks, wear, and damage from consistent angles"],
-    "Utilities and exterior": ["Heating, cooling, thermostat, water heater, and filters", "Electrical panel, plumbing shutoffs, meters, and supplied equipment", "Basement, attic, garage, storage, balcony, yard, and common areas", "Record utility readings, remotes, parking permits, and access devices"],
-}
-for heading, items in rooms.items():
-    story += section(heading, items)
-story += [Paragraph("Photo and handoff record", styles["Section"]), check_table(["Use date-stamped photos or video and name files by room", "Record key, remote, parking-pass, and access-device counts", "Both parties receive or can access the completed condition record", "Record follow-up repairs separately; do not alter the signed condition record"], bottom_padding=6), Spacer(1, 10), Paragraph("Acknowledgment", styles["Section"]), Paragraph("This checklist records observed condition; it is not a waiver of rights or a substitute for state/local requirements.", styles["Small"]), signature_fields(["Landlord / agent signature and date", "Tenant signature and date"])]
-created.append(make_pdf("move-in-move-out-inspection-checklist.pdf", "Move-In / Move-Out Inspection Checklist", "A room-by-room condition record for consistent inspections, photographs, keys, and follow-up. Adapt it to your property and current local requirements.", story))
+    "Utilities and exterior": ["Heating, cooling, thermostat, water heater, and filters", "Electrical panel, plumbing shutoffs, meters, and supplied equipment", "Basement, attic, garage, storage, balcony, yard, and common areas", "Exterior doors, gates, fencing, and outdoor fixtures"],
+    }
+    for heading, items in rooms.items():
+        story += [KeepTogether([Paragraph(heading, styles["Section"]), check_table(items, bottom_padding=7, notes_label="Condition / notes / photo ref.")])]
+    story += [Paragraph("Photo record", styles["Section"]), check_table(["Use date-stamped photos or video and name files by room", "Capture wide and close-up views of any damage", "Share or store the completed report according to the current lease and local requirements", "Record follow-up repairs separately; do not alter the completed condition report"], bottom_padding=6), Spacer(1, 6), Paragraph("Acknowledgment", styles["Section"]), Paragraph("This report records observed condition. It is not a waiver of rights or a substitute for state or local requirements.", styles["Small"]), signature_fields(["Landlord / agent signature and date", "Tenant signature and date"])]
+    return story
 
-# 2. Turnover checklist
+
+# 1. Neutral condition report. The legacy filename remains available for existing links.
+condition_report_path = make_pdf("condition-report.pdf", "Condition Report", "A room-by-room record of observed condition, photographs, and notes. Use it at move-in, move-out, or another property visit.", build_condition_report_story())
+copyfile(condition_report_path, OUT / "move-in-move-out-inspection-checklist.pdf")
+created.append(condition_report_path)
+
+# 2. Move-in handoff checklist
+move_in = {
+    "Before handing over the keys": ["Confirm the move-in date, handoff time, and tenant contact method", "Save the signed lease and any applicable addenda or disclosures", "Record move-in funds received and save receipts, if applicable", "Confirm cleaning, repairs, locks, and life-safety devices are ready"],
+    "At the handoff": ["Complete a condition report and save dated photos with it", "Confirm utilities and record meter readings, if applicable", "Record keys, remotes, passes, and access devices handed over", "Share move-in records and emergency or maintenance contact details"],
+}
+story = [blank_fields(["Property / unit", "Move-in date and time", "Tenant contact method", "Landlord / agent", "Lease reference", "Condition report location / link"]), Spacer(1, 8)]
+for heading, items in move_in.items():
+    story += section(heading, items)
+story += [Paragraph("Keep the record together", styles["Section"]), Paragraph("Use your lease and property records for amounts, credentials, and full contact details. Mark steps that do not apply and keep any jurisdiction-specific requirements with the rental file.", styles["Small"])]
+created.append(make_pdf("move-in-checklist.pdf", "What to Document Before Handing Over the Keys", "A practical move-in handoff checklist. Complete the condition report as one step, then keep the handoff records with the tenancy.", story))
+
+# 3. Move-out handoff checklist
+move_out = {
+    "Take back possession": ["Confirm the move-out date and possession handoff", "Record returned keys, remotes, passes, and access devices", "Complete a condition report and compare it with the move-in record, if available", "Photograph and document repair or cleaning needs before work begins"],
+    "Close out the tenancy": ["Record final utility readings or transfers, if applicable", "Record the forwarding address or agreed contact method, if applicable", "Review applicable deposit requirements and record any itemization, return, or follow-up", "Log outstanding repairs or cleaning for the next turnover"],
+}
+story = [blank_fields(["Property / unit", "Move-out date and time", "Tenant contact method", "Landlord / agent", "Lease reference", "Condition report location / link"]), Spacer(1, 8)]
+for heading, items in move_out.items():
+    story += section(heading, items)
+story += [Paragraph("Keep the record together", styles["Section"]), Paragraph("Record observed condition before cleaning or repairing. Deposit, notice, abandoned-property, and disclosure requirements vary by location. Verify the rules that apply to this rental.", styles["Small"])]
+created.append(make_pdf("move-out-checklist.pdf", "What to Document When Taking Back the Keys", "A practical move-out checklist. Complete the condition report as one step, then keep repairs, deposit follow-up, and turnover records connected.", story))
+
+# 4. Turnover checklist
 turnover = {
     "Close out the prior tenancy": ["Confirm possession and collect all keys, remotes, permits, and access devices", "Complete and preserve the move-out condition record and photographs", "Document tenant property left behind and follow applicable notice/storage rules", "Record final utility readings and update access codes after lawful possession"],
     "Inspect and scope work": ["Separate ordinary wear from damage under current local rules", "Check life-safety devices, locks, railings, windows, electrical, plumbing, HVAC, and moisture", "Create one repair list with owner, priority, estimate, approval, and target date", "Photograph hidden or high-cost conditions before work begins"],
@@ -159,7 +205,7 @@ for heading, items in turnover.items(): story += section(heading, items)
 story += [Paragraph("Turnover cost and status log", styles["Section"]), Table([[Paragraph("Work item", styles["CellBold"]), Paragraph("Owner / vendor", styles["CellBold"]), Paragraph("Estimate", styles["CellBold"]), Paragraph("Actual", styles["CellBold"]), Paragraph("Status / date", styles["CellBold"])] ] + [["", "", "", "", ""] for _ in range(8)], colWidths=[2.15*inch,1.5*inch,0.85*inch,0.85*inch,1.6*inch], rowHeights=[0.3*inch]+[0.38*inch]*8, style=TableStyle([("BACKGROUND",(0,0),(-1,0),NAVY),("TEXTCOLOR",(0,0),(-1,0),colors.white),("GRID",(0,0),(-1,-1),0.4,LIGHT),("VALIGN",(0,0),(-1,-1),"MIDDLE"),("PADDING",(0,0),(-1,-1),5)])), Spacer(1, 10), Paragraph("Educational checklist only. Deposit accounting, abandoned property, habitability, licensing, notices, disclosures, and rekeying rules vary by location.", styles["Small"])]
 created.append(make_pdf("rental-turnover-checklist.pdf", "Rental Turnover Checklist", "A practical sequence from possession through a documented, ready-to-rent handoff—without pretending one checklist replaces local law or qualified trades.", story))
 
-# 3. Preventive maintenance calendar
+# 5. Preventive maintenance calendar
 months = [
     ("January", "Freeze protection, heating performance, ice/water intrusion, emergency contacts"), ("February", "Interior moisture, bathroom ventilation, leaks, appliance hoses, tenant check-in"), ("March", "Roof/gutter visual check, drainage, sump pump, exterior trip hazards"), ("April", "Cooling service, filters, screens, exterior faucets, pest-prevention gaps"), ("May", "Decks/railings, landscaping clearances, irrigation, exterior lighting"), ("June", "Roof/attic heat and moisture, dryer vents, plumbing shutoffs, midyear records"), ("July", "Cooling performance, condensation drains, pools/common areas where applicable"), ("August", "Weather seals, windows, doors, fall vendor scheduling, tree clearances"), ("September", "Heating service, filters, chimneys where applicable, freeze planning"), ("October", "Gutters/downspouts, exterior water shutoff, leaves/drainage, lighting"), ("November", "Smoke/CO alarms, emergency heat, snow/ice supplies, vacancy checks"), ("December", "Year-end invoices/warranties, recurring issue review, next-year maintenance budget"),
 ]
@@ -169,11 +215,11 @@ for month, focus in months:
 story += [Spacer(1, 8), Paragraph("This calendar is a planning aid, not an inspection standard. Climate, building systems, manufacturer schedules, lease duties, and local codes should determine the final plan.", styles["Small"])]
 created.append(make_pdf("preventive-maintenance-calendar.pdf", "Preventive Maintenance Calendar", "A twelve-month planning worksheet for small rental portfolios. Replace the suggested focus areas with the actual systems, climate, manufacturer guidance, and legal duties for each property.", story))
 
-# 4. Fair-housing-safe pre-screening worksheet
+# 6. Fair-housing-safe pre-screening worksheet
 story = [Paragraph("Use the same written process for every prospect", styles["Section"]), Paragraph("Pre-screening should identify objective rental-fit information without asking about protected traits. Publish your lawful criteria first, ask only what is necessary, offer reasonable-accommodation channels, and route every qualified prospect through the same next step.", styles["PackSubtitle"]), blank_fields(["Property / unit", "Advertised rent", "Available date", "Application link / next step", "Written criteria version/date", "Staff member"]), Spacer(1, 8), Paragraph("Suggested neutral questions", styles["Section"]), check_table(["What move-in date are you seeking?", "How many occupants would live in the home? Apply current lawful occupancy standards consistently.", "What lease term are you seeking?", "Do you have animals that would live in the home? Keep assistance-animal requests separate from pet screening.", "Can you meet the published income or other lawful financial criteria? Explain acceptable documentation and alternatives consistently.", "Can you meet the published move-in cost and payment schedule?", "Would you like to request a reasonable accommodation or an accessible application method?", "What is the best lawful way and time to contact you about the next step?"]), *section("Do not ask or record", ["Race, color, national origin, religion, sex, familial status, or disability details", "Questions about children, pregnancy, marital status, citizenship assumptions, or neighborhood preferences", "Medical diagnoses, medications, nature of a disability, or why an assistance animal is needed beyond permitted verification", "Different questions, standards, response times, or discouraging language for different prospects", "Protected information inferred from names, photos, accents, social media, or in-person impressions"]), Paragraph("Prospect log", styles["Section"]), Table([[Paragraph("Date/time", styles["CellBold"]), Paragraph("Prospect reference", styles["CellBold"]), Paragraph("Answers / objective notes", styles["CellBold"]), Paragraph("Next step / sent", styles["CellBold"])] ] + [["", "", "", ""] for _ in range(7)], colWidths=[1.0*inch,1.25*inch,3.5*inch,1.2*inch], rowHeights=[0.3*inch]+[0.46*inch]*7, style=TableStyle([("BACKGROUND",(0,0),(-1,0),NAVY),("TEXTCOLOR",(0,0),(-1,0),colors.white),("GRID",(0,0),(-1,-1),0.4,LIGHT),("VALIGN",(0,0),(-1,-1),"TOP"),("PADDING",(0,0),(-1,-1),5)])), Spacer(1, 10), Paragraph("Educational worksheet only—not legal advice. Federal, state, and local fair-housing, source-of-income, screening, occupancy, privacy, and notice rules may add protections or requirements. Review current HUD guidance and obtain qualified local advice before adopting criteria.", styles["Small"])]
 created.append(make_pdf("fair-housing-safe-pre-screening-worksheet.pdf", "Fair-Housing-Safe Pre-Screening Worksheet", "A neutral, repeatable starting point for early prospect conversations. It deliberately avoids collecting sensitive screening data and does not replace a lawful application, consent, or consumer-report process.", story))
 
-# 5. Cash-flow workbook
+# 7. Cash-flow workbook
 wb = Workbook()
 wb.properties.creator = "Property Peace Editorial Team"
 wb.properties.lastModifiedBy = "Property Peace Editorial Team"
@@ -224,7 +270,7 @@ xlsx_path=OUT/"rental-property-cash-flow-workbook.xlsx"; wb.save(xlsx_path); nor
 
 # README and bundle
 readme = OUT / "README.txt"
-readme.write_text("""PROPERTY PEACE LANDLORD STARTER PACK\n\nIncluded files:\n- Move-In / Move-Out Inspection Checklist (PDF)\n- Rental Turnover Checklist (PDF)\n- Preventive Maintenance Calendar (PDF)\n- Fair-Housing-Safe Pre-Screening Worksheet (PDF)\n- Rental Property Cash-Flow Workbook (XLSX)\n\nThese resources are editable/printable planning aids and general educational information. They are not legal, tax, accounting, screening, safety, or compliance advice. Requirements vary by property and location. Verify current primary sources and consult qualified local professionals.\n\nSource: https://propertypeace.io/resources/starter-pack/\n""", encoding="utf-8")
+readme.write_text("""PROPERTY PEACE LANDLORD STARTER PACK\n\nIncluded files:\n- Move-In Handoff Checklist (PDF)\n- Move-Out Handoff Checklist (PDF)\n- Condition Report (PDF)\n- Rental Turnover Checklist (PDF)\n- Preventive Maintenance Calendar (PDF)\n- Fair-Housing-Safe Pre-Screening Worksheet (PDF)\n- Rental Property Cash-Flow Workbook (XLSX)\n\nThe former Move-In / Move-Out Inspection Checklist filename remains available outside this ZIP for existing links. It now contains the neutral Condition Report.\n\nThese resources are editable/printable planning aids and general educational information. They are not legal, tax, accounting, screening, safety, or compliance advice. Requirements vary by property and location. Verify current primary sources and consult qualified local professionals.\n\nSource: https://propertypeace.io/resources/starter-pack/\n""", encoding="utf-8")
 created.append(readme)
 zip_path = OUT / "property-peace-landlord-starter-pack.zip"
 with ZipFile(zip_path, "w", ZIP_DEFLATED) as zf:

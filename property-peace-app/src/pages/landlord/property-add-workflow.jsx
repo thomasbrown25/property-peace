@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { getChecklistIntent } from 'utils/leaseTransitionChecklists.mjs';
 import { useDispatch } from 'react-redux';
 import {
   Box,
@@ -572,6 +573,11 @@ function PropertyAddWorkflow({ onClose, initialAddress, onBackToRental }) {
       }
 
       if (onClose) onClose();
+      const checklistIntent = getChecklistIntent(`?${searchParams}`);
+      if (!onClose && checklistIntent) {
+        navigate(`/landlord/checklists?propertyId=${created.id}&intent=${checklistIntent}`, { replace: true });
+        return;
+      }
       if (!onClose && searchParams.get('from') === 'signup') {
         window.location.replace('/landlord/dashboard');
         return;

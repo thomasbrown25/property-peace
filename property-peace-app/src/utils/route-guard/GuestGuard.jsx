@@ -5,6 +5,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 // project imports
 import useAuth from 'hooks/useAuth';
 import { getPostLoginRedirectPath } from 'utils/authRedirect';
+import { getChecklistIntent } from 'utils/leaseTransitionChecklists.mjs';
 
 // ==============================|| GUEST GUARD ||============================== //
 
@@ -28,7 +29,9 @@ export default function GuestGuard({ children }) {
       ) {
         return;
       }
-      navigate(getPostLoginRedirectPath(user, location?.state?.from), {
+      const defaultPath = getPostLoginRedirectPath(user, location?.state?.from);
+      const checklistIntent = pathname === '/register' ? getChecklistIntent(location.search) : null;
+      navigate(checklistIntent && defaultPath.startsWith('/landlord/') ? `/landlord/checklists?intent=${checklistIntent}` : defaultPath, {
         state: {
           from: ''
         },

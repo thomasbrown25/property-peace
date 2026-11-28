@@ -1,4 +1,5 @@
 using brownstone_hub_api.Dtos.Lease;
+using brownstone_hub_api.Enums;
 using brownstone_hub_api.Models;
 using brownstone_hub_api.Repositories.Leases;
 using brownstone_hub_api.Tests.Helpers;
@@ -69,15 +70,41 @@ public sealed class LeaseArchiveTests
         using (db)
         {
             db.Checklists.Add(new Checklist { Id = 2, PropertyId = 1, LandlordId = 99, Title = "Unlinked", CounterpartChecklistId = 1 });
+            db.LeaseTransitionChecklists.Add(new LeaseTransitionChecklist
+            {
+                Id = 1, OrganizationId = 10, LandlordId = 99, PropertyId = 1, UnitId = 1, LeaseId = 1,
+                RequestId = "archive-test", ConditionReportId = 1
+            });
             await db.SaveChangesAsync();
             await repository.DeleteLease(1, 10, new DeleteLeaseOptionsDto { DeleteLeaseDocuments = true, DeleteChecklists = true });
             db.ChangeTracker.Clear();
             (await db.TenantDocuments.SingleAsync()).IsDeleted.Should().BeTrue();
             (await db.Files.SingleAsync()).IsDeleted.Should().BeTrue();
             (await db.Checklists.SingleAsync()).CounterpartChecklistId.Should().BeNull();
+            var handoff = await db.LeaseTransitionChecklists.SingleAsync();
+            handoff.LeaseId.Should().BeNull();
+            handoff.ConditionReportId.Should().BeNull();
+            handoff.UnitId.Should().Be(1);
             (await db.Payments.SingleAsync()).LeaseId.Should().Be(1);
             (await db.Tenants.SingleAsync()).IsDeleted.Should().BeFalse();
             (await db.TenantLeases.SingleAsync()).LeaseId.Should().Be(1);
+        }
+    }
+
+    [Fact]
+    public async Task ScheduledMoveIn_IgnoresLeasesWithAReportAlreadyLinkedToTheirMoveIn()
+    {
+        var (db, repository) = await SeedAsync();
+        using (db)
+        {
+            (await repository.GetLeasesDueForStartDateChecklist(DateTime.Today)).Should().ContainSingle();
+            db.LeaseTransitionChecklists.Add(new LeaseTransitionChecklist
+            {
+                OrganizationId = 10, LandlordId = 99, PropertyId = 1, UnitId = 1, LeaseId = 1,
+                Phase = ELeaseTransitionPhase.MoveIn, RequestId = "scheduled-move-in", ConditionReportId = 1
+            });
+            await db.SaveChangesAsync();
+            (await repository.GetLeasesDueForStartDateChecklist(DateTime.Today)).Should().BeEmpty();
         }
     }
 

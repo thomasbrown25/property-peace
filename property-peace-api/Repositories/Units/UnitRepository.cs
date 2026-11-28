@@ -440,6 +440,8 @@ namespace brownstone_hub_api.Repositories.Units
             {
                 var unit = await _context.Units.FindAsync(id);
 
+                var checklists = await _context.LeaseTransitionChecklists.Where(checklist => checklist.UnitId == id).ToListAsync();
+                _context.LeaseTransitionChecklists.RemoveRange(checklists);
                 _context.Units.Remove(unit);
                 await _context.SaveChangesAsync();
 
@@ -459,7 +461,9 @@ namespace brownstone_hub_api.Repositories.Units
                 var units = await _context.Units
                     .Where(u => u.PropertyId == propertyId)
                     .ToListAsync();
-                
+                var checklists = await _context.LeaseTransitionChecklists
+                    .Where(checklist => checklist.PropertyId == propertyId && checklist.UnitId.HasValue).ToListAsync();
+                _context.LeaseTransitionChecklists.RemoveRange(checklists);
                 _context.Units.RemoveRange(units);
                 await _context.SaveChangesAsync();
                 

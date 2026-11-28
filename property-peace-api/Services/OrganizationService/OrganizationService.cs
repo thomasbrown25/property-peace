@@ -835,6 +835,10 @@ namespace brownstone_hub_api.Services.OrganizationService
 
         private async Task HardDeletePropertyCompletely(long propertyId)
         {
+            var handoffs = await _dataContext.LeaseTransitionChecklists
+                .Where(checklist => checklist.PropertyId == propertyId).ToListAsync();
+            _dataContext.LeaseTransitionChecklists.RemoveRange(handoffs);
+
             // Delete all units in this property
             var units = await _dataContext.Units
                 .Where(u => u.PropertyId == propertyId)

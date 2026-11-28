@@ -77,6 +77,9 @@ export const isMoveInChecklist = (checklist: Partial<Checklist>) =>
 export const isMoveOutChecklist = (checklist: Partial<Checklist>) =>
   Number(checklist.checklistType) === MOVE_OUT_CHECKLIST || normalizedType(checklist).includes('moveout');
 
+export const isConditionReport = (checklist: Partial<Checklist>) =>
+  Number(checklist.checklistType) === 44 || String(checklist.checklistType).toLowerCase() === 'conditionreport';
+
 const sameId = (left?: Id | null, right?: Id | null) =>
   left != null && right != null && String(left) === String(right);
 
@@ -132,7 +135,8 @@ export const withItemCondition = (
   const items: ChecklistItem[] = checklist.items.map((item) => sameId(item.id, itemId)
     ? { ...item, condition: condition ?? ('' as const), isChecked: Boolean(condition), checkedAt: condition ? now : null }
     : item);
-  const complete = items.length > 0 && items.every((item) => Boolean(item.condition));
+  const complete = items.length > 0 && items.every((item) => Boolean(item.condition)) &&
+    (!isConditionReport(checklist) || Boolean(checklist.isCompleted));
   return {
     ...checklist,
     items,

@@ -6,6 +6,8 @@ namespace brownstone_hub_api.Services.ChecklistService
     public interface IChecklistService
     {
         Task<ServiceResponse<LoadChecklistDto>> AddChecklist(AddChecklistDto checklist);
+        Task<ServiceResponse<LoadChecklistDto>> AddConditionReport(AddChecklistDto checklist);
+        Task<ServiceResponse<List<LoadChecklistDto>>> GetConditionReports(long? propertyId, long? unitId, long? leaseId);
         Task<ServiceResponse<LoadChecklistDto>> GetChecklistById(long id);
         Task<ServiceResponse<List<LoadChecklistDto>>> GetChecklistsByLandlordId(long landlordId);
         Task<ServiceResponse<List<LoadChecklistDto>>> GetChecklistsByPropertyId(long propertyId);
