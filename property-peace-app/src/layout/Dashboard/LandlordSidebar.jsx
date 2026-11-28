@@ -8,6 +8,7 @@ import AppIcon from 'components/AppIcon';
 import BrandedIcon from 'components/BrandedIcon';
 import FloatingWren from 'components/FloatingWren';
 import {
+  alpha,
   Box,
   Button,
   Collapse,
@@ -22,11 +23,13 @@ import {
   MenuItem,
   TextField,
   Typography,
-  useMediaQuery
+  useMediaQuery,
+  useTheme
 } from '@mui/material';
 import Logo from 'components/logo';
-import { brand, portalHeaderColors } from 'themes/brand';
-import compactLogo from 'assets/images/logos/logo-white.png';
+import { portalHeaderColors } from 'themes/brand';
+import compactLightLogo from 'assets/images/logos/logo-white.png';
+import compactDarkLogo from 'assets/images/logos/logo-dark.png';
 import useFetchProperties from 'hooks/useFetchProperties';
 import useAuth from 'hooks/useAuth';
 import { useDrawer } from 'contexts/DrawerContext';
@@ -54,15 +57,14 @@ import { isDetachedSingleUnitType } from 'utils/propertyType';
 import { rentalMode } from 'utils/rentalMode';
 
 export const LANDLORD_SIDEBAR_WIDTH = 260;
-const sidebarBackground = brand.forest;
+const SIDEBAR_HEADER_HEIGHT = 60;
 const propertyMenuWidth = 200;
 const addPropertyPath = '/landlord/properties/add';
 const newChatPath = '/landlord/ai-center?new=1';
-const propertySubtitleColor = 'rgba(255,255,255,0.72)';
 const visibleGeneralConversationLimit = 4;
 const visiblePropertyConversationLimit = 5;
 const propertyRowButtonSx = { minWidth: 0, minHeight: 34, px: 1, py: 0.25, gap: 1, borderRadius: 1.5 };
-const propertyRowTextProps = { fontSize: 13, fontWeight: 400, noWrap: true, sx: { color: '#FFFFFF' } };
+const propertyRowTextProps = { fontSize: 13, fontWeight: 400, noWrap: true, sx: { color: 'inherit' } };
 const propertyActions = [
   { action: 'view', label: 'View property', icon: 'house' },
   { action: 'edit', label: 'Edit property', icon: 'edit' },
@@ -82,7 +84,32 @@ function visitDatesForSidebar(user) {
   return sidebarVisitDates.get(scope);
 }
 
+function useSidebarColors() {
+  const { palette } = useTheme();
+  const isDark = palette.mode === 'dark';
+  const surface = portalHeaderColors(palette.mode);
+  return {
+    isDark,
+    surface,
+    muted: alpha(surface.color, 0.78),
+    divider: alpha(surface.color, 0.18),
+    hover: alpha(surface.color, 0.08),
+    selected: alpha(surface.color, 0.14),
+    selectedHover: alpha(surface.color, 0.2),
+    error: isDark ? '#FFD0D0' : palette.error.dark
+  };
+}
+
 export default function LandlordSidebar({ desktopOpen, desktopWidth, mobileOpen, onMobileClose }) {
+  const { isDark, surface, divider, hover, selected, selectedHover } = useSidebarColors();
+  const compactLogo = isDark ? compactLightLogo : compactDarkLogo;
+  const mobileRowSx = {
+    mx: 1.5,
+    borderRadius: 1.5,
+    color: 'inherit',
+    '&:hover': { bgcolor: hover },
+    '&.Mui-selected': { bgcolor: selected, '&:hover': { bgcolor: selectedHover } }
+  };
   const { pathname, search } = useLocation();
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -184,23 +211,31 @@ export default function LandlordSidebar({ desktopOpen, desktopWidth, mobileOpen,
             width: desktopWidth,
             boxSizing: 'border-box',
             height: '100dvh',
-            bgcolor: sidebarBackground,
-            borderRight: '1px solid',
-            borderColor: 'rgba(255, 255, 255, 0.14)'
+            ...surface,
+            backgroundImage: 'none',
+            borderRight: 0,
+            '&::after': {
+              content: '""',
+              position: 'absolute',
+              top: SIDEBAR_HEADER_HEIGHT,
+              right: 0,
+              bottom: 0,
+              borderRight: `1px solid ${divider}`,
+              pointerEvents: 'none'
+            }
           }
         }}
       >
         {!desktopOpen && (
           <Box
             sx={{
-              height: 60,
+              height: SIDEBAR_HEADER_HEIGHT,
               flexShrink: 0,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              bgcolor: sidebarBackground,
               borderBottom: '1px solid',
-              borderColor: 'rgba(255, 255, 255, 0.14)'
+              borderColor: divider
             }}
           >
             <Box
@@ -210,8 +245,9 @@ export default function LandlordSidebar({ desktopOpen, desktopWidth, mobileOpen,
                 display: 'grid',
                 placeItems: 'center',
                 width: 44,
-                height: 60,
-                '&:focus-visible': { outline: `2px solid ${brand.mint}`, outlineOffset: -2 }
+                height: SIDEBAR_HEADER_HEIGHT,
+                color: 'inherit',
+                '&:focus-visible': { outline: '2px solid currentColor', outlineOffset: -2 }
               }}
             >
               <Box component="img" src={compactLogo} alt="Property Peace home" width={36} sx={{ display: 'block', height: 'auto' }} />
@@ -232,12 +268,11 @@ export default function LandlordSidebar({ desktopOpen, desktopWidth, mobileOpen,
               alignItems: 'center',
               gap: 0.5,
               py: 1,
-              color: '#FFFFFF',
               '& .MuiIconButton-root': {
                 width: 40,
                 height: 40,
                 '&.Mui-disabled img': { opacity: 0.38 },
-                '&:focus-visible': { outline: `2px solid ${brand.mint}` }
+                '&:focus-visible': { outline: '2px solid currentColor' }
               }
             }}
           >
@@ -278,7 +313,7 @@ export default function LandlordSidebar({ desktopOpen, desktopWidth, mobileOpen,
         ModalProps={{ keepMounted: true }}
         sx={{
           display: { xs: 'block', lg: 'none' },
-          '& .MuiDrawer-paper': { width: 300, maxWidth: '90vw', boxSizing: 'border-box', bgcolor: sidebarBackground }
+          '& .MuiDrawer-paper': { width: 300, maxWidth: '90vw', boxSizing: 'border-box', ...surface, backgroundImage: 'none' }
         }}
       >
         <Box
@@ -288,17 +323,18 @@ export default function LandlordSidebar({ desktopOpen, desktopWidth, mobileOpen,
             display: 'flex',
             alignItems: 'center',
             px: 3,
-            borderBottom: '1px solid rgba(255, 255, 255, 0.14)'
+            borderBottom: '1px solid',
+            borderColor: divider
           }}
         >
-          <Logo darkSurface disableTopPadding width={120} to="/landlord/dashboard" />
+          <Logo darkSurface={isDark} lightHeaderLogo disableTopPadding width={120} to="/landlord/dashboard" />
         </Box>
         <Box
           component="nav"
           aria-label="Landlord pages"
-          sx={{ maxHeight: '38dvh', overflowY: 'auto', flexShrink: 0, borderBottom: '1px solid rgba(255,255,255,0.18)' }}
+          sx={{ maxHeight: '38dvh', overflowY: 'auto', flexShrink: 0, borderBottom: '1px solid', borderColor: divider }}
         >
-          <List dense disablePadding sx={{ py: 1, [`& .${listItemTextClasses.primary}`]: { color: '#FFFFFF' } }}>
+          <List dense disablePadding sx={{ py: 1, [`& .${listItemTextClasses.primary}`]: { color: 'inherit' } }}>
             {landlordPrimaryLinks.map(({ label, to }) => (
               <ListItemButton
                 key={label}
@@ -307,7 +343,7 @@ export default function LandlordSidebar({ desktopOpen, desktopWidth, mobileOpen,
                 disabled={trialExpired}
                 onClick={onMobileClose}
                 selected={activeLandlordPrimaryLink(pathname, search) === label}
-                sx={{ mx: 1.5, borderRadius: 1.5, color: '#FFFFFF', '&.Mui-selected': { bgcolor: 'rgba(185,228,203,0.16)' } }}
+                sx={mobileRowSx}
               >
                 <ListItemText primary={label} primaryTypographyProps={{ fontSize: 13 }} />
               </ListItemButton>
@@ -315,9 +351,9 @@ export default function LandlordSidebar({ desktopOpen, desktopWidth, mobileOpen,
             <ListItemButton
               onClick={() => setMoreOpen((open) => !open)}
               aria-expanded={moreOpen}
-              sx={{ mx: 1.5, borderRadius: 1.5, color: '#FFFFFF' }}
+              sx={mobileRowSx}
             >
-              <BrandedIcon name="more" size={20} style={{ marginRight: 12, filter: 'brightness(1.55)' }} />
+              <BrandedIcon name="more" size={20} style={{ marginRight: 12, filter: isDark ? 'brightness(1.55)' : undefined }} />
               <ListItemText primary="More" primaryTypographyProps={{ fontSize: 13 }} />
               <AppIcon name="chevronDown" size={11} style={{ transform: moreOpen ? 'rotate(180deg)' : undefined }} />
             </ListItemButton>
@@ -331,7 +367,7 @@ export default function LandlordSidebar({ desktopOpen, desktopWidth, mobileOpen,
                     to={to}
                     onClick={onMobileClose}
                     disabled={trialExpired && label !== 'Help'}
-                    sx={{ mx: 1.5, pl: 4, borderRadius: 1.5, color: '#FFFFFF' }}
+                    sx={{ ...mobileRowSx, pl: 4 }}
                   >
                     <ListItemText primary={label} primaryTypographyProps={{ fontSize: 13 }} />
                   </ListItemButton>
@@ -370,6 +406,14 @@ function PropertyNavigation({
   onArchiveConversation,
   status
 }) {
+  const { surface, muted: propertySubtitleColor, divider, hover, selected, selectedHover, error } = useSidebarColors();
+  const scrollbarThumb = alpha(surface.color, 0.4);
+  const conversationRowSx = {
+    display: 'flex',
+    alignItems: 'center',
+    borderRadius: 1.5,
+    '&:hover, &:focus-within': { bgcolor: hover }
+  };
   const isEmptyPortfolio = total === 0;
   const navigationRef = useRef(null);
   const scrollRef = useRef(null);
@@ -446,10 +490,10 @@ function PropertyNavigation({
     mx: 1.5,
     my: 0.25,
     borderRadius: 1.5,
-    color: '#FFFFFF',
-    '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.08)' },
-    '&.Mui-selected': { bgcolor: 'rgba(185, 228, 203, 0.16)', '&:hover': { bgcolor: 'rgba(185, 228, 203, 0.22)' } },
-    '&:focus-visible': { outline: '2px solid', outlineColor: brand.mint, outlineOffset: -2 }
+    color: 'inherit',
+    '&:hover': { bgcolor: hover },
+    '&.Mui-selected': { bgcolor: selected, '&:hover': { bgcolor: selectedHover } },
+    '&:focus-visible': { outline: '2px solid currentColor', outlineOffset: -2 }
   };
   const generalConversations = getGeneralConversations(conversations);
   const displayedGeneralConversations = showAllGeneralConversations
@@ -460,20 +504,18 @@ function PropertyNavigation({
       component="nav"
       ref={navigationRef}
       aria-label="Property navigation"
-      sx={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, bgcolor: sidebarBackground, color: '#FFFFFF' }}
+      sx={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, ...surface }}
     >
       <Box
-        sx={(theme) => ({
-          height: 60,
+        sx={{
+          height: SIDEBAR_HEADER_HEIGHT,
           px: 2.5,
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
           flexShrink: 0,
-          ...portalHeaderColors(theme.palette.mode),
           borderBottom: '1px solid',
-          borderColor: 'divider'
-        })}
+          borderColor: divider
+        }}
       >
         <Box
           component={Link}
@@ -501,27 +543,6 @@ function PropertyNavigation({
             Wren
           </Typography>
         </Box>
-        {!loading && !isEmptyPortfolio && (
-          <IconButton
-            ref={searchButtonRef}
-            aria-label="Search properties"
-            title="Search properties"
-            aria-expanded={searchOpen}
-            aria-controls={searchOpen ? searchId : undefined}
-            onClick={() => {
-              if (searchOpen) closeSearch();
-              else setSearchOpen(true);
-            }}
-            size="small"
-            sx={{
-              color: 'inherit',
-              '&:hover': { color: 'inherit' },
-              '&.Mui-focusVisible': { outline: '2px solid currentColor' }
-            }}
-          >
-            <AppIcon name="search" />
-          </IconButton>
-        )}
       </Box>
       <ListItemButton
         component={Link}
@@ -544,7 +565,7 @@ function PropertyNavigation({
             maxHeight: showAllGeneralConversations ? 'min(40vh, 320px)' : 'none',
             overflowY: showAllGeneralConversations ? 'auto' : 'visible',
             scrollbarWidth: 'thin',
-            scrollbarColor: 'rgba(255,255,255,0.4) transparent'
+            scrollbarColor: `${scrollbarThumb} transparent`
           }}
         >
           {displayedGeneralConversations.map((conversation) => {
@@ -553,13 +574,7 @@ function PropertyNavigation({
             return (
               <Box
                 key={conversationId}
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  borderRadius: 1.5,
-                  '&:hover': { bgcolor: 'rgba(255,255,255,0.08)' },
-                  '&:focus-within': { bgcolor: 'rgba(255,255,255,0.08)' }
-                }}
+                sx={conversationRowSx}
               >
                 <ListItemButton
                   component={Link}
@@ -573,7 +588,7 @@ function PropertyNavigation({
                     borderRadius: 1.5,
                     color: propertySubtitleColor,
                     '&:hover': { bgcolor: 'transparent' },
-                    '&:focus-visible': { outline: `2px solid ${brand.mint}`, outlineOffset: -2 }
+                    '&:focus-visible': { outline: '2px solid currentColor', outlineOffset: -2 }
                   }}
                 >
                   <ListItemText
@@ -587,7 +602,7 @@ function PropertyNavigation({
                   size="small"
                   disabled={archivingConversationId != null}
                   onClick={(event) => archiveChat(event, conversationId)}
-                  sx={{ width: 30, height: 30, color: propertySubtitleColor, '&:hover': { color: '#FFFFFF' } }}
+                  sx={{ width: 30, height: 30, color: propertySubtitleColor, '&:hover': { color: surface.color } }}
                 >
                   <ArchiveOutlined sx={{ fontSize: 17 }} />
                 </IconButton>
@@ -606,46 +621,13 @@ function PropertyNavigation({
                 color: propertySubtitleColor,
                 textTransform: 'none',
                 fontSize: 13,
-                '&:hover': { color: '#FFFFFF', bgcolor: 'transparent' }
+                '&:hover': { color: surface.color, bgcolor: 'transparent' }
               }}
             >
               {showAllGeneralConversations ? 'Show less' : 'Show more'}
             </Button>
           )}
         </Box>
-      )}
-      {!loading && !isEmptyPortfolio && (
-        <Collapse in={searchOpen} timeout={reducedMotion ? 0 : 240} unmountOnExit sx={{ flexShrink: 0 }}>
-          <Box id={searchId} sx={{ px: 1.5, pt: 1, pb: 1 }}>
-            <TextField
-              size="small"
-              fullWidth
-              placeholder="Search properties"
-              value={search}
-              onChange={(event) => onSearch(event.target.value)}
-              inputRef={(node) => {
-                if (node && searchOpen && document.activeElement === searchButtonRef.current) node.focus();
-              }}
-              onKeyDown={(event) => {
-                if (event.key === 'Escape') {
-                  event.stopPropagation();
-                  closeSearch();
-                }
-              }}
-              slotProps={{ htmlInput: { 'aria-label': 'Search properties' } }}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  bgcolor: 'rgba(255,255,255,0.1)',
-                  color: '#FFFFFF',
-                  '& fieldset': { borderColor: 'rgba(255,255,255,0.25)' },
-                  '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.5)' },
-                  '&.Mui-focused fieldset': { borderColor: brand.mint }
-                },
-                '& .MuiInputBase-input': { fontSize: 13, '&::placeholder': { color: 'rgba(255,255,255,0.8)', opacity: 1 } }
-              }}
-            />
-          </Box>
-        </Collapse>
       )}
       <Box sx={{ px: 2.5, pt: 2.5, pb: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
         <Box
@@ -664,8 +646,8 @@ function PropertyNavigation({
             gap: 1,
             color: propertySubtitleColor,
             textDecoration: 'none',
-            '&:hover': { color: '#FFFFFF', textDecoration: 'underline' },
-            '&:focus-visible': { outline: '2px solid', outlineColor: brand.mint, outlineOffset: 3 }
+            '&:hover': { color: surface.color, textDecoration: 'underline' },
+            '&:focus-visible': { outline: '2px solid currentColor', outlineOffset: 3 }
           }}
         >
           <Typography component="h2" variant="subtitle1" sx={{ fontWeight: 700, color: 'inherit' }}>
@@ -673,6 +655,26 @@ function PropertyNavigation({
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          {!loading && !isEmptyPortfolio && (
+            <IconButton
+              ref={searchButtonRef}
+              aria-label="Search properties"
+              title="Search properties"
+              aria-expanded={searchOpen}
+              aria-controls={searchOpen ? searchId : undefined}
+              onClick={() => {
+                if (searchOpen) closeSearch();
+                else setSearchOpen(true);
+              }}
+              size="small"
+              sx={{
+                color: 'inherit',
+                '&.Mui-focusVisible': { outline: '2px solid currentColor' }
+              }}
+            >
+              <AppIcon name="search" />
+            </IconButton>
+          )}
           <IconButton
             component={Link}
             to={addPropertyPath}
@@ -687,6 +689,39 @@ function PropertyNavigation({
           </IconButton>
         </Box>
       </Box>
+      {!loading && !isEmptyPortfolio && (
+        <Collapse in={searchOpen} timeout={reducedMotion ? 0 : 240} unmountOnExit sx={{ flexShrink: 0 }}>
+          <Box id={searchId} sx={{ px: 1.5, pb: 1 }}>
+            <TextField
+              size="small"
+              fullWidth
+              placeholder="Search properties"
+              value={search}
+              onChange={(event) => onSearch(event.target.value)}
+              inputRef={(node) => {
+                if (node && searchOpen && document.activeElement === searchButtonRef.current) node.focus();
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Escape') {
+                  event.stopPropagation();
+                  closeSearch();
+                }
+              }}
+              slotProps={{ htmlInput: { 'aria-label': 'Search properties' } }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  bgcolor: hover,
+                  color: surface.color,
+                  '& fieldset': { borderColor: alpha(surface.color, 0.55) },
+                  '&:hover fieldset': { borderColor: propertySubtitleColor },
+                  '&.Mui-focused fieldset': { borderColor: surface.color }
+                },
+                '& .MuiInputBase-input': { fontSize: 13, '&::placeholder': { color: propertySubtitleColor, opacity: 1 } }
+              }}
+            />
+          </Box>
+        </Collapse>
+      )}
       <Box sx={{ position: 'relative', flex: 1, minHeight: 0 }}>
         <Box
           ref={scrollRef}
@@ -696,9 +731,9 @@ function PropertyNavigation({
             height: '100%',
             overflowY: 'auto',
             scrollbarWidth: 'thin',
-            scrollbarColor: 'rgba(255,255,255,0.4) transparent',
+            scrollbarColor: `${scrollbarThumb} transparent`,
             '&::-webkit-scrollbar': { width: 6 },
-            '&::-webkit-scrollbar-thumb': { bgcolor: 'rgba(255,255,255,0.4)', borderRadius: 3 }
+            '&::-webkit-scrollbar-thumb': { bgcolor: scrollbarThumb, borderRadius: 3 }
           }}
         >
           {isEmptyPortfolio && (
@@ -707,9 +742,9 @@ function PropertyNavigation({
                 mx: 1.5,
                 my: 1,
                 p: 2,
-                border: '1px solid rgba(185, 228, 203, 0.24)',
+                border: `1px solid ${divider}`,
                 borderRadius: 2,
-                bgcolor: 'rgba(185, 228, 203, 0.08)'
+                bgcolor: hover
               }}
             >
               <Box
@@ -720,8 +755,7 @@ function PropertyNavigation({
                   height: 36,
                   mb: 1.5,
                   borderRadius: 1.5,
-                  color: brand.mint,
-                  bgcolor: 'rgba(185, 228, 203, 0.14)'
+                  bgcolor: selected
                 }}
               >
                 <BrandedIcon name="properties" size={27} />
@@ -729,7 +763,7 @@ function PropertyNavigation({
               <Typography component="h3" variant="subtitle2" sx={{ color: 'inherit', fontWeight: 700 }}>
                 No properties yet
               </Typography>
-              <Typography variant="body2" sx={{ mt: 0.5, mb: 1.5, color: 'rgba(255, 255, 255, 0.8)' }}>
+              <Typography variant="body2" sx={{ mt: 0.5, mb: 1.5, color: propertySubtitleColor }}>
                 Add your first property to manage its units, leases, and tenants.
               </Typography>
               <Button
@@ -742,11 +776,10 @@ function PropertyNavigation({
                 onClick={onNavigate}
                 sx={{
                   minHeight: 40,
-                  color: brand.mint,
-                  borderColor: 'rgba(185, 228, 203, 0.48)',
-                  '&:hover': { borderColor: brand.mint, bgcolor: 'rgba(185, 228, 203, 0.12)' },
-                  '&.Mui-focusVisible': { outline: '2px solid', outlineColor: brand.mint, outlineOffset: 2 },
-                  '&.Mui-disabled': { color: 'rgba(255, 255, 255, 0.45)', borderColor: 'rgba(255, 255, 255, 0.18)' }
+                  color: 'inherit',
+                  borderColor: divider,
+                  '&:hover': { borderColor: 'currentColor', bgcolor: hover },
+                  '&.Mui-focusVisible': { outline: '2px solid currentColor', outlineOffset: 2 }
                 }}
               >
                 Add property
@@ -776,9 +809,8 @@ function PropertyNavigation({
                       display: 'flex',
                       alignItems: 'center',
                       borderRadius: 1.5,
-                      color: '#FFFFFF',
-                      bgcolor: isActive || expanded ? 'rgba(185, 228, 203, 0.16)' : 'transparent',
-                      '&:hover': { bgcolor: isActive || expanded ? 'rgba(185, 228, 203, 0.22)' : 'rgba(255, 255, 255, 0.08)' }
+                      bgcolor: isActive || expanded ? selected : 'transparent',
+                      '&:hover': { bgcolor: isActive || expanded ? selectedHover : hover }
                     }}
                   >
                     <ListItemButton
@@ -793,7 +825,7 @@ function PropertyNavigation({
                         ...propertyRowButtonSx,
                         color: 'inherit',
                         '&:hover': { bgcolor: 'transparent' },
-                        '&:focus-visible': { outline: `2px solid ${brand.mint}`, outlineOffset: -2 }
+                        '&:focus-visible': { outline: '2px solid currentColor', outlineOffset: -2 }
                       }}
                     >
                       <AppIcon name="properties" size={19} />
@@ -836,13 +868,7 @@ function PropertyNavigation({
                         return (
                           <Box
                             key={conversationId}
-                            sx={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              borderRadius: 1.5,
-                              '&:hover': { bgcolor: 'rgba(255,255,255,0.08)' },
-                              '&:focus-within': { bgcolor: 'rgba(255,255,255,0.08)' }
-                            }}
+                            sx={conversationRowSx}
                           >
                             <ListItemButton
                               component={Link}
@@ -856,7 +882,7 @@ function PropertyNavigation({
                                 borderRadius: 1.5,
                                 color: propertySubtitleColor,
                                 '&:hover': { bgcolor: 'transparent' },
-                                '&:focus-visible': { outline: `2px solid ${brand.mint}`, outlineOffset: -2 }
+                                '&:focus-visible': { outline: '2px solid currentColor', outlineOffset: -2 }
                               }}
                             >
                               <ListItemText
@@ -870,7 +896,7 @@ function PropertyNavigation({
                               size="small"
                               disabled={archivingConversationId != null}
                               onClick={(event) => archiveChat(event, conversationId)}
-                              sx={{ width: 30, height: 30, color: propertySubtitleColor, '&:hover': { color: '#FFFFFF' } }}
+                              sx={{ width: 30, height: 30, color: propertySubtitleColor, '&:hover': { color: surface.color } }}
                             >
                               <ArchiveOutlined sx={{ fontSize: 17 }} />
                             </IconButton>
@@ -878,7 +904,7 @@ function PropertyNavigation({
                         );
                       })}
                       {propertyConversations.length === 0 && (
-                        <Typography role="status" sx={{ px: 1, py: 0.75, fontSize: 12, color: 'rgba(255,255,255,0.55)' }}>
+                        <Typography role="status" sx={{ px: 1, py: 0.75, fontSize: 12, color: propertySubtitleColor }}>
                           {conversationsLoading
                             ? 'Loading Wren chats…'
                             : conversationsError
@@ -902,10 +928,10 @@ function PropertyNavigation({
                             minWidth: 0,
                             px: 1,
                             py: 0.25,
-                            color: 'rgba(255,255,255,0.62)',
+                            color: propertySubtitleColor,
                             textTransform: 'none',
                             fontSize: 13,
-                            '&:hover': { color: '#FFFFFF', bgcolor: 'transparent' }
+                            '&:hover': { color: surface.color, bgcolor: 'transparent' }
                           }}
                         >
                           {showingAll ? 'Show less' : 'Show more'}
@@ -918,12 +944,12 @@ function PropertyNavigation({
             })}
           </List>
           {archiveError && (
-            <Typography role="alert" sx={{ px: 3, pb: 1, fontSize: 12, color: '#FFD0D0' }}>
+            <Typography role="alert" sx={{ px: 3, pb: 1, fontSize: 12, color: error }}>
               {archiveError}
             </Typography>
           )}
           {!properties.length && status && (
-            <Typography role="status" sx={{ px: 3, py: 1, fontSize: 12, color: 'rgba(255,255,255,0.8)' }}>
+            <Typography role="status" sx={{ px: 3, py: 1, fontSize: 12, color: propertySubtitleColor }}>
               {status}
             </Typography>
           )}
@@ -938,12 +964,12 @@ function PropertyNavigation({
               right: 6,
               height: 28,
               pointerEvents: 'none',
-              background: `linear-gradient(transparent, ${sidebarBackground})`
+              background: `linear-gradient(transparent, ${surface.bgcolor})`
             }}
           />
         )}
       </Box>
-      <Box sx={{ borderTop: '1px solid rgba(255, 255, 255, 0.14)', flexShrink: 0, py: 0.5 }}>
+      <Box sx={{ borderTop: '1px solid', borderColor: divider, flexShrink: 0, py: 0.5 }}>
         <ListItemButton
           component={Link}
           to="/landlord/settings"
@@ -952,7 +978,7 @@ function PropertyNavigation({
           sx={{ ...rowSx, gap: 1, px: 1, py: 0.25, minHeight: 36 }}
         >
           <SettingsOutlined sx={{ fontSize: 19, flexShrink: 0 }} />
-          <ListItemText primary="Settings" primaryTypographyProps={{ fontSize: 13, fontWeight: 400, sx: { color: '#FFFFFF' } }} />
+          <ListItemText primary="Settings" primaryTypographyProps={{ fontSize: 13, fontWeight: 400, sx: { color: 'inherit' } }} />
         </ListItemButton>
       </Box>
       <Menu
@@ -965,12 +991,11 @@ function PropertyNavigation({
           paper: {
             sx: {
               width: propertyMenuWidth,
-              bgcolor: sidebarBackground,
+              ...surface,
               backgroundImage: 'none',
-              color: '#FFFFFF',
-              border: '1px solid rgba(255,255,255,0.14)',
+              border: `1px solid ${divider}`,
               '& .MuiMenuItem-root:hover, & .MuiMenuItem-root.Mui-focusVisible': {
-                bgcolor: 'rgba(255,255,255,0.12)'
+                bgcolor: hover
               }
             }
           }
