@@ -23,7 +23,7 @@ export default function StickyCTA() {
       role="complementary"
       aria-label="Get started prompt"
     >
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-4">
+      <div className="max-w-6xl mx-auto marketing-gutter py-3 flex items-center justify-between gap-4">
         <p
           className="text-white text-sm md:text-base font-medium hidden sm:block"
           style={{ fontFamily: '"Inter", sans-serif' }}

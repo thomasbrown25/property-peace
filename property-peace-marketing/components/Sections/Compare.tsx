@@ -48,7 +48,7 @@ const cardVariants: Variants = {
 
 export default function Compare() {
   return (
-    <section className="relative py-24 px-4 sm:px-6 lg:px-8" style={{ background: 'transparent' }}>
+    <section className="relative py-24 marketing-gutter" style={{ background: 'transparent' }}>
 
       <div className="relative max-w-6xl mx-auto">
 

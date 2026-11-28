@@ -36,7 +36,7 @@ const pathways = [
 
 export default function SeoPathways() {
   return (
-    <section className="px-4 py-16 sm:px-6 lg:px-8 bg-white">
+    <section className="marketing-gutter py-16 bg-white">
       <div className="max-w-6xl mx-auto">
         <div className="max-w-3xl mx-auto text-center mb-10">
           <p className="text-sm font-bold uppercase tracking-[0.2em] text-brand-teal mb-3">Landlord workflows</p>

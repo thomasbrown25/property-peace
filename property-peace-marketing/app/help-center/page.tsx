@@ -46,7 +46,7 @@ const faqs = [
 export default function HelpCenterPage() {
   return (
     <div className="min-h-screen bg-brand-forest text-white">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24">
+      <div className="max-w-4xl mx-auto marketing-gutter py-16 md:py-24">
         {/* Header Section */}
         <div className="text-center mb-16">
           <h1

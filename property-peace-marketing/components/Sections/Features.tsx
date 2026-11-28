@@ -68,7 +68,7 @@ export default function Features() {
   ];
 
   return (
-    <section id="features" className="py-16 px-4 sm:px-6 lg:px-8 bg-brand-ivory">
+    <section id="features" className="py-16 marketing-gutter bg-brand-ivory">
       <div className="max-w-6xl mx-auto">
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
           {features.map((feature, index) => {

@@ -45,7 +45,7 @@ export default function PropertyManagementAppPage() {
   return (
     <div className="min-h-screen bg-brand-forest text-white">
       {/* Hero Section */}
-      <section className="bg-brand-forest px-4 pb-16 pt-32 sm:px-6 lg:px-8">
+      <section className="bg-brand-forest marketing-gutter pb-16 pt-32">
         <div className="max-w-4xl mx-auto text-center">
           <div className="flex justify-center mb-6">
             <FiSmartphone className="w-16 h-16 text-brand-mint" />
@@ -74,7 +74,7 @@ export default function PropertyManagementAppPage() {
       </section>
 
       {/* Mobile Features */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8">
+      <section className="py-16 marketing-gutter">
         <div className="max-w-6xl mx-auto">
           <h2
             className="text-3xl md:text-4xl font-extrabold text-white mb-12 text-center"
@@ -99,7 +99,7 @@ export default function PropertyManagementAppPage() {
       </section>
 
       {/* Use Cases */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-brand-forest">
+      <section className="py-16 marketing-gutter bg-brand-forest">
         <div className="max-w-6xl mx-auto">
           <h2
             className="text-3xl md:text-4xl font-extrabold text-white mb-12 text-center"
@@ -155,7 +155,7 @@ export default function PropertyManagementAppPage() {
       </section>
 
       {/* Why Mobile Matters */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8">
+      <section className="py-16 marketing-gutter">
         <div className="max-w-4xl mx-auto">
           <h2
             className="text-3xl md:text-4xl font-extrabold text-white mb-6 text-center"
@@ -211,7 +211,7 @@ export default function PropertyManagementAppPage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8">
+      <section className="py-16 marketing-gutter">
         <div className="max-w-4xl mx-auto text-center bg-brand-forest rounded-2xl p-12 text-white">
           <h2
             className="text-3xl md:text-4xl font-extrabold mb-6"
@@ -237,7 +237,7 @@ export default function PropertyManagementAppPage() {
       </section>
 
       {/* Related Links */}
-      <section className="py-12 px-4 sm:px-6 lg:px-8 border-t border-[var(--brand-border)]">
+      <section className="py-12 marketing-gutter border-t border-[var(--brand-border)]">
         <div className="max-w-6xl mx-auto">
           <p
             className="text-center text-white/80 mb-4"

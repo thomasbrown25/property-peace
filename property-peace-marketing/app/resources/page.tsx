@@ -52,7 +52,7 @@ export default function ResourcesPage() {
     <main className="min-h-screen bg-brand-forest text-white">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionSchema) }} />
 
-      <section data-marketing-hero-theme="dark" className="relative flex min-h-[440px] items-center overflow-hidden bg-brand-forest px-4 pb-20 pt-36 text-center text-white sm:px-6 md:min-h-[480px] md:pb-24 md:pt-40 lg:px-8">
+      <section data-marketing-hero-theme="dark" className="relative flex min-h-[440px] items-center overflow-hidden bg-brand-forest marketing-gutter pb-20 pt-36 text-center text-white md:min-h-[480px] md:pb-24 md:pt-40">
         <div className="absolute inset-0 bg-cover bg-center bg-no-repeat" style={{ backgroundImage: 'url(/images/resources/hero.png)' }} aria-hidden="true" />
         <div className="absolute inset-0 bg-brand-forest opacity-90" aria-hidden="true" />
         <div className="relative mx-auto max-w-3xl">
@@ -63,7 +63,7 @@ export default function ResourcesPage() {
         </div>
       </section>
 
-      <section className="bg-brand-forest px-4 pb-20 pt-8 text-white sm:px-6 md:pb-28 md:pt-12 lg:px-8">
+      <section className="bg-brand-forest marketing-gutter pb-20 pt-8 text-white md:pb-28 md:pt-12">
         <div className="mx-auto max-w-6xl">
           <h2 className="max-w-4xl text-3xl font-bold leading-tight text-white md:text-4xl" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>
             Resources to help you run your properties
@@ -97,7 +97,7 @@ export default function ResourcesPage() {
 
       <ResourceLibrary />
 
-      <section className="relative flex min-h-[480px] items-center overflow-hidden bg-brand-forest px-4 py-24 text-center text-white sm:px-6 md:min-h-[520px] lg:px-8">
+      <section className="relative flex min-h-[480px] items-center overflow-hidden bg-brand-forest marketing-gutter py-24 text-center text-white md:min-h-[520px]">
         <div className="absolute inset-0 bg-cover bg-center bg-no-repeat" style={{ backgroundImage: 'url(/images/cta/cta.png)' }} aria-hidden="true" />
         <div className="absolute inset-0 bg-brand-forest opacity-90" aria-hidden="true" />
         <div className="relative mx-auto max-w-3xl">

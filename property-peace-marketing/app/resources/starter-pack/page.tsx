@@ -88,7 +88,7 @@ export default function LandlordStarterPackPage() {
     <main className="min-h-screen bg-brand-forest text-white">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(pageSchema) }} />
 
-      <section data-marketing-hero-theme="dark" className="relative overflow-hidden bg-brand-forest px-4 pb-20 pt-32 text-white sm:px-6 md:pb-24 md:pt-36 lg:px-8">
+      <section data-marketing-hero-theme="dark" className="relative overflow-hidden bg-brand-forest marketing-gutter pb-20 pt-32 text-white md:pb-24 md:pt-36">
         <div className="pointer-events-none absolute -right-20 top-16 h-96 w-96 rounded-full bg-brand-teal opacity-10 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-32 left-0 h-96 w-96 rounded-full bg-brand-mint opacity-10 blur-3xl" />
 
@@ -120,7 +120,7 @@ export default function LandlordStarterPackPage() {
         </div>
       </section>
 
-      <section className="bg-brand-forest px-4 py-16 sm:px-6 md:py-20 lg:px-8">
+      <section className="bg-brand-forest marketing-gutter py-16 md:py-20">
         <div className="mx-auto max-w-6xl">
           <div className="max-w-3xl">
             <p className="mb-3 text-sm font-bold uppercase tracking-[0.2em] text-brand-mint">Choose only what you need</p>
@@ -149,7 +149,7 @@ export default function LandlordStarterPackPage() {
         </div>
       </section>
 
-      <section className="bg-brand-forest px-4 py-16 sm:px-6 lg:px-8">
+      <section className="bg-brand-forest marketing-gutter py-16">
         <div className="mx-auto grid max-w-6xl gap-6 md:grid-cols-[0.9fr_1.1fr]">
           <div className="border border-brand-mint bg-brand-ivory p-7 md:p-8">
             <FiShield className="h-7 w-7 text-brand-teal" />

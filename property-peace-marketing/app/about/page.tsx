@@ -55,7 +55,7 @@ export default function AboutPage() {
     <div className="min-h-screen bg-brand-forest text-white">
       <StructuredData data={webPageSchema({ path: '/about/', name: 'About Property Peace', description })} />
 
-      <section data-marketing-hero-theme="dark" className="relative flex min-h-[620px] items-center overflow-hidden bg-brand-forest px-4 pb-28 pt-36 text-center text-white sm:min-h-[680px] sm:px-6 md:pb-32 md:pt-40 lg:px-8">
+      <section data-marketing-hero-theme="dark" className="relative flex min-h-[620px] items-center overflow-hidden bg-brand-forest marketing-gutter pb-28 pt-36 text-center text-white sm:min-h-[680px] md:pb-32 md:pt-40">
         <div className="absolute inset-0 bg-cover bg-center bg-no-repeat" style={{ backgroundImage: 'url(/images/pricing/hero.png)' }} aria-hidden="true" />
         <div className="marketing-hero-fade absolute inset-0" aria-hidden="true" />
         <div className="relative mx-auto w-full max-w-3xl">
@@ -73,7 +73,7 @@ export default function AboutPage() {
       </section>
 
       <main>
-        <section id="why-we-exist" className="scroll-mt-24 bg-brand-forest px-4 py-20 sm:px-6 md:py-28 lg:px-8">
+        <section id="why-we-exist" className="scroll-mt-24 bg-brand-forest marketing-gutter py-20 md:py-28">
           <div className="mx-auto max-w-6xl">
             <div className="grid gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:gap-20">
               <div>
@@ -95,7 +95,7 @@ export default function AboutPage() {
           </div>
         </section>
 
-        <section className="bg-brand-forest px-4 py-20 sm:px-6 md:py-24 lg:px-8">
+        <section className="bg-brand-forest marketing-gutter py-20 md:py-24">
           <div className="mx-auto max-w-6xl">
             <div className="mb-12 max-w-2xl">
               <p className="text-xs font-bold uppercase tracking-[0.24em] text-brand-mint">The promise</p>
@@ -117,7 +117,7 @@ export default function AboutPage() {
           </div>
         </section>
 
-        <section className="bg-brand-forest px-4 py-20 sm:px-6 md:py-24 lg:px-8">
+        <section className="bg-brand-forest marketing-gutter py-20 md:py-24">
           <div className="mx-auto grid max-w-6xl gap-10 lg:grid-cols-2 lg:gap-16">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.24em] text-brand-mint">What that looks like</p>
@@ -143,7 +143,7 @@ export default function AboutPage() {
           </div>
         </section>
 
-        <section className="bg-brand-forest px-4 py-20 text-center text-white sm:px-6 lg:px-8">
+        <section className="bg-brand-forest marketing-gutter py-20 text-center text-white">
           <div className="mx-auto max-w-3xl border-t border-white/15 pt-20">
             <p className="text-xs font-bold uppercase tracking-[0.24em] text-brand-mint">A little more peace, every day</p>
             <h2 className="mt-5 text-3xl font-extrabold tracking-[-0.035em] md:text-4xl" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>Your homes deserve your attention. Your tools shouldn&apos;t demand it all.</h2>

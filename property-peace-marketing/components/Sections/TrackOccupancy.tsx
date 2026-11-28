@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 
 export default function TrackOccupancy() {
   return (
-    <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white">
+    <section className="py-20 marketing-gutter bg-white">
       <div className="max-w-6xl mx-auto">
         <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
           {/* Left Side - Content: centered when md or smaller */}

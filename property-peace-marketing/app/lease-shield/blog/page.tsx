@@ -69,7 +69,7 @@ const scenarios = [
 export default function LeaseShieldBlogPage() {
   return (
     <div className="min-h-screen bg-brand-forest text-white">
-      <section data-marketing-hero-theme="dark" className="relative overflow-hidden bg-brand-forest px-4 pb-20 pt-32 text-white sm:px-6 md:pb-24 md:pt-36 lg:px-8">
+      <section data-marketing-hero-theme="dark" className="relative overflow-hidden bg-brand-forest marketing-gutter pb-20 pt-32 text-white md:pb-24 md:pt-36">
         <div className="relative mx-auto max-w-6xl">
           <Link
             href="/features/lease-shield"
@@ -152,7 +152,7 @@ export default function LeaseShieldBlogPage() {
         </div>
       </section>
 
-      <article className="max-w-6xl mx-auto bg-brand-forest px-4 sm:px-6 lg:px-8 py-14 md:py-16">
+      <article className="max-w-6xl mx-auto bg-brand-forest marketing-gutter py-14 md:py-16">
         {/* Intro */}
         <section className="mb-12 grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
           <div>

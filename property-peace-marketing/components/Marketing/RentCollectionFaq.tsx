@@ -43,7 +43,7 @@ export default function RentCollectionFaq({ live }: RentCollectionFaqProps) {
   ];
 
   return (
-    <section aria-labelledby="rent-collection-faq" className="bg-brand-forest px-4 py-20 sm:px-6 lg:px-8">
+    <section aria-labelledby="rent-collection-faq" className="bg-brand-forest marketing-gutter py-20">
       <div className="mx-auto max-w-5xl">
         <div className="text-center">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-brand-mint">Frequently asked questions</p>

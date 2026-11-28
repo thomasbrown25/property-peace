@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 
 export default function Testimonials() {
   return (
-    <section className="py-16 px-4 sm:px-6 lg:px-8 bg-primary-main text-white">
+    <section className="py-16 marketing-gutter bg-primary-main text-white">
       <div className="max-w-6xl mx-auto">
         <div className="grid md:grid-cols-2 gap-12 items-center">
           {/* Left Side - Image */}

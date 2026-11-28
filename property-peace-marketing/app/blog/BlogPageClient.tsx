@@ -51,7 +51,7 @@ export default function BlogPageClient({ posts }: { posts: PublishedBlogSummary[
       <div className="relative overflow-hidden bg-brand-forest text-white">
 
         <div className="absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-[color-mix(in_srgb,var(--brand-teal-hover)_20%,transparent)] via-brand-forest to-brand-forest" />
-        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 md:pt-32 pb-14 text-center">
+        <div className="relative max-w-6xl mx-auto marketing-gutter pt-28 md:pt-32 pb-14 text-center">
           <div
             className="inline-flex items-center gap-2 bg-brand-mint border border-[color:color-mix(in_srgb,var(--brand-teal)_20%,transparent)] text-brand-teal text-xs font-semibold tracking-widest uppercase px-4 py-1.5 rounded-full mb-6 shadow-sm"
             style={{ fontFamily: '"Inter", sans-serif' }}
@@ -97,7 +97,7 @@ export default function BlogPageClient({ posts }: { posts: PublishedBlogSummary[
             borderTop: '1px solid rgba(255,255,255,0.2)',
           }}
         >
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="max-w-6xl mx-auto marketing-gutter py-4">
             <div className="flex gap-2 flex-wrap justify-center">
               {categories.map((cat) => (
                 <button
@@ -127,7 +127,7 @@ export default function BlogPageClient({ posts }: { posts: PublishedBlogSummary[
 
       {/* ── Posts ────────────────────────────────────────────────────────── */}
       <div className="bg-brand-forest text-white">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
+        <div className="max-w-6xl mx-auto marketing-gutter py-14">
           <AnimatePresence mode="wait">
             {filtered.length === 0 ? (
               <motion.div

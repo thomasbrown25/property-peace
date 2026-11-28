@@ -328,7 +328,7 @@ function WorkflowStepper() {
 
 export default function ProofBand() {
   return (
-    <section className="relative overflow-hidden bg-white px-4 py-20 sm:px-6 lg:px-8">
+    <section className="relative overflow-hidden bg-white marketing-gutter py-20">
       <div className="absolute inset-x-0 top-0 h-px bg-slate-100" />
 
       <div className="relative mx-auto max-w-6xl">

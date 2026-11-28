@@ -27,7 +27,7 @@ const supportTopics = [
 export default function ContactPage() {
   return (
     <div className="min-h-screen bg-brand-forest text-white">
-      <section className="relative overflow-hidden bg-brand-forest px-4 pt-32 pb-20 sm:px-6 md:pt-40 lg:px-8">
+      <section className="relative overflow-hidden bg-brand-forest marketing-gutter pt-32 pb-20 md:pt-40">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-56 bg-gradient-to-b from-brand-forest-raised to-brand-forest" />
         <div className="pointer-events-none absolute left-1/2 top-20 h-72 w-72 -translate-x-1/2 rounded-full bg-[color-mix(in_srgb,var(--brand-mint)_20%,transparent)] blur-3xl" />
 

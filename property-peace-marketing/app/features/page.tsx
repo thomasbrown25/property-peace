@@ -195,7 +195,7 @@ export default function FeaturesPage() {
 
       <main className="overflow-hidden">
         {/* Hero */}
-        <section className="relative bg-brand-forest px-4 pb-16 pt-24 sm:px-6 lg:px-8 lg:pb-20 lg:pt-28">
+        <section className="relative bg-brand-forest marketing-gutter pb-16 pt-24 lg:pb-20 lg:pt-28">
           <div className="absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-[color-mix(in_srgb,var(--brand-teal)_10%,transparent)] via-brand-forest to-brand-forest" />
           <div className="relative mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-[1.05fr_0.95fr]">
             <div>
@@ -286,7 +286,7 @@ export default function FeaturesPage() {
         </section>
 
         {/* Features by Category */}
-        <section className="bg-brand-forest px-4 py-16 sm:px-6 lg:px-8">
+        <section className="bg-brand-forest marketing-gutter py-16">
           <div className="mx-auto max-w-6xl space-y-16">
             {featureCategories.map((category) => {
               const details = categoryDetails[category.title];
@@ -349,7 +349,7 @@ export default function FeaturesPage() {
         </section>
 
         {/* Call to Action */}
-        <section className="bg-brand-forest px-4 pb-20 pt-6 sm:px-6 lg:px-8">
+        <section className="bg-brand-forest marketing-gutter pb-20 pt-6">
           <div className="mx-auto max-w-5xl overflow-hidden rounded-[2rem] bg-brand-forest p-8 text-center shadow-2xl shadow-[color:color-mix(in_srgb,var(--brand-forest)_15%,transparent)] md:p-12">
             <span className="inline-flex rounded-full border border-[color:color-mix(in_srgb,var(--brand-teal)_20%,transparent)] bg-[color-mix(in_srgb,var(--brand-mint)_10%,transparent)] px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-brand-mint">
               Ready when you are

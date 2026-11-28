@@ -48,7 +48,7 @@ export default function Solutions() {
   };
 
   return (
-    <section className="py-20 px-4 sm:px-6 lg:px-8 bg-brand-ivory">
+    <section className="py-20 marketing-gutter bg-brand-ivory">
       <div className="max-w-6xl mx-auto">
         {/* Headline */}
         <motion.h2

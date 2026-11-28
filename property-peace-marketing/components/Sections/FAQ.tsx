@@ -59,7 +59,7 @@ export default function FAQ({ dark = false, asPage = false }: { dark?: boolean; 
   };
 
   return (
-    <section className={`relative overflow-hidden px-4 py-16 sm:px-6 lg:px-8 ${dark ? 'bg-brand-forest' : 'bg-brand-ivory'}`}>
+    <section className={`relative overflow-hidden marketing-gutter py-16 ${dark ? 'bg-brand-forest' : 'bg-brand-ivory'}`}>
       {!dark && (
         <div
           className="pointer-events-none absolute inset-x-0 top-0 h-px"

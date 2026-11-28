@@ -26,7 +26,7 @@ export default function CustomerReviewMarquee() {
     <section
       data-homepage-review-marquee="true"
       aria-labelledby="customer-review-marquee-heading"
-      className="relative overflow-hidden bg-brand-forest px-4 pb-24 pt-20 text-white sm:px-6 sm:pb-28 sm:pt-24 lg:px-8 lg:pt-28"
+      className="relative overflow-hidden bg-brand-forest marketing-gutter pb-24 pt-20 text-white sm:pb-28 sm:pt-24 lg:pt-28"
     >
       <div
         aria-hidden="true"

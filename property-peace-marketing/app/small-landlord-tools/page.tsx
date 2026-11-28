@@ -47,7 +47,7 @@ export default function SmallLandlordToolsPage() {
   return (
     <div className="min-h-screen bg-brand-forest text-white">
       {/* Hero Section */}
-      <section className="bg-brand-forest px-4 pb-16 pt-32 sm:px-6 lg:px-8">
+      <section className="bg-brand-forest marketing-gutter pb-16 pt-32">
         <div className="max-w-4xl mx-auto text-center">
           <h1
             className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-white mb-6"
@@ -73,7 +73,7 @@ export default function SmallLandlordToolsPage() {
       </section>
 
       {/* Tools Section */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8">
+      <section className="py-16 marketing-gutter">
         <div className="max-w-6xl mx-auto">
           <h2
             className="text-3xl md:text-4xl font-extrabold text-white mb-12 text-center"
@@ -98,7 +98,7 @@ export default function SmallLandlordToolsPage() {
       </section>
 
       {/* Why Small Landlords Need These Tools */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-brand-forest">
+      <section className="py-16 marketing-gutter bg-brand-forest">
         <div className="max-w-6xl mx-auto">
           <h2
             className="text-3xl md:text-4xl font-extrabold text-white mb-12 text-center"
@@ -168,7 +168,7 @@ export default function SmallLandlordToolsPage() {
       </section>
 
       {/* Affordable Pricing */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8">
+      <section className="py-16 marketing-gutter">
         <div className="max-w-4xl mx-auto text-center">
           <h2
             className="text-3xl md:text-4xl font-extrabold text-white mb-6"
@@ -208,7 +208,7 @@ export default function SmallLandlordToolsPage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-brand-forest">
+      <section className="py-16 marketing-gutter bg-brand-forest">
         <div className="max-w-4xl mx-auto text-center text-white">
           <h2
             className="text-3xl md:text-4xl font-extrabold mb-6"
@@ -234,7 +234,7 @@ export default function SmallLandlordToolsPage() {
       </section>
 
       {/* Related Links */}
-      <section className="py-12 px-4 sm:px-6 lg:px-8 border-t border-[var(--brand-border)]">
+      <section className="py-12 marketing-gutter border-t border-[var(--brand-border)]">
         <div className="max-w-6xl mx-auto">
           <p
             className="text-center text-white/80 mb-4"

@@ -84,7 +84,7 @@ export default function NicheLandingPage({ config }: { config: NicheLandingPageC
       <main>
         <section
           data-marketing-hero-theme="light"
-          className="relative overflow-hidden bg-brand-forest px-4 pb-20 pt-32 text-white sm:px-6 sm:pb-24 sm:pt-36 lg:px-8"
+          className="relative overflow-hidden bg-brand-forest marketing-gutter pb-20 pt-32 text-white sm:pb-24 sm:pt-36"
         >
           <div
             data-marketing-hero-layout="split"
@@ -126,7 +126,7 @@ export default function NicheLandingPage({ config }: { config: NicheLandingPageC
           </div>
         </section>
 
-        <section className="px-4 py-16 sm:px-6 lg:px-8">
+        <section className="marketing-gutter py-16">
           <div className="mx-auto grid max-w-6xl gap-10 lg:grid-cols-[0.95fr_1.05fr] lg:items-start">
             <div>
               <p className="mb-3 text-sm font-bold uppercase tracking-[0.2em] text-brand-mint">Built for your niche</p>
@@ -148,7 +148,7 @@ export default function NicheLandingPage({ config }: { config: NicheLandingPageC
           </div>
         </section>
 
-        <section className="bg-brand-forest px-4 py-16 sm:px-6 lg:px-8">
+        <section className="bg-brand-forest marketing-gutter py-16">
           <div className="mx-auto max-w-6xl">
             <div className="mx-auto max-w-3xl text-center">
               <h2 className="text-3xl font-extrabold text-white md:text-4xl" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>
@@ -173,7 +173,7 @@ export default function NicheLandingPage({ config }: { config: NicheLandingPageC
           </div>
         </section>
 
-        <section className="px-4 py-16 sm:px-6 lg:px-8">
+        <section className="marketing-gutter py-16">
           <div className="mx-auto max-w-5xl rounded-[2rem] bg-brand-forest p-8 text-white md:p-12">
             <div className="grid gap-8 md:grid-cols-[0.85fr_1.15fr] md:items-center">
               <div>
@@ -192,7 +192,7 @@ export default function NicheLandingPage({ config }: { config: NicheLandingPageC
           </div>
         </section>
 
-        <section className="bg-brand-forest px-4 py-16 sm:px-6 lg:px-8">
+        <section className="bg-brand-forest marketing-gutter py-16">
           <div className="mx-auto max-w-4xl">
             <h2 className="text-center text-3xl font-extrabold text-white md:text-4xl" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>
               Questions landlords ask before switching
@@ -210,7 +210,7 @@ export default function NicheLandingPage({ config }: { config: NicheLandingPageC
           </div>
         </section>
 
-        <section className="px-4 py-12 sm:px-6 lg:px-8">
+        <section className="marketing-gutter py-12">
           <div className="mx-auto max-w-6xl text-center">
             <p className="mb-4 text-sm font-bold uppercase tracking-[0.18em] text-brand-ivory">Related landlord software pages</p>
             <div className="flex flex-wrap justify-center gap-3">

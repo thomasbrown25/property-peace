@@ -314,7 +314,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
       <div className="article-hero relative overflow-hidden bg-brand-forest text-white print:bg-brand-surface print:text-brand-forest">
 
         <div className="absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-[color-mix(in_srgb,var(--brand-teal-hover)_20%,transparent)] via-brand-forest to-brand-forest" />
-        <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-16">
+        <div className="relative max-w-4xl mx-auto marketing-gutter pt-10 pb-16">
           {/* Back link */}
           <Link
             href="/blog"
@@ -422,7 +422,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
 
       {/* ── Article body ──────────────────────────────────────────────────── */}
       <div className="bg-brand-forest text-white">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-14 lg:py-16">
+        <div className="max-w-6xl mx-auto marketing-gutter py-14 lg:py-16">
           <div className="lg:grid lg:grid-cols-[minmax(0,760px)_320px] lg:gap-10">
             <main id="article" className="article-main min-w-0 rounded-2xl bg-brand-surface p-5 text-brand-forest sm:p-8">
               {headings.length > 0 && (

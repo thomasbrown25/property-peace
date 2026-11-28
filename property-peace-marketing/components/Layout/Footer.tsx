@@ -12,7 +12,7 @@ export default function Footer() {
 
   return (
     <footer className="relative overflow-hidden bg-brand-forest text-white">
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <div className="relative z-10 max-w-7xl mx-auto marketing-gutter py-16">
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-8 lg:gap-8">
           {/* Logo & Social - Left Column */}
           <div className="col-span-2 md:col-span-1 order-first text-center lg:text-left">
