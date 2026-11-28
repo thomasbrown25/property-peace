@@ -15,7 +15,6 @@ import {
   STRIPE_TAB
 } from 'utils/onlinePaymentTabs';
 import { makeRentPaymentAccessScopeKey } from 'utils/rentPaymentAccess';
-import OnlinePaymentsIntroDialog from './OnlinePaymentsIntroDialog';
 import { PaymentsSettingsContent } from './PaymentsSettings';
 import PayoutAssignments from './PayoutAssignments';
 
@@ -61,7 +60,6 @@ export default function OnlinePaymentSettings() {
 
   return (
     <Stack spacing={2.5}>
-      {introScope && <OnlinePaymentsIntroDialog key={introScope} scopeKey={introScope} />}
       <Box sx={recordTabsSx}>
         <Tabs value={selectedTab} onChange={(_event, value) => selectTab(value)} variant="scrollable" scrollButtons="auto" aria-label="Online payment settings">
           {paymentTabs.map(({ id, label }) => (
@@ -80,6 +78,7 @@ export default function OnlinePaymentSettings() {
         {selectedTab === STRIPE_TAB && (
           <PaymentsSettingsContent
             rentPaymentAccess={rentPaymentAccess}
+            introScope={introScope}
             showStripeSetup={isStripeSetupRequested(searchParams)}
             initialSetupMode={searchParams.get('setupMode') === 'existing' ? 'existing' : 'new'}
             onOpenStripeSetup={openStripeSetup}

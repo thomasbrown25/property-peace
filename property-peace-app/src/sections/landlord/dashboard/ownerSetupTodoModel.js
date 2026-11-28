@@ -44,7 +44,8 @@ export function getOwnerSetupTodos(paymentAccountStatus, rentPaymentAccess, { pr
 }
 
 export function getOwnerSetupCompletion({ remainingCount, propertiesStatus, propertyCount, paymentAccountStatus }) {
-  const completed = Number(propertiesStatus === 'ready' && propertyCount > 0) + Number(paymentAccountStatus?.isEnabled === true);
+  const paymentSetupComplete = paymentAccountStatus?.detailsSubmitted === true || paymentAccountStatus?.isEnabled === true;
+  const completed = Number(propertiesStatus === 'ready' && propertyCount > 0) + Number(paymentSetupComplete);
   const total = completed + remainingCount;
   return total ? Math.round((completed / total) * 100) : 0;
 }

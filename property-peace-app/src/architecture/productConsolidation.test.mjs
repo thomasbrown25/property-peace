@@ -171,14 +171,19 @@ test('Wren starter prompts and composer fail closed when the runtime is unavaila
   assert.match(mobilePanel, />\s*Activity history\s*<\/Button>/);
 });
 
-test('Wren shares its resting mascot across the sidenav and AI workspace and streams in one assistant row', async () => {
+test('Wren floats in the sidebar, welcome screen, and assistant replies and streams in one assistant row', async () => {
   const aiCenter = await source('pages/landlord/ai-center.jsx');
   const sidebar = await source('layout/Dashboard/LandlordSidebar.jsx');
+  const mascot = await source('components/FloatingWren.jsx');
 
-  assert.match(aiCenter, /wren-mascot-resting\.webp/);
-  assert.match(sidebar, /wren-mascot-resting\.webp/);
+  assert.match(aiCenter, /<FloatingWren placement="welcome"/);
+  assert.match(aiCenter, /<FloatingWren placement="reply"/);
+  assert.match(sidebar, /<FloatingWren placement="sidebar"/);
+  assert.match(mascot, /wren-floating-sidebar\.webp/);
+  assert.match(mascot, /wren-floating-chat\.webp/);
+  assert.match(mascot, /prefers-reduced-motion: reduce/);
   assert.match(aiCenter, /How can I help today\?/);
-  assert.match(aiCenter, /theme\.palette\.mode === 'dark'/);
+  assert.match(mascot, /theme\.palette\.mode === 'dark'/);
   assert.match(aiCenter, /streaming: true/);
   assert.match(aiCenter, /<AssistantMessage[\s\S]*?progressText=\{progressText\}/);
   assert.doesNotMatch(aiCenter, /\{thinking && \(\s*<Stack direction="row" spacing=\{1\.5\}/);

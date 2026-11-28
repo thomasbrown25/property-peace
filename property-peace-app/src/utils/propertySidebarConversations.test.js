@@ -1,6 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getConversationId, getConversationTitle, getPropertyConversations } from './propertySidebarConversations.js';
+import {
+  getConversationId,
+  getConversationTitle,
+  getGeneralConversations,
+  getPropertyConversations
+} from './propertySidebarConversations.js';
 
 test('returns active property conversations in most-recent order', () => {
   const conversations = [
@@ -17,4 +22,15 @@ test('returns active property conversations in most-recent order', () => {
 test('provides a stable conversation title fallback', () => {
   assert.equal(getConversationTitle({ Title: 'Wren chat' }), 'Wren chat');
   assert.equal(getConversationTitle({}), 'Untitled conversation');
+});
+
+test('returns active general conversations in most-recent order', () => {
+  const conversations = [
+    { id: 1, title: 'Older', updatedAt: '2026-01-02T10:00:00Z' },
+    { id: 2, propertyId: 9, title: 'Property chat', updatedAt: '2026-01-05T10:00:00Z' },
+    { id: 3, title: 'Archived', isArchived: true, updatedAt: '2026-01-06T10:00:00Z' },
+    { Id: 4, PropertyId: null, Title: 'Newest', UpdatedAt: '2026-01-04T10:00:00Z' }
+  ];
+
+  assert.deepEqual(getGeneralConversations(conversations).map(getConversationId), [4, 1]);
 });

@@ -34,6 +34,7 @@ import { validateConnectOnboardingContext } from 'utils/connectOnboarding';
 import { ONLINE_PAYMENT_SETUP_PATH } from 'utils/onlinePaymentTabs';
 import { getStripeBankAccountStatus } from 'utils/stripeBankAccountStatus';
 import { getTrustedStripeAuthorizationUrl } from './stripeExistingAccountUrl.mjs';
+import OnlinePaymentsIntroDialog from './OnlinePaymentsIntroDialog';
 import { useOrganization } from 'contexts/OrganizationContext';
 import {
   canCreateInitialStripeAccount,
@@ -162,7 +163,7 @@ function DemoStripePaymentsPreview() {
   );
 }
 
-export function PaymentsSettingsContent({ rentPaymentAccess, showStripeSetup = false, initialSetupMode = 'new', onOpenStripeSetup, onCloseStripeSetup }) {
+export function PaymentsSettingsContent({ rentPaymentAccess, introScope, showStripeSetup = false, initialSetupMode = 'new', onOpenStripeSetup, onCloseStripeSetup }) {
   const theme = useTheme();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -393,6 +394,7 @@ export function PaymentsSettingsContent({ rentPaymentAccess, showStripeSetup = f
           ChargesEnabled: data?.chargesEnabled === true,
           PayoutsEnabled: data?.payoutsEnabled === true,
           CardPaymentsCapabilityStatus: data?.cardPaymentsCapabilityStatus || null,
+          IsVerificationPending: data?.isVerificationPending === true,
           HasPastDueRequirements: data?.hasPastDueRequirements === true,
           PastDueRequirementLabels: data?.pastDueRequirementLabels,
           DetailsSubmitted: data?.detailsSubmitted === true,
@@ -868,6 +870,7 @@ export function PaymentsSettingsContent({ rentPaymentAccess, showStripeSetup = f
 
   return (
     <Box>
+      {introScope && canCreateInitialAccount && <OnlinePaymentsIntroDialog key={introScope} scopeKey={introScope} />}
       <Stack spacing={2}>
         <Typography component="h2" variant="h5" fontWeight={700}>
           Stripe account

@@ -372,6 +372,7 @@ namespace brownstone_hub_api.Services.StripeService
                     ChargesEnabled = snapshot?.ChargesEnabled ?? false,
                     PayoutsEnabled = snapshot?.PayoutsEnabled ?? false,
                     CardPaymentsCapabilityStatus = statusSnapshot?.CardPaymentsCapabilityStatus,
+                    IsVerificationPending = statusSnapshot?.DisabledReason == "requirements.pending_verification",
                     HasPastDueRequirements = statusSnapshot is not null && (statusSnapshot.PastDue.Count > 0
                         || statusSnapshot.DisabledReason == "requirements.past_due"),
                     PastDueRequirementLabels = statusSnapshot?.PastDue

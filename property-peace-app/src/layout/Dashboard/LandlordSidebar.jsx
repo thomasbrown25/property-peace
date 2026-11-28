@@ -6,6 +6,7 @@ import ArchiveOutlined from '@mui/icons-material/ArchiveOutlined';
 import SettingsOutlined from '@mui/icons-material/SettingsOutlined';
 import AppIcon from 'components/AppIcon';
 import BrandedIcon from 'components/BrandedIcon';
+import FloatingWren from 'components/FloatingWren';
 import {
   Box,
   Button,
@@ -26,7 +27,6 @@ import {
 import Logo from 'components/logo';
 import { brand } from 'themes/brand';
 import compactLogo from 'assets/images/logos/logo-white.png';
-import wrenMascot from 'assets/images/logos/wren-mascot-resting.webp';
 import useFetchProperties from 'hooks/useFetchProperties';
 import useAuth from 'hooks/useAuth';
 import { useDrawer } from 'contexts/DrawerContext';
@@ -40,7 +40,12 @@ import {
   recordRecentlyViewedProperty,
   sortPropertiesByLastVisit
 } from 'utils/recentlyViewedProperties';
-import { getConversationId, getConversationTitle, getPropertyConversations } from 'utils/propertySidebarConversations';
+import {
+  getConversationId,
+  getConversationTitle,
+  getGeneralConversations,
+  getPropertyConversations
+} from 'utils/propertySidebarConversations';
 import { useSubscriptionStatus } from 'hooks/useSubscription';
 import { activeLandlordPrimaryLink, landlordMoreLinks, landlordPrimaryLinks } from 'utils/landlordPrimaryNavigation';
 import { dashboardEntranceDelay, dashboardSlideDownSx } from 'sections/landlord/dashboard/dashboardEntrance.mjs';
@@ -52,8 +57,12 @@ export const LANDLORD_SIDEBAR_WIDTH = 260;
 const sidebarBackground = brand.forest;
 const propertyMenuWidth = 200;
 const addPropertyPath = '/landlord/properties/add';
+const newChatPath = '/landlord/ai-center?new=1';
 const propertySubtitleColor = 'rgba(255,255,255,0.72)';
-const visibleConversationLimit = 5;
+const visibleGeneralConversationLimit = 4;
+const visiblePropertyConversationLimit = 5;
+const propertyRowButtonSx = { minWidth: 0, minHeight: 34, px: 1, py: 0.25, gap: 1, borderRadius: 1.5 };
+const propertyRowTextProps = { fontSize: 13, fontWeight: 400, noWrap: true, sx: { color: '#FFFFFF' } };
 const propertyActions = [
   { action: 'view', label: 'View property', icon: 'house' },
   { action: 'edit', label: 'Edit property', icon: 'edit' },
@@ -232,6 +241,9 @@ export default function LandlordSidebar({ desktopOpen, desktopWidth, mobileOpen,
               }
             }}
           >
+            <IconButton component={Link} to={newChatPath} aria-label="New chat" title="New chat" disabled={trialExpired} color="inherit">
+              <AppIcon name="edit" size={19} />
+            </IconButton>
             <IconButton
               component={Link}
               to="/landlord/properties"
@@ -365,6 +377,7 @@ function PropertyNavigation({
   const searchButtonRef = useRef(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [expandedPropertyId, setExpandedPropertyId] = useState(null);
+  const [showAllGeneralConversations, setShowAllGeneralConversations] = useState(false);
   const [showAllPropertyIds, setShowAllPropertyIds] = useState(() => new Set());
   const [propertyMenu, setPropertyMenu] = useState(null);
   const [archivingConversationId, setArchivingConversationId] = useState(null);
@@ -438,6 +451,10 @@ function PropertyNavigation({
     '&.Mui-selected': { bgcolor: 'rgba(185, 228, 203, 0.16)', '&:hover': { bgcolor: 'rgba(185, 228, 203, 0.22)' } },
     '&:focus-visible': { outline: '2px solid', outlineColor: brand.mint, outlineOffset: -2 }
   };
+  const generalConversations = getGeneralConversations(conversations);
+  const displayedGeneralConversations = showAllGeneralConversations
+    ? generalConversations
+    : generalConversations.slice(0, visibleGeneralConversationLimit);
   return (
     <Box
       component="nav"
@@ -456,13 +473,28 @@ function PropertyNavigation({
           borderBottom: '1px solid rgba(255, 255, 255, 0.14)'
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Box
-            component="img"
-            src={wrenMascot}
-            alt=""
-            sx={{ display: 'block', width: 44, height: 44, flexShrink: 0, objectFit: 'contain' }}
-          />
+        <Box
+          component={Link}
+          to={newChatPath}
+          aria-label="Wren AI"
+          aria-current={pathname === '/landlord/ai-center' ? 'page' : undefined}
+          aria-disabled={disabled || undefined}
+          tabIndex={disabled ? -1 : undefined}
+          onClick={(event) => {
+            if (disabled) event.preventDefault();
+            else onNavigate?.();
+          }}
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            color: 'inherit',
+            textDecoration: 'none',
+            borderRadius: 1,
+            '&:focus-visible': { outline: `2px solid ${brand.mint}`, outlineOffset: 2 }
+          }}
+        >
+          <FloatingWren placement="sidebar" />
           <Typography component="h1" variant="h5" sx={{ color: 'inherit', fontWeight: 700, letterSpacing: '-0.02em' }}>
             Wren
           </Typography>
@@ -485,6 +517,97 @@ function PropertyNavigation({
           </IconButton>
         )}
       </Box>
+      <ListItemButton
+        component={Link}
+        to={newChatPath}
+        disabled={disabled}
+        onClick={onNavigate}
+        sx={{ ...rowSx, ...propertyRowButtonSx, mt: 1, flex: '0 0 auto' }}
+      >
+        <AppIcon name="edit" size={19} />
+        <ListItemText primary="New chat" primaryTypographyProps={propertyRowTextProps} />
+      </ListItemButton>
+      {generalConversations.length > 0 && (
+        <Box
+          sx={{
+            ml: 4.75,
+            mr: 1.5,
+            mb: 0.5,
+            flexShrink: 1,
+            minHeight: 0,
+            maxHeight: showAllGeneralConversations ? 'min(40vh, 320px)' : 'none',
+            overflowY: showAllGeneralConversations ? 'auto' : 'visible',
+            scrollbarWidth: 'thin',
+            scrollbarColor: 'rgba(255,255,255,0.4) transparent'
+          }}
+        >
+          {displayedGeneralConversations.map((conversation) => {
+            const conversationId = getConversationId(conversation);
+            const title = getConversationTitle(conversation);
+            return (
+              <Box
+                key={conversationId}
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  borderRadius: 1.5,
+                  '&:hover': { bgcolor: 'rgba(255,255,255,0.08)' },
+                  '&:focus-within': { bgcolor: 'rgba(255,255,255,0.08)' }
+                }}
+              >
+                <ListItemButton
+                  component={Link}
+                  to={`/landlord/ai-center?conversationId=${encodeURIComponent(conversationId)}`}
+                  onClick={onNavigate}
+                  sx={{
+                    minWidth: 0,
+                    minHeight: 36,
+                    px: 1,
+                    py: 0.25,
+                    borderRadius: 1.5,
+                    color: propertySubtitleColor,
+                    '&:hover': { bgcolor: 'transparent' },
+                    '&:focus-visible': { outline: `2px solid ${brand.mint}`, outlineOffset: -2 }
+                  }}
+                >
+                  <ListItemText
+                    primary={title}
+                    primaryTypographyProps={{ fontSize: 13, fontWeight: 400, noWrap: true, title, sx: { color: 'inherit' } }}
+                  />
+                </ListItemButton>
+                <IconButton
+                  aria-label={`Archive ${title}`}
+                  title={`Archive ${title}`}
+                  size="small"
+                  disabled={archivingConversationId != null}
+                  onClick={(event) => archiveChat(event, conversationId)}
+                  sx={{ width: 30, height: 30, color: propertySubtitleColor, '&:hover': { color: '#FFFFFF' } }}
+                >
+                  <ArchiveOutlined sx={{ fontSize: 17 }} />
+                </IconButton>
+              </Box>
+            );
+          })}
+          {generalConversations.length > visibleGeneralConversationLimit && (
+            <Button
+              type="button"
+              size="small"
+              onClick={() => setShowAllGeneralConversations((current) => !current)}
+              sx={{
+                minWidth: 0,
+                px: 1,
+                py: 0.25,
+                color: propertySubtitleColor,
+                textTransform: 'none',
+                fontSize: 13,
+                '&:hover': { color: '#FFFFFF', bgcolor: 'transparent' }
+              }}
+            >
+              {showAllGeneralConversations ? 'Show less' : 'Show more'}
+            </Button>
+          )}
+        </Box>
+      )}
       {!loading && !isEmptyPortfolio && (
         <Collapse in={searchOpen} timeout={reducedMotion ? 0 : 240} unmountOnExit sx={{ flexShrink: 0 }}>
           <Box id={searchId} sx={{ px: 1.5, pt: 1, pb: 1 }}>
@@ -633,7 +756,9 @@ function PropertyNavigation({
               const toggleId = `${conversationsId}-toggle`;
               const propertyConversations = getPropertyConversations(conversations, property.id);
               const showingAll = showAllPropertyIds.has(String(property.id));
-              const displayedConversations = showingAll ? propertyConversations : propertyConversations.slice(0, visibleConversationLimit);
+              const displayedConversations = showingAll
+                ? propertyConversations
+                : propertyConversations.slice(0, visiblePropertyConversationLimit);
               return (
                 <Box component="li" key={property.id} sx={{ display: 'flex', flexDirection: 'column' }}>
                   <Box
@@ -659,28 +784,14 @@ function PropertyNavigation({
                       aria-controls={expanded ? conversationsId : undefined}
                       onClick={() => setExpandedPropertyId(expanded ? null : property.id)}
                       sx={{
-                        minWidth: 0,
-                        minHeight: 34,
-                        px: 1,
-                        py: 0.25,
-                        gap: 1,
-                        borderRadius: 1.5,
+                        ...propertyRowButtonSx,
                         color: 'inherit',
                         '&:hover': { bgcolor: 'transparent' },
                         '&:focus-visible': { outline: `2px solid ${brand.mint}`, outlineOffset: -2 }
                       }}
                     >
-                      <AppIcon name="house" size={19} />
-                      <ListItemText
-                        primary={property.name}
-                        primaryTypographyProps={{
-                          fontSize: 13,
-                          fontWeight: 400,
-                          noWrap: true,
-                          title: property.name,
-                          sx: { color: '#FFFFFF' }
-                        }}
-                      />
+                      <AppIcon name="properties" size={19} />
+                      <ListItemText primary={property.name} primaryTypographyProps={{ ...propertyRowTextProps, title: property.name }} />
                     </ListItemButton>
                     <IconButton
                       aria-label={`Actions for ${property.name}`}
@@ -769,7 +880,7 @@ function PropertyNavigation({
                               : 'No Wren chats yet'}
                         </Typography>
                       )}
-                      {propertyConversations.length > visibleConversationLimit && (
+                      {propertyConversations.length > visiblePropertyConversationLimit && (
                         <Button
                           type="button"
                           size="small"

@@ -42,6 +42,19 @@ test('submitted Stripe details with a pending card capability show verification 
   assert.equal(status.setupRequired, false);
 });
 
+test('account verification can be pending even when the card capability is active', () => {
+  const status = getStripeBankAccountStatus({
+    AccountId: 'acct_test',
+    DetailsSubmitted: true,
+    IsVerificationPending: true,
+    CardPaymentsCapabilityStatus: 'active',
+    PayoutsEnabled: false
+  });
+
+  assert.equal(status.label, 'Verification pending');
+  assert.equal(status.setupRequired, false);
+});
+
 test('setup is offered when Stripe is disconnected or onboarding is incomplete', () => {
   assert.equal(getStripeBankAccountStatus({ AccountId: null }).setupRequired, true);
   const status = getStripeBankAccountStatus({ AccountId: 'acct_test', Status: 'onboarding', DetailsSubmitted: false });
