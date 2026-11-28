@@ -29,7 +29,7 @@ import {
   SyncOutlined,
   ToolOutlined
 } from '@ant-design/icons';
-import wrenMascot from 'assets/images/logos/wren-mascot-resting.webp';
+import FloatingWren from 'components/FloatingWren';
 import useOrganizationSummary from 'hooks/useOrganizationSummary';
 import useAuth from 'hooks/useAuth';
 import useWrenConversations from 'hooks/useWrenConversations';
@@ -52,42 +52,20 @@ import {
   makeAICenterScope
 } from 'utils/aiCenterScope';
 
-const GREEN = '#41a541';
+const workspaceIconSx = { display: 'grid', placeItems: 'center', flexShrink: 0, color: 'primary.main' };
+const toolShortcutSx = {
+  justifyContent: 'flex-start',
+  color: 'text.secondary',
+  textTransform: 'none',
+  '& .MuiButton-startIcon, & .MuiButton-endIcon': { color: 'primary.main' },
+  '& .MuiButton-endIcon': { ml: 'auto' }
+};
 const STARTER_PROMPTS = [
   { label: 'Rent at risk', prompt: 'Which tenants are behind on rent?', icon: <DollarCircleOutlined /> },
   { label: 'Urgent maintenance', prompt: 'Summarize urgent maintenance.', icon: <ToolOutlined /> },
   { label: 'Lease expirations', prompt: 'Show leases expiring in the next 60 days.', icon: <ClockCircleOutlined /> },
   { label: 'Portfolio pulse', prompt: 'Give me a quick portfolio summary.', icon: <DatabaseOutlined /> }
 ];
-
-function WrenAvatar() {
-  const theme = useTheme();
-  const darkMode = theme.palette.mode === 'dark';
-
-  return (
-    <Box
-      aria-hidden="true"
-      sx={{
-        width: 32,
-        height: 32,
-        flexShrink: 0,
-        borderRadius: 1.25,
-        display: 'grid',
-        placeItems: 'center',
-        bgcolor: alpha(theme.palette.text.primary, darkMode ? 0.07 : 0.055),
-        border: '1px solid',
-        borderColor: alpha(theme.palette.text.primary, darkMode ? 0.1 : 0.07)
-      }}
-    >
-      <Box
-        component="img"
-        src={wrenMascot}
-        alt=""
-        sx={{ width: '82%', height: '82%', objectFit: 'contain', display: 'block' }}
-      />
-    </Box>
-  );
-}
 
 const readField = (value, ...keys) => {
   for (const key of keys) {
@@ -157,9 +135,7 @@ function ToolStatus({ tool }) {
   return (
     <Box sx={{ mt: 1.5, px: 1.25, py: 1, borderRadius: 1.75, bgcolor: 'surface.nested', border: '1px solid', borderColor: 'divider' }}>
       <Stack direction="row" spacing={1} alignItems="center">
-        <Box
-          sx={{ width: 28, height: 28, borderRadius: 1, display: 'grid', placeItems: 'center', bgcolor: alpha(GREEN, 0.1), color: GREEN }}
-        >
+        <Box sx={{ ...workspaceIconSx, width: 28, height: 28 }}>
           <ApiOutlined />
         </Box>
         <Box sx={{ minWidth: 0, flex: 1 }}>
@@ -197,7 +173,7 @@ function AssistantMessage({ message, progressText, onResolveConfirmation, confir
   const confirmationPending = confirmation && String(confirmation.status).toLowerCase() === 'pending';
   return (
     <Stack direction="row" spacing={1.5} alignItems="flex-start" sx={{ width: '100%' }}>
-      <WrenAvatar />
+      <FloatingWren placement="reply" />
       <Box sx={{ minWidth: 0, maxWidth: 760, flex: 1 }}>
         {message.streaming && !message.content ? (
           <Typography variant="body2" fontWeight={700} sx={{ color: 'text.primary' }}>
@@ -334,13 +310,11 @@ function ConnectionRow({ icon, title, detail, active = false }) {
     <Stack direction="row" spacing={1.1} alignItems="center" sx={{ py: 1 }}>
       <Box
         sx={{
+          ...workspaceIconSx,
           width: 30,
           height: 30,
-          borderRadius: 1.25,
-          display: 'grid',
-          placeItems: 'center',
-          bgcolor: active ? alpha(GREEN, 0.09) : (theme) => alpha(theme.palette.brand.forest, 0.05),
-          color: active ? GREEN : 'text.primary'
+          fontSize: 17,
+          color: active ? 'primary.main' : 'text.secondary'
         }}
       >
         {icon}
@@ -353,7 +327,7 @@ function ConnectionRow({ icon, title, detail, active = false }) {
           {detail}
         </Typography>
       </Box>
-      <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: active ? GREEN : 'text.disabled' }} />
+      <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: active ? 'success.main' : 'text.disabled' }} />
     </Stack>
   );
 }
@@ -366,6 +340,7 @@ export default function AICenter() {
   const requestedPropertyId = startsNewChat ? chatParams.get('propertyId') : null;
   const requestedConversationId = startsNewChat ? null : chatParams.get('conversationId');
   const routeSelectionKey = startsNewChat || requestedConversationId ? location.key : null;
+  const newChatTitle = startsNewChat && requestedPropertyId == null ? 'New chat (all properties)' : 'New chat';
 
   const messageEndRef = useRef(null);
   const selectionVersionRef = useRef(0);
@@ -708,7 +683,7 @@ export default function AICenter() {
             spacing={1}
             sx={{ height: 58, flexShrink: 0, px: { xs: 1.5, sm: 2.25 }, borderBottom: '1px solid', borderColor: 'divider' }}
           >
-            <IconButton aria-label="Workspace details" onClick={() => setMobilePanelOpen(true)} sx={{ display: { xl: 'none' } }}>
+            <IconButton aria-label="Workspace details" color="primary" onClick={() => setMobilePanelOpen(true)} sx={{ display: { xl: 'none' } }}>
               <MenuOutlined />
             </IconButton>
             <Box sx={{ minWidth: 0 }}>
@@ -716,7 +691,7 @@ export default function AICenter() {
                 {activePropertyId != null ? propertyLabel || 'Property chat' : 'Wren AI workspace'}
               </Typography>
               <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }} noWrap>
-                {conversationTitle || (conversationLoading ? 'Loading chat…' : 'New chat')}
+                {conversationTitle || (conversationLoading ? 'Loading chat…' : newChatTitle)}
               </Typography>
             </Box>
           </Stack>
@@ -759,12 +734,7 @@ export default function AICenter() {
                 }}
               >
                 <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', gap: 2, maxWidth: '100%', mb: 1 }}>
-                  <Box
-                    component="img"
-                    src={wrenMascot}
-                    alt=""
-                    sx={{ display: 'block', width: 'auto', height: { xs: 106, sm: 144 }, mt: 2 }}
-                  />
+                  <FloatingWren placement="welcome" />
                   <Typography
                     component="h2"
                     variant="body1"
@@ -798,8 +768,7 @@ export default function AICenter() {
                   </Typography>
                 </Box>
                 <Typography variant="body1" color="text.secondary" sx={{ mt: 1, maxWidth: 560, lineHeight: 1.7 }}>
-                  Ask about live rent, leases, applications, or maintenance. Wren AI will show which Property Peace tools were used before
-                  presenting the result.
+                  Ask about live rent, leases, applications, or maintenance.
                 </Typography>
 
                 <Box
@@ -836,17 +805,7 @@ export default function AICenter() {
                       }}
                     >
                       <Stack direction="row" spacing={1.25} alignItems="center">
-                        <Box
-                          sx={{
-                            width: 34,
-                            height: 34,
-                            borderRadius: 1.25,
-                            display: 'grid',
-                            placeItems: 'center',
-                            bgcolor: alpha(GREEN, 0.08),
-                            color: GREEN
-                          }}
-                        >
+                        <Box sx={{ ...workspaceIconSx, width: 34, height: 34, fontSize: 18 }}>
                           {starter.icon}
                         </Box>
                         <Box>
@@ -924,14 +883,16 @@ export default function AICenter() {
                   sx={{ py: 0.75, fontSize: '0.95rem' }}
                 />
                 <IconButton
+                  aria-label="Send message"
+                  disableRipple
                   onClick={() => handleSend()}
                   disabled={!aiRuntimeReady || !input.trim() || thinking || conversationLoading || !wrenReadiness.canInvoke || chatArchived || Boolean(conversationError)}
                   sx={{
                     width: 38,
                     height: 38,
-                    bgcolor: input.trim() ? 'primary.main' : (theme) => alpha(theme.palette.brand.forest, 0.06),
-                    color: input.trim() ? '#fff' : 'text.disabled',
-                    '&:hover': { bgcolor: 'primary.dark' }
+                    color: 'primary.main',
+                    '&:hover': { bgcolor: 'transparent', color: 'primary.main' },
+                    '&.Mui-focusVisible': { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: -2 }
                   }}
                 >
                   {thinking ? <CircularProgress size={17} color="inherit" /> : <SendOutlined />}
@@ -990,12 +951,7 @@ export default function AICenter() {
                 to="/landlord/leases"
                 startIcon={<DollarCircleOutlined />}
                 endIcon={<ArrowRightOutlined />}
-                sx={{
-                  justifyContent: 'flex-start',
-                  color: 'text.secondary',
-                  textTransform: 'none',
-                  '& .MuiButton-endIcon': { ml: 'auto' }
-                }}
+                sx={toolShortcutSx}
               >
                 Leases
               </Button>
@@ -1004,12 +960,7 @@ export default function AICenter() {
                 to="/landlord/maintenances"
                 startIcon={<ToolOutlined />}
                 endIcon={<ArrowRightOutlined />}
-                sx={{
-                  justifyContent: 'flex-start',
-                  color: 'text.secondary',
-                  textTransform: 'none',
-                  '& .MuiButton-endIcon': { ml: 'auto' }
-                }}
+                sx={toolShortcutSx}
               >
                 Maintenance
               </Button>
@@ -1018,12 +969,7 @@ export default function AICenter() {
                 to="/landlord/ai-center/collections-history"
                 startIcon={<HistoryOutlined />}
                 endIcon={<ArrowRightOutlined />}
-                sx={{
-                  justifyContent: 'flex-start',
-                  color: 'text.secondary',
-                  textTransform: 'none',
-                  '& .MuiButton-endIcon': { ml: 'auto' }
-                }}
+                sx={toolShortcutSx}
               >
                 Activity history
               </Button>
@@ -1053,7 +999,7 @@ export default function AICenter() {
               <Typography variant="h5" fontWeight={800}>
                 Workspace details
               </Typography>
-              <IconButton onClick={() => setMobilePanelOpen(false)}>
+              <IconButton aria-label="Close workspace details" color="primary" onClick={() => setMobilePanelOpen(false)}>
                 <CloseOutlined />
               </IconButton>
             </Stack>
@@ -1079,7 +1025,7 @@ export default function AICenter() {
               fullWidth
               startIcon={<HistoryOutlined />}
               onClick={() => setMobilePanelOpen(false)}
-              sx={{ justifyContent: 'flex-start', color: 'text.secondary', textTransform: 'none' }}
+              sx={toolShortcutSx}
             >
               Activity history
             </Button>

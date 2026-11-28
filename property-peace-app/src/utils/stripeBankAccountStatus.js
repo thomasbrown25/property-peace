@@ -27,7 +27,7 @@ export function getStripeBankAccountStatus(account) {
     };
   }
 
-  if (account.DetailsSubmitted && account.CardPaymentsCapabilityStatus === 'pending') {
+  if (account.DetailsSubmitted && (account.IsVerificationPending || account.CardPaymentsCapabilityStatus === 'pending')) {
     return {
       label: 'Verification pending',
       message: 'Stripe received your details and is reviewing your account.',

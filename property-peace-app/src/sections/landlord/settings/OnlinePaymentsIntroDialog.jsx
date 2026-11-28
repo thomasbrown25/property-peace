@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Link as RouterLink } from 'react-router-dom';
 import CloseOutlined from '@ant-design/icons/CloseOutlined';
 import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Stack, Typography } from '@mui/material';
 import paymentsArt from 'assets/images/icons/setup-online-payments.png';
@@ -28,7 +27,7 @@ export default function OnlinePaymentsIntroDialog({ scopeKey }) {
         </IconButton>
         <Box component="img" src={paymentsArt} alt="" width={104} height={104} sx={{ display: 'block', mx: 'auto', objectFit: 'contain' }} />
         <DialogTitle id="online-payments-intro-title" sx={{ p: 0, mt: 0.75, fontSize: { xs: '1.4rem', sm: '1.7rem' }, fontWeight: 750, lineHeight: 1.25 }}>
-          How online rent payments work
+          Set up online payments
         </DialogTitle>
         <Typography id="online-payments-intro-description" color="text.secondary" sx={{ mt: 0.75 }}>
           Give tenants the option to pay rent through Property Peace.
@@ -61,9 +60,6 @@ export default function OnlinePaymentsIntroDialog({ scopeKey }) {
         </Stack>
       </DialogContent>
       <DialogActions sx={{ px: { xs: 2.5, sm: 4 }, pt: 0, pb: 2.5, flexWrap: 'wrap', gap: 1 }}>
-        <Button component={RouterLink} to="/landlord/finances?tab=payments&paymentView=stripe" onClick={dismiss} sx={{ minHeight: 44, textTransform: 'none' }}>
-          View payment history
-        </Button>
         <Button variant="contained" onClick={dismiss} sx={{ minHeight: 44, textTransform: 'none' }}>Got it</Button>
       </DialogActions>
     </Dialog>

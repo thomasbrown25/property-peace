@@ -27,13 +27,16 @@ test('a storage failure still allows dismissal for the current app session', asy
   assert.equal(hasSeenOnlinePaymentsIntro(scope, storage), true);
 });
 
-test('the settings panel mounts the scoped guide with the setup-card art and Stripe transaction link', () => {
+test('the settings panel mounts the scoped guide with the setup-card art', () => {
   const read = (file) => readFileSync(new URL(file, import.meta.url), 'utf8');
   const panel = read('./OnlinePaymentSettings.jsx');
-  assert.match(panel, /<OnlinePaymentsIntroDialog key=\{introScope\} scopeKey=\{introScope\}/);
+  assert.match(panel, /<PaymentsSettingsContent[\s\S]*?introScope=\{introScope\}/);
+  const stripePanel = read('./PaymentsSettings.jsx');
+  assert.match(stripePanel, /introScope && canCreateInitialAccount && <OnlinePaymentsIntroDialog key=\{introScope\} scopeKey=\{introScope\}/);
   const dialog = read('./OnlinePaymentsIntroDialog.jsx');
   assert.match(dialog, /setup-online-payments\.png/);
+  assert.match(dialog, /Set up online payments/);
   assert.match(dialog, /aria-label="Close online rent payments guide"/);
-  assert.match(dialog, /to="\/landlord\/finances\?tab=payments&paymentView=stripe"/);
+  assert.doesNotMatch(dialog, /View payment history/);
   assert.match(dialog, /onClose=\{dismiss\}/);
 });

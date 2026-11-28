@@ -19,6 +19,10 @@ test('setup completion uses confirmed progress and excludes hidden steps from th
   assert.equal(getOwnerSetupCompletion({ remainingCount: 1, propertiesStatus: 'ready', propertyCount: 1 }), 50);
   assert.equal(getOwnerSetupCompletion({ remainingCount: 1, propertiesStatus: 'pending', propertyCount: 1 }), 0);
   assert.equal(getOwnerSetupCompletion({ remainingCount: 1, paymentAccountStatus: { isEnabled: true } }), 50);
+  assert.equal(getOwnerSetupCompletion({
+    remainingCount: 1,
+    paymentAccountStatus: { ...incompleteAccount, detailsSubmitted: true, isEnabled: false }
+  }), 50);
   assert.equal(getOwnerSetupCompletion({ remainingCount: 1, paymentAccountStatus: incompleteAccount }), 0);
 });
 

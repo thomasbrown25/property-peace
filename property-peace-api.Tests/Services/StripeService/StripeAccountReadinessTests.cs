@@ -52,6 +52,25 @@ public sealed class StripeAccountReadinessTests
         yield return [new StripeConnectedAccountSnapshot("acct_control", Now.AddMinutes(-6), true, true, true, "active", [], [], null, "approved-fingerprint", "manual", false), "stale"];
     }
 
+    [Theory]
+    [InlineData("acct_verification", 0, true)]
+    [InlineData("acct_verification", -6, false)]
+    [InlineData("acct_other", 0, false)]
+    public async Task AccountStatus_PendingVerification_UsesOnlyFreshMatchingStripeData(
+        string snapshotAccountId, int ageInMinutes, bool isVerificationPending)
+    {
+        await using var context = StripeRentPaymentFlowTests.CreateContext();
+        var snapshot = new StripeConnectedAccountSnapshot(
+            snapshotAccountId, Now.AddMinutes(ageInMinutes), true, false, true, "active", [], [],
+            "requirements.pending_verification", null, CardPaymentsCapabilityStatus: "active");
+        var service = CreateService(context, new StubGateway(snapshot));
+
+        var response = await service.GetAccountStatusAsync("acct_verification", 42, 2);
+
+        response.Data!.IsVerificationPending.Should().Be(isVerificationPending);
+        response.Data.IsAccountReadyForRentTransfers.Should().BeFalse();
+    }
+
     [Fact]
     public async Task AccountStatus_PastDueRequirements_ReportsSafeLabelsWhilePayoutsAreDisabled()
     {

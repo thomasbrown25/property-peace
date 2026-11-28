@@ -17,6 +17,7 @@ namespace brownstone_hub_api.Dtos.Stripe
         public bool PayoutsEnabled { get; set; }
         /// <summary>Stripe card_payments capability; null when Stripe could not confirm it.</summary>
         public string? CardPaymentsCapabilityStatus { get; set; }
+        public bool IsVerificationPending { get; set; }
         /// <summary>Stripe reported past-due requirements for this connected account.</summary>
         public bool HasPastDueRequirements { get; set; }
         public IReadOnlyList<string> PastDueRequirementLabels { get; set; } = [];

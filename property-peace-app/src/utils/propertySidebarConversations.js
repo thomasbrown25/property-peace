@@ -6,6 +6,16 @@ export const getConversationId = (conversation) => readField(conversation, 'id',
 
 export const getConversationTitle = (conversation) => readField(conversation, 'title', 'Title') || 'Untitled conversation';
 
+export function getGeneralConversations(conversations = []) {
+  return sortWrenConversationsMostRecentFirst(
+    conversations.filter((conversation) => {
+      const propertyId = readField(conversation, 'propertyId', 'PropertyId');
+      const archived = readField(conversation, 'isArchived', 'IsArchived');
+      return !archived && propertyId == null;
+    })
+  );
+}
+
 export function getPropertyConversations(conversations = [], propertyId) {
   return sortWrenConversationsMostRecentFirst(
     conversations.filter((conversation) => {
