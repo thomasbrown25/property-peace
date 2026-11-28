@@ -153,6 +153,12 @@
   .marketing-home-hero-fade {
     --hero-right-shade: .28;
   }
+  .marketing-home-hero-fade--copy-on-right {
+    background:
+      linear-gradient(to top, var(--brand-forest), transparent 16%),
+      linear-gradient(to right, var(--brand-forest), rgba(16,44,41,.86) 38%, rgba(16,44,41,.06) 84%, rgba(16,44,41,.02)),
+      linear-gradient(to bottom, transparent 32%, rgba(16,44,41,.38) 65%, rgba(16,44,41,.5));
+  }
 }
 
 .marketing-cta-fade {
