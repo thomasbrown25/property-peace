@@ -2,6 +2,7 @@ import PropTypes from 'prop-types';
 import { AppBar, IconButton, Toolbar, Tooltip } from '@mui/material';
 import { MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons';
 import { DRAWER_WIDTH, MINI_DRAWER_WIDTH } from 'config';
+import { portalHeaderColors } from 'themes/brand';
 import { LANDLORD_SIDEBAR_WIDTH } from '../LandlordSidebar';
 import HeaderContent from './HeaderContent';
 
@@ -32,8 +33,7 @@ export default function Header({
       color="inherit"
       elevation={0}
       sx={(theme) => ({
-        bgcolor: theme.palette.mode === 'dark' ? theme.palette.brand.forest : '#F8F7F1',
-        color: theme.palette.mode === 'dark' ? theme.palette.brand.ivory : theme.palette.brand.forest,
+        ...portalHeaderColors(theme.palette.mode),
         borderBottom: '1px solid',
         borderBottomColor: 'divider',
         boxShadow: theme.palette.mode === 'dark' ? '0 4px 16px rgba(0, 0, 0, 0.22)' : '0 4px 14px rgba(16, 44, 41, 0.06)',

@@ -1,7 +1,6 @@
 import PropTypes from 'prop-types';
 import { alpha, Box, keyframes } from '@mui/material';
-import sidebarWren from 'assets/images/logos/wren-floating-sidebar.webp';
-import chatWren from 'assets/images/logos/wren-floating-chat.webp';
+import wrenMascot from 'assets/images/logos/wren-floating-forest.webp';
 import { brand } from 'themes/brand';
 
 const hover = keyframes({
@@ -22,7 +21,6 @@ const sizes = {
 };
 
 export default function FloatingWren({ placement }) {
-  const sidebar = placement === 'sidebar';
   const compact = placement !== 'welcome';
   const { ringWidth, ...stageSize } = sizes[placement];
 
@@ -47,7 +45,7 @@ export default function FloatingWren({ placement }) {
     >
       <Box
         component="img"
-        src={sidebar ? sidebarWren : chatWren}
+        src={wrenMascot}
         alt=""
         sx={{
           display: 'block',
@@ -61,17 +59,17 @@ export default function FloatingWren({ placement }) {
       />
       <Box
         sx={(theme) => {
-          const darkSurface = sidebar || theme.palette.mode === 'dark';
+          const darkSurface = theme.palette.mode === 'dark';
           return {
             width: ringWidth,
             height: '100%',
             boxSizing: 'border-box',
             ml: compact ? 0.5 : 1.5,
             border: '1px solid',
-            borderColor: darkSurface ? brand.mint : alpha(brand.teal, 0.52),
+            borderColor: darkSurface ? brand.teal : alpha(brand.forest, 0.65),
             borderRadius: '50%',
-            background: `radial-gradient(ellipse, ${alpha(brand.teal, 0.13)} 25%, ${alpha(brand.mint, 0.72)} 100%)`,
-            boxShadow: `0 0 ${compact ? '4px' : '10px'} ${alpha(brand.mint, darkSurface ? 0.78 : 0.7)}`,
+            background: `radial-gradient(ellipse, ${alpha(brand.forest, 0.15)} 25%, ${alpha(brand.teal, 0.5)} 100%)`,
+            boxShadow: `0 0 ${compact ? '4px' : '10px'} ${alpha(brand.teal, darkSurface ? 0.58 : 0.32)}`,
             opacity: 0.84,
             animation: `${pulse} ${cycle}`
           };
