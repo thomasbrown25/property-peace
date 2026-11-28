@@ -362,7 +362,7 @@ export default function Navigation() {
         }}
         style={{ fontFamily: '"Host Grotesk", sans-serif' }}
       >
-      <div className="mx-auto w-full min-w-0 max-w-[1660px] px-5 sm:px-6 lg:px-10 xl:px-12">
+      <div className="mx-auto w-full min-w-0 max-w-[1660px] marketing-gutter">
         <div className="relative grid h-[72px] grid-cols-[76px_minmax(0,1fr)_76px] items-center nav:flex nav:h-[88px] nav:justify-between">
           {/* Mobile: menu left */}
           <div className="nav:hidden flex h-11 w-[76px] flex-shrink-0 items-center justify-start">

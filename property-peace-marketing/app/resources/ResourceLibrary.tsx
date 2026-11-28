@@ -23,7 +23,7 @@ export default function ResourceLibrary() {
   );
 
   return (
-    <section id="resource-library" className="bg-brand-forest px-4 py-16 text-white sm:px-6 lg:px-8 md:py-20">
+    <section id="resource-library" className="bg-brand-forest marketing-gutter py-16 text-white md:py-20">
       <div className="mx-auto max-w-6xl">
         <div className="flex flex-col gap-5 border-b border-white/15 pb-8 md:flex-row md:items-end md:justify-between">
           <div className="max-w-2xl">

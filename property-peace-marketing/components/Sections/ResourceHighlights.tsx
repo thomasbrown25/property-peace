@@ -27,7 +27,7 @@ const highlights = [
 
 export default function ResourceHighlights() {
   return (
-    <section className="bg-brand-ivory px-4 py-16 sm:px-6 lg:px-8 md:py-20">
+    <section className="bg-brand-ivory marketing-gutter py-16 md:py-20">
       <div className="mx-auto max-w-[1440px]">
         <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
           <div className="max-w-3xl">

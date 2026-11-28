@@ -183,7 +183,7 @@ export default function LeaseShieldPage() {
     <div className="min-h-screen bg-brand-forest">
 
       {/* ── Hero ──────────────────────────────────────────────────────────── */}
-      <section data-marketing-hero-theme="dark" className="relative overflow-hidden bg-brand-forest px-4 pb-20 pt-32 sm:px-6 sm:pt-36 lg:px-8">
+      <section data-marketing-hero-theme="dark" className="relative overflow-hidden bg-brand-forest marketing-gutter pb-20 pt-32 sm:pt-36">
         <div className="absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-[color-mix(in_srgb,var(--brand-teal)_10%,transparent)] via-brand-forest to-brand-forest" />
         <div className="relative mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-[minmax(0,0.95fr)_minmax(420px,1.05fr)] lg:gap-12">
           <div className="text-center lg:text-left">
@@ -235,7 +235,7 @@ export default function LeaseShieldPage() {
       </section>
 
       {/* ── 3-Step Showcase ───────────────────────────────────────────────── */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-brand-forest">
+      <section className="py-20 marketing-gutter bg-brand-forest">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-14">
             <p className="text-sm font-bold text-brand-mint uppercase tracking-widest mb-2" style={{ fontFamily: '"Inter", sans-serif' }}>How it works</p>
@@ -310,7 +310,7 @@ export default function LeaseShieldPage() {
       </section>
 
       {/* ── Benefits grid ─────────────────────────────────────────────────── */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-brand-forest">
+      <section className="py-20 marketing-gutter bg-brand-forest">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-14">
             <p className="text-sm font-bold text-brand-mint uppercase tracking-widest mb-2" style={{ fontFamily: '"Inter", sans-serif' }}>Everything you need</p>
@@ -335,7 +335,7 @@ export default function LeaseShieldPage() {
       </section>
 
       {/* ── Use cases ─────────────────────────────────────────────────────── */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-brand-forest">
+      <section className="py-20 marketing-gutter bg-brand-forest">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-14">
             <p className="text-sm font-bold text-brand-mint uppercase tracking-widest mb-2" style={{ fontFamily: '"Inter", sans-serif' }}>Common questions</p>
@@ -367,7 +367,7 @@ export default function LeaseShieldPage() {
       </section>
 
       {/* ── FAQ ───────────────────────────────────────────────────────────── */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-brand-forest">
+      <section className="py-20 marketing-gutter bg-brand-forest">
         <div className="max-w-3xl mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-extrabold text-white" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>Frequently asked</h2>
@@ -394,7 +394,7 @@ export default function LeaseShieldPage() {
       </section>
 
       {/* ── CTA ───────────────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden bg-brand-forest px-4 py-20 sm:px-6 lg:px-8">
+      <section className="relative overflow-hidden bg-brand-forest marketing-gutter py-20">
         <div className="max-w-3xl mx-auto text-center">
           <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center mx-auto mb-6">
             <FiShield className="w-7 h-7 text-white" />

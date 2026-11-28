@@ -132,7 +132,7 @@ export default function AIMaintenancePage() {
 
       <section
         data-marketing-hero-theme="dark"
-        className="relative border-b border-white/20 bg-brand-forest px-4 pb-20 pt-28 sm:px-6 sm:pb-24 sm:pt-36 lg:px-8"
+        className="relative border-b border-white/20 bg-brand-forest marketing-gutter pb-20 pt-28 sm:pb-24 sm:pt-36"
       >
         <div className="pointer-events-none absolute inset-x-0 top-0 h-[34rem] bg-[radial-gradient(circle_at_74%_28%,rgba(36,117,104,0.15),transparent_34%),linear-gradient(180deg,#061E35_0%,#061E35_78%)]" />
         <div className="relative mx-auto max-w-6xl">
@@ -273,7 +273,7 @@ export default function AIMaintenancePage() {
       </section>
 
       <main>
-        <section className="px-4 py-20 sm:px-6 sm:py-24 lg:px-8">
+        <section className="marketing-gutter py-20 sm:py-24">
           <div className="mx-auto grid max-w-6xl gap-12 lg:grid-cols-[0.78fr_1.22fr] lg:gap-20">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-brand-mint">Where maintenance breaks down</p>
@@ -300,7 +300,7 @@ export default function AIMaintenancePage() {
           </div>
         </section>
 
-        <section id="maintenance-workflow" className="scroll-mt-24 bg-brand-forest px-4 py-20 text-white sm:px-6 sm:py-24 lg:px-8">
+        <section id="maintenance-workflow" className="scroll-mt-24 bg-brand-forest marketing-gutter py-20 text-white sm:py-24">
           <div className="mx-auto max-w-6xl">
             <div className="max-w-3xl">
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-brand-mint">From report to repair record</p>
@@ -330,7 +330,7 @@ export default function AIMaintenancePage() {
           </div>
         </section>
 
-        <section className="bg-brand-forest px-4 py-20 sm:px-6 sm:py-24 lg:px-8">
+        <section className="bg-brand-forest marketing-gutter py-20 sm:py-24">
           <div className="mx-auto max-w-6xl">
             <div className="grid items-end gap-8 border-b border-white/20 pb-10 lg:grid-cols-[1fr_0.8fr]">
               <div>
@@ -378,7 +378,7 @@ export default function AIMaintenancePage() {
           </div>
         </section>
 
-        <section className="px-4 py-20 sm:px-6 sm:py-24 lg:px-8">
+        <section className="marketing-gutter py-20 sm:py-24">
           <div className="mx-auto max-w-6xl">
             <div className="max-w-3xl">
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-brand-mint">A record that survives the repair</p>
@@ -417,7 +417,7 @@ export default function AIMaintenancePage() {
           </div>
         </section>
 
-        <section className="bg-brand-forest px-4 py-20 sm:px-6 lg:px-8">
+        <section className="bg-brand-forest marketing-gutter py-20">
           <div className="mx-auto max-w-6xl">
             <div className="grid gap-10 lg:grid-cols-[0.7fr_1.3fr]">
               <div>
@@ -440,7 +440,7 @@ export default function AIMaintenancePage() {
           </div>
         </section>
 
-        <section className="px-4 py-20 sm:px-6 sm:py-24 lg:px-8">
+        <section className="marketing-gutter py-20 sm:py-24">
           <div className="mx-auto grid max-w-6xl gap-12 lg:grid-cols-[0.7fr_1.3fr]">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-brand-mint">Straight answers</p>
@@ -455,7 +455,7 @@ export default function AIMaintenancePage() {
           </div>
         </section>
 
-        <section className="px-4 pb-20 sm:px-6 sm:pb-24 lg:px-8">
+        <section className="marketing-gutter pb-20 sm:pb-24">
           <div className="relative mx-auto max-w-6xl overflow-hidden bg-brand-forest px-6 py-14 text-center text-white sm:px-10 sm:py-16">
             <div className="pointer-events-none absolute inset-y-0 right-0 w-1/2 bg-[radial-gradient(circle_at_center,rgba(36,117,104,0.2),transparent_62%)]" />
             <div className="relative mx-auto max-w-3xl">

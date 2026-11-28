@@ -27,7 +27,7 @@ export default function PainPoints() {
   return (
     <section
       data-homepage-self-management="true"
-      className="relative z-20 -mt-8 overflow-hidden rounded-t-[2rem] bg-white px-4 py-20 sm:-mt-10 sm:rounded-t-[2.5rem] sm:px-6 sm:py-24 lg:-mt-12 lg:rounded-t-[3rem] lg:px-8 lg:py-28"
+      className="relative z-20 -mt-8 overflow-hidden rounded-t-[2rem] bg-white marketing-gutter py-20 sm:-mt-10 sm:rounded-t-[2.5rem] sm:py-24 lg:-mt-12 lg:rounded-t-[3rem] lg:py-28"
     >
       <div
         className="pointer-events-none absolute left-1/2 top-0 h-px w-[min(90%,72rem)] -translate-x-1/2 bg-gradient-to-r from-transparent via-slate-200 to-transparent"

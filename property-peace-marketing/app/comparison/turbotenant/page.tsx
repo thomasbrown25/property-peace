@@ -152,7 +152,7 @@ export default function TurboTenantComparisonPage() {
     <main className="min-h-screen bg-brand-forest text-white">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(pageSchema) }} />
 
-      <section data-marketing-hero-theme="dark" className="relative overflow-hidden bg-brand-forest px-4 pb-20 pt-32 text-white sm:px-6 md:pb-24 md:pt-36 lg:px-8">
+      <section data-marketing-hero-theme="dark" className="relative overflow-hidden bg-brand-forest marketing-gutter pb-20 pt-32 text-white md:pb-24 md:pt-36">
         <div className="pointer-events-none absolute -right-24 top-10 h-96 w-96 rounded-full bg-[color-mix(in_srgb,var(--brand-mint)_10%,transparent)] blur-3xl" />
         <div className="pointer-events-none absolute -bottom-32 left-0 h-96 w-96 rounded-full bg-[color-mix(in_srgb,var(--brand-teal)_10%,transparent)] blur-3xl" />
         <div className="relative mx-auto max-w-6xl">
@@ -173,7 +173,7 @@ export default function TurboTenantComparisonPage() {
         </div>
       </section>
 
-      <section className="border-b border-white/15 bg-brand-forest px-4 py-16 sm:px-6 lg:px-8">
+      <section className="border-b border-white/15 bg-brand-forest marketing-gutter py-16">
         <div className="mx-auto max-w-6xl">
           <div className="max-w-3xl">
             <p className="mb-3 text-sm font-bold uppercase tracking-[0.2em] text-brand-mint">The short answer</p>
@@ -202,7 +202,7 @@ export default function TurboTenantComparisonPage() {
         </div>
       </section>
 
-      <section className="bg-brand-forest px-4 py-16 sm:px-6 md:py-20 lg:px-8">
+      <section className="bg-brand-forest marketing-gutter py-16 md:py-20">
         <div className="mx-auto max-w-6xl">
           <div className="max-w-3xl"><p className="mb-3 text-sm font-bold uppercase tracking-[0.2em] text-brand-mint">Total stakeholder cost</p><h2 className="text-3xl font-extrabold text-white md:text-4xl" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>What can the rental actually cost?</h2><p className="mt-4 text-lg leading-8 text-white/80">Subscription price is only one line for products that charge one. This table separates what the landlord pays from costs that may be paid by an applicant or tenant.</p></div>
           <div className="mt-9 space-y-4">
@@ -234,7 +234,7 @@ export default function TurboTenantComparisonPage() {
         </div>
       </section>
 
-      <section className="bg-brand-forest px-4 py-16 sm:px-6 md:py-20 lg:px-8">
+      <section className="bg-brand-forest marketing-gutter py-16 md:py-20">
         <div className="mx-auto max-w-6xl">
           <div className="max-w-3xl"><p className="mb-3 text-sm font-bold uppercase tracking-[0.2em] text-brand-mint">Workflow availability</p><h2 className="text-3xl font-extrabold text-white md:text-4xl" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>Included does not always mean available now</h2><p className="mt-4 text-lg leading-8 text-white/80">Property Peace labels globally gated and provider-dependent capabilities instead of counting inclusion or source code as a finished customer workflow.</p></div>
           <div className="mt-9 overflow-x-auto border border-[var(--brand-border)] bg-brand-surface">
@@ -246,21 +246,21 @@ export default function TurboTenantComparisonPage() {
         </div>
       </section>
 
-      <section className="bg-brand-forest px-4 py-16 sm:px-6 lg:px-8">
+      <section className="bg-brand-forest marketing-gutter py-16">
         <div className="mx-auto grid max-w-6xl gap-6 md:grid-cols-2">
           <div className="border border-[var(--brand-border)] bg-brand-surface p-7 md:p-8"><FiHome className="h-7 w-7 text-brand-teal" /><h2 className="mt-5 text-2xl font-extrabold text-primary-main">Choose Property Peace if…</h2><ul className="mt-5 space-y-4 text-sm leading-6 text-brand-slate">{['You manage 1–50 units and want the property to remain the anchor for leases, people, money, maintenance, and documents.', 'You want unlimited units for free without a paid subscription or annual commitment.', 'You prefer transparent software pricing and can use external processes for capabilities that are not yet operational.', 'You value deeper property-level records over a broad partner-service catalog.'].map((item) => <li key={item} className="flex gap-3"><FiCheck className="mt-1 h-4 w-4 flex-shrink-0 text-brand-teal" />{item}</li>)}</ul></div>
           <div className="border border-[var(--brand-border)] bg-brand-surface p-7 md:p-8"><FiUsers className="h-7 w-7 text-brand-teal" /><h2 className="mt-5 text-2xl font-extrabold text-primary-main">Choose TurboTenant if…</h2><ul className="mt-5 space-y-4 text-sm leading-6 text-brand-slate">{['Integrated applicant screening and online rent processing are must-have workflows today.', 'You want broad listing, pre-screening, showing, application, lease, payment, and maintenance tools in one established funnel.', 'Annual billing and unit-tiered paid pricing fit your portfolio.', 'You understand and accept the applicant/tenant costs associated with the payment methods and optional products you use.'].map((item) => <li key={item} className="flex gap-3"><FiCheck className="mt-1 h-4 w-4 flex-shrink-0 text-brand-teal" />{item}</li>)}</ul></div>
         </div>
       </section>
 
-      <section className="bg-brand-forest px-4 py-16 sm:px-6 lg:px-8">
+      <section className="bg-brand-forest marketing-gutter py-16">
         <div className="mx-auto max-w-6xl">
           <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between"><div className="max-w-3xl"><p className="mb-3 text-sm font-bold uppercase tracking-[0.2em] text-brand-mint">Sources and review notes</p><h2 className="text-3xl font-extrabold text-white" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>Check the current offer before deciding</h2><p className="mt-4 leading-7 text-white/80">TurboTenant controls its pricing and may change it. Insurance quotes vary. Feature availability can also depend on plan, provider, account, and location.</p></div><span className="inline-flex items-center gap-2 text-sm font-bold text-white/80"><FiClock className="h-4 w-4 text-brand-mint" />Checked {checkedOn}</span></div>
           <div className="mt-8 grid gap-3 md:grid-cols-2">{sources.map((source) => <a key={source.href} href={source.href} target={source.href.startsWith('http') ? '_blank' : undefined} rel={source.href.startsWith('http') ? 'noopener noreferrer' : undefined} className="group flex min-h-14 items-center justify-between gap-4 border border-[var(--brand-border)] bg-brand-surface px-5 py-4 text-sm font-bold text-primary-main transition hover:border-brand-mint hover:text-brand-teal"><span>{source.title}</span>{source.href.startsWith('http') ? <FiExternalLink className="h-4 w-4 flex-shrink-0 text-brand-slate group-hover:text-brand-teal" /> : <FiArrowRight className="h-4 w-4 flex-shrink-0 text-brand-slate group-hover:text-brand-teal" />}</a>)}</div>
         </div>
       </section>
 
-      <section className="bg-brand-forest px-4 py-16 sm:px-6 lg:px-8"><div className="mx-auto max-w-6xl bg-brand-forest p-8 text-white md:flex md:items-center md:justify-between md:gap-10 md:p-12"><div className="max-w-2xl"><p className="text-xs font-bold uppercase tracking-[0.2em] text-brand-mint">Start with the property</p><h2 className="mt-4 text-3xl font-extrabold text-white md:text-4xl" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>Try Property Peace free for unlimited units.</h2><p className="mt-4 text-lg leading-8 text-white/70">No credit card required. See the actual current pricing and availability disclosures before you choose.</p></div><div className="mt-7 flex flex-col gap-3 sm:flex-row md:mt-0 md:flex-col"><Link href="https://app.propertypeace.io/register" className="inline-flex min-h-[52px] items-center justify-center gap-2 bg-brand-teal-hover px-7 py-3.5 font-bold text-white transition hover:bg-brand-teal">Start free <FiArrowRight className="h-4 w-4" /></Link><Link href="/pricing" className="inline-flex min-h-[52px] items-center justify-center border border-white/25 px-7 py-3.5 font-bold text-white transition hover:bg-white/10">Review Property Peace pricing</Link></div></div></section>
+      <section className="bg-brand-forest marketing-gutter py-16"><div className="mx-auto max-w-6xl bg-brand-forest p-8 text-white md:flex md:items-center md:justify-between md:gap-10 md:p-12"><div className="max-w-2xl"><p className="text-xs font-bold uppercase tracking-[0.2em] text-brand-mint">Start with the property</p><h2 className="mt-4 text-3xl font-extrabold text-white md:text-4xl" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>Try Property Peace free for unlimited units.</h2><p className="mt-4 text-lg leading-8 text-white/70">No credit card required. See the actual current pricing and availability disclosures before you choose.</p></div><div className="mt-7 flex flex-col gap-3 sm:flex-row md:mt-0 md:flex-col"><Link href="https://app.propertypeace.io/register" className="inline-flex min-h-[52px] items-center justify-center gap-2 bg-brand-teal-hover px-7 py-3.5 font-bold text-white transition hover:bg-brand-teal">Start free <FiArrowRight className="h-4 w-4" /></Link><Link href="/pricing" className="inline-flex min-h-[52px] items-center justify-center border border-white/25 px-7 py-3.5 font-bold text-white transition hover:bg-white/10">Review Property Peace pricing</Link></div></div></section>
     </main>
   );
 }

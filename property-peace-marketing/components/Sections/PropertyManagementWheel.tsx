@@ -158,7 +158,7 @@ export default function PropertyManagementWheel() {
     <section
       data-homepage-feature-wheel="true"
       aria-labelledby="property-management-wheel-heading"
-      className="relative z-20 overflow-hidden bg-brand-forest px-4 py-20 sm:px-6 sm:py-24 lg:px-8 lg:py-24"
+      className="relative z-20 overflow-hidden bg-brand-forest marketing-gutter py-20 sm:py-24 lg:py-24"
     >
       <div className="relative mx-auto max-w-[1440px]">
         <div className="mx-auto max-w-4xl text-center">

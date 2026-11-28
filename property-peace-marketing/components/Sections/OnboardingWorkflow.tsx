@@ -37,7 +37,7 @@ const steps = [
 
 export default function OnboardingWorkflow() {
   return (
-    <section className="relative overflow-hidden bg-white px-4 py-14 sm:px-6 sm:py-16 lg:px-8 lg:py-24">
+    <section className="relative overflow-hidden bg-white marketing-gutter py-14 sm:py-16 lg:py-24">
       <div className="relative mx-auto max-w-6xl">
         <div className="mx-auto max-w-3xl text-center">
           <span

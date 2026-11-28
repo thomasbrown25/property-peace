@@ -21,7 +21,7 @@ export default function SiteFooter() {
 
   return (
     <footer className="relative overflow-hidden bg-brand-forest text-white">
-      <div className="relative z-10 mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+      <div className="relative z-10 mx-auto max-w-7xl marketing-gutter py-16">
         {pathname !== '/' && (
           <div className="mb-12 flex flex-col gap-6 border-b border-white/15 pb-10 md:flex-row md:items-end md:justify-between">
           <div>

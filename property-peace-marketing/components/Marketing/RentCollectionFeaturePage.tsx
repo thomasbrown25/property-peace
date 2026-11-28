@@ -88,7 +88,7 @@ export default function RentCollectionFeaturePage() {
           className="absolute inset-0 bg-[linear-gradient(to_top,#061E35_0%,rgba(16,44,41,0.98)_20%,rgba(16,44,41,0.82)_58%,rgba(16,44,41,0.72)_100%)] sm:bg-[linear-gradient(to_top,#061E35_0%,rgba(16,44,41,0.98)_18%,rgba(16,44,41,0.72)_60%,rgba(16,44,41,0.62)_100%)]"
           aria-hidden="true"
         />
-        <div className="relative mx-auto max-w-6xl px-4 pb-16 pt-32 sm:px-6 sm:pt-36 lg:px-8 lg:pb-24">
+        <div className="relative mx-auto max-w-6xl marketing-gutter pb-16 pt-32 sm:pt-36 lg:pb-24">
           <div className="grid items-center gap-12 lg:grid-cols-[0.93fr_1.07fr]">
             <div>
               <p className="mb-5 text-xs font-bold uppercase tracking-[0.2em] text-brand-mint">
@@ -134,7 +134,7 @@ export default function RentCollectionFeaturePage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-4 py-20 text-center sm:px-6 lg:px-8">
+      <section className="mx-auto max-w-6xl marketing-gutter py-20 text-center">
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-brand-mint">Built for rental income</p>
         <h2 className="mx-auto mt-4 max-w-4xl text-3xl font-extrabold leading-tight text-white md:text-5xl">
           Make rent collection a smooth automated process for you and your tenants
@@ -162,7 +162,7 @@ export default function RentCollectionFeaturePage() {
         </Link>
       </section>
 
-      <section className="relative isolate overflow-hidden bg-brand-forest px-4 py-20 text-white sm:px-6 lg:px-8">
+      <section className="relative isolate overflow-hidden bg-brand-forest marketing-gutter py-20 text-white">
         <div
           className="pointer-events-none absolute inset-0 bg-cover bg-[position:70%_center] bg-no-repeat lg:bg-center"
           style={{ backgroundImage: 'url(/images/rent-collection/tenants.png)' }}
@@ -198,7 +198,7 @@ export default function RentCollectionFeaturePage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-4 py-20 sm:px-6 lg:px-8">
+      <section className="mx-auto max-w-6xl marketing-gutter py-20">
         <div className="grid gap-12 lg:grid-cols-[1.05fr_0.95fr]">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-brand-mint">More than rent collection</p>
@@ -236,7 +236,7 @@ export default function RentCollectionFeaturePage() {
         </div>
       </section>
 
-      <section className="bg-brand-forest px-4 py-20 sm:px-6 lg:px-8">
+      <section className="bg-brand-forest marketing-gutter py-20">
         <div className="mx-auto max-w-6xl text-center">
           <FiShield className="mx-auto h-9 w-9 text-brand-teal" />
           <h2 className="mt-5 text-3xl font-extrabold text-white md:text-4xl">Approval comes before payment setup.</h2>

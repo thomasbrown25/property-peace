@@ -39,7 +39,7 @@ export default function ListingsPage() {
   return (
     <div className="min-h-screen bg-brand-forest w-full min-w-0 text-white">
       <main>
-        <section className="relative overflow-hidden bg-brand-forest pt-32 pb-20 px-4 sm:px-6 lg:px-8">
+        <section className="relative overflow-hidden bg-brand-forest pt-32 pb-20 marketing-gutter">
           <div
             className="absolute inset-0 bg-cover bg-center bg-no-repeat lg:bg-[position:center_55%]"
             style={{ backgroundImage: 'url(/images/listings/hero.png)' }}
@@ -87,7 +87,7 @@ export default function ListingsPage() {
           </div>
         </section>
 
-        <section className="bg-brand-forest py-20 px-4 sm:px-6 lg:px-8">
+        <section className="bg-brand-forest py-20 marketing-gutter">
           <div className="max-w-6xl mx-auto">
             <div className="max-w-3xl mb-10">
               <h2 className="text-3xl md:text-4xl font-extrabold text-white mb-4" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>

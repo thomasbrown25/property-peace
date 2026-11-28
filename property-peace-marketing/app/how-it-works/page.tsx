@@ -86,7 +86,7 @@ export default function HowItWorksPage() {
     <div className="min-h-screen bg-brand-forest text-white">
       <StructuredData data={webPageSchema({ path: '/how-it-works/', name: 'How Property Peace Works', description })} />
 
-      <section className="relative overflow-hidden bg-brand-forest px-4 pb-20 pt-32 sm:px-6 md:pb-24 md:pt-40 lg:px-8">
+      <section className="relative overflow-hidden bg-brand-forest marketing-gutter pb-20 pt-32 md:pb-24 md:pt-40">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-[34rem] bg-gradient-to-b from-[color-mix(in_srgb,var(--brand-teal)_10%,transparent)] via-brand-forest to-brand-forest" />
         <div className="relative mx-auto max-w-6xl">
           <div className="grid items-end gap-10 lg:grid-cols-[1.1fr_0.9fr]">
@@ -118,7 +118,7 @@ export default function HowItWorksPage() {
         </div>
       </section>
 
-      <main className="bg-brand-forest px-4 pb-24 sm:px-6 lg:px-8">
+      <main className="bg-brand-forest marketing-gutter pb-24">
         <div className="mx-auto max-w-6xl">
           <div className="relative">
             <div className="absolute bottom-0 left-[27px] top-0 hidden w-px bg-white/20 md:block" />
@@ -148,7 +148,7 @@ export default function HowItWorksPage() {
         </div>
       </main>
 
-      <section className="bg-brand-forest px-4 py-20 text-white sm:px-6 lg:px-8">
+      <section className="bg-brand-forest marketing-gutter py-20 text-white">
         <div className="mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-[1fr_auto]">
           <div>
             <div className="mb-5 flex items-center gap-3 text-brand-teal"><FiMessageSquare className="h-5 w-5" /><span className="text-xs font-bold uppercase tracking-[0.22em]">Ready when the next task arrives</span></div>

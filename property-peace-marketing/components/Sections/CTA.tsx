@@ -11,7 +11,7 @@ type CTAProps = {
 export default function CTA({ featured = false }: CTAProps) {
   if (featured) {
     return (
-      <section className="bg-brand-ivory px-4 py-16 sm:px-6 lg:px-8">
+      <section className="bg-brand-ivory marketing-gutter py-16">
         <motion.div
           className="relative mx-auto max-w-[1440px] overflow-hidden rounded-[2rem] bg-brand-forest px-6 py-14 text-center shadow-[0_24px_70px_rgba(16,44,41,0.22)] sm:px-10 sm:py-16 lg:px-16"
           initial={{ opacity: 0, y: 24 }}
@@ -85,7 +85,7 @@ export default function CTA({ featured = false }: CTAProps) {
   }
 
   return (
-    <section className="relative flex min-h-[620px] items-center justify-center overflow-hidden bg-brand-forest px-4 py-20 sm:min-h-[680px] sm:px-6 lg:min-h-[760px] lg:px-8">
+    <section className="relative flex min-h-[620px] items-center justify-center overflow-hidden bg-brand-forest marketing-gutter py-20 sm:min-h-[680px] lg:min-h-[760px]">
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 bg-cover bg-center bg-no-repeat"

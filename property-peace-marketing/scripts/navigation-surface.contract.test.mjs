@@ -57,8 +57,8 @@ test('about, pricing, and resources photo heroes share transparent-at-top naviga
   }
 });
 
-test('rent collection photo hero shares transparent-at-top navigation', () => {
-  for (const pathname of ['/features/rent-collection', '/features/rent-collection/']) {
+test('rent collection and maintenance photo heroes share transparent-at-top navigation', () => {
+  for (const pathname of ['/features/rent-collection', '/features/rent-collection/', '/features/maintenance-tracking', '/features/maintenance-tracking/']) {
     const idle = { ...idleHome, pathname };
     assert.equal(getNavigationSurface(idle), 'transparent', pathname);
     for (const key of ['scrolled', 'pointerInside', 'focusInside', 'dropdownOpen', 'mobileMenuOpen']) {
@@ -68,7 +68,7 @@ test('rent collection photo hero shares transparent-at-top navigation', () => {
 });
 
 test('non-photographic routes use navy at the top and after scrolling or opening menus', () => {
-  for (const pathname of ['/features/maintenance-tracking', '/blog']) {
+  for (const pathname of ['/features', '/blog']) {
     for (const key of ['scrolled', 'pointerInside', 'focusInside', 'dropdownOpen', 'mobileMenuOpen']) {
       assert.equal(getNavigationSurface({ ...idleHome, pathname, [key]: true }), 'navy', `${pathname}: ${key}`);
     }

@@ -89,7 +89,7 @@ export default function DemoPage() {
 
   return (
     <div className="min-h-screen bg-brand-forest text-white">
-      <section data-marketing-hero-theme="dark" className="relative flex min-h-[480px] items-center justify-center overflow-hidden bg-brand-forest px-4 pb-24 pt-36 text-center sm:min-h-[540px] sm:px-6 sm:pt-40 lg:px-8">
+      <section data-marketing-hero-theme="dark" className="relative flex min-h-[480px] items-center justify-center overflow-hidden bg-brand-forest marketing-gutter pb-24 pt-36 text-center sm:min-h-[540px] sm:pt-40">
         <div
           className="absolute inset-0 bg-cover bg-[position:64%_center] bg-no-repeat sm:bg-center"
           style={{ backgroundImage: 'url(/images/book-demo/hero.png)' }}
@@ -119,7 +119,7 @@ export default function DemoPage() {
           </p>
         </motion.div>
       </section>
-      <main className="bg-brand-forest px-4 pb-16 pt-4 sm:px-6 lg:px-8">
+      <main className="bg-brand-forest marketing-gutter pb-16 pt-4">
         <div className="mx-auto max-w-4xl">
           {/* Progress Indicator */}
           <motion.div

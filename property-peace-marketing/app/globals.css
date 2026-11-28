@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer utilities {
+  .marketing-gutter {
+    @apply px-5 sm:px-8 lg:px-10 xl:px-12;
+  }
+}
+
 /* Import Inter font from local files */
 @font-face {
   font-family: 'Inter';
@@ -137,6 +143,18 @@
     background: linear-gradient(to top, var(--brand-forest) 0%, rgba(16,44,41,.98) 18%, rgba(16,44,41,.72) 60%, rgba(16,44,41,.62) 100%);
   }
 }
+.marketing-home-hero-fade {
+  --hero-right-shade: .7;
+  background:
+    linear-gradient(to top, var(--brand-forest), transparent 16%),
+    linear-gradient(to right, var(--brand-forest), rgba(16,44,41,.86) 38%, rgba(16,44,41,var(--hero-right-shade)));
+}
+@media (min-width: 1024px) {
+  .marketing-home-hero-fade {
+    --hero-right-shade: .28;
+  }
+}
+
 .marketing-cta-fade {
   background: linear-gradient(to bottom, var(--brand-forest) 0%, rgba(16,44,41,.84) 20%, rgba(16,44,41,.56) 48%, rgba(16,44,41,.66) 68%, rgba(16,44,41,.9) 85%, var(--brand-forest) 100%);
 }

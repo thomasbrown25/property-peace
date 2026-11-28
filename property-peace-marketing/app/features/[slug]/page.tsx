@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { IconType } from "react-icons";
@@ -161,23 +162,23 @@ const featureDetails: Record<string, {
   'maintenance-tracking': {
     icon: FiTool,
     title: 'Maintenance Tracking',
-    shortDescription: 'Turn tenant repair requests into organized work orders with clear status tracking, photo documentation, vendor notes, and property-by-property maintenance history. Property Peace helps independent landlords stay ahead of repairs without scattered texts, forgotten calls, or spreadsheet follow-up.',
-    description: 'Efficiently manage all maintenance requests and work orders from creation to completion. Track vendor relationships, schedule repairs, and maintain detailed maintenance history. A focused solution for landlords who need maintenance tracking without the bloat of enterprise platforms like Appfolio, Buildium, DoorLoop, Yardi Breeze, Rent Manager, TenantCloud, Entrata, Innago, MRI Software, and TurboTenant.',
+    shortDescription: 'Give tenants a guided way to report repairs. Our AI agent gathers the right details, photos, and context, automatically categorizes each request, and keeps everything organized so you can assign vendors and track the work through completion.',
+    description: 'Tenants describe the issue in their own words. Percy, your AI maintenance agent, asks where it’s happening, when it started, and whether there are any safety concerns. Tenants can add a photo and confirm the details before submitting.',
     benefits: [
-      'Tenant maintenance request portal',
-      'Work order creation and tracking',
-      'Vendor management system',
-      'Maintenance history records',
+      'AI-guided tenant request intake',
+      'Automatic category and priority',
       'Photo documentation of issues',
-      'Cost tracking per maintenance item'
+      'Vendor assignment and notifications',
+      'Repair status and scheduling',
+      'Property-by-property maintenance history'
     ],
     features: [
-      'Request submission and tracking',
-      'Priority assignment system',
-      'Vendor contact management',
-      'Maintenance scheduling calendar',
-      'Photo uploads for issues',
-      'Cost and invoice tracking'
+      'Assign the right vendor to each request',
+      'Send vendors the request details by email',
+      'Track priority, status, and scheduled visits',
+      'Keep vendor contact information organized',
+      'Record estimates, costs, and invoices',
+      'Preserve a complete repair history'
     ],
     seoKeywords: 'maintenance tracking software, property maintenance management, work order tracking, tenant maintenance requests'
   },
@@ -502,7 +503,7 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
   // ── shared hero + trust bar ────────────────────────────────────────────────
   const renderHero = (title: React.ReactNode, subtitle: string, badge?: string, ctaLabel?: string, trustItems?: string[]) => (
     <>
-      <div className="mx-auto max-w-6xl px-4 pb-14 pt-32 sm:px-6 sm:pb-18 sm:pt-36 lg:px-8 lg:pb-20">
+      <div className="mx-auto max-w-6xl marketing-gutter pb-14 pt-32 sm:pb-18 sm:pt-36 lg:pb-20">
         <Link href="/features" className="mb-10 inline-flex items-center text-white/75 transition-colors hover:text-brand-mint" style={{ fontFamily: '"Inter", sans-serif' }}>
           <FiArrowLeft className="mr-2 h-4 w-4" />Back to Features
         </Link>
@@ -544,8 +545,21 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
         data-marketing-hero-theme="dark"
         className="relative overflow-hidden bg-brand-forest"
       >
-        <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 pb-20 pt-32 sm:px-6 sm:pt-36 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
-          <div className="text-center lg:text-left">
+        <Image
+          src="/images/landing/maintenance-hero-kitchen.webp"
+          alt=""
+          fill
+          sizes="100vw"
+          loading="eager"
+          fetchPriority="high"
+          className="object-cover object-[78%_center] lg:object-center"
+        />
+        <div
+          className="marketing-home-hero-fade absolute inset-0 after:absolute after:inset-0 after:bg-[linear-gradient(to_bottom,rgba(16,44,41,0.55),transparent_24%)]"
+          aria-hidden="true"
+        />
+        <div className="relative mx-auto grid max-w-6xl items-center gap-8 marketing-gutter pb-16 pt-32 sm:pt-36 lg:min-h-[580px] lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:gap-12">
+          <div className="mx-auto w-full max-w-xl text-center lg:mx-0 lg:text-left">
             <p className="mb-4 text-xs font-bold uppercase tracking-[0.18em] text-brand-mint">Maintenance tracking</p>
             <h1 className="text-[2.3rem] font-extrabold leading-[1.08] text-white sm:text-5xl md:text-6xl">
               Maintenance Tracking for <span className="text-brand-mint">Landlords</span>
@@ -560,11 +574,13 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
               </Link>
             </div>
           </div>
-          <div
-            className="min-h-[360px] bg-cover bg-center shadow-[0_24px_60px_rgba(16,44,41,0.12)] sm:min-h-[430px]"
-            style={{ backgroundImage: 'url(/images/landing/maintenance-tracking-hero.jpg)' }}
-            role="img"
-            aria-label="A landlord reviewing a maintenance visit at a rental property"
+          <Image
+            src="/images/landing/maintenance-hero-percy.webp"
+            alt="Percy, the AI maintenance assistant, gestures toward the hero text."
+            width={960}
+            height={960}
+            loading="eager"
+            className="mx-auto h-auto w-full max-w-[200px] sm:max-w-[240px] lg:ml-0 lg:max-w-[340px]"
           />
         </div>
       </div>
@@ -674,7 +690,7 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
           </div>
         </div>
         <div className="bg-brand-forest">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-16">
+          <div className="max-w-6xl mx-auto marketing-gutter py-16 space-y-16">
             {renderBeforeAfter('Percy Pilot Summaries',
               ['Opening three different reports just to check in', 'Missing overdue rent because it got buried', 'Forgetting a lease expires next month', 'Manually cross-referencing maintenance and payments', 'Spending 20 minutes to get a 30-second answer'],
               ['One summary covers your entire portfolio', "See who has paid and who hasn't — instantly", 'Upcoming lease expirations surfaced automatically', 'Open maintenance requests called out clearly', 'Full picture in seconds, not minutes'],
@@ -735,7 +751,7 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
           </div>
         </div>
         <div className="bg-brand-forest">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-16">
+          <div className="max-w-6xl mx-auto marketing-gutter py-16 space-y-16">
             {renderBeforeAfter('Rent Estimates',
               ['Guessing based on old listings and gut feel', 'Underpricing — losing hundreds of dollars every month', 'Overpricing — sitting vacant while the market moves on', 'Hours manually searching Zillow and Craigslist', 'Second-guessing every price change'],
               ['Instant rent range based on real nearby listings', 'Price confidently — maximize income from day one', 'Attract quality tenants faster at the right price', 'No more manual market research before listing', 'Make data-backed decisions on every unit'],
@@ -784,7 +800,7 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
           </div>
         </div>
         <div className="bg-brand-forest">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-16">
+          <div className="max-w-6xl mx-auto marketing-gutter py-16 space-y-16">
             {renderBeforeAfter('LeaseShield',
               ['Generic AI that cites blogs and opinion sites', "No idea if the answer applies to your state", 'No citations — nothing to show a tenant or attorney', 'Risk of acting on outdated or incorrect information', 'Hours spent searching .gov sites yourself'],
               ['Every answer drawn from government statutes & .gov sites', 'State selection so guidance matches your jurisdiction', 'Direct citations and links you can share or reference', 'Accurate, defensible info you can stand behind', 'Answers in seconds — right inside Property Peace'],
@@ -840,15 +856,9 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
         </div>
       )}
       <div className="bg-brand-forest">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 space-y-16">
+        <div className="max-w-6xl mx-auto marketing-gutter py-16 space-y-16">
           {isMaintenanceTrackingFeature ? (
-            <div className="[&>div>div>h2]:text-white [&>div>div>h3]:text-white [&>div>div>p]:text-white/75">
-              <MaintenanceTrackingFeatureSection
-                heading={ottoFeatureH2 ?? 'Streamline Maintenance and Work Order Tracking'}
-                description={feature.description}
-                benefits={feature.benefits}
-              />
-            </div>
+            <MaintenanceTrackingFeatureSection description={feature.description} />
           ) : (
             <div className="mx-auto max-w-3xl text-center">
               <p className="text-lg md:text-xl text-white/75 leading-relaxed" style={{ fontFamily: '"Inter", sans-serif' }}>
@@ -876,23 +886,28 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
             </div>
           )}
           {isMaintenanceTrackingFeature ? (
-            <div>
-              <h2 className="mb-8 text-left text-2xl font-extrabold text-white md:text-3xl" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>
-                Everything <span className="text-brand-mint">included</span>
-              </h2>
-              <div className="rounded-2xl p-8 md:p-12" style={glassDim}>
-                <div className="grid sm:grid-cols-2 gap-4">
-                  {feature.features.map((item, i) => (
-                    <div key={i} className="flex items-start gap-3">
-                      <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: 'rgba(36,117,104,0.12)' }}>
-                        <FiCheck className="w-3.5 h-3.5 text-brand-teal" />
-                      </div>
-                      <p className="text-sm text-brand-slate leading-relaxed" style={{ fontFamily: '"Inter", sans-serif' }}>{item}</p>
-                    </div>
+            <section className="grid items-center gap-10 pt-8 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:gap-14 lg:pt-16">
+              <div>
+                <h2 className="mb-6 text-3xl font-extrabold leading-tight text-white md:text-4xl" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>
+                  Assign requests and keep <span className="text-brand-mint">repairs moving</span>
+                </h2>
+                <ul className="space-y-3 text-base leading-relaxed text-white/75" style={{ fontFamily: '"Inter", sans-serif' }}>
+                  {feature.features.map((item) => (
+                    <li key={item} className="flex items-start gap-3">
+                      <FiCheck aria-hidden="true" className="mt-1 h-5 w-5 shrink-0 text-brand-mint" />
+                      <span>{item}</span>
+                    </li>
                   ))}
-                </div>
+                </ul>
               </div>
-            </div>
+              <Image
+                src="/images/landing/maintenance-vendor-assignment-wide.webp"
+                alt="A landlord selects Oak Street Plumbing and uses the Assign vendor button for the leaky faucet repair."
+                width={1440}
+                height={720}
+                className="h-auto w-full max-w-[620px] justify-self-center rounded-2xl"
+              />
+            </section>
           ) : (
             <div className="rounded-2xl p-8 md:p-12" style={glassDim}>
               <h2 className="text-2xl md:text-3xl font-extrabold text-primary-main mb-8" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>

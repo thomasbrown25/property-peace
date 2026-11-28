@@ -43,7 +43,7 @@ function Stars() {
 export default function SocialProof() {
   return (
     <section
-      className="relative py-24 px-4 sm:px-6 lg:px-8"
+      className="relative py-24 marketing-gutter"
       style={{ background: 'transparent' }}
     >
 

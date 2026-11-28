@@ -7,7 +7,7 @@ export default function Demo() {
   const calendlyUrl = process.env.NEXT_PUBLIC_CALENDLY_URL || 'https://calendly.com/tbrown-brownstonehub';
 
   return (
-    <section id="demo" className="py-16 px-4 sm:px-6 lg:px-8 bg-brand-ivory scroll-mt-20">
+    <section id="demo" className="py-16 marketing-gutter bg-brand-ivory scroll-mt-20">
       <div className="max-w-4xl mx-auto">
         <motion.div
           className="text-center mb-12"

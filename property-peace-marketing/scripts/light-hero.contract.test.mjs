@@ -78,11 +78,14 @@ test('shared feature pages render forest heroes with contrasting headings and co
 
 const maintenanceTrackingRoute = 'features/maintenance-tracking';
 
-test('Maintenance Tracking renders its hero photo without a white frame', () => {
+test('Maintenance Tracking layers Percy over a full-bleed hero photo with the homepage fade', () => {
   assertForestHero(maintenanceTrackingRoute);
   const hero = JSDOM.fragment(readMarkedHero(maintenanceTrackingRoute));
-  const photo = hero.querySelector('[role="img"][style*="maintenance-tracking-hero.jpg"]');
+  const photo = hero.querySelector('img[src="/images/landing/maintenance-hero-kitchen.webp"]');
   assert.ok(photo, 'the hero should render the maintenance tracking photo');
+  assert.equal(photo.getAttribute('data-nimg'), 'fill');
+  assert.ok(hero.querySelector('.marketing-home-hero-fade'), 'the hero should reuse the homepage fade');
+  assert.ok(hero.querySelector('img[src="/images/landing/maintenance-hero-percy.webp"][data-nimg="1"]'), 'Percy should render as a separate foreground image');
   assert.equal(photo.closest('[class~="bg-brand-surface"], [class~="border-[var(--brand-border)]"]'), null);
 });
 

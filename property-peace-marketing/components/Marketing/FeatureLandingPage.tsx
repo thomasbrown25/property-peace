@@ -130,7 +130,7 @@ export default function FeatureLandingPage({
 
       <section
         data-marketing-hero-theme="light"
-        className="relative overflow-hidden bg-brand-forest px-4 pb-16 pt-32 sm:px-6 sm:pb-20 sm:pt-36 lg:px-8"
+        className="relative overflow-hidden bg-brand-forest marketing-gutter pb-16 pt-32 sm:pb-20 sm:pt-36"
       >
         <div className="absolute left-1/2 top-0 h-[360px] w-[680px] -translate-x-1/2 rounded-full bg-[color-mix(in_srgb,var(--brand-mint)_50%,transparent)] blur-3xl" />
         <div className="relative mx-auto max-w-6xl">
@@ -198,7 +198,7 @@ export default function FeatureLandingPage({
         </div>
       </section>
 
-      <main className="bg-brand-forest px-4 py-16 sm:px-6 lg:px-8">
+      <main className="bg-brand-forest marketing-gutter py-16">
         <div className="mx-auto max-w-6xl space-y-16">
           <section className="grid gap-6 md:grid-cols-2">
             <div className="rounded-3xl border border-red-100 bg-brand-surface p-8">

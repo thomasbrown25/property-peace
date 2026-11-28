@@ -8,7 +8,7 @@ export default function Pricing() {
   return (
     <section
       id="pricing"
-      className="relative overflow-hidden bg-white py-32 px-4 sm:px-6 lg:px-8"
+      className="relative overflow-hidden bg-white py-32 marketing-gutter"
     >
       <div className="relative z-10 max-w-3xl mx-auto text-center">
         {/* Badge */}

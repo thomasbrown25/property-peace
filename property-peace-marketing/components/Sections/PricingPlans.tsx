@@ -27,7 +27,7 @@ const features = [
 
 export default function PricingPlans() {
   return (
-    <section data-marketing-hero-theme="dark" className="relative isolate overflow-hidden bg-brand-forest px-4 pb-10 pt-32 text-white sm:px-6 sm:pb-14 md:pt-48 lg:px-8">
+    <section data-marketing-hero-theme="dark" className="relative isolate overflow-hidden bg-brand-forest marketing-gutter pb-10 pt-32 text-white sm:pb-14 md:pt-48">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[680px] bg-cover bg-center bg-no-repeat" style={{ backgroundImage: 'url(/images/pricing/hero.png)' }} aria-hidden="true" />
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[680px] bg-brand-forest opacity-90" aria-hidden="true" />
       <div className="relative z-10 mx-auto max-w-6xl">
