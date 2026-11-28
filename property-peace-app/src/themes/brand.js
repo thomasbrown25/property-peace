@@ -8,6 +8,11 @@ export const brand = Object.freeze({
   slate: '#24343A'
 });
 
+export const portalHeaderColors = (mode) => ({
+  bgcolor: mode === 'dark' ? brand.forest : brand.ivory,
+  color: mode === 'dark' ? brand.ivory : brand.forest
+});
+
 export const portalSurfaces = Object.freeze({
   light: { app: brand.ivory, paper: '#FFFFFF', raised: '#FFFFFF', nested: '#F1F5F0' },
   dark: { app: '#101F1E', paper: '#1A302D', raised: '#24403B', nested: brand.forest }

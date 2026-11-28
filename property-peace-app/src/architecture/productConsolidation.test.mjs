@@ -179,8 +179,9 @@ test('Wren floats in the sidebar, welcome screen, and assistant replies and stre
   assert.match(aiCenter, /<FloatingWren placement="welcome"/);
   assert.match(aiCenter, /<FloatingWren placement="reply"/);
   assert.match(sidebar, /<FloatingWren placement="sidebar"/);
-  assert.match(mascot, /wren-floating-sidebar\.webp/);
-  assert.match(mascot, /wren-floating-chat\.webp/);
+  assert.match(mascot, /import wrenMascot from 'assets\/images\/logos\/wren-floating-forest\.webp'/);
+  assert.match(mascot, /src=\{wrenMascot\}/);
+  await access(path.join(srcRoot, 'assets/images/logos/wren-floating-forest.webp'));
   assert.match(mascot, /prefers-reduced-motion: reduce/);
   assert.match(aiCenter, /How can I help today\?/);
   assert.match(mascot, /theme\.palette\.mode === 'dark'/);

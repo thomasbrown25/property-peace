@@ -25,7 +25,7 @@ import {
   useMediaQuery
 } from '@mui/material';
 import Logo from 'components/logo';
-import { brand } from 'themes/brand';
+import { brand, portalHeaderColors } from 'themes/brand';
 import compactLogo from 'assets/images/logos/logo-white.png';
 import useFetchProperties from 'hooks/useFetchProperties';
 import useAuth from 'hooks/useAuth';
@@ -463,15 +463,17 @@ function PropertyNavigation({
       sx={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, bgcolor: sidebarBackground, color: '#FFFFFF' }}
     >
       <Box
-        sx={{
+        sx={(theme) => ({
           height: 60,
           px: 2.5,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           flexShrink: 0,
-          borderBottom: '1px solid rgba(255, 255, 255, 0.14)'
-        }}
+          ...portalHeaderColors(theme.palette.mode),
+          borderBottom: '1px solid',
+          borderColor: 'divider'
+        })}
       >
         <Box
           component={Link}
@@ -491,7 +493,7 @@ function PropertyNavigation({
             color: 'inherit',
             textDecoration: 'none',
             borderRadius: 1,
-            '&:focus-visible': { outline: `2px solid ${brand.mint}`, outlineOffset: 2 }
+            '&:focus-visible': { outline: '2px solid currentColor', outlineOffset: 2 }
           }}
         >
           <FloatingWren placement="sidebar" />
@@ -511,7 +513,11 @@ function PropertyNavigation({
               else setSearchOpen(true);
             }}
             size="small"
-            sx={{ color: 'inherit' }}
+            sx={{
+              color: 'inherit',
+              '&:hover': { color: 'inherit' },
+              '&.Mui-focusVisible': { outline: '2px solid currentColor' }
+            }}
           >
             <AppIcon name="search" />
           </IconButton>
