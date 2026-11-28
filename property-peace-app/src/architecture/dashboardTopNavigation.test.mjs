@@ -40,7 +40,7 @@ test('landlord shell reserves one green property rail rather than two sidebars',
   assert.match(source('../themes/brand.js'), /forest: '#102C29'/);
   assert.equal((sidebar.match(/bgcolor: sidebarBackground/g) || []).length, 4);
   assert.match(sidebar, /linear-gradient\(transparent, \$\{sidebarBackground\}\)/);
-  assert.match(sidebar, /<Logo darkSurface[\s\S]*?to="\/landlord\/dashboard"/);
+  assert.match(sidebar, /<Typography component="h1" variant="h5"[\s\S]*?>\s*Wren\s*<\/Typography>/);
 });
 
 test('the desktop property rail shares its width with the shell and is toggled from the top bar', () => {
@@ -75,7 +75,7 @@ test('a populated portfolio expands the desktop sidebar even after a manual coll
 test('the collapsed property rail shows the white logo as a dashboard link at the top', () => {
   const sidebar = source('../layout/Dashboard/LandlordSidebar.jsx');
   assert.match(sidebar, /import compactLogo from 'assets\/images\/logos\/logo-white\.png'/);
-  assert.match(sidebar, /desktopOpen \? \(\s*<Logo[^>]*>\s*\) : \(\s*<Box component=\{Link\} to="\/landlord\/dashboard"[\s\S]*?<Box component="img" src=\{compactLogo\} alt="Property Peace home"[\s\S]*?id="landlord-property-navigation"/);
+  assert.match(sidebar, /\{!desktopOpen && \(\s*<Box[\s\S]*?<Box component=\{Link\} to="\/landlord\/dashboard"[\s\S]*?<Box component="img" src=\{compactLogo\} alt="Property Peace home"[\s\S]*?id="landlord-property-navigation"/);
 });
 
 test('desktop top bar has ordered landlord links and More', () => {
@@ -96,13 +96,14 @@ test('desktop top bar has ordered landlord links and More', () => {
   assert.doesNotMatch(more, /const tenantsItem/);
 });
 
-test('landlord top bar uses a left-aligned search field on desktop and a search button on smaller screens', () => {
+test('landlord top bar uses the requested logo on the left and a search button on the right at every width', () => {
   const content = source('../layout/Dashboard/Header/HeaderContent/index.jsx');
   const mobileSearch = source('../layout/Dashboard/Header/HeaderContent/MobileSearch.jsx');
-  assert.match(content, /const downLG = useMediaQuery\(\(theme\) => theme\.breakpoints\.down\('lg'\)\)/);
-  assert.match(content, /gridTemplateAreas: '"search navigation actions"'/);
-  assert.match(content, /landlordPortal && !hasTenantRole && !downLG && \(\s*<Box sx=\{\{ gridArea: 'search',[^\n]*justifySelf: 'start'[^\n]*\}\}>\s*<Search \/>/);
-  assert.match(content, /!hasTenantRole && \(!landlordPortal \|\| downLG\) && <MobileSearch \/>[\s\S]*?<Message \/>/);
+  assert.match(content, /import landlordHeaderLogo from 'assets\/images\/logos\/property-peace-dark-2\.png'/);
+  assert.match(content, /gridTemplateAreas: '"logo navigation actions"'/);
+  assert.match(content, /component="img"\s+src=\{landlordHeaderLogo\}\s+alt="Property Peace"/);
+  assert.doesNotMatch(content, /<Search \/>/);
+  assert.match(content, /!hasTenantRole && <MobileSearch \/>[\s\S]*?<Message \/>/);
   assert.match(mobileSearch, /<AppIcon name="magnifier" \/>/);
   assert.match(mobileSearch, /<Search autoFocus /);
 });
@@ -144,7 +145,7 @@ test('properties are searchable, accessible, and scroll in the single green rail
   assert.match(sidebar, /landlordMoreLinks\.filter\(\(\{ label \}\) => label !== 'Settings'\)\.map/);
   assert.match(sidebar, /renderPropertyNavigation\('desktop'\)/);
   assert.match(sidebar, /renderPropertyNavigation\('mobile'\)/);
-  assert.match(sidebar, /aria-label="Search properties" title="Search properties"[\s\S]*?<AppIcon name="search" \/>[\s\S]*?aria-label="Add property"/);
+  assert.match(sidebar, />\s*Wren\s*<\/Typography>[\s\S]*?aria-label="Search properties"[\s\S]*?<AppIcon name="search" \/>[\s\S]*?>\s*Properties\s*<\/Typography>[\s\S]*?aria-label="Add property"/);
   assert.match(sidebar, /\{!loading && !isEmptyPortfolio && <Collapse in=\{searchOpen\} timeout=\{reducedMotion \? 0 : 240\} unmountOnExit/);
   assert.match(sidebar, /onKeyDown=\{\(event\) => \{ if \(event\.key === 'Escape'\)/);
   assert.match(sidebar, /disabled=\{trialExpired\}/);
@@ -166,7 +167,7 @@ test('the property rail keeps the count and rows hidden until the current list i
   assert.match(sidebar, /properties=\{propertiesReady \? visibleProperties : \[\]\} total=\{propertiesReady \? propertyRows\.length : null\}/);
   assert.match(sidebar, /loading=\{propertiesStatus === 'pending'\}/);
   assert.match(sidebar, /total != null && <Typography component="span"/);
-  assert.match(sidebar, /\{!loading && !isEmptyPortfolio && <Box[^\n]*\n\s*<IconButton ref=\{searchButtonRef\}/);
+  assert.match(sidebar, /\{!loading && !isEmptyPortfolio && \(\s*<IconButton\s+ref=\{searchButtonRef\}/);
   assert.match(sidebar, /status=\{propertiesStatus === 'failed' \? 'Failed to load properties' : propertiesReady && propertyRows\.length \? 'No matching properties\.' : null\}/);
   assert.match(sidebar, /!properties\.length && status && <Typography role="status"/);
 });

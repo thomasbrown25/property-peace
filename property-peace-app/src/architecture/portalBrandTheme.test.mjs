@@ -28,7 +28,7 @@ test('the top bar uses contrasting brand surfaces and exposes responsive landlor
   assert.match(header, /color: theme\.palette\.mode === 'dark' \? theme\.palette\.brand\.ivory : theme\.palette\.brand\.forest/);
   assert.match(header, /LANDLORD_SIDEBAR_WIDTH/);
   assert.match(content, /aria-label="Open landlord navigation" onClick=\{onLandlordMenuOpen\}/);
-  assert.match(content, /darkSurface=\{theme\.palette\.mode === 'dark'\}/);
-  assert.match(content, /lightHeaderLogo=\{theme\.palette\.mode !== 'dark'\}/);
+  assert.match(content, /import landlordHeaderLogo from 'assets\/images\/logos\/property-peace-dark-2\.png'/);
+  assert.match(content, /src=\{landlordHeaderLogo\}/);
   assert.doesNotMatch(content, /<MainDrawer/);
 });

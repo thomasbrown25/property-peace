@@ -64,7 +64,7 @@ namespace brownstone_hub_api.Services.MaintenanceRequestService
             var title = description.Length <= 60
                 ? description
                 : description.Substring(0, Math.Min(57, description.Length)) + "...";
-            
+
             // Capitalize first letter
             if (!string.IsNullOrEmpty(title))
             {
@@ -95,14 +95,14 @@ Generate a title that:
 Return ONLY a JSON object with the following format:
 {{
     ""title"": ""<the generated title>"",
-    ""reasoning"": ""<brief explanation of why this title was chosen>"" 
+    ""reasoning"": ""<brief explanation of why this title was chosen>""
 }}
 
 Generate a concise, professional title that accurately represents the maintenance request.";
 
                 // Call AI service
                 var aiResponse = await _openAIService.GenerateJsonAsync<TitleGenerationResponse>(prompt, maxTokens: 300);
-                
+
                 if (!aiResponse.Success || aiResponse.Data == null || string.IsNullOrWhiteSpace(aiResponse.Data.Title))
                 {
                     _logger.LogWarning("AI failed to generate title: {Error}, falling back to simple generation", aiResponse.Message);
@@ -110,14 +110,14 @@ Generate a concise, professional title that accurately represents the maintenanc
                 }
 
                 var generatedTitle = aiResponse.Data.Title.Trim();
-                
+
                 // Ensure title is not too long (max 60 chars)
                 if (generatedTitle.Length > 60)
                 {
                     generatedTitle = generatedTitle.Substring(0, 57).Trim() + "...";
                 }
 
-                _logger.LogInformation("AI generated title: {Title}. Reasoning: {Reasoning}", 
+                _logger.LogInformation("AI generated title: {Title}. Reasoning: {Reasoning}",
                     generatedTitle, aiResponse.Data.Reasoning);
 
                 return generatedTitle;
@@ -149,7 +149,7 @@ Generate a concise, professional title that accurately represents the maintenanc
 
                 // Build category list for AI prompt
                 var categoryList = string.Join(", ", categories.Select(c => $"{c.Value} (ID: {c.Id})"));
-                
+
                 // Create prompt for AI
                 var prompt = $@"You are a maintenance request categorization assistant. Based on the maintenance request details below, choose the most appropriate category.
 
@@ -168,7 +168,7 @@ Choose the category ID that best matches the maintenance request. Be specific an
 
                 // Call AI service
                 var aiResponse = await _openAIService.GenerateJsonAsync<CategorySelectionResponse>(prompt, maxTokens: 500);
-                
+
                 if (!aiResponse.Success || aiResponse.Data == null)
                 {
                     _logger.LogWarning("AI failed to select category: {Error}", aiResponse.Message);
@@ -176,17 +176,17 @@ Choose the category ID that best matches the maintenance request. Be specific an
                 }
 
                 var selectedCategoryId = aiResponse.Data.CategoryId;
-                
+
                 // Validate that the selected category ID exists
                 var categoryExists = categories.Any(c => c.Id == selectedCategoryId);
                 if (!categoryExists)
                 {
-                    _logger.LogWarning("AI selected invalid category ID {CategoryId}, available IDs: {AvailableIds}", 
+                    _logger.LogWarning("AI selected invalid category ID {CategoryId}, available IDs: {AvailableIds}",
                         selectedCategoryId, string.Join(", ", categories.Select(c => c.Id)));
                     return null;
                 }
 
-                _logger.LogInformation("AI selected category ID {CategoryId} for maintenance request. Reasoning: {Reasoning}", 
+                _logger.LogInformation("AI selected category ID {CategoryId} for maintenance request. Reasoning: {Reasoning}",
                     selectedCategoryId, aiResponse.Data.Reasoning);
 
                 return selectedCategoryId;
@@ -228,14 +228,14 @@ Analyze the request and determine the priority level. Consider:
 Return ONLY a JSON object with the following format:
 {{
     ""priority"": ""low"" or ""medium"" or ""high"",
-    ""reasoning"": ""<brief explanation of why this priority was chosen>"" 
+    ""reasoning"": ""<brief explanation of why this priority was chosen>""
 }}
 
 Choose the priority that best matches the urgency and impact of the maintenance request. Be specific and accurate.";
 
                 // Call AI service
                 var aiResponse = await _openAIService.GenerateJsonAsync<PrioritySelectionResponse>(prompt, maxTokens: 500);
-                
+
                 if (!aiResponse.Success || aiResponse.Data == null)
                 {
                     _logger.LogWarning("AI failed to select priority: {Error}", aiResponse.Message);
@@ -243,7 +243,7 @@ Choose the priority that best matches the urgency and impact of the maintenance 
                 }
 
                 var priorityString = aiResponse.Data.Priority?.ToLower();
-                
+
                 // Map string to enum
                 EMaintenancePriority? selectedPriority = priorityString switch
                 {
@@ -259,7 +259,7 @@ Choose the priority that best matches the urgency and impact of the maintenance 
                     return EMaintenancePriority.Medium;
                 }
 
-                _logger.LogInformation("AI selected priority {Priority} for maintenance request. Reasoning: {Reasoning}", 
+                _logger.LogInformation("AI selected priority {Priority} for maintenance request. Reasoning: {Reasoning}",
                     selectedPriority.Value, aiResponse.Data.Reasoning);
 
                 return selectedPriority.Value;
@@ -493,13 +493,13 @@ Choose the priority that best matches the urgency and impact of the maintenance 
                             UserId = createdByUserId.Value,
                             OrganizationId = property.OrganizationId,
                             Type = ENotificationType.Maintenance,
-                            Title = "Percy maintenance request created",
-                            Message = $"Percy created your maintenance request '{addedRequest.Title}' for {addedRequest.PropertyName}",
+                            Title = "Wren AI maintenance request created",
+                            Message = $"Wren AI created your maintenance request '{addedRequest.Title}' for {addedRequest.PropertyName}",
                             RelatedId = addedRequest.Id,
                             SendEmail = true,
                             SendSMS = true,
                             PerformedByUserId = createdByUserId.Value,
-                            PerformedByName = "Percy"
+                            PerformedByName = "Wren AI"
                         }));
                     }
 
@@ -510,13 +510,13 @@ Choose the priority that best matches the urgency and impact of the maintenance 
                             UserId = property.LandlordId,
                             OrganizationId = property.OrganizationId,
                             Type = ENotificationType.Maintenance,
-                            Title = "Percy maintenance request created",
-                            Message = $"Percy created '{addedRequest.Title}' for {addedRequest.PropertyName}",
+                            Title = "Wren AI maintenance request created",
+                            Message = $"Wren AI created '{addedRequest.Title}' for {addedRequest.PropertyName}",
                             RelatedId = addedRequest.Id,
                             SendEmail = true,
                             SendSMS = true,
                             PerformedByUserId = createdByUserId,
-                            PerformedByName = "Percy"
+                            PerformedByName = "Wren AI"
                         }));
                     }
 
@@ -1089,7 +1089,7 @@ Choose the priority that best matches the urgency and impact of the maintenance 
 
                 // Build category list for AI prompt
                 var categoryList = string.Join(", ", categories.Select(c => $"{c.Value} (ID: {c.Id})"));
-                
+
                 // Create prompt for AI
                 var prompt = $@"You are a maintenance request categorization assistant. Based on the maintenance request details below, choose the most appropriate category.
 
@@ -1108,7 +1108,7 @@ Choose the category ID that best matches the maintenance request. Be specific an
 
                 // Call AI service
                 var aiResponse = await _openAIService.GenerateJsonAsync<CategorySelectionResponse>(prompt, maxTokens: 500);
-                
+
                 if (!aiResponse.Success || aiResponse.Data == null)
                 {
                     _logger.LogWarning("AI failed to select category: {Error}", aiResponse.Message);
@@ -1116,17 +1116,17 @@ Choose the category ID that best matches the maintenance request. Be specific an
                 }
 
                 var selectedCategoryId = aiResponse.Data.CategoryId;
-                
+
                 // Validate that the selected category ID exists
                 var categoryExists = categories.Any(c => c.Id == selectedCategoryId);
                 if (!categoryExists)
                 {
-                    _logger.LogWarning("AI selected invalid category ID {CategoryId}, available IDs: {AvailableIds}", 
+                    _logger.LogWarning("AI selected invalid category ID {CategoryId}, available IDs: {AvailableIds}",
                         selectedCategoryId, string.Join(", ", categories.Select(c => c.Id)));
                     return (null, string.Empty);
                 }
 
-                _logger.LogInformation("AI selected category ID {CategoryId} for maintenance request. Reasoning: {Reasoning}", 
+                _logger.LogInformation("AI selected category ID {CategoryId} for maintenance request. Reasoning: {Reasoning}",
                     selectedCategoryId, aiResponse.Data.Reasoning);
 
                 return (selectedCategoryId, aiResponse.Data.Reasoning ?? string.Empty);
@@ -1162,14 +1162,14 @@ Analyze the request and determine the priority level. Consider:
 Return ONLY a JSON object with the following format:
 {{
     ""priority"": ""low"" or ""medium"" or ""high"",
-    ""reasoning"": ""<brief explanation of why this priority was chosen>"" 
+    ""reasoning"": ""<brief explanation of why this priority was chosen>""
 }}
 
 Choose the priority that best matches the urgency and impact of the maintenance request. Be specific and accurate.";
 
                 // Call AI service
                 var aiResponse = await _openAIService.GenerateJsonAsync<PrioritySelectionResponse>(prompt, maxTokens: 500);
-                
+
                 if (!aiResponse.Success || aiResponse.Data == null)
                 {
                     _logger.LogWarning("AI failed to select priority: {Error}", aiResponse.Message);
@@ -1177,7 +1177,7 @@ Choose the priority that best matches the urgency and impact of the maintenance 
                 }
 
                 var priorityString = aiResponse.Data.Priority?.ToLower();
-                
+
                 // Map string to enum
                 EMaintenancePriority? selectedPriority = priorityString switch
                 {
@@ -1193,7 +1193,7 @@ Choose the priority that best matches the urgency and impact of the maintenance 
                     return (EMaintenancePriority.Medium, "Default priority due to AI analysis failure");
                 }
 
-                _logger.LogInformation("AI selected priority {Priority} for maintenance request. Reasoning: {Reasoning}", 
+                _logger.LogInformation("AI selected priority {Priority} for maintenance request. Reasoning: {Reasoning}",
                     selectedPriority.Value, aiResponse.Data.Reasoning);
 
                 return (selectedPriority.Value, aiResponse.Data.Reasoning ?? string.Empty);

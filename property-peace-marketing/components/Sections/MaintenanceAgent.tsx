@@ -55,7 +55,7 @@ function ChatStep() {
           <span className="text-[8px] font-bold" style={{ color: TEAL }}>P</span>
         </div>
         <div>
-          <p className="text-xs font-semibold text-primary-main leading-tight">Percy Maintenance Agent</p>
+          <p className="text-xs font-semibold text-primary-main leading-tight">Wren AI Maintenance Agent</p>
           <p className="text-[10px] font-medium" style={{ color: '#16a34a' }}>● Conversation active</p>
         </div>
         <span className="ml-auto text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: tint(TEAL, 8), color: TEAL, border: `1px solid ${tint(TEAL, 20)}` }}>
@@ -186,7 +186,7 @@ function TicketStep() {
         className="rounded-xl p-2.5 mb-3"
         style={{ background: tint(TEAL, 4), border: `1px solid ${tint(TEAL, 14)}` }}
       >
-        <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: TEAL }}>Percy Summary</p>
+        <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: TEAL }}>Wren AI Summary</p>
         <p className="text-[11px] leading-relaxed text-[#374151]">
           &ldquo;Faucet dripping for 2 days. No visible water damage. Standard plumbing repair.&rdquo;
         </p>
@@ -273,8 +273,8 @@ function TrackingStep() {
 
 // ── Bullets ───────────────────────────────────────────────────────────────────
 const bullets = [
-  'Tenants chat with Percy — no more vague "something\'s broken" tickets',
-  'Percy determines priority and category automatically',
+  'Tenants chat with Wren AI — no more vague "something\'s broken" tickets',
+  'Wren AI determines priority and category automatically',
   'Clarifying questions surface the details you actually need',
   'Landlord receives a complete, organized request instantly',
   'No vendor dispatched or fees applied without your approval',
@@ -348,7 +348,7 @@ export default function MaintenanceAgent() {
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-primary-main" style={{ fontFamily: '"Inter", sans-serif' }}>
-                        Percy Maintenance Agent
+                        Wren AI Maintenance Agent
                       </p>
                       <p className="text-xs flex items-center gap-1.5" style={{ color: '#16a34a', fontFamily: '"Inter", sans-serif' }}>
                         <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: '#16a34a' }} />
@@ -432,7 +432,7 @@ export default function MaintenanceAgent() {
               className="inline-block text-xs font-semibold tracking-widest uppercase mb-5 px-3 py-1 rounded-full border"
               style={{ fontFamily: '"Inter", sans-serif', color: TEAL, borderColor: tint(TEAL, 20), background: tint(TEAL, 8) }}
             >
-              Percy Maintenance Agent
+              Wren AI Maintenance Agent
             </span>
 
             <h2
@@ -446,7 +446,7 @@ export default function MaintenanceAgent() {
               className="text-base md:text-lg text-brand-slate mb-6 leading-relaxed"
               style={{ fontFamily: '"Inter", sans-serif' }}
             >
-              Instead of a blank text box, tenants chat with Percy. Percy asks the right
+              Instead of a blank text box, tenants chat with Wren AI. Wren AI asks the right
               questions, figures out the priority and category, and hands you a fully formed request —
               so you can act immediately instead of playing 20 questions.
             </p>

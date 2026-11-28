@@ -33,20 +33,21 @@ export class AIFollowUpAPI {
     });
   }
 
-  async streamChat(message, conversationId, clientRequestId, options = {}) {
+  async streamChat(message, conversationId, clientRequestId, { propertyId, ...options } = {}) {
     return this.client.streamNdjson(
       '/api/ai-copilot/chat/stream',
       {
         message,
         ...(conversationId !== undefined && conversationId !== null ? { conversationId } : {}),
+        ...(propertyId != null ? { propertyId } : {}),
         clientRequestId
       },
       options
     );
   }
 
-  async getConversations(includeArchived = false) {
-    return this.client.get(`/api/ai-copilot/conversations?includeArchived=${includeArchived}`);
+  async getConversations(includeArchived = false, options) {
+    return this.client.get(`/api/ai-copilot/conversations?includeArchived=${includeArchived}`, options);
   }
 
   async getConversation(id) {
@@ -55,6 +56,10 @@ export class AIFollowUpAPI {
 
   async deleteConversation(id) {
     return this.client.delete(`/api/ai-copilot/conversations/${id}`);
+  }
+
+  async archiveConversation(id, options) {
+    return this.client.post(`/api/ai-copilot/conversations/${id}/archive`, undefined, options);
   }
 
   async confirmAction(id) {

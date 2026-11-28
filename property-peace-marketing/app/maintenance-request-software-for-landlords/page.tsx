@@ -15,6 +15,12 @@ const config: NicheLandingPageConfig = {
   title: 'Stop losing maintenance requests in texts and emails',
   description: 'Property Peace gives small landlords one organized place to track maintenance requests, photos, tenant messages, work status, vendors, and property repair history.',
   proofPoints: ['Request history', 'Photo-friendly workflow', 'Tenant communication', 'Free start'],
+  heroImage: {
+    src: '/images/landing/maintenance-hero-wren.webp',
+    alt: 'Wren AI floats above a green ring and extends a wing toward the maintenance introduction.',
+    width: 1128,
+    height: 1128,
+  },
   painTitle: 'Every repair needs a clear trail',
   painIntro: 'Maintenance gets expensive when details are scattered. Property Peace keeps the request, tenant, property, photos, notes, and status together so repairs are easier to manage.',
   painPoints: ['Capture requests before they disappear in text threads', 'Keep repair photos and notes attached to the right property', 'Track status from submitted to resolved', 'Build maintenance history for every unit'],
@@ -33,7 +39,7 @@ const config: NicheLandingPageConfig = {
     { question: 'Is this only for large property managers?', answer: 'No. Property Peace is intentionally built for small landlords and independent rental owners who need maintenance organization without enterprise complexity.' },
   ],
   relatedLinks: [
-    { href: '/maintenance/ai-maintenance', label: 'Percy Pilot maintenance management' },
+    { href: '/maintenance/ai-maintenance', label: 'Wren AI Pilot maintenance management' },
     { href: '/maintenance/in-app-messaging', label: 'Maintenance messaging' },
     { href: '/features/maintenance-tracking', label: 'Maintenance tracking feature' },
     { href: '/pricing', label: 'Pricing' },

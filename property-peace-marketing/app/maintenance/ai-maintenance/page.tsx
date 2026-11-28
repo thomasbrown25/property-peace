@@ -22,14 +22,14 @@ import { applyOttoSeo } from "@/lib/otto-seo";
 import AIMaintenanceFAQ from "./AIMaintenanceFAQ";
 
 export const metadata: Metadata = applyOttoSeo('/maintenance/ai-maintenance/', {
-  title: "Percy Pilot Maintenance Management for Landlords | Property Peace",
+  title: "Wren AI Pilot Maintenance Management for Landlords | Property Peace",
   description:
-    "Organize tenant maintenance requests, photos, priorities, vendors, and repair history with Percy-assisted tools available through the limited Percy Pilot.",
+    "Organize tenant maintenance requests, photos, priorities, vendors, and repair history with Wren AI-assisted tools available through the limited Wren AI Pilot.",
   keywords:
-    "Percy Pilot maintenance management, rental property maintenance software, landlord maintenance tracking, work order tracking, tenant maintenance requests, maintenance ticket software, software for small landlords",
+    "Wren AI Pilot maintenance management, rental property maintenance software, landlord maintenance tracking, work order tracking, tenant maintenance requests, maintenance ticket software, software for small landlords",
   alternates: { canonical: "/maintenance/ai-maintenance" },
   openGraph: {
-    title: "Percy Pilot Maintenance Management for Landlords | Property Peace",
+    title: "Wren AI Pilot Maintenance Management for Landlords | Property Peace",
     description:
       "Bring maintenance requests, photos, priorities, vendors, and repair history into one clear landlord workflow.",
     type: "website",
@@ -37,9 +37,9 @@ export const metadata: Metadata = applyOttoSeo('/maintenance/ai-maintenance/', {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Percy Pilot Maintenance Management for Landlords | Property Peace",
+    title: "Wren AI Pilot Maintenance Management for Landlords | Property Peace",
     description:
-      "Organize rental maintenance work with Percy-assisted intake and a clear landlord-controlled workflow.",
+      "Organize rental maintenance work with Wren AI-assisted intake and a clear landlord-controlled workflow.",
   },
 });
 
@@ -50,7 +50,7 @@ const workflow = [
     body: "A request starts with the property, unit, description, and supporting photos in one place.",
   },
   {
-    label: "Percy-assisted intake",
+    label: "Wren AI-assisted intake",
     title: "Bring the signal forward",
     body: "The limited pilot helps organize the request and surface context that may need faster attention.",
   },
@@ -68,14 +68,14 @@ const workflow = [
 
 const faqs = [
   {
-    question: "What is Percy Pilot maintenance management?",
+    question: "What is Wren AI Pilot maintenance management?",
     answer:
-      "Percy Pilot is a limited-availability set of assisted tools designed to help organize maintenance intake and highlight useful context. Landlords remain responsible for reviewing every request, deciding its urgency, and choosing the response.",
+      "Wren AI Pilot is a limited-availability set of assisted tools designed to help organize maintenance intake and highlight useful context. Landlords remain responsible for reviewing every request, deciding its urgency, and choosing the response.",
   },
   {
-    question: "Does Percy decide whether a request is an emergency?",
+    question: "Does Wren AI decide whether a request is an emergency?",
     answer:
-      "No. Percy may help surface language or context that appears urgent, but it does not replace landlord judgment, emergency procedures, qualified vendors, or local legal requirements. Always review requests and respond based on the actual situation.",
+      "No. Wren AI may help surface language or context that appears urgent, but it does not replace landlord judgment, emergency procedures, qualified vendors, or local legal requirements. Always review requests and respond based on the actual situation.",
   },
   {
     question: "Can tenants include photos with a request?",
@@ -150,7 +150,7 @@ export default function AIMaintenancePage() {
                 className="mb-6 inline-flex items-center gap-2 border border-brand-mint bg-brand-mint px-3.5 py-2 text-xs font-bold uppercase tracking-[0.14em] text-brand-teal"
                 style={{ fontFamily: '"Inter", sans-serif' }}
               >
-                <FiTool className="h-4 w-4" /> Limited Percy Pilot
+                <FiTool className="h-4 w-4" /> Limited Wren AI Pilot
               </div>
               <h1
                 className="max-w-2xl text-[2.7rem] font-semibold leading-[1.04] tracking-[-0.05em] text-white sm:text-5xl lg:text-[3.7rem]"
@@ -162,7 +162,7 @@ export default function AIMaintenancePage() {
                 className="mt-6 max-w-xl text-lg leading-8 text-white/75"
                 style={{ fontFamily: '"Inter", sans-serif' }}
               >
-                Bring tenant requests, photos, status, vendors, and repair history into one landlord-controlled workflow—with Percy-assisted intake available through a limited pilot.
+                Bring tenant requests, photos, status, vendors, and repair history into one landlord-controlled workflow—with Wren AI-assisted intake available through a limited pilot.
               </p>
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -186,7 +186,7 @@ export default function AIMaintenancePage() {
                 className="mt-8 flex flex-wrap gap-x-5 gap-y-3 text-sm font-medium text-white/75"
                 style={{ fontFamily: '"Inter", sans-serif' }}
               >
-                {["Free for unlimited units", "Built for 1–50 units", "Percy Pilot access is limited"].map((item) => (
+                {["Free for unlimited units", "Built for 1–50 units", "Wren AI Pilot access is limited"].map((item) => (
                   <span key={item} className="inline-flex items-center gap-2">
                     <FiCheck className="h-4 w-4 text-brand-teal" /> {item}
                   </span>
@@ -209,7 +209,7 @@ export default function AIMaintenancePage() {
                   </div>
                 </div>
                 <span className="border border-[color:color-mix(in_srgb,var(--brand-mint)_30%,transparent)] bg-[color-mix(in_srgb,var(--brand-mint)_10%,transparent)] px-2.5 py-1 text-xs font-semibold text-brand-mint">
-                  Percy-assisted
+                  Wren AI-assisted
                 </span>
               </div>
 
@@ -339,7 +339,7 @@ export default function AIMaintenancePage() {
                   className="mt-4 max-w-3xl text-3xl font-semibold leading-tight tracking-[-0.035em] text-white sm:text-4xl"
                   style={{ fontFamily: '"Host Grotesk", sans-serif' }}
                 >
-                  Percy helps organize the intake. You stay in charge of the repair.
+                  Wren AI helps organize the intake. You stay in charge of the repair.
                 </h2>
               </div>
               <p className="text-base leading-7 text-white/75" style={{ fontFamily: '"Inter", sans-serif' }}>
@@ -351,7 +351,7 @@ export default function AIMaintenancePage() {
               <div className="border-b border-white/20 py-10 md:border-b-0 md:border-r md:pr-12">
                 <div className="flex items-center gap-3 text-brand-mint">
                   <FiTool className="h-5 w-5" />
-                  <p className="text-xs font-bold uppercase tracking-[0.18em]">Percy can help</p>
+                  <p className="text-xs font-bold uppercase tracking-[0.18em]">Wren AI can help</p>
                 </div>
                 <ul className="mt-7 space-y-5">
                   {["Organize request details and maintenance context", "Surface language that may deserve faster attention", "Keep intake easier to scan across a growing portfolio"].map((item) => (
@@ -445,7 +445,7 @@ export default function AIMaintenancePage() {
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-brand-mint">Straight answers</p>
               <h2 className="mt-4 text-3xl font-semibold tracking-[-0.035em] text-white sm:text-4xl" style={{ fontFamily: '"Host Grotesk", sans-serif' }}>
-                Percy Pilot maintenance FAQs
+                Wren AI Pilot maintenance FAQs
               </h2>
               <p className="mt-5 max-w-sm text-base leading-7 text-white/75" style={{ fontFamily: '"Inter", sans-serif' }}>
                 What the limited pilot can help with—and where landlord judgment still matters.
@@ -464,7 +464,7 @@ export default function AIMaintenancePage() {
                 Give every repair a clear place to go.
               </h2>
               <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-white/70" style={{ fontFamily: '"Inter", sans-serif' }}>
-                Start with organized maintenance tracking today. Percy-assisted tools are available separately through the limited pilot.
+                Start with organized maintenance tracking today. Wren AI-assisted tools are available separately through the limited pilot.
               </p>
               <Link
                 href="https://app.propertypeace.io/register"

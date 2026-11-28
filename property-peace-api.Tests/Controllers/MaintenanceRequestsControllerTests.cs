@@ -84,6 +84,8 @@ public sealed class MaintenanceRequestsControllerTests
         var methods = typeof(MaintenanceRequestsController).GetMethods()
             .Where(method => method.DeclaringType == typeof(MaintenanceRequestsController)).ToArray();
         methods.Should().Contain(method => method.GetCustomAttributes(typeof(HttpPostAttribute), true).Cast<HttpPostAttribute>().Any(x => x.Template == "{id:long}/acknowledge"));
+        methods.Should().Contain(method => method.GetCustomAttributes(typeof(HttpPostAttribute), true).Cast<HttpPostAttribute>().Any(x => x.Template == "{id:long}/wren-ai/troubleshooting"));
+        methods.Should().Contain(method => method.GetCustomAttributes(typeof(HttpPostAttribute), true).Cast<HttpPostAttribute>().Any(x => x.Template == "{id:long}/wren-ai/troubleshooting/{stepId:long}/outcome"));
         methods.Should().Contain(method => method.GetCustomAttributes(typeof(HttpPostAttribute), true).Cast<HttpPostAttribute>().Any(x => x.Template == "{id:long}/percy/troubleshooting"));
         methods.Should().Contain(method => method.GetCustomAttributes(typeof(HttpPostAttribute), true).Cast<HttpPostAttribute>().Any(x => x.Template == "{id:long}/percy/troubleshooting/{stepId:long}/outcome"));
         methods.Should().Contain(method => method.GetCustomAttributes(typeof(HttpGetAttribute), true).Cast<HttpGetAttribute>().Any(x => string.IsNullOrEmpty(x.Template)));

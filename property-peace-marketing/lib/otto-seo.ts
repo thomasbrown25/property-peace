@@ -39,21 +39,21 @@ const ottoSeoOverrides: Record<string, OttoSeoOverride> = {
   },
   '/demo/': {
     title: 'Book a Property Management Demo | Property Peace',
-    description: 'Book a Property Peace demo to see rent, maintenance, and lease workflows, plus Percy-assisted tools currently available through the limited Percy Pilot.',
+    description: 'Book a Property Peace demo to see rent, maintenance, and lease workflows, plus Wren AI-assisted tools currently available through the limited Wren AI Pilot.',
     openGraphTitle: 'Manage Properties Easily: Try Property Peace Free',
   },
   '/features/': {
     title: 'Property Management Software Features: Streamline Your Landlord Tasks | Property Peace',
-    description: 'Explore Property Peace tools for rent tracking, maintenance, leases, applications, and accounting, plus portfolio summaries in the limited Percy Pilot.',
+    description: 'Explore Property Peace tools for rent tracking, maintenance, leases, applications, and accounting, plus portfolio summaries in the limited Wren AI Pilot.',
     canonical: 'https://propertypeace.io/features',
     twitterTitle: 'Property Peace: Simplify Landlord Life. Free Software! #PropTech',
     twitterDescription: 'Simplify rent, leases, maintenance & expenses. Property Peace: your calm dashboard for 1-50 units. Start free! #LandlordLife',
   },
   '/features/ai-summaries/': {
     title: 'AI Summaries: Simplify Your Property Management | Property Peace',
-    description: 'Try plain-English portfolio summaries through the limited Percy Pilot, with Percy-assisted views of rent, maintenance, and tenant activity.',
-    openGraphDescription: 'Explore Percy-assisted portfolio summaries, currently available through the limited Percy Pilot, alongside Property Peace management tools.',
-    twitterDescription: 'Explore Percy-assisted portfolio summaries for rent, maintenance, leases, and more through the limited Percy Pilot. #PropertyManagement',
+    description: 'Try plain-English portfolio summaries through the limited Wren AI Pilot, with Wren AI-assisted views of rent, maintenance, and tenant activity.',
+    openGraphDescription: 'Explore Wren AI-assisted portfolio summaries, currently available through the limited Wren AI Pilot, alongside Property Peace management tools.',
+    twitterDescription: 'Explore Wren AI-assisted portfolio summaries for rent, maintenance, leases, and more through the limited Wren AI Pilot. #PropertyManagement',
   },
   '/features/all-in-one-dashboard/': {
     description: 'Property Peace dashboard: Real-time overview of properties, tenants, leases & finances. Simple management for independent landlords.',
@@ -151,7 +151,7 @@ const ottoSeoOverrides: Record<string, OttoSeoOverride> = {
     twitterDescription: 'Streamline rent, tenants, leases & expenses! Property Peace is your calm dashboard for 1-50 units. Start free. #LandlordLife',
   },
   '/maintenance/ai-maintenance/': {
-    description: 'Organize maintenance requests, priorities, and vendor records, with Percy-assisted maintenance tools currently offered through the limited Percy Pilot.',
+    description: 'Organize maintenance requests, priorities, and vendor records, with Wren AI-assisted maintenance tools currently offered through the limited Wren AI Pilot.',
     openGraphUrl: 'https://propertypeace.io/maintenance/ai-maintenance/',
     twitterTitle: 'Manage Rentals Effortlessly: Landlord Software for 1-50',
   },

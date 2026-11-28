@@ -7,10 +7,10 @@ import Profile from './Profile';
 import Notification from './Notification';
 import MobileSection from './MobileSection';
 import MobileSearch from './MobileSearch';
-import Search from './Search';
 import LandlordPrimaryNavigation from './LandlordPrimaryNavigation';
 import TenantPrimaryNavigation from './TenantPrimaryNavigation';
 import Logo from 'components/logo';
+import landlordHeaderLogo from 'assets/images/logos/property-peace-dark-2.png';
 import useAuth from 'hooks/useAuth';
 import useIsAdmin from 'hooks/useIsAdmin';
 
@@ -21,7 +21,6 @@ export default function HeaderContent({ adminPortal = false, landlordPortal = fa
   const isAdmin = useIsAdmin();
   const downMD = useMediaQuery((theme) => theme.breakpoints.down('md'));
   const downSM = useMediaQuery((theme) => theme.breakpoints.down('sm'));
-  const downLG = useMediaQuery((theme) => theme.breakpoints.down('lg'));
   const roles = Array.isArray(user?.Roles) ? user.Roles : Array.isArray(user?.roles) ? user.roles : [];
   const hasTenantRole = roles.some((role) => String(role).toLowerCase().trim() === 'tenant');
   const basePath = isAdmin ? '/admin' : hasTenantRole ? '/tenant' : '/landlord';
@@ -37,7 +36,7 @@ export default function HeaderContent({ adminPortal = false, landlordPortal = fa
         display: { xs: 'flex', lg: 'grid' },
         // Center the links beside the property rail when both sides have room.
         gridTemplateColumns: 'minmax(0, 1fr) auto minmax(max-content, 1fr)',
-        gridTemplateAreas: '"search navigation actions"'
+        gridTemplateAreas: '"logo navigation actions"'
       }),
       ...(tenantPortal && {
         height: '100%',
@@ -46,7 +45,7 @@ export default function HeaderContent({ adminPortal = false, landlordPortal = fa
         gridTemplateAreas: { xs: '"logo actions" "navigation navigation"', md: '"logo navigation actions"' }
       })
     }}>
-      <Box sx={{ display: landlordPortal ? { xs: 'flex', lg: 'none' } : 'flex', alignItems: 'center', gap: { xs: 1, sm: 2 }, minWidth: 0, ...(tenantPortal && { gridArea: 'logo' }) }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 2 }, minWidth: 0, ...((landlordPortal || tenantPortal) && { gridArea: 'logo' }) }}>
       {adminPortal && (
         <IconButton aria-label="Open admin navigation" onClick={onAdminMenuOpen} sx={{ display: { xs: 'inline-flex', lg: 'none' }, color: 'inherit' }}>
           <AppIcon name="menu" />
@@ -57,21 +56,32 @@ export default function HeaderContent({ adminPortal = false, landlordPortal = fa
           <AppIcon name="menu" />
         </IconButton>
       )}
-      <Logo
-        reverse
-        darkSurface={theme.palette.mode === 'dark'}
-        disableTopPadding
-        lightHeaderLogo={theme.palette.mode !== 'dark'}
-        width={downSM ? 82 : downMD ? 100 : 120}
-        to={`${basePath}/dashboard`}
-        sx={{ flexShrink: 0, lineHeight: 0, display: landlordPortal ? { xs: 'flex', lg: 'none' } : 'flex', alignItems: 'center' }}
-      />
-      </Box>
-      {landlordPortal && !hasTenantRole && !downLG && (
-        <Box sx={{ gridArea: 'search', justifySelf: 'start', width: '100%', maxWidth: 320, minWidth: 0 }}>
-          <Search />
+      {landlordPortal ? (
+        <Box
+          component={Link}
+          to={`${basePath}/dashboard`}
+          aria-label="Property Peace home"
+          sx={{ display: 'flex', alignItems: 'center', flexShrink: 0, lineHeight: 0 }}
+        >
+          <Box
+            component="img"
+            src={landlordHeaderLogo}
+            alt="Property Peace"
+            sx={{ display: 'block', width: { xs: 82, sm: 100, md: 120 }, maxWidth: '100%', height: 'auto' }}
+          />
         </Box>
+      ) : (
+        <Logo
+          reverse
+          darkSurface={theme.palette.mode === 'dark'}
+          disableTopPadding
+          lightHeaderLogo={theme.palette.mode !== 'dark'}
+          width={downSM ? 82 : downMD ? 100 : 120}
+          to={`${basePath}/dashboard`}
+          sx={{ flexShrink: 0, lineHeight: 0, display: 'flex', alignItems: 'center' }}
+        />
       )}
+      </Box>
       {tenantPortal ? <TenantPrimaryNavigation /> : <Box sx={{
         flex: 1,
         minWidth: 0,
@@ -94,7 +104,7 @@ export default function HeaderContent({ adminPortal = false, landlordPortal = fa
           '& > .MuiBox-root': { ml: 0 }
         })
       }}>
-        {!hasTenantRole && (!landlordPortal || downLG) && <MobileSearch />}
+        {!hasTenantRole && <MobileSearch />}
         <Message />
         <Notification />
         {tenantPortal && (

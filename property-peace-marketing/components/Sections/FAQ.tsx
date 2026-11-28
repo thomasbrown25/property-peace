@@ -32,7 +32,7 @@ const faqs = [
   },
   {
     question: 'Can I easily transfer all of my data to Property Peace?',
-    answer: 'Yes. Property Peace includes Percy import tools that automatically map your spreadsheet columns, making it easy to bring over tenants, properties, leases, rent history, expenses, and other rental data without rebuilding everything by hand.',
+    answer: 'Yes. Property Peace includes Wren AI import tools that automatically map your spreadsheet columns, making it easy to bring over tenants, properties, leases, rent history, expenses, and other rental data without rebuilding everything by hand.',
   },
   {
     question: 'Is there a paid subscription?',

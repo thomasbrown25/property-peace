@@ -313,11 +313,11 @@ export default function Navigation() {
       ]
     },
     {
-      title: 'PERCY & AUTOMATION',
+      title: 'WREN AI & AUTOMATION',
       features: [
         {
           slug: 'ai-summaries',
-          title: 'Percy Pilot Summaries',
+          title: 'Wren AI Pilot Summaries',
           icon: FiActivity,
           description: 'Instant plain-English summaries of your entire portfolio — rent, maintenance, and leases.'
         },
@@ -615,7 +615,7 @@ export default function Navigation() {
                       <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-[color-mix(in_srgb,var(--brand-mint)_12%,transparent)] text-brand-mint"><FiLayout className="h-4 w-4" /></span>
                       <span className="min-w-0">
                         <span className="block text-[15px] font-semibold">Features</span>
-                        <span className="block text-xs text-white/50">Rent, leases, maintenance, Percy</span>
+                        <span className="block text-xs text-white/50">Rent, leases, maintenance, Wren AI</span>
                       </span>
                     </span>
                     <FiChevronRight className="h-5 w-5 flex-shrink-0 text-white/45 transition-transform group-hover:translate-x-0.5 group-hover:text-white/80" />

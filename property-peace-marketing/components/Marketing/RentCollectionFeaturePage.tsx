@@ -113,10 +113,10 @@ export default function RentCollectionFeaturePage() {
             </div>
 
             <Image
-              src="/images/rent-collection/hero-percy.webp"
-              alt="Percy holds a payment tablet with a checkmark."
-              width={960}
-              height={960}
+              src="/images/rent-collection/hero-wren.webp"
+              alt="Wren AI floats above a green ring and points to a checkmark on a payment tablet."
+              width={1128}
+              height={1128}
               loading="eager"
               className="mx-auto h-auto w-full max-w-[240px] drop-shadow-[0_18px_28px_rgba(0,0,0,0.3)] sm:max-w-[290px] lg:max-w-[400px]"
             />

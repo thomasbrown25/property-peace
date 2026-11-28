@@ -85,9 +85,9 @@ const featureSteps: Record<string, MockStep[]> = {
   'ai-summaries': [
     {
       label: 'Scan portfolio',
-      caption: 'Percy reads rent, maintenance, lease, and tenant activity across the portfolio.',
+      caption: 'Wren AI reads rent, maintenance, lease, and tenant activity across the portfolio.',
       callout: 'Portfolio scanned',
-      eyebrow: 'Percy snapshot',
+      eyebrow: 'Wren AI snapshot',
       title: '12-unit portfolio review',
       icon: FiActivity,
       tone: 'purple',
@@ -320,7 +320,7 @@ const featureSteps: Record<string, MockStep[]> = {
   'maintenance-tracking': [
     {
       label: 'Guided intake',
-      caption: 'Percy asks focused follow-up questions to understand the issue.',
+      caption: 'Wren AI asks focused follow-up questions to understand the issue.',
       callout: 'Intake started',
       eyebrow: 'AI maintenance agent',
       title: 'Tell me what happened',
@@ -754,7 +754,7 @@ const featureSteps: Record<string, MockStep[]> = {
         { label: 'Lease', value: 'Maple 4B', status: 'Linked', tone: 'green' },
         { label: 'Source type', value: '.gov only', status: 'Locked', tone: 'green' },
       ],
-      note: 'Percy starts with the state and lease, not generic AI guesswork.',
+      note: 'Wren AI starts with the state and lease, not generic AI guesswork.',
     },
     {
       label: 'Ask question',

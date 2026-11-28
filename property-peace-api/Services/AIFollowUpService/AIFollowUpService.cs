@@ -206,7 +206,7 @@ namespace brownstone_hub_api.Services.AIFollowUpService
                 }
 
                 // Notify the landlord that the AI follow-up actually went out.
-                // This is especially important on mobile, where landlords rely on notifications for tenant messages and Percy activity.
+                // This is especially important on mobile, where landlords rely on notifications for tenant messages and Wren AI activity.
                 try
                 {
                     var landlordNotificationDto = new CreateNotificationDto
@@ -216,13 +216,13 @@ namespace brownstone_hub_api.Services.AIFollowUpService
                         Type = request.ActionType?.Contains("Rent", StringComparison.OrdinalIgnoreCase) == true
                             ? ENotificationType.Rent
                             : ENotificationType.Message,
-                        Title = "Percy AI follow-up sent",
-                        Message = BuildPercyFollowUpNotificationMessage(request.ActionType, context, tenantInfo.Name),
+                        Title = "Wren AI follow-up sent",
+                        Message = BuildWrenFollowUpNotificationMessage(request.ActionType, context, tenantInfo.Name),
                         RelatedId = conversation.Id,
                         SendEmail = false,
                         SendSMS = false,
                         PerformedByUserId = landlordId,
-                        PerformedByName = "Percy"
+                        PerformedByName = "Wren AI"
                     };
                     await _notificationService.CreateNotification(landlordNotificationDto);
                 }
@@ -255,10 +255,10 @@ namespace brownstone_hub_api.Services.AIFollowUpService
                     suppressionDays,
                     isManual: true);
 
-                return ServiceResponse<object>.CreateSuccess(new { 
+                return ServiceResponse<object>.CreateSuccess(new {
                     conversationId = conversation.Id,
                     messageId = messageResult.Data?.Id,
-                    suppressionDays 
+                    suppressionDays
                 }, "AI follow-up sent successfully");
             }
             catch (Exception ex)
@@ -326,7 +326,7 @@ namespace brownstone_hub_api.Services.AIFollowUpService
                         var payments = await _paymentRepository.GetRentPaymentsByLeaseId(entityId);
                         var overdueAmount = RentCalculator.CalculateOverdueForLease(lease, payments);
                         var status = RentCalculator.GetStatus(lease, payments);
-                        
+
                         // Calculate days overdue
                         var today = DateTime.Today;
                         var lastDueDate = CalculateLastDueDate(lease, today);
@@ -354,7 +354,7 @@ namespace brownstone_hub_api.Services.AIFollowUpService
                         if (tenant == null) return null;
 
                         // Determine if property is multi-unit
-                        var tenantIsMultiUnit = !string.IsNullOrEmpty(tenant.PropertyType) && 
+                        var tenantIsMultiUnit = !string.IsNullOrEmpty(tenant.PropertyType) &&
                                                 PropertyTypeClassification.IsMultiUnit(tenant.PropertyType);
 
                         return new Dictionary<string, object>
@@ -426,7 +426,7 @@ namespace brownstone_hub_api.Services.AIFollowUpService
         {
             if (!lease.StartDate.HasValue || !lease.RentDueDay.HasValue)
                 return today;
-            
+
             var firstDueDate = new DateTime(lease.StartDate.Value.Year, lease.StartDate.Value.Month, lease.RentDueDay.Value);
             if (firstDueDate < lease.StartDate.Value)
             {
@@ -446,12 +446,12 @@ namespace brownstone_hub_api.Services.AIFollowUpService
         {
             var propertyName = context["propertyName"]?.ToString() ?? "the property";
             var isMultiUnit = context.ContainsKey("isMultiUnit") && context["isMultiUnit"] is bool multiUnit && multiUnit;
-            
+
             if (isMultiUnit && context.ContainsKey("unitName") && !string.IsNullOrEmpty(context["unitName"]?.ToString()))
             {
                 return $"{propertyName} - {context["unitName"]}";
             }
-            
+
             return $"the home at {propertyName}";
         }
 
@@ -519,7 +519,7 @@ namespace brownstone_hub_api.Services.AIFollowUpService
         private string BuildConversationMessagePrompt(string actionType, Dictionary<string, object> context)
         {
             var basePrompt = "You are a landlord sending a direct message to a tenant through a messaging system. Write a conversational, friendly message as if you're texting or chatting with them directly. Be personable and approachable, not overly formal. ";
-            
+
             switch (actionType)
             {
                 case "sendAIFollowUp_OverdueRent":
@@ -563,7 +563,7 @@ namespace brownstone_hub_api.Services.AIFollowUpService
         private string BuildEmailMessagePrompt(string actionType, Dictionary<string, object> context)
         {
             var basePrompt = "You are a professional property management assistant. Write a formal email message to a tenant. Use a greeting and body only; do not add a closing or signature because the application adds the landlord organization's signature. For a single-family home, call it 'the home' and never mention a unit name such as 'Unit 1'. ";
-            
+
             switch (actionType)
             {
                 case "sendAIFollowUp_OverdueRent":
@@ -605,7 +605,7 @@ namespace brownstone_hub_api.Services.AIFollowUpService
         private string BuildSuppressionDurationPrompt(string actionType, Dictionary<string, object> context)
         {
             var urgency = DetermineUrgency(actionType, context);
-            
+
             return $"Based on the following situation, determine how many days to wait before sending another follow-up message. " +
                 $"Action type: {actionType}. " +
                 $"Urgency level: {urgency}. " +
@@ -666,7 +666,7 @@ namespace brownstone_hub_api.Services.AIFollowUpService
                         if (!organizationIdForTenantInfo.HasValue) return null;
                         var lease = await _leaseRepository.GetLeaseById(entityId, organizationIdForTenantInfo.Value);
                         if (lease == null || !lease.Tenants.Any()) return null;
-                        
+
                         var firstTenant = lease.Tenants.First();
                         return new TenantInfo
                         {
@@ -679,7 +679,7 @@ namespace brownstone_hub_api.Services.AIFollowUpService
                     case "sendAIFollowUp_TenantAccount":
                         var tenant = await _tenantRepository.GetTenantById(entityId);
                         if (tenant == null) return null;
-                        
+
                         return new TenantInfo
                         {
                             TenantId = tenant.Id,
@@ -707,10 +707,10 @@ namespace brownstone_hub_api.Services.AIFollowUpService
                 var conversations = await _conversationService.GetConversationsByLandlordId(landlordId, includeArchived: false);
                 if (conversations.Success && conversations.Data != null)
                 {
-                    var existing = conversations.Data.FirstOrDefault(c => 
-                        c.TenantId == tenantInfo.TenantId && 
+                    var existing = conversations.Data.FirstOrDefault(c =>
+                        c.TenantId == tenantInfo.TenantId &&
                         !c.IsArchived);
-                    
+
                     if (existing != null)
                     {
                         return existing;
@@ -943,13 +943,13 @@ namespace brownstone_hub_api.Services.AIFollowUpService
                         Type = actionType.Contains("Rent", StringComparison.OrdinalIgnoreCase) || actionType.Contains("CollectionsAgent", StringComparison.OrdinalIgnoreCase)
                             ? ENotificationType.Rent
                             : ENotificationType.Message,
-                        Title = "Percy AI follow-up sent",
-                        Message = BuildPercyFollowUpNotificationMessage(actionType, context, tenantInfo.Name),
+                        Title = "Wren AI follow-up sent",
+                        Message = BuildWrenFollowUpNotificationMessage(actionType, context, tenantInfo.Name),
                         RelatedId = conversation.Id,
                         SendEmail = false,
                         SendSMS = false,
                         PerformedByUserId = landlordId,
-                        PerformedByName = "Percy"
+                        PerformedByName = "Wren AI"
                     });
                 }
                 catch (Exception ex)
@@ -1007,7 +1007,7 @@ namespace brownstone_hub_api.Services.AIFollowUpService
             };
         }
 
-        private static string BuildPercyFollowUpNotificationMessage(string? actionType, Dictionary<string, object>? context, string tenantName)
+        private static string BuildWrenFollowUpNotificationMessage(string? actionType, Dictionary<string, object>? context, string tenantName)
         {
             var actionName = GetFriendlyActionName(actionType);
             var propertyName = context != null && context.TryGetValue("propertyName", out var propertyNameValue)
@@ -1019,7 +1019,7 @@ namespace brownstone_hub_api.Services.AIFollowUpService
                     ? $" on {propertyName}"
                     : string.Empty;
 
-            return $"Percy followed up with {tenantName} about {actionName}{propertyClause}.";
+            return $"Wren AI followed up with {tenantName} about {actionName}{propertyClause}.";
         }
 
         private static bool IsCollectionsFollowUpType(string? actionType)

@@ -132,7 +132,7 @@ function ActionsStep() {
   return (
     <div style={{ fontFamily: '"Inter", sans-serif' }}>
       <p className="text-xs font-semibold text-[#9ca3af] uppercase tracking-wide mb-3">
-        Percy decisions · Oct 6 · 9:01 AM
+        Wren AI decisions · Oct 6 · 9:01 AM
       </p>
       <div className="space-y-2.5">
         {actions.map((a, i) => {
@@ -222,14 +222,14 @@ function FlaggedStep() {
         </div>
       </div>
 
-      {/* Percy recommendation */}
+      {/* Wren AI recommendation */}
       <motion.div
         initial={{ opacity: 0, y: 4 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.55, duration: 0.3 }}
         className="bg-amber-50 border border-amber-100 rounded-xl p-3 mb-3"
       >
-        <p className="text-[10px] font-bold text-amber-700 uppercase tracking-wide mb-1">Percy recommendation</p>
+        <p className="text-[10px] font-bold text-amber-700 uppercase tracking-wide mb-1">Wren AI recommendation</p>
         <p className="text-xs text-amber-800 leading-relaxed">
           Pattern of late payments detected. Consider sending a formal notice and offering a payment plan.
           Late fee may be appropriate.
@@ -327,7 +327,7 @@ export default function AiSummaries() {
                 background: 'var(--brand-ivory)',
               }}
             >
-              Percy Collections Agent
+              Wren AI Collections Agent
             </span>
 
             <h2
@@ -341,7 +341,7 @@ export default function AiSummaries() {
               className="text-base md:text-lg text-brand-slate mb-6 leading-relaxed"
               style={{ fontFamily: '"Inter", sans-serif' }}
             >
-              Percy reviews every active lease daily — checking balances, grace periods,
+              Wren AI reviews every active lease daily — checking balances, grace periods,
               and payment history — then decides whether to send a friendly reminder, suggest a payment
               plan, or flag a case for your review. All without you lifting a finger.
             </p>
@@ -401,7 +401,7 @@ export default function AiSummaries() {
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-primary-main" style={{ fontFamily: '"Inter", sans-serif' }}>
-                        Percy Collections Agent
+                        Wren AI Collections Agent
                       </p>
                       <p className="text-xs flex items-center gap-1.5" style={{ color: '#16a34a', fontFamily: '"Inter", sans-serif' }}>
                         <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: '#16a34a' }} />

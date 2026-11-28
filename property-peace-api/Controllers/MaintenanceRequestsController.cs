@@ -44,16 +44,18 @@ public sealed class MaintenanceRequestsController(
         [FromHeader(Name = "Idempotency-Key")] string? key, CancellationToken ct) =>
         Result(await Command(key, "request.change-status", new { id, command.Status, command.ExpectedStatus }, token => service.ChangeStatusAsync(id, command, token), ct));
 
+    [HttpPost("{id:long}/wren-ai/troubleshooting")]
     [HttpPost("{id:long}/percy/troubleshooting")]
     [TenantSelfOrganization]
-    public async Task<IActionResult> Troubleshoot(long id, [FromBody] PercyTroubleshootingCommandDto command,
+    public async Task<IActionResult> Troubleshoot(long id, [FromBody] WrenTroubleshootingCommandDto command,
         [FromHeader(Name = "Idempotency-Key")] string? key, CancellationToken ct) =>
         Result(await Command(key, "troubleshooting.issue", new { id, command }, token => service.TroubleshootAsync(id, command, token), ct));
 
+    [HttpPost("{id:long}/wren-ai/troubleshooting/{stepId:long}/outcome")]
     [HttpPost("{id:long}/percy/troubleshooting/{stepId:long}/outcome")]
     [TenantSelfOrganization]
     public async Task<IActionResult> RecordTroubleshootingOutcome(long id, long stepId,
-        [FromBody] PercyTroubleshootingOutcomeCommandDto command, [FromHeader(Name = "Idempotency-Key")] string? key, CancellationToken ct) =>
+        [FromBody] WrenTroubleshootingOutcomeCommandDto command, [FromHeader(Name = "Idempotency-Key")] string? key, CancellationToken ct) =>
         Result(await Command(key, "troubleshooting.outcome", new { id, stepId, command }, token => service.RecordTroubleshootingOutcomeAsync(id, stepId, command, token), ct));
 
     [HttpPost("{id:long}/assign")]

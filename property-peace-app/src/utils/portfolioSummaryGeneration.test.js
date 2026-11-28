@@ -172,7 +172,7 @@ test('important tasks preserve authoritative priority and claim a matching sugge
 
 test('portfolio page does not call chat or build a model prompt', async () => {
   const source = await readFile(new URL('../pages/landlord/portfolio-summary.jsx', import.meta.url), 'utf8');
-  assert.doesNotMatch(source, /requestPercyCompletion|buildSummaryPrompt|ai-copilot\/chat/);
+  assert.doesNotMatch(source, /requestWrenCompletion|buildSummaryPrompt|ai-copilot\/chat/);
   assert.doesNotMatch(source, /parseSummaryItems|AI-generated insights|Our AI agent is reviewing|Analyzing your portfolio/);
   assert.match(source, /generatePortfolioSummaryItems/);
 });

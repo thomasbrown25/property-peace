@@ -21,7 +21,7 @@ const features = [
   'Occupancy tracking',
   'Rent estimates',
   'LeaseShield protection',
-  'Percy Pilot workflows (limited availability)',
+  'Wren AI Pilot workflows (limited availability)',
   'One dedicated organization SMS number (activation and configuration required)',
 ];
 

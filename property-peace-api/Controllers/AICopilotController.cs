@@ -4,7 +4,7 @@ using brownstone_hub_api.Repositories.Users;
 using brownstone_hub_api.Repositories.Organizations;
 using brownstone_hub_api.Services.AICopilotService;
 using brownstone_hub_api.Services.AgentFollowUpService;
-using brownstone_hub_api.Services.PercyActions;
+using brownstone_hub_api.Services.WrenActions;
 using brownstone_hub_api.Config;
 using brownstone_hub_api.Filters;
 using Microsoft.AspNetCore.Authorization;
@@ -16,7 +16,7 @@ namespace brownstone_hub_api.Controllers
     [ApiController]
     [Route("api/ai-copilot")]
     [Authorize(Roles = "Landlord,Admin")]
-    [RequireFeatureReady(FeatureKeys.Percy)]
+    [RequireFeatureReady(FeatureKeys.WrenAi)]
     public class AICopilotController(
         IAICopilotService aiCopilotService,
         IAgentFollowUpService agentFollowUpService,
@@ -34,27 +34,27 @@ namespace brownstone_hub_api.Controllers
         [HttpGet("organization-summary")]
         public async Task<IActionResult> GetOrganizationSummary()
         {
-            var context = await GetPercyContextAsync();
+            var context = await GetWrenContextAsync();
             if (!context.OrganizationId.HasValue)
                 return StatusCode(403, new { Message = "Organization context is required" });
             var response = await _aiCopilotService.GetOrganizationSummary(context.OrganizationId.Value);
-            return PercyResult(response);
+            return WrenResult(response);
         }
 
         [HttpPost("chat")]
-        public async Task<IActionResult> Chat([FromBody] PercyChatRequestDto request, CancellationToken cancellationToken)
+        public async Task<IActionResult> Chat([FromBody] WrenChatRequestDto request, CancellationToken cancellationToken)
         {
-            var context = await GetPercyContextAsync();
+            var context = await GetWrenContextAsync();
             if (!context.OrganizationId.HasValue) return StatusCode(403, new { Message = "Organization context is required" });
             if (!context.UserId.HasValue) return Unauthorized(new { Message = "Authenticated user context is required" });
             var response = await _aiCopilotService.ChatAsync(context.OrganizationId.Value, context.UserId.Value, request, cancellationToken);
-            return PercyResult(response);
+            return WrenResult(response);
         }
 
         [HttpPost("chat/stream")]
-        public async Task StreamChat([FromBody] PercyChatRequestDto request, CancellationToken cancellationToken)
+        public async Task StreamChat([FromBody] WrenChatRequestDto request, CancellationToken cancellationToken)
         {
-            var context = await GetPercyContextAsync();
+            var context = await GetWrenContextAsync();
             Response.ContentType = "application/x-ndjson";
             Response.Headers.CacheControl = "no-cache, no-transform";
             Response.Headers.Append("X-Accel-Buffering", "no");
@@ -103,51 +103,61 @@ namespace brownstone_hub_api.Controllers
         [HttpGet("conversations")]
         public async Task<IActionResult> ListConversations([FromQuery] bool includeArchived = false, CancellationToken cancellationToken = default)
         {
-            var context = await GetPercyContextAsync();
+            var context = await GetWrenContextAsync();
             if (!context.OrganizationId.HasValue) return StatusCode(403, new { Message = "Organization context is required" });
             if (!context.UserId.HasValue) return Unauthorized(new { Message = "Authenticated user context is required" });
             var response = await _aiCopilotService.ListConversationsAsync(context.OrganizationId.Value, context.UserId.Value, includeArchived, cancellationToken);
-            return PercyResult(response);
+            return WrenResult(response);
         }
 
         [HttpGet("conversations/{conversationId:long}")]
         public async Task<IActionResult> GetConversation(long conversationId, CancellationToken cancellationToken)
         {
-            var context = await GetPercyContextAsync();
+            var context = await GetWrenContextAsync();
             if (!context.OrganizationId.HasValue) return StatusCode(403, new { Message = "Organization context is required" });
             if (!context.UserId.HasValue) return Unauthorized(new { Message = "Authenticated user context is required" });
             var response = await _aiCopilotService.GetConversationAsync(context.OrganizationId.Value, context.UserId.Value, conversationId, cancellationToken);
-            return PercyResult(response);
+            return WrenResult(response);
+        }
+
+        [HttpPost("conversations/{conversationId:long}/archive")]
+        public async Task<IActionResult> ArchiveConversation(long conversationId, CancellationToken cancellationToken)
+        {
+            var context = await GetWrenContextAsync();
+            if (!context.OrganizationId.HasValue) return StatusCode(403, new { Message = "Organization context is required" });
+            if (!context.UserId.HasValue) return Unauthorized(new { Message = "Authenticated user context is required" });
+            var response = await _aiCopilotService.ArchiveConversationAsync(context.OrganizationId.Value, context.UserId.Value, conversationId, cancellationToken);
+            return WrenResult(response);
         }
 
         [HttpDelete("conversations/{conversationId:long}")]
         public async Task<IActionResult> DeleteConversation(long conversationId, CancellationToken cancellationToken)
         {
-            var context = await GetPercyContextAsync();
+            var context = await GetWrenContextAsync();
             if (!context.OrganizationId.HasValue) return StatusCode(403, new { Message = "Organization context is required" });
             if (!context.UserId.HasValue) return Unauthorized(new { Message = "Authenticated user context is required" });
             var response = await _aiCopilotService.DeleteConversationAsync(context.OrganizationId.Value, context.UserId.Value, conversationId, cancellationToken);
-            return PercyResult(response);
+            return WrenResult(response);
         }
 
         [HttpPost("confirmations/{confirmationId:long}/confirm")]
         public async Task<IActionResult> ConfirmAction(long confirmationId, CancellationToken cancellationToken)
         {
-            var context = await GetPercyContextAsync();
+            var context = await GetWrenContextAsync();
             if (!context.OrganizationId.HasValue) return StatusCode(403, new { Message = "Organization context is required" });
             if (!context.UserId.HasValue) return Unauthorized(new { Message = "Authenticated user context is required" });
             var response = await _aiCopilotService.ConfirmActionAsync(context.OrganizationId.Value, context.UserId.Value, confirmationId, cancellationToken);
-            return PercyResult(response);
+            return WrenResult(response);
         }
 
         [HttpPost("confirmations/{confirmationId:long}/decline")]
         public async Task<IActionResult> DeclineAction(long confirmationId, CancellationToken cancellationToken)
         {
-            var context = await GetPercyContextAsync();
+            var context = await GetWrenContextAsync();
             if (!context.OrganizationId.HasValue) return StatusCode(403, new { Message = "Organization context is required" });
             if (!context.UserId.HasValue) return Unauthorized(new { Message = "Authenticated user context is required" });
             var response = await _aiCopilotService.DeclineConfirmationAsync(context.OrganizationId.Value, context.UserId.Value, confirmationId, cancellationToken);
-            return PercyResult(response);
+            return WrenResult(response);
         }
 
         /// <summary>Disabled because the existing sweep is platform-wide, not organization-scoped.</summary>
@@ -184,14 +194,14 @@ namespace brownstone_hub_api.Controllers
             _ = leaseId;
             _ = request;
             _ = cancellationToken;
-            var policy = PercyActionPolicy.Evaluate(PercyActionTypes.CollectionsForceFollowUp);
+            var policy = WrenActionPolicy.Evaluate(WrenActionTypes.CollectionsForceFollowUp);
             IActionResult result = StatusCode(StatusCodes.Status409Conflict, new
             {
-                code = PercyActionErrorCodes.Unavailable,
+                code = WrenActionErrorCodes.Unavailable,
                 actionType = policy.ActionType,
                 confirmationRequired = policy.ConfirmationRequired,
                 executionEnabled = policy.ExecutionEnabled,
-                message = "No follow-up was sent. This action requires organization-scoped Percy confirmation execution, which is not enabled yet."
+                message = "No follow-up was sent. This action requires organization-scoped Wren AI confirmation execution, which is not enabled yet."
             });
             return Task.FromResult(result);
         }
@@ -201,7 +211,7 @@ namespace brownstone_hub_api.Controllers
             public List<long>? TenantIds { get; set; }
         }
 
-        private async Task<(long? OrganizationId, long? UserId)> GetPercyContextAsync()
+        private async Task<(long? OrganizationId, long? UserId)> GetWrenContextAsync()
         {
             var organizationId = this.GetCurrentOrganizationIdOrForbid();
             if (!organizationId.HasValue
@@ -231,7 +241,7 @@ namespace brownstone_hub_api.Controllers
                 : (null, null);
         }
 
-        private IActionResult PercyResult<T>(ServiceResponse<T> response) =>
+        private IActionResult WrenResult<T>(ServiceResponse<T> response) =>
             response.Success ? Ok(response) : StatusCode(response.StatusCode, new { response.Message, response.Errors });
     }
 }

@@ -14,6 +14,7 @@ import { Box } from '@mui/material';
  */
 export default function PageTransition({ children, stretch = false }) {
   const location = useLocation();
+  const minHeight = stretch ? 0 : 'auto !important';
   const [displayChildren, setDisplayChildren] = useState(children);
   const [displayLocation, setDisplayLocation] = useState(location.pathname);
   const [isExiting, setIsExiting] = useState(false);
@@ -63,7 +64,7 @@ export default function PageTransition({ children, stretch = false }) {
         flex: 1,
         ...(stretch && { display: 'flex', flexDirection: 'column' }),
         overflow: 'visible', // Allow components to be visible when animating from outside
-        minHeight: 'auto !important',
+        minHeight,
         height: 'auto !important',
         '& .page-content': {
           width: '100%',
@@ -81,7 +82,7 @@ export default function PageTransition({ children, stretch = false }) {
         },
         '& .page-content.entering': {
           position: 'relative !important',
-          minHeight: 'auto !important',
+          minHeight,
           height: 'auto !important',
           animation: '$enterAnimation 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards',
           zIndex: 2,

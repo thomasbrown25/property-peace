@@ -26,7 +26,7 @@ public sealed class ConversationTimelineRepository(
     {
         "status", "amount", "attachmentName", "replyToMessageId", "maintenanceStatus",
         "channel", "direction", "reminderType", "screeningStatus", "leaseStatus", "paymentStatus",
-        "percyAction", "followUpStatus", "reason", "fromStatus", "toStatus"
+        "wrenAction", "percyAction", "followUpStatus", "reason", "fromStatus", "toStatus"
     };
 
     public async Task<ConversationTimelineEntry> AppendAsync(AppendTimelineEntryRequest request, CancellationToken cancellationToken = default)

@@ -2,7 +2,7 @@ using brownstone_hub_api.Dtos.AICopilot;
 using brownstone_hub_api.Dtos.Lease;
 using brownstone_hub_api.Dtos.Payment;
 using brownstone_hub_api.Models;
-using brownstone_hub_api.Services.PercyActions;
+using brownstone_hub_api.Services.WrenActions;
 using brownstone_hub_api.Utils;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Cryptography;
@@ -19,34 +19,34 @@ namespace brownstone_hub_api.Services.AICopilotService
             "portfolio", "rent-payments", "maintenance", "leases-applications", "urgent-messages"
         };
 
-        public async Task<ServiceResponse<PercyChatResponseDto>> ChatAsync(
-            long organizationId, long userId, PercyChatRequestDto request, CancellationToken cancellationToken = default)
+        public async Task<ServiceResponse<WrenChatResponseDto>> ChatAsync(
+            long organizationId, long userId, WrenChatRequestDto request, CancellationToken cancellationToken = default)
         {
             if (!IsValidClientRequestId(request.ClientRequestId))
-                return ServiceResponse<PercyChatResponseDto>.CreateError(
+                return ServiceResponse<WrenChatResponseDto>.CreateError(
                     "A stable clientRequestId of 8 to 128 safe characters is required.", statusCode: 400);
             if (string.IsNullOrWhiteSpace(request.Message))
-                return ServiceResponse<PercyChatResponseDto>.CreateError("A message is required.");
+                return ServiceResponse<WrenChatResponseDto>.CreateError("A message is required.");
             if (request.Message.Length > 8000)
-                return ServiceResponse<PercyChatResponseDto>.CreateError("The message is too long.");
+                return ServiceResponse<WrenChatResponseDto>.CreateError("The message is too long.");
 
             // Raw input is retained only on this stack frame for local matching. Organization-sensitive
             // values are loaded after authorization and before input can be persisted or sent to a model.
             var rawInput = request.Message.Trim();
 
-            var baselineAuthorization = await AuthorizePercyActionAsync(
-                PercyActionTypes.ReadPortfolio, organizationId, userId, cancellationToken);
+            var baselineAuthorization = await AuthorizeWrenActionAsync(
+                WrenActionTypes.ReadPortfolio, organizationId, userId, cancellationToken);
             if (!baselineAuthorization.IsAuthorized)
-                return ServiceResponse<PercyChatResponseDto>.CreateError(
-                    PercyActionErrorCodes.Forbidden, statusCode: StatusCodes.Status403Forbidden);
+                return ServiceResponse<WrenChatResponseDto>.CreateError(
+                    WrenActionErrorCodes.Forbidden, statusCode: StatusCodes.Status403Forbidden);
 
             var sensitiveValues = await LoadOrganizationSensitiveValuesAsync(organizationId, cancellationToken);
-            var inputRedaction = PercyDataBoundary.Redact(rawInput, PercyRedactionProfile.UserInput, sensitiveValues);
+            var inputRedaction = WrenDataBoundary.Redact(rawInput, WrenRedactionProfile.UserInput, sensitiveValues);
             var safeInput = inputRedaction.Text;
             var isStandaloneGreeting = IsStandaloneGreeting(safeInput);
             var knownUnavailable = TryGetKnownUnavailableCapability(safeInput, out var unavailableCapability);
 
-            PercyChatOperation? activeOperation = null;
+            WrenChatOperation? activeOperation = null;
             try
             {
                 var operationStart = await BeginChatOperationAsync(
@@ -54,76 +54,91 @@ namespace brownstone_hub_api.Services.AICopilotService
                 if (operationStart.Response != null) return operationStart.Response;
                 var operation = operationStart.Operation!;
                 activeOperation = operation;
+                var isFirstTurn = !request.ConversationId.HasValue;
 
                 if (IsCollectionsExecutionRequest(safeInput))
                 {
-                    var collections = await AuthorizePercyActionAsync(
-                        PercyActionTypes.CollectionsOrganizationFollowUp, organizationId, userId, cancellationToken);
+                    var collections = await AuthorizeWrenActionAsync(
+                        WrenActionTypes.CollectionsOrganizationFollowUp, organizationId, userId, cancellationToken);
                     var unavailable = collections.IsAuthorized && !collections.Action.ExecutionEnabled;
-                    var response = ServiceResponse<PercyChatResponseDto>.CreateError(
-                        unavailable ? PercyActionErrorCodes.Unavailable : PercyActionErrorCodes.Forbidden,
+                    var response = ServiceResponse<WrenChatResponseDto>.CreateError(
+                        unavailable ? WrenActionErrorCodes.Unavailable : WrenActionErrorCodes.Forbidden,
                         statusCode: unavailable ? StatusCodes.Status409Conflict : StatusCodes.Status403Forbidden);
                     return await TerminalizeChatErrorAsync(operation, response, "rejected",
                         unavailable ? "unavailable" : "forbidden", cancellationToken);
                 }
 
                 var conversation = request.ConversationId.HasValue
-                    ? await _dataContext.PercyConversations.SingleOrDefaultAsync(x =>
+                    ? await _dataContext.WrenConversations.SingleOrDefaultAsync(x =>
                         x.Id == request.ConversationId.Value && x.OrganizationId == organizationId && x.UserId == userId,
                         cancellationToken)
                     : operation.ConversationId.HasValue
-                        ? await _dataContext.PercyConversations.SingleOrDefaultAsync(x =>
+                        ? await _dataContext.WrenConversations.SingleOrDefaultAsync(x =>
                             x.Id == operation.ConversationId.Value && x.OrganizationId == organizationId && x.UserId == userId,
                             cancellationToken)
                         : null;
 
                 if (request.ConversationId.HasValue && conversation == null)
                     return await TerminalizeChatErrorAsync(operation,
-                        ServiceResponse<PercyChatResponseDto>.CreateError("Conversation not found.", statusCode: 404),
+                        ServiceResponse<WrenChatResponseDto>.CreateError("Conversation not found.", statusCode: 404),
                         "rejected", "not_found", cancellationToken);
                 if (conversation?.IsArchived == true)
                     return await TerminalizeChatErrorAsync(operation,
-                        ServiceResponse<PercyChatResponseDto>.CreateError("Archived conversations cannot receive new messages.", statusCode: 409),
+                        ServiceResponse<WrenChatResponseDto>.CreateError("Archived conversations cannot receive new messages.", statusCode: 409),
                         "rejected", "archived", cancellationToken);
+
+                if (conversation != null && request.PropertyId.HasValue && conversation.PropertyId != request.PropertyId)
+                    return await TerminalizeChatErrorAsync(operation,
+                        ServiceResponse<WrenChatResponseDto>.CreateError("Conversation does not belong to this property.", statusCode: 409),
+                        "rejected", "property_mismatch", cancellationToken);
+
+                var propertyId = conversation == null ? request.PropertyId : conversation.PropertyId;
+                if (propertyId.HasValue && !await _dataContext.Properties.AsNoTracking()
+                    .AnyAsync(x => x.Id == propertyId.Value && x.OrganizationId == organizationId && !x.IsDeleted, cancellationToken))
+                    return await TerminalizeChatErrorAsync(operation,
+                        ServiceResponse<WrenChatResponseDto>.CreateError("Property not found.", statusCode: 404),
+                        "rejected", "not_found", cancellationToken);
 
                 if (conversation == null)
                 {
-                    conversation = new PercyConversation
+                    conversation = new WrenConversation
                     {
                         OrganizationId = organizationId,
                         UserId = userId,
-                        Title = BuildConversationTitle(safeInput),
+                        PropertyId = propertyId,
                         CreatedAt = DateTime.UtcNow,
                         UpdatedAt = DateTime.UtcNow
                     };
-                    _dataContext.PercyConversations.Add(conversation);
+                    _dataContext.WrenConversations.Add(conversation);
                 }
 
                 // Browser-provided history is deliberately ignored. History is always loaded through the
                 // conversation's organization + user ownership boundary.
                 var history = conversation.Id == 0
-                    ? new List<PercyChatMessageDto>()
-                    : await _dataContext.PercyMessages.AsNoTracking()
+                    ? new List<WrenChatMessageDto>()
+                    : await _dataContext.WrenMessages.AsNoTracking()
                         .Where(m => m.ConversationId == conversation.Id &&
                             m.Conversation.OrganizationId == organizationId && m.Conversation.UserId == userId)
                         .OrderByDescending(m => m.CreatedAt).ThenByDescending(m => m.Id)
                         .Take(12)
                         .OrderBy(m => m.CreatedAt).ThenBy(m => m.Id)
-                        .Select(m => new PercyChatMessageDto { Role = m.Role, Content = m.Content })
+                        .Select(m => new WrenChatMessageDto { Role = m.Role, Content = m.Content })
                         .ToListAsync(cancellationToken);
                 var hasRecentAuthoritativeOverdueRent = conversation.Id != 0 &&
                     await HasRecentAuthoritativeOverdueRentResultAsync(
                         conversation.Id, organizationId, userId, cancellationToken);
 
-                sensitiveValues = PercyDataBoundary.BuildBoundedSensitiveValues(sensitiveValues,
+                sensitiveValues = WrenDataBoundary.BuildBoundedSensitiveValues(sensitiveValues,
                     new[] { rawInput }.Concat(history.Select(x => x.Content)));
-                safeInput = PercyDataBoundary.Redact(rawInput, PercyRedactionProfile.UserInput, sensitiveValues).Text;
+                safeInput = WrenDataBoundary.Redact(rawInput, WrenRedactionProfile.UserInput, sensitiveValues).Text;
+                if (conversation.Id == 0)
+                    conversation.Title = BuildConversationTitle(safeInput);
 
                 var userMessage = operation.UserMessageId.HasValue
-                    ? await _dataContext.PercyMessages.SingleAsync(x =>
+                    ? await _dataContext.WrenMessages.SingleAsync(x =>
                         x.Id == operation.UserMessageId.Value && x.Conversation.OrganizationId == organizationId &&
                         x.Conversation.UserId == userId, cancellationToken)
-                    : new PercyMessage
+                    : new WrenMessage
                     {
                         Conversation = conversation,
                         Role = "user",
@@ -132,7 +147,7 @@ namespace brownstone_hub_api.Services.AICopilotService
                     };
                 if (!operation.UserMessageId.HasValue)
                 {
-                    _dataContext.PercyMessages.Add(userMessage);
+                    _dataContext.WrenMessages.Add(userMessage);
                     operation.Conversation = conversation;
                     operation.UserMessage = userMessage;
                     operation.UpdatedAt = DateTime.UtcNow;
@@ -142,45 +157,48 @@ namespace brownstone_hub_api.Services.AICopilotService
 
                 if (knownUnavailable)
                     return await PersistAssistantResponseAsync(operation, conversation, userMessage,
-                        BuildUnavailableCapabilityResponse(unavailableCapability), cancellationToken, sensitiveValues);
-
-                if (TryParseTenantContactRequest(rawInput, out var tenantContactName, out var tenantContactField))
-                {
-                    var tenantContactAuthorization = await AuthorizePercyActionAsync(
-                        PercyActionTypes.ReadTenantContacts, organizationId, userId, cancellationToken);
-                    if (!tenantContactAuthorization.IsAvailable)
-                        return await TerminalizeChatErrorAsync(operation,
-                            ServiceResponse<PercyChatResponseDto>.CreateError(
-                                PercyActionErrorCodes.Forbidden, statusCode: StatusCodes.Status403Forbidden),
-                            "rejected", "forbidden", cancellationToken);
-
-                    var tenantContactRead = await ReadTenantContactsAsync(
-                        organizationId, tenantContactName, tenantContactField, cancellationToken);
-                    var outputSensitiveValues = sensitiveValues
-                        .Where(value => string.IsNullOrWhiteSpace(value) ||
-                            !tenantContactRead.AllowedDisplayValues.Contains(value.Trim(), StringComparer.OrdinalIgnoreCase))
-                        .ToList();
-                    return await PersistAssistantResponseAsync(operation, conversation, userMessage,
-                        tenantContactRead.Response, cancellationToken, outputSensitiveValues,
-                        tenantContactRead.Sources, tenantContactRead.AllowedDisplayValues);
-                }
+                        BuildUnavailableCapabilityResponse(unavailableCapability), isFirstTurn, cancellationToken, sensitiveValues);
 
                 var normalizedPrompt = NormalizeForMatch(safeInput);
                 var timingQuestion = (normalizedPrompt.Contains("ontime") &&
                         (normalizedPrompt.Contains("late") || normalizedPrompt.Contains("overdue") || normalizedPrompt.Contains("pastdue"))) ||
                     normalizedPrompt.Contains("paymenttiming") || normalizedPrompt.Contains("rentpaymentreport");
                 var overdueRentQuestion = !timingQuestion && IsOverdueRentStatusRequest(safeInput);
+
+                if (!overdueRentQuestion && TryParseTenantContactRequest(rawInput, out var tenantContactName, out var tenantContactField))
+                {
+                    var tenantContactAuthorization = await AuthorizeWrenActionAsync(
+                        WrenActionTypes.ReadTenantContacts, organizationId, userId, cancellationToken);
+                    if (!tenantContactAuthorization.IsAvailable)
+                        return await TerminalizeChatErrorAsync(operation,
+                            ServiceResponse<WrenChatResponseDto>.CreateError(
+                                WrenActionErrorCodes.Forbidden, statusCode: StatusCodes.Status403Forbidden),
+                            "rejected", "forbidden", cancellationToken);
+
+                    var tenantContactRead = await ReadTenantContactsAsync(
+                        organizationId, propertyId, tenantContactName, tenantContactField, cancellationToken);
+                    var outputSensitiveValues = sensitiveValues
+                        .Where(value => string.IsNullOrWhiteSpace(value) ||
+                            !tenantContactRead.AllowedDisplayValues.Contains(value.Trim(), StringComparer.OrdinalIgnoreCase))
+                        .ToList();
+                    return await PersistAssistantResponseAsync(operation, conversation, userMessage,
+                        tenantContactRead.Response, isFirstTurn, cancellationToken, outputSensitiveValues,
+                        tenantContactRead.Sources, tenantContactRead.AllowedDisplayValues);
+                }
+
+                var asksForOverdueTenantNames = overdueRentQuestion && Regex.IsMatch(safeInput,
+                    @"\b(?:who|tenants?|renters?|residents?)\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
                 var overdueTenantFollowUp = !timingQuestion &&
-                    IsOverdueTenantFollowUpRequest(safeInput, hasRecentAuthoritativeOverdueRent);
+                    IsOverdueTenantFollowUpRequest(safeInput, overdueRentQuestion, hasRecentAuthoritativeOverdueRent);
 
                 var plan = isStandaloneGreeting
-                    ? new PercyReadPlan { AnswerWithoutOrganizationData = true }
+                    ? new WrenReadPlan { AnswerWithoutOrganizationData = true }
                     : overdueRentQuestion || overdueTenantFollowUp
-                        ? new PercyReadPlan { Scopes = ["rent-payments"] }
+                        ? new WrenReadPlan { Scopes = ["rent-payments"] }
                         : await PlanReadScopesAsync(safeInput, history, sensitiveValues);
                 if (!string.IsNullOrWhiteSpace(plan.UnavailableCapability))
                     return await PersistAssistantResponseAsync(operation, conversation, userMessage,
-                        BuildUnavailableCapabilityResponse(plan.UnavailableCapability), cancellationToken, sensitiveValues);
+                        BuildUnavailableCapabilityResponse(plan.UnavailableCapability), isFirstTurn, cancellationToken, sensitiveValues);
 
                 var scopes = plan.Scopes
                     .Where(x => !string.IsNullOrWhiteSpace(x) && AllowedReadScopes.Contains(x))
@@ -201,26 +219,28 @@ namespace brownstone_hub_api.Services.AICopilotService
                     scopes.Add("portfolio");
 
                 var context = new Dictionary<string, object>();
+                if (propertyId.HasValue) context["Scope"] = "Selected property only";
                 var contextSensitiveValues = new List<string?>(sensitiveValues);
                 List<Dtos.Property.LoadPropertyDto>? properties = null;
                 List<LoadLeaseDto>? leases = null;
                 List<LoadPaymentDto>? payments = null;
-                var serverSources = new List<PercySourceDto>();
+                var serverSources = new List<WrenSourceDto>();
 
                 foreach (var scope in scopes.Take(3))
                 {
-                    var readAuthorization = await AuthorizePercyActionAsync(
+                    var readAuthorization = await AuthorizeWrenActionAsync(
                         ReadActionType(scope), organizationId, userId, cancellationToken);
                     if (!readAuthorization.IsAvailable)
                         return await TerminalizeChatErrorAsync(operation,
-                            ServiceResponse<PercyChatResponseDto>.CreateError(
-                                PercyActionErrorCodes.Forbidden, statusCode: StatusCodes.Status403Forbidden),
+                            ServiceResponse<WrenChatResponseDto>.CreateError(
+                                WrenActionErrorCodes.Forbidden, statusCode: StatusCodes.Status403Forbidden),
                             "rejected", "forbidden", cancellationToken);
 
                     switch (scope)
                     {
                         case "portfolio":
                             properties ??= await _propertyRepository.GetPropertiesByOrganizationId(organizationId);
+                            if (propertyId.HasValue) properties = properties.Where(p => p.Id == propertyId).ToList();
                             contextSensitiveValues.InsertRange(0, properties.SelectMany(p => new[] { p.Name, p.StreetAddress }));
                             context["Portfolio"] = properties.Take(60).Select(p => new
                             {
@@ -232,9 +252,17 @@ namespace brownstone_hub_api.Services.AICopilotService
                         case "rent-payments":
                             leases ??= await _leaseRepository.GetLeasesByOrganizationId(organizationId, false);
                             payments ??= await _paymentRepository.GetLifetimeRentPaymentsByOrganizationId(organizationId);
+                            if (propertyId.HasValue)
+                            {
+                                leases = leases.Where(l => l.PropertyId == propertyId).ToList();
+                                var scopedLeaseIds = leases.Select(lease => lease.Id).ToHashSet();
+                                payments = payments.Where(payment => scopedLeaseIds.Contains(payment.LeaseId)).ToList();
+                            }
                             contextSensitiveValues.InsertRange(0, leases.SelectMany(l => l.Tenants)
                                 .Select(t => $"{t.Firstname} {t.Lastname}".Trim()));
                             contextSensitiveValues.InsertRange(0, payments.Select(p => p.TenantName));
+                            if (overdueRentQuestion || overdueTenantFollowUp) break;
+
                             context["RentAndPayments"] = new
                             {
                                 Leases = leases.Take(150).Select(l => new
@@ -250,14 +278,16 @@ namespace brownstone_hub_api.Services.AICopilotService
                             break;
                         case "maintenance":
                             var maintenance = await _maintenanceRequestRepository.GetCurrentMaintenanceByOrganizationId(organizationId);
-                            context["Maintenance"] = maintenance.Take(100).Select(m => new
+                            context["Maintenance"] = maintenance.Where(m => !propertyId.HasValue || m.PropertyId == propertyId).Take(100).Select(m => new
                             {
                                 Label = "Maintenance record", Property = "Property record", m.Status, m.Priority, m.CreatedAt, m.CompletedAt
                             }).ToList();
                             break;
                         case "leases-applications":
                             leases ??= await _leaseRepository.GetLeasesByOrganizationId(organizationId, false);
+                            if (propertyId.HasValue) leases = leases.Where(l => l.PropertyId == propertyId).ToList();
                             var applications = await _applicationRepository.GetApplicationsByOrganizationId(organizationId);
+                            if (propertyId.HasValue) applications = applications.Where(a => a.PropertyId == propertyId).ToList();
                             contextSensitiveValues.InsertRange(0, leases.SelectMany(l => l.Tenants)
                                 .Select(t => $"{t.Firstname} {t.Lastname}".Trim()));
                             contextSensitiveValues.InsertRange(0, applications.Select(a => $"{a.FirstName} {a.LastName}".Trim()));
@@ -276,7 +306,9 @@ namespace brownstone_hub_api.Services.AICopilotService
                             break;
                         case "urgent-messages":
                             var conversations = await _conversationRepository.GetConversationsByOrganizationId(organizationId, includeArchived: false);
-                            var urgent = (await BuildUrgentMessageSummaries(conversations ?? [], organizationId)).Take(50).ToList();
+                            var scopedConversations = (conversations ?? [])
+                                .Where(c => !propertyId.HasValue || c.PropertyId == propertyId).ToList();
+                            var urgent = (await BuildUrgentMessageSummaries(scopedConversations, organizationId)).Take(50).ToList();
                             contextSensitiveValues.InsertRange(0, urgent.SelectMany(x => new[] { x.TenantName, x.PropertyName }));
                             context["UrgentMessages"] = urgent.Select(x => new
                             {
@@ -292,10 +324,6 @@ namespace brownstone_hub_api.Services.AICopilotService
                     serverSources.Add(BuildSource(scope, DateTime.UtcNow));
                 }
 
-                contextSensitiveValues = PercyDataBoundary.BuildBoundedSensitiveValues(
-                    contextSensitiveValues,
-                    new[] { rawInput, JsonSerializer.Serialize(context) }.Concat(history.Select(x => x.Content)));
-
                 if (overdueTenantFollowUp && leases != null && payments != null)
                 {
                     var userTimezone = await _dataContext.UserSettings.AsNoTracking()
@@ -308,7 +336,7 @@ namespace brownstone_hub_api.Services.AICopilotService
                             !tenantFollowUp.AllowedDisplayValues.Contains(value.Trim(), StringComparer.OrdinalIgnoreCase))
                         .ToList();
                     return await PersistAssistantResponseAsync(operation, conversation, userMessage, tenantFollowUp.Response,
-                        cancellationToken, outputSensitiveValues, serverSources, tenantFollowUp.AllowedDisplayValues);
+                        isFirstTurn, cancellationToken, outputSensitiveValues, serverSources, tenantFollowUp.AllowedDisplayValues);
                 }
 
                 if (overdueRentQuestion && leases != null && payments != null)
@@ -317,18 +345,19 @@ namespace brownstone_hub_api.Services.AICopilotService
                         .Where(settings => settings.UserId == userId)
                         .Select(settings => settings.Timezone)
                         .FirstOrDefaultAsync(cancellationToken);
-                    var overdueRent = BuildOverdueRentResponse(leases, payments, userTimezone);
-                    var authorizedPropertyNames = overdueRent.Items
-                        .Select(item => item.Title?.Trim())
-                        .Where(name => !string.IsNullOrWhiteSpace(name))
-                        .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                    var (overdueRent, allowedDisplayValues) = BuildOverdueRentResponse(leases, payments, userTimezone, asksForOverdueTenantNames);
                     var outputSensitiveValues = contextSensitiveValues
-                        .Where(value => string.IsNullOrWhiteSpace(value) || !authorizedPropertyNames.Contains(value.Trim()))
+                        .Where(value => string.IsNullOrWhiteSpace(value) || !allowedDisplayValues.Contains(value.Trim(), StringComparer.OrdinalIgnoreCase))
                         .ToList();
                     return await PersistAssistantResponseAsync(operation, conversation, userMessage, overdueRent,
-                        cancellationToken, outputSensitiveValues, serverSources, authorizedPropertyNames,
+                        isFirstTurn, cancellationToken, outputSensitiveValues, serverSources, allowedDisplayValues,
                         serverReceiptKind: "overdue-rent-status-v1");
                 }
+
+                var serializedContext = JsonSerializer.Serialize(context);
+                contextSensitiveValues = WrenDataBoundary.BuildBoundedSensitiveValues(
+                    contextSensitiveValues,
+                    new[] { rawInput, serializedContext }.Concat(history.Select(x => x.Content)));
 
                 if (IsPropertyListRequest(safeInput) && scopes.SetEquals(["portfolio"]) && properties != null)
                 {
@@ -341,18 +370,18 @@ namespace brownstone_hub_api.Services.AICopilotService
                         .Where(value => string.IsNullOrWhiteSpace(value) || !authorizedPropertyNames.Contains(value.Trim()))
                         .ToList();
                     return await PersistAssistantResponseAsync(operation, conversation, userMessage, propertyList,
-                        cancellationToken, outputSensitiveValues, serverSources, authorizedPropertyNames);
+                        isFirstTurn, cancellationToken, outputSensitiveValues, serverSources, authorizedPropertyNames);
                 }
 
                 if (timingQuestion && properties != null && leases != null && payments != null)
                 {
-                    var matchedProperty = FindProperty(rawInput, properties);
+                    var matchedProperty = propertyId.HasValue ? properties.FirstOrDefault() : FindProperty(rawInput, properties);
                     if (matchedProperty != null)
                     {
                         var report = BuildPaymentTimingReport(safeInput, matchedProperty.Id,
                             ValidRentPayments(payments), leases.ToDictionary(x => x.Id));
                         if (report.Data != null)
-                            return await PersistAssistantResponseAsync(operation, conversation, userMessage, report.Data, cancellationToken,
+                            return await PersistAssistantResponseAsync(operation, conversation, userMessage, report.Data, isFirstTurn, cancellationToken,
                                 contextSensitiveValues, serverSources);
                     }
                 }
@@ -360,13 +389,13 @@ namespace brownstone_hub_api.Services.AICopilotService
                 var safeHistory = history.Select(x => new
                 {
                     x.Role,
-                    Content = PercyDataBoundary.Redact(x.Content, PercyRedactionProfile.PersistedHistory,
+                    Content = WrenDataBoundary.Redact(x.Content, WrenRedactionProfile.PersistedHistory,
                         contextSensitiveValues).Text
                 }).ToList();
-                var safeContext = PercyDataBoundary.Redact(JsonSerializer.Serialize(context),
-                    PercyRedactionProfile.TrustedContext, contextSensitiveValues).Text;
+                var safeContext = WrenDataBoundary.Redact(serializedContext,
+                    WrenRedactionProfile.TrustedContext, contextSensitiveValues).Text;
                 var modelPrompt = $$"""
-                    You are Percy, Property Peace's warm and capable property-management assistant.
+                    You are Wren AI, Property Peace's warm and capable property-management assistant.
                     For organization-specific questions, answer only from the trusted, role-authorized organization data below. If that data does not contain the answer, say so plainly instead of guessing.
                     For greetings, small talk, and general property-management guidance that needs no organization records, respond naturally without inventing organization facts.
                     Speak like a smart, trusted colleague: conversational, calm, kind, concise, and comfortable using natural contractions.
@@ -379,7 +408,10 @@ namespace brownstone_hub_api.Services.AICopilotService
                     Do not expose APIs, tools, scope names, database fields, record IDs, or implementation details.
                     You cannot perform writes. Do not claim that any message, payment, lease, or maintenance record was changed.
                     Return exactly one JSON object:
-                    { "content": "answer with conclusion first", "activityLabel": "friendly label", "activityStatus": "friendly review summary", "metrics": [{ "label": "label", "value": "value", "money": false }], "items": [{ "title": "title", "detail": "detail", "value": "optional" }] }
+                    { "content": "answer with conclusion first", "conversationTitle": "short chat title", "activityLabel": "friendly label", "activityStatus": "friendly review summary", "metrics": [{ "label": "label", "value": "value", "money": false }], "items": [{ "title": "title", "detail": "detail", "value": "optional" }] }
+                    {{(isFirstTurn
+                        ? "Summarize the user's request as a 2–6 word conversationTitle in the user's language, such as 'Upcoming lease expirations'. Use a plain phrase and omit names, addresses, and redaction placeholders."
+                        : "Leave conversationTitle empty for an existing conversation.")}}
                     For money metrics, set money to true and return value as a raw numeric string without a currency symbol or thousands separators (for example, "2500.00").
                     Use at most 4 metrics and 8 items.
                     History: {{JsonSerializer.Serialize(safeHistory)}}
@@ -387,16 +419,17 @@ namespace brownstone_hub_api.Services.AICopilotService
                     Trusted data (bounded and role-authorized): {{safeContext}}
                     """;
 
-                var generated = await _openAIService.GenerateJsonAsync<PercyChatResponseDto>(modelPrompt, 1800);
+                var generated = await _openAIService.GenerateJsonAsync<WrenChatResponseDto>(modelPrompt, 1800);
                 var answer = generated.Success && generated.Data != null
                     ? generated.Data
-                    : new PercyChatResponseDto
+                    : new WrenChatResponseDto
                     {
                         Content = "I couldn't generate a complete answer right now. Your message was saved, and no property records were changed.",
+                        ConversationTitle = conversation.Title,
                         ActivityLabel = "Portfolio review",
                         ActivityStatus = "Response temporarily unavailable"
                     };
-                return await PersistAssistantResponseAsync(operation, conversation, userMessage, answer, cancellationToken,
+                return await PersistAssistantResponseAsync(operation, conversation, userMessage, answer, isFirstTurn, cancellationToken,
                     contextSensitiveValues, serverSources);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -407,22 +440,24 @@ namespace brownstone_hub_api.Services.AICopilotService
             }
             catch (Exception ex)
             {
-                _logger.LogError("Percy chat failed for organization {OrganizationId}, user {UserId}; errorType={ErrorType}; status={Status}",
-                    organizationId, userId, ex.GetType().Name, "failed");
+                var cause = ex.GetBaseException();
+                _logger.LogError("Wren AI chat failed for organization {OrganizationId}, user {UserId}; errorType={ErrorType}; causeType={CauseType}; sqlErrorNumber={SqlErrorNumber}",
+                    organizationId, userId, ex.GetType().Name, cause.GetType().Name,
+                    (cause as Microsoft.Data.SqlClient.SqlException)?.Number);
                 if (activeOperation != null)
                     await TryTerminalizeChatFailureAsync(activeOperation, "failed");
-                return ServiceResponse<PercyChatResponseDto>.CreateError(
-                    "Percy could not answer that question.", statusCode: 500, suppressDetailedErrors: true);
+                return ServiceResponse<WrenChatResponseDto>.CreateError(
+                    "Wren AI could not answer that question.", statusCode: 500, suppressDetailedErrors: true);
             }
         }
 
-        private async Task<PercyReadPlan> PlanReadScopesAsync(string message, List<PercyChatMessageDto> history,
+        private async Task<WrenReadPlan> PlanReadScopesAsync(string message, List<WrenChatMessageDto> history,
             IEnumerable<string?> exactSensitiveValues)
         {
             try
             {
                 var prompt = $$"""
-                    Decide whether Percy's available read-only data can answer the question.
+                    Decide whether Wren AI's available read-only data can answer the question.
                     Available data categories:
                     - portfolio: properties, addresses, units, and asking rent
                     - rent-payments: leases, tenants on leases, rent due dates, and recorded rent payments
@@ -440,13 +475,13 @@ namespace brownstone_hub_api.Services.AICopilotService
                     Recent context: {{JsonSerializer.Serialize(history.TakeLast(4).Select(x => new
                     {
                         x.Role,
-                        Content = PercyDataBoundary.Redact(x.Content, PercyRedactionProfile.PersistedHistory,
+                        Content = WrenDataBoundary.Redact(x.Content, WrenRedactionProfile.PersistedHistory,
                             exactSensitiveValues).Text
                     }))}}
                     Question: {{message}}
                     """;
-                var result = await _openAIService.GenerateJsonAsync<PercyReadPlan>(prompt, 300);
-                if (!result.Success || result.Data == null) return new PercyReadPlan();
+                var result = await _openAIService.GenerateJsonAsync<WrenReadPlan>(prompt, 300);
+                if (!result.Success || result.Data == null) return new WrenReadPlan();
                 result.Data.Scopes = result.Data.Scopes
                     .Where(x => !string.IsNullOrWhiteSpace(x) && AllowedReadScopes.Contains(x))
                     .Select(x => x.ToLowerInvariant())
@@ -457,27 +492,27 @@ namespace brownstone_hub_api.Services.AICopilotService
             }
             catch (Exception ex)
             {
-                _logger.LogWarning("Percy capability planning failed; errorType={ErrorType}; status={Status}; using bounded portfolio fallback",
+                _logger.LogWarning("Wren AI capability planning failed; errorType={ErrorType}; status={Status}; using bounded portfolio fallback",
                     ex.GetType().Name, "fallback");
-                return new PercyReadPlan();
+                return new WrenReadPlan();
             }
         }
 
         private sealed record ChatOperationStart(
-            PercyChatOperation? Operation,
-            ServiceResponse<PercyChatResponseDto>? Response);
+            WrenChatOperation? Operation,
+            ServiceResponse<WrenChatResponseDto>? Response);
 
         private async Task<ChatOperationStart> BeginChatOperationAsync(
-            long organizationId, long userId, PercyChatRequestDto request, CancellationToken cancellationToken)
+            long organizationId, long userId, WrenChatRequestDto request, CancellationToken cancellationToken)
         {
             var hash = CanonicalRequestHash(request);
-            var existing = await _dataContext.PercyChatOperations.SingleOrDefaultAsync(x =>
+            var existing = await _dataContext.WrenChatOperations.SingleOrDefaultAsync(x =>
                 x.OrganizationId == organizationId && x.UserId == userId &&
                 x.ClientRequestId == request.ClientRequestId, cancellationToken);
             if (existing != null) return await EvaluateExistingOperationAsync(existing, hash, cancellationToken);
 
             var now = DateTime.UtcNow;
-            var operation = new PercyChatOperation
+            var operation = new WrenChatOperation
             {
                 OrganizationId = organizationId,
                 UserId = userId,
@@ -488,9 +523,9 @@ namespace brownstone_hub_api.Services.AICopilotService
                 UpdatedAt = now,
                 LeaseExpiresAt = now.AddMinutes(5)
             };
-            _dataContext.PercyChatOperations.Add(operation);
+            _dataContext.WrenChatOperations.Add(operation);
             var startedAudit = BuildChatAudit(operation, "chat_started", "processing");
-            _dataContext.PercyAuditRecords.Add(startedAudit);
+            _dataContext.WrenAuditRecords.Add(startedAudit);
             try
             {
                 await _dataContext.SaveChangesAsync(cancellationToken);
@@ -502,21 +537,22 @@ namespace brownstone_hub_api.Services.AICopilotService
                 // local graph and observes the durable winner rather than invoking the model.
                 _dataContext.Entry(operation).State = EntityState.Detached;
                 _dataContext.Entry(startedAudit).State = EntityState.Detached;
-                existing = await _dataContext.PercyChatOperations.SingleAsync(x =>
+                existing = await _dataContext.WrenChatOperations.SingleOrDefaultAsync(x =>
                     x.OrganizationId == organizationId && x.UserId == userId &&
                     x.ClientRequestId == request.ClientRequestId, cancellationToken);
+                if (existing == null) throw;
                 return await EvaluateExistingOperationAsync(existing, hash, cancellationToken);
             }
         }
 
         private async Task<ChatOperationStart> EvaluateExistingOperationAsync(
-            PercyChatOperation operation, string hash, CancellationToken cancellationToken)
+            WrenChatOperation operation, string hash, CancellationToken cancellationToken)
         {
             if (!CryptographicOperations.FixedTimeEquals(
                     Encoding.ASCII.GetBytes(operation.RequestHash), Encoding.ASCII.GetBytes(hash)))
             {
                 await PersistChatAttemptAuditAsync(operation, "chat_conflict", "payload_mismatch", cancellationToken);
-                return new(null, ServiceResponse<PercyChatResponseDto>.CreateError(
+                return new(null, ServiceResponse<WrenChatResponseDto>.CreateError(
                     "The clientRequestId was already used for a different chat payload.", statusCode: 409));
             }
 
@@ -524,17 +560,17 @@ namespace brownstone_hub_api.Services.AICopilotService
             {
                 try
                 {
-                    var replay = JsonSerializer.Deserialize<PercyChatResponseDto>(operation.CompletedResponseJson);
+                    var replay = JsonSerializer.Deserialize<WrenChatResponseDto>(operation.CompletedResponseJson);
                     if (replay != null)
                     {
                         await PersistChatAttemptAuditAsync(operation, "chat_replay", "completed", cancellationToken);
-                        return new(null, ServiceResponse<PercyChatResponseDto>.CreateSuccess(replay));
+                        return new(null, ServiceResponse<WrenChatResponseDto>.CreateSuccess(replay));
                     }
                 }
                 catch (JsonException)
                 {
                     await PersistChatAttemptAuditAsync(operation, "chat_failed", "invalid_receipt", cancellationToken);
-                    return new(null, ServiceResponse<PercyChatResponseDto>.CreateError(
+                    return new(null, ServiceResponse<WrenChatResponseDto>.CreateError(
                         "The completed chat receipt could not be replayed.", statusCode: 500, suppressDetailedErrors: true));
                 }
             }
@@ -547,7 +583,7 @@ namespace brownstone_hub_api.Services.AICopilotService
                     if (receipt != null)
                     {
                         await PersistChatAttemptAuditAsync(operation, "chat_replay", "rejected", cancellationToken);
-                        return new(null, ServiceResponse<PercyChatResponseDto>.CreateError(
+                        return new(null, ServiceResponse<WrenChatResponseDto>.CreateError(
                             receipt.Message, statusCode: receipt.StatusCode,
                             suppressDetailedErrors: receipt.SuppressDetailedErrors));
                     }
@@ -555,7 +591,7 @@ namespace brownstone_hub_api.Services.AICopilotService
                 catch (JsonException)
                 {
                     await PersistChatAttemptAuditAsync(operation, "chat_failed", "invalid_receipt", cancellationToken);
-                    return new(null, ServiceResponse<PercyChatResponseDto>.CreateError(
+                    return new(null, ServiceResponse<WrenChatResponseDto>.CreateError(
                         "The rejected chat receipt could not be replayed.", statusCode: 500, suppressDetailedErrors: true));
                 }
             }
@@ -564,14 +600,14 @@ namespace brownstone_hub_api.Services.AICopilotService
             if (operation.Status == "processing" && operation.LeaseExpiresAt > now)
             {
                 await PersistChatAttemptAuditAsync(operation, "chat_conflict", "processing", cancellationToken);
-                return new(null, ServiceResponse<PercyChatResponseDto>.CreateError(
+                return new(null, ServiceResponse<WrenChatResponseDto>.CreateError(
                     "This chat request is already processing.", statusCode: 409));
             }
 
             operation.Status = "processing";
             operation.LeaseExpiresAt = now.AddMinutes(5);
             operation.UpdatedAt = now;
-            _dataContext.PercyAuditRecords.Add(BuildChatAudit(operation, "chat_started", "retry"));
+            _dataContext.WrenAuditRecords.Add(BuildChatAudit(operation, "chat_started", "retry"));
             try
             {
                 await _dataContext.SaveChangesAsync(cancellationToken);
@@ -581,7 +617,7 @@ namespace brownstone_hub_api.Services.AICopilotService
             {
                 _dataContext.ChangeTracker.Clear();
                 await PersistChatAttemptAuditAsync(operation, "chat_conflict", "processing", cancellationToken);
-                return new(null, ServiceResponse<PercyChatResponseDto>.CreateError(
+                return new(null, ServiceResponse<WrenChatResponseDto>.CreateError(
                     "This chat request is already processing.", statusCode: 409));
             }
         }
@@ -590,13 +626,21 @@ namespace brownstone_hub_api.Services.AICopilotService
             !string.IsNullOrWhiteSpace(value) && value.Length is >= 8 and <= 128 &&
             Regex.IsMatch(value, @"^[A-Za-z0-9][A-Za-z0-9._:-]*$", RegexOptions.CultureInvariant);
 
-        private static string CanonicalRequestHash(PercyChatRequestDto request)
+        private static string CanonicalRequestHash(WrenChatRequestDto request)
         {
-            var canonical = JsonSerializer.Serialize(new
-            {
-                conversationId = request.ConversationId,
-                message = request.Message.Trim()
-            });
+            // Keep hashes stable for operations saved before property chats were introduced.
+            var canonical = request.PropertyId.HasValue
+                ? JsonSerializer.Serialize(new
+                {
+                    conversationId = request.ConversationId,
+                    propertyId = request.PropertyId,
+                    message = request.Message.Trim()
+                })
+                : JsonSerializer.Serialize(new
+                {
+                    conversationId = request.ConversationId,
+                    message = request.Message.Trim()
+                });
             return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant();
         }
 
@@ -607,8 +651,8 @@ namespace brownstone_hub_api.Services.AICopilotService
             public bool SuppressDetailedErrors { get; set; }
         }
 
-        private static PercyAuditRecord BuildChatAudit(
-            PercyChatOperation operation, string eventType, string outcome) => new()
+        private static WrenAuditRecord BuildChatAudit(
+            WrenChatOperation operation, string eventType, string outcome) => new()
         {
             OrganizationId = operation.OrganizationId,
             UserId = operation.UserId,
@@ -620,15 +664,15 @@ namespace brownstone_hub_api.Services.AICopilotService
             CreatedAt = DateTime.UtcNow
         };
 
-        private async Task PersistChatAttemptAuditAsync(PercyChatOperation operation, string eventType,
+        private async Task PersistChatAttemptAuditAsync(WrenChatOperation operation, string eventType,
             string outcome, CancellationToken cancellationToken)
         {
-            _dataContext.PercyAuditRecords.Add(BuildChatAudit(operation, eventType, outcome));
+            _dataContext.WrenAuditRecords.Add(BuildChatAudit(operation, eventType, outcome));
             await _dataContext.SaveChangesAsync(cancellationToken);
         }
 
-        private async Task<ServiceResponse<PercyChatResponseDto>> TerminalizeChatErrorAsync(
-            PercyChatOperation operation, ServiceResponse<PercyChatResponseDto> response,
+        private async Task<ServiceResponse<WrenChatResponseDto>> TerminalizeChatErrorAsync(
+            WrenChatOperation operation, ServiceResponse<WrenChatResponseDto> response,
             string status, string outcome, CancellationToken cancellationToken)
         {
             operation.Status = status;
@@ -640,12 +684,12 @@ namespace brownstone_hub_api.Services.AICopilotService
             });
             operation.UpdatedAt = DateTime.UtcNow;
             operation.LeaseExpiresAt = operation.UpdatedAt;
-            _dataContext.PercyAuditRecords.Add(BuildChatAudit(operation, "chat_rejected", outcome));
+            _dataContext.WrenAuditRecords.Add(BuildChatAudit(operation, "chat_rejected", outcome));
             await _dataContext.SaveChangesAsync(cancellationToken);
             return response;
         }
 
-        private async Task TryTerminalizeChatFailureAsync(PercyChatOperation operation, string outcome)
+        private async Task TryTerminalizeChatFailureAsync(WrenChatOperation operation, string outcome)
         {
             var operationId = operation.Id;
             var organizationId = operation.OrganizationId;
@@ -653,34 +697,44 @@ namespace brownstone_hub_api.Services.AICopilotService
             try
             {
                 _dataContext.ChangeTracker.Clear();
-                var current = await _dataContext.PercyChatOperations.SingleOrDefaultAsync(x =>
+                var current = await _dataContext.WrenChatOperations.SingleOrDefaultAsync(x =>
                     x.Id == operationId && x.OrganizationId == organizationId && x.UserId == userId,
                     CancellationToken.None);
                 if (current == null || current.Status != "processing") return;
                 current.Status = "failed";
                 current.UpdatedAt = DateTime.UtcNow;
                 current.LeaseExpiresAt = current.UpdatedAt;
-                _dataContext.PercyAuditRecords.Add(BuildChatAudit(current, "chat_failed", outcome));
+                _dataContext.WrenAuditRecords.Add(BuildChatAudit(current, "chat_failed", outcome));
                 await _dataContext.SaveChangesAsync(CancellationToken.None);
             }
             catch (Exception terminalizationError)
             {
-                _logger.LogError("Percy chat terminalization failed; errorType={ErrorType}; status={Status}",
+                _logger.LogError("Wren AI chat terminalization failed; errorType={ErrorType}; status={Status}",
                     terminalizationError.GetType().Name, "failed");
             }
         }
 
-        private async Task<ServiceResponse<PercyChatResponseDto>> PersistAssistantResponseAsync(
-            PercyChatOperation operation, PercyConversation conversation, PercyMessage userMessage, PercyChatResponseDto response,
-            CancellationToken cancellationToken, IEnumerable<string?>? exactSensitiveValues = null,
-            IEnumerable<PercySourceDto>? serverSources = null,
+        private async Task<ServiceResponse<WrenChatResponseDto>> PersistAssistantResponseAsync(
+            WrenChatOperation operation, WrenConversation conversation, WrenMessage userMessage, WrenChatResponseDto response,
+            bool isFirstTurn, CancellationToken cancellationToken, IEnumerable<string?>? exactSensitiveValues = null,
+            IEnumerable<WrenSourceDto>? serverSources = null,
             IEnumerable<string?>? exactAllowedDisplayValues = null,
             string? serverReceiptKind = null)
         {
             // The model call is complete before this short transaction. SQL identity generation may
             // require an initial save, but assistant content remains invisible unless metadata and
             // the completed operation receipt commit with it.
-            response.Sources = (serverSources ?? []).Select(source => new PercySourceDto
+            var title = conversation.Title;
+            if (isFirstTurn)
+            {
+                // Direct answers already have a server-generated activity label for their topic.
+                var candidate = string.IsNullOrWhiteSpace(response.ConversationTitle) ? response.ActivityLabel : response.ConversationTitle;
+                var sanitized = WrenDataBoundary.Redact(candidate, WrenRedactionProfile.GeneratedOutput, exactSensitiveValues);
+                if (!string.IsNullOrWhiteSpace(sanitized.Text) && sanitized.RedactionCount == 0)
+                    title = BuildConversationTitle(sanitized.Text);
+            }
+            response.ConversationTitle = title;
+            response.Sources = (serverSources ?? []).Select(source => new WrenSourceDto
             {
                 Kind = source.Kind,
                 Label = source.Label,
@@ -688,8 +742,8 @@ namespace brownstone_hub_api.Services.AICopilotService
                 RecordReference = source.RecordReference,
                 RetrievedAtUtc = source.RetrievedAtUtc
             }).ToList();
-            PercyDataBoundary.SanitizeResponse(response, exactSensitiveValues, exactAllowedDisplayValues);
-            var assistant = new PercyMessage
+            WrenDataBoundary.SanitizeResponse(response, exactSensitiveValues, exactAllowedDisplayValues);
+            var assistant = new WrenMessage
             {
                 ConversationId = conversation.Id,
                 Role = "assistant",
@@ -700,7 +754,8 @@ namespace brownstone_hub_api.Services.AICopilotService
             await using var transaction = _dataContext.Database.IsRelational()
                 ? await _dataContext.Database.BeginTransactionAsync(cancellationToken)
                 : null;
-            _dataContext.PercyMessages.Add(assistant);
+            _dataContext.WrenMessages.Add(assistant);
+            conversation.Title = title;
             conversation.UpdatedAt = DateTime.UtcNow;
             if (transaction != null)
                 await _dataContext.SaveChangesAsync(cancellationToken);
@@ -709,7 +764,7 @@ namespace brownstone_hub_api.Services.AICopilotService
             response.ConversationTitle = conversation.Title;
             response.UserMessageId = userMessage.Id;
             response.AssistantMessageId = assistant.Id;
-            PercyDataBoundary.SanitizeResponse(response, exactSensitiveValues, exactAllowedDisplayValues);
+            WrenDataBoundary.SanitizeResponse(response, exactSensitiveValues, exactAllowedDisplayValues);
             var responseJson = JsonSerializer.Serialize(response);
             if (!string.IsNullOrWhiteSpace(serverReceiptKind))
             {
@@ -723,10 +778,10 @@ namespace brownstone_hub_api.Services.AICopilotService
             operation.CompletedResponseJson = responseJson;
             operation.UpdatedAt = DateTime.UtcNow;
             operation.LeaseExpiresAt = operation.UpdatedAt;
-            _dataContext.PercyAuditRecords.Add(BuildChatAudit(operation, "chat_completed", "completed"));
+            _dataContext.WrenAuditRecords.Add(BuildChatAudit(operation, "chat_completed", "completed"));
             await _dataContext.SaveChangesAsync(cancellationToken);
             if (transaction != null) await transaction.CommitAsync(cancellationToken);
-            return ServiceResponse<PercyChatResponseDto>.CreateSuccess(response);
+            return ServiceResponse<WrenChatResponseDto>.CreateSuccess(response);
         }
 
         private static bool IsCollectionsExecutionRequest(string message)
@@ -740,22 +795,22 @@ namespace brownstone_hub_api.Services.AICopilotService
 
         private static string ReadActionType(string scope) => scope switch
         {
-            "portfolio" => PercyActionTypes.ReadPortfolio,
-            "rent-payments" => PercyActionTypes.ReadRentPayments,
-            "maintenance" => PercyActionTypes.ReadMaintenance,
-            "leases-applications" => PercyActionTypes.ReadLeasesApplications,
-            "urgent-messages" => PercyActionTypes.ReadUrgentMessages,
+            "portfolio" => WrenActionTypes.ReadPortfolio,
+            "rent-payments" => WrenActionTypes.ReadRentPayments,
+            "maintenance" => WrenActionTypes.ReadMaintenance,
+            "leases-applications" => WrenActionTypes.ReadLeasesApplications,
+            "urgent-messages" => WrenActionTypes.ReadUrgentMessages,
             _ => string.Empty
         };
 
-        private static PercySourceDto BuildSource(string scope, DateTime retrievedAtUtc) => scope switch
+        private static WrenSourceDto BuildSource(string scope, DateTime retrievedAtUtc) => scope switch
         {
             "portfolio" => new() { Kind = scope, Label = "Portfolio", WorkflowRoute = "/landlord/properties", RetrievedAtUtc = retrievedAtUtc },
             "rent-payments" => new() { Kind = scope, Label = "Rent payments", WorkflowRoute = "/landlord/payments", RetrievedAtUtc = retrievedAtUtc },
             "maintenance" => new() { Kind = scope, Label = "Maintenance", WorkflowRoute = "/landlord/maintenances", RetrievedAtUtc = retrievedAtUtc },
             "leases-applications" => new() { Kind = scope, Label = "Leases and applications", WorkflowRoute = "/landlord/applications", RetrievedAtUtc = retrievedAtUtc },
             "urgent-messages" => new() { Kind = scope, Label = "Urgent messages", WorkflowRoute = "/landlord/urgent-messages", RetrievedAtUtc = retrievedAtUtc },
-            _ => throw new ArgumentOutOfRangeException(nameof(scope), "Unknown Percy read scope.")
+            _ => throw new ArgumentOutOfRangeException(nameof(scope), "Unknown Wren AI read scope.")
         };
 
         private static bool TryGetKnownUnavailableCapability(string message, out string capability)
@@ -811,12 +866,12 @@ namespace brownstone_hub_api.Services.AICopilotService
             return true;
         }
 
-        private static PercyChatResponseDto BuildUnavailableCapabilityResponse(string capability)
+        private static WrenChatResponseDto BuildUnavailableCapabilityResponse(string capability)
         {
             var safeCapability = NormalizeCapabilityName(capability) ?? "requested capability";
             if (safeCapability == "image generation")
             {
-                return new PercyChatResponseDto
+                return new WrenChatResponseDto
                 {
                     Content = "I can't generate images yet, but I can still help with questions about your properties and organization.",
                     ActivityLabel = "Image generation unavailable",
@@ -824,9 +879,9 @@ namespace brownstone_hub_api.Services.AICopilotService
                 };
             }
 
-            return new PercyChatResponseDto
+            return new WrenChatResponseDto
             {
-                Content = $"The {safeCapability} tool is not available yet, so I can't access or manage that information in Percy right now.",
+                Content = $"The {safeCapability} tool is not available yet, so I can't access or manage that information in Wren AI right now.",
                 ActivityLabel = "Capability unavailable",
                 ActivityStatus = $"{char.ToUpperInvariant(safeCapability[0])}{safeCapability[1..]} tool not available yet"
             };
@@ -875,7 +930,7 @@ namespace brownstone_hub_api.Services.AICopilotService
             if (!hasOverdueRentLanguage) return false;
 
             // Only deterministic portfolio-status questions belong here. General definitions,
-            // tax/legal questions, and advice remain in Percy's conversational path.
+            // tax/legal questions, and advice remain in Wren AI's conversational path.
             var hasStatusSignal = Regex.IsMatch(message,
                 @"\b(?:any|anyone|anybody|someone|who|which|show|list|my|our|them)\b|\b(?:do|does|did|is|are|have|has)\s+(?:i|we|my|our|any|anyone|anybody|someone|one|the|these|those)\b",
                 RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
@@ -889,7 +944,7 @@ namespace brownstone_hub_api.Services.AICopilotService
         private async Task<bool> HasRecentAuthoritativeOverdueRentResultAsync(
             long conversationId, long organizationId, long userId, CancellationToken cancellationToken)
         {
-            var receipts = await _dataContext.PercyMessages.AsNoTracking()
+            var receipts = await _dataContext.WrenMessages.AsNoTracking()
                 .Where(message => message.ConversationId == conversationId &&
                     message.Conversation.OrganizationId == organizationId &&
                     message.Conversation.UserId == userId)
@@ -909,7 +964,7 @@ namespace brownstone_hub_api.Services.AICopilotService
                         !string.Equals(receiptKind.GetString(), "overdue-rent-status-v1", StringComparison.Ordinal))
                         continue;
 
-                    var response = receiptDocument.RootElement.Deserialize<PercyChatResponseDto>();
+                    var response = receiptDocument.RootElement.Deserialize<WrenChatResponseDto>();
                     if (response != null &&
                         string.Equals(response.ActivityLabel, "Rent status", StringComparison.Ordinal) &&
                         Regex.IsMatch(response.ActivityStatus ?? string.Empty, @"^[1-9]\d* overdue (?:lease|leases)$",
@@ -927,18 +982,20 @@ namespace brownstone_hub_api.Services.AICopilotService
         }
 
         private static bool IsOverdueTenantFollowUpRequest(
-            string message, bool hasRecentAuthoritativeOverdueRent)
+            string message, bool overdueRentQuestion, bool hasRecentAuthoritativeOverdueRent)
         {
+            if (overdueRentQuestion)
+                return Regex.IsMatch(message, @"\b(?:contact|email|e-mail|phone|reach)\b",
+                    RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
             var asksForTenantIdentityOrContact = Regex.IsMatch(message,
                 @"\btenant(?:s|'s|’s)?\b.{0,50}\b(?:who|name|contact|email|e-mail|phone|number|reach)\b|\b(?:who|name|contact|email|e-mail|phone|number|reach)\b.{0,50}\btenant(?:s|'s|’s)?\b",
                 RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
-            if (!asksForTenantIdentityOrContact) return false;
-
-            return IsOverdueRentStatusRequest(message) || hasRecentAuthoritativeOverdueRent;
+            return asksForTenantIdentityOrContact && hasRecentAuthoritativeOverdueRent;
         }
 
         private sealed record OverdueTenantResponse(
-            PercyChatResponseDto Response,
+            WrenChatResponseDto Response,
             List<string?> AllowedDisplayValues);
 
         private static OverdueTenantResponse BuildOverdueTenantResponse(
@@ -964,7 +1021,7 @@ namespace brownstone_hub_api.Services.AICopilotService
 
             var contactCount = rows.Count(row =>
                 !string.IsNullOrWhiteSpace(row.Tenant.Email) || !string.IsNullOrWhiteSpace(row.Tenant.PhoneNumber));
-            var response = new PercyChatResponseDto
+            var response = new WrenChatResponseDto
             {
                 ActivityLabel = "Overdue lease tenants",
                 ActivityStatus = overdueLeases.Count == 0
@@ -976,7 +1033,7 @@ namespace brownstone_hub_api.Services.AICopilotService
                         : contactCount == 0
                             ? $"{rows.Count} {(rows.Count == 1 ? "tenant" : "tenants")} found; no contact info on file"
                             : $"{rows.Count} {(rows.Count == 1 ? "tenant" : "tenants")} found · {contactCount} with contact info",
-                Items = rows.Take(PercyDataBoundary.MaxItems).Select(row => new PercyResultItemDto
+                Items = rows.Take(WrenDataBoundary.MaxItems).Select(row => new WrenResultItemDto
                 {
                     Title = row.Name,
                     Detail = string.IsNullOrWhiteSpace(row.Lease.UnitName)
@@ -1031,8 +1088,8 @@ namespace brownstone_hub_api.Services.AICopilotService
             return "There isn't an email or phone number on file.";
         }
 
-        private static PercyChatResponseDto BuildOverdueRentResponse(
-            IReadOnlyCollection<LoadLeaseDto> leases, List<LoadPaymentDto> payments, string? timezone)
+        private static (WrenChatResponseDto Response, List<string?> AllowedDisplayValues) BuildOverdueRentResponse(
+            IReadOnlyCollection<LoadLeaseDto> leases, List<LoadPaymentDto> payments, string? timezone, bool includeTenantNames)
         {
             var rows = leases
                 .Select(lease => new
@@ -1052,9 +1109,36 @@ namespace brownstone_hub_api.Services.AICopilotService
                 _ => $"Yes—{rows.Count} active leases have {FormatMoney(total)} total in overdue rent."
             };
 
-            return new PercyChatResponseDto
+            var items = new List<WrenResultItemDto>();
+            var allowedDisplayValues = new List<string?>();
+            var visibleTenantNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var row in rows.Take(WrenDataBoundary.MaxItems))
+            {
+                var propertyName = DisplayPropertyName(row.Lease);
+                var units = string.IsNullOrWhiteSpace(row.Lease.UnitName) ? "Overdue rent" : $"{row.Lease.UnitName.Trim()} · Overdue rent";
+                allowedDisplayValues.Add(propertyName);
+                if (includeTenantNames)
+                {
+                    var tenantNames = row.Lease.Tenants.Select(tenant => $"{tenant.Firstname} {tenant.Lastname}".Trim())
+                        .Where(name => name.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                    allowedDisplayValues.AddRange(tenantNames);
+                    visibleTenantNames.UnionWith(tenantNames);
+                    units += tenantNames.Count == 0 ? " · No tenant name on file" : $" · {string.Join(", ", tenantNames)}";
+                }
+                items.Add(new() { Title = propertyName, Detail = units, Value = FormatMoney(row.Balance.OverdueAmount) });
+            }
+
+            if (includeTenantNames && rows.Count > 0)
+            {
+                content = visibleTenantNames.Count == 0
+                    ? $"{content} There are no tenant names on file for the overdue leases shown."
+                    : $"Tenants on the overdue leases shown: {string.Join(", ", visibleTenantNames)}. {content}";
+            }
+
+            return (new WrenChatResponseDto
             {
                 Content = content,
+                ConversationTitle = includeTenantNames ? "Tenants with overdue rent" : "Rent status",
                 ActivityLabel = "Rent status",
                 ActivityStatus = rows.Count == 0 ? "No overdue rent found" : $"{rows.Count} overdue {(rows.Count == 1 ? "lease" : "leases")}",
                 Metrics =
@@ -1062,15 +1146,8 @@ namespace brownstone_hub_api.Services.AICopilotService
                     new() { Label = "Overdue leases", Value = rows.Count.ToString() },
                     new() { Label = "Total overdue", Value = total.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture), Money = true }
                 ],
-                Items = rows.Take(PercyDataBoundary.MaxItems).Select(row => new PercyResultItemDto
-                {
-                    Title = DisplayPropertyName(row.Lease),
-                    Detail = string.IsNullOrWhiteSpace(row.Lease.UnitName)
-                        ? "Overdue rent"
-                        : $"{row.Lease.UnitName.Trim()} · Overdue rent",
-                    Value = FormatMoney(row.Balance.OverdueAmount)
-                }).ToList()
-            };
+                Items = items
+            }, allowedDisplayValues);
         }
 
         private static string DisplayPropertyName(LoadLeaseDto lease) =>
@@ -1088,7 +1165,7 @@ namespace brownstone_hub_api.Services.AICopilotService
             return title.Length <= 80 ? title : title[..77] + "…";
         }
 
-        private static ServiceResponse<PercyChatResponseDto> BuildPaymentTimingReport(
+        private static ServiceResponse<WrenChatResponseDto> BuildPaymentTimingReport(
             string message, long propertyId, List<LoadPaymentDto> payments,
             Dictionary<long, LoadLeaseDto> leaseById)
         {
@@ -1115,7 +1192,7 @@ namespace brownstone_hub_api.Services.AICopilotService
             var content = rows.Count == 0
                 ? $"I found the selected property record, but there are no recorded rent payments for {reportYear}."
                 : $"Here’s the {reportYear} rent-payment report for the selected property record. {onTime} payment{(onTime == 1 ? " was" : "s were")} on time and {late} {(late == 1 ? "was" : "were")} late{(unknown > 0 ? $". {unknown} could not be classified because the rent due day was unavailable" : string.Empty)}.";
-            return ServiceResponse<PercyChatResponseDto>.CreateSuccess(new PercyChatResponseDto
+            return ServiceResponse<WrenChatResponseDto>.CreateSuccess(new WrenChatResponseDto
             {
                 Content = content,
                 ActivityLabel = "Payment history",
@@ -1127,7 +1204,7 @@ namespace brownstone_hub_api.Services.AICopilotService
                     new() { Label = "On-time rate", Value = $"{rate}%" },
                     new() { Label = "Rent recorded", Value = rows.Sum(x => x.Payment.Amount).ToString("0.00"), Money = true }
                 ],
-                Items = rows.OrderByDescending(x => x.Payment.PaymentDate).Take(12).Select(x => new PercyResultItemDto
+                Items = rows.OrderByDescending(x => x.Payment.PaymentDate).Take(12).Select(x => new WrenResultItemDto
                 {
                     Title = x.Payment.PaymentDate.ToString("MMMM d, yyyy"),
                     Detail = x.DueDate.HasValue ? $"Due {x.DueDate.Value:MMMM d}" : "Due date unavailable",
@@ -1151,7 +1228,7 @@ namespace brownstone_hub_api.Services.AICopilotService
             @"^(?:yo+|hey+|hi+|hello+|hiya|howdy|sup|what(?:'|’)s up|good (?:morning|afternoon|evening))[\s!?.]*$",
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
-        private static PercyChatResponseDto BuildPropertyListResponse(
+        private static WrenChatResponseDto BuildPropertyListResponse(
             IReadOnlyCollection<Dtos.Property.LoadPropertyDto> properties)
         {
             var allRows = properties.Select((property, index) => new
@@ -1161,7 +1238,7 @@ namespace brownstone_hub_api.Services.AICopilotService
             }).ToList();
             var propertyCount = allRows.Count;
             var unitCount = allRows.Sum(row => row.UnitCount);
-            var rows = allRows.Take(PercyDataBoundary.MaxItems).ToList();
+            var rows = allRows.Take(WrenDataBoundary.MaxItems).ToList();
             var names = rows.Select(row => row.Name).ToList();
             var nameList = names.Count switch
             {
@@ -1176,7 +1253,7 @@ namespace brownstone_hub_api.Services.AICopilotService
                     ? $"You have {propertyCount} properties. Here are the first {rows.Count}: {nameList}."
                     : $"You have {propertyCount} {(propertyCount == 1 ? "property" : "properties")}: {nameList}.";
 
-            return new PercyChatResponseDto
+            return new WrenChatResponseDto
             {
                 Content = content,
                 ActivityLabel = "Property Overview",
@@ -1186,7 +1263,7 @@ namespace brownstone_hub_api.Services.AICopilotService
                     new() { Label = "Total Properties", Value = propertyCount.ToString() },
                     new() { Label = "Total Units", Value = unitCount.ToString() }
                 ],
-                Items = rows.Take(PercyDataBoundary.MaxItems).Select(row => new PercyResultItemDto
+                Items = rows.Take(WrenDataBoundary.MaxItems).Select(row => new WrenResultItemDto
                 {
                     Title = row.Name,
                     Detail = $"{row.UnitCount} {(row.UnitCount == 1 ? "unit" : "units")}"
@@ -1196,7 +1273,7 @@ namespace brownstone_hub_api.Services.AICopilotService
 
         private static string NormalizeForMatch(string value) => Regex.Replace(value.ToLowerInvariant(), "[^a-z0-9]", string.Empty);
 
-        public sealed class PercyReadPlan
+        public sealed class WrenReadPlan
         {
             public List<string> Scopes { get; set; } = [];
             public string? UnavailableCapability { get; set; }

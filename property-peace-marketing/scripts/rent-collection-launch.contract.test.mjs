@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 
 const read = (path) => readFile(new URL(path, import.meta.url), "utf8");
 
-test("rent collection hero layers Percy over the photograph using the homepage fade", async () => {
+test("rent collection hero layers Wren AI over the photograph using the homepage fade", async () => {
   const source = await read("../components/Marketing/RentCollectionFeaturePage.tsx");
   const image = await readFile(new URL("../public/images/rent-collection/hero.png", import.meta.url));
   assert.equal(image.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])), true);
@@ -12,9 +12,9 @@ test("rent collection hero layers Percy over the photograph using the homepage f
   assert.match(source, /url\(\/images\/rent-collection\/hero\.png\)/);
   assert.match(source, /className="marketing-home-hero-fade absolute inset-0/);
   assert.match(source, /className="relative mx-auto max-w-6xl/);
-  assert.match(source, /src="\/images\/rent-collection\/hero-percy\.webp"/);
-  const percy = await readFile(new URL("../public/images/rent-collection/hero-percy.webp", import.meta.url));
-  assert.equal(percy.toString("ascii", 8, 12), "WEBP");
+  assert.match(source, /src="\/images\/rent-collection\/hero-wren\.webp"/);
+  const wren = await readFile(new URL("../public/images/rent-collection/hero-wren.webp", import.meta.url));
+  assert.equal(wren.toString("ascii", 8, 12), "WEBP");
 });
 
 test("rent collection route uses the dedicated page without changing generic CTAs", async () => {

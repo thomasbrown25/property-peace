@@ -46,7 +46,7 @@ public sealed class FreePackagingContractTests
         features.Should().Contain("Multiple active external listings (coming soon)",
             "external syndication must not be presented as operational yet");
         features.Should().Contain("Dedicated SMS number");
-        features.Should().Contain("Percy Pilot workflows");
+        features.Should().Contain("Wren AI Pilot workflows");
         features.Should().Contain("Reports and analytics");
     }
 
@@ -61,7 +61,7 @@ public sealed class FreePackagingContractTests
         var features = JsonSerializer.Deserialize<string[]>(premium.Features!).Should().NotBeNull().And.Subject!;
         features.Should().NotContain(feature => feature.Contains("priority support", StringComparison.OrdinalIgnoreCase));
         features.Should().NotContain("Online rent payments (approval required)");
-        features.Should().Contain(feature => feature.Contains("Percy", StringComparison.OrdinalIgnoreCase));
+        features.Should().Contain(feature => feature.Contains("Wren AI", StringComparison.OrdinalIgnoreCase));
         features.Should().Contain(feature => feature.Contains("SMS", StringComparison.OrdinalIgnoreCase));
     }
 

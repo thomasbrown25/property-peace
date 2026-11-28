@@ -44,7 +44,7 @@ public sealed class Milestone7ConversationService(
     private static readonly HashSet<string> PublicMetadataKeys = new(StringComparer.Ordinal)
     {
         "status", "amount", "attachmentName", "replyToMessageId", "maintenanceStatus", "channel", "direction",
-        "reminderType", "screeningStatus", "leaseStatus", "paymentStatus", "percyAction", "followUpStatus",
+        "reminderType", "screeningStatus", "leaseStatus", "paymentStatus", "wrenAction", "percyAction", "followUpStatus",
         "reason", "fromStatus", "toStatus"
     };
     private static readonly HashSet<string> ContextKinds = new(StringComparer.OrdinalIgnoreCase)
@@ -444,7 +444,7 @@ public sealed class Milestone7ConversationService(
 
     private async Task FollowUpAuditAsync(ConversationFollowUpTask task, long actor, string action, CancellationToken ct) =>
         await timeline.AppendAsync(new AppendTimelineEntryRequest { OrganizationId = task.OrganizationId, ConversationId = task.ConversationId,
-            Kind = TimelineEntryKind.PercyFollowUp, OccurredAtUtc = clock.GetUtcNow().UtcDateTime, ActorUserId = actor,
+            Kind = TimelineEntryKind.WrenFollowUp, OccurredAtUtc = clock.GetUtcNow().UtcDateTime, ActorUserId = actor,
             SourceType = "followUp", SourceId = task.Id.ToString(), Summary = $"Follow-up {action}: {task.Title}",
             Metadata = new Dictionary<string, string> { ["followUpStatus"] = action }, ContextKind = task.ContextKind,
             ContextId = task.ContextId, ContextLabel = $"{task.ContextKind} {task.ContextId}", Visibility = TimelineVisibility.StaffOnly,

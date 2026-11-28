@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import {
   Alert,
   alpha,
@@ -11,7 +12,6 @@ import {
   IconButton,
   InputBase,
   Stack,
-  Tooltip,
   Typography,
   useTheme
 } from '@mui/material';
@@ -22,30 +22,27 @@ import {
   ClockCircleOutlined,
   CloseOutlined,
   DatabaseOutlined,
-  DeleteOutlined,
   DollarCircleOutlined,
   HistoryOutlined,
   MenuOutlined,
-  MessageOutlined,
-  PlusOutlined,
   SendOutlined,
   SyncOutlined,
   ToolOutlined
 } from '@ant-design/icons';
-import percyLogoDarkMode from 'assets/images/logos/favicon-transparent.png';
-import percyLogoLightMode from 'assets/images/logos/favicon-transparent-dark.png';
-import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
+import wrenMascot from 'assets/images/logos/wren-mascot-resting.webp';
 import useOrganizationSummary from 'hooks/useOrganizationSummary';
 import useAuth from 'hooks/useAuth';
+import useWrenConversations from 'hooks/useWrenConversations';
 import { useOrganization } from 'contexts/OrganizationContext';
 import { aiFollowUpAPI } from 'api';
 import FeatureReadinessNotice from 'components/feature-readiness/FeatureReadinessNotice';
 import useFeatureReadiness from 'hooks/useFeatureReadiness';
 import { FEATURE_KEYS } from 'utils/featureReadiness';
-import { formatPercyMetricValue } from 'utils/percyMetricValue';
-import { sortPercyConversationsMostRecentFirst } from 'utils/percyConversations';
-import { mapPercySource } from 'utils/percySources';
-import { createPercyChatRequestAttempt } from 'utils/percyChatRequestAttempt';
+import { formatWrenMetricValue } from 'utils/wrenMetricValue';
+import { sortWrenConversationsMostRecentFirst } from 'utils/wrenConversations';
+import { mapWrenSource } from 'utils/wrenSources';
+import { createWrenChatRequestAttempt } from 'utils/wrenChatRequestAttempt';
+import { selectProperties, selectPropertiesOrganizationId } from 'store/property/property.selector';
 import {
   createAICenterScopeGuard,
   getAICenterReadinessMarker,
@@ -63,7 +60,7 @@ const STARTER_PROMPTS = [
   { label: 'Portfolio pulse', prompt: 'Give me a quick portfolio summary.', icon: <DatabaseOutlined /> }
 ];
 
-function PercyAvatar({ size = 32, elevated = false }) {
+function WrenAvatar() {
   const theme = useTheme();
   const darkMode = theme.palette.mode === 'dark';
 
@@ -71,21 +68,20 @@ function PercyAvatar({ size = 32, elevated = false }) {
     <Box
       aria-hidden="true"
       sx={{
-        width: size,
-        height: size,
+        width: 32,
+        height: 32,
         flexShrink: 0,
-        borderRadius: size >= 50 ? 2.25 : 1.25,
+        borderRadius: 1.25,
         display: 'grid',
         placeItems: 'center',
         bgcolor: alpha(theme.palette.text.primary, darkMode ? 0.07 : 0.055),
         border: '1px solid',
-        borderColor: alpha(theme.palette.text.primary, darkMode ? 0.1 : 0.07),
-        boxShadow: elevated ? `0 12px 24px ${alpha(theme.palette.text.primary, darkMode ? 0.34 : 0.14)}` : 'none'
+        borderColor: alpha(theme.palette.text.primary, darkMode ? 0.1 : 0.07)
       }}
     >
       <Box
         component="img"
-        src={darkMode ? percyLogoDarkMode : percyLogoLightMode}
+        src={wrenMascot}
         alt=""
         sx={{ width: '82%', height: '82%', objectFit: 'contain', display: 'block' }}
       />
@@ -108,7 +104,7 @@ const mapConfirmation = (value) => {
   if (!value) return null;
   return {
     id: readField(value, 'id', 'Id'),
-    actionLabel: readField(value, 'actionLabel', 'ActionLabel') || 'Percy action',
+    actionLabel: readField(value, 'actionLabel', 'ActionLabel') || 'Wren AI action',
     prompt: readField(value, 'prompt', 'Prompt') || 'Please confirm this action.',
     status: readField(value, 'status', 'Status') || 'Pending',
     expiresAt: readField(value, 'expiresAt', 'ExpiresAt')
@@ -136,7 +132,7 @@ const mapMessage = (value) => {
       detail: readField(item, 'detail', 'Detail'),
       value: readField(item, 'value', 'Value')
     })),
-    sources: asArray(readField(value, 'sources', 'Sources')).map(mapPercySource),
+    sources: asArray(readField(value, 'sources', 'Sources')).map(mapWrenSource),
     pendingConfirmation: mapConfirmation(readField(value, 'pendingConfirmation', 'PendingConfirmation'))
   };
 };
@@ -201,7 +197,7 @@ function AssistantMessage({ message, progressText, onResolveConfirmation, confir
   const confirmationPending = confirmation && String(confirmation.status).toLowerCase() === 'pending';
   return (
     <Stack direction="row" spacing={1.5} alignItems="flex-start" sx={{ width: '100%' }}>
-      <PercyAvatar />
+      <WrenAvatar />
       <Box sx={{ minWidth: 0, maxWidth: 760, flex: 1 }}>
         {message.streaming && !message.content ? (
           <Typography variant="body2" fontWeight={700} sx={{ color: 'text.primary' }}>
@@ -234,7 +230,7 @@ function AssistantMessage({ message, progressText, onResolveConfirmation, confir
                   {metric.label}
                 </Typography>
                 <Typography variant="subtitle1" fontWeight={800} sx={{ color: 'text.primary', mt: 0.2 }}>
-                  {formatPercyMetricValue(metric)}
+                  {formatWrenMetricValue(metric)}
                 </Typography>
               </Box>
             ))}
@@ -324,8 +320,8 @@ function AssistantMessage({ message, progressText, onResolveConfirmation, confir
 function UserMessage({ message }) {
   return (
     <Box sx={{ display: 'flex', justifyContent: 'flex-end', width: '100%' }}>
-      <Box sx={{ maxWidth: 680, px: 1.75, py: 1.15, borderRadius: '18px 18px 4px 18px', bgcolor: 'primary.main', color: '#fff' }}>
-        <Typography variant="body1" sx={{ lineHeight: 1.6 }}>
+      <Box sx={{ maxWidth: 680, px: 1.75, py: 1.15, borderRadius: '18px 18px 4px 18px', bgcolor: 'primary.main' }}>
+        <Typography variant="body1" sx={{ color: '#fff', lineHeight: 1.6 }}>
           {message.content}
         </Typography>
       </Box>
@@ -364,17 +360,26 @@ function ConnectionRow({ icon, title, detail, active = false }) {
 
 export default function AICenter() {
   const theme = useTheme();
+  const location = useLocation();
+  const chatParams = new URLSearchParams(location.search);
+  const startsNewChat = chatParams.get('new') === '1';
+  const requestedPropertyId = startsNewChat ? chatParams.get('propertyId') : null;
+  const requestedConversationId = startsNewChat ? null : chatParams.get('conversationId');
+  const routeSelectionKey = startsNewChat || requestedConversationId ? location.key : null;
 
   const messageEndRef = useRef(null);
   const selectionVersionRef = useRef(0);
+  const initialSelectionPendingRef = useRef(false);
   const scopeGuardRef = useRef(createAICenterScopeGuard());
   const progressTimerRef = useRef(null);
   const streamAbortRef = useRef(null);
-  const chatRequestAttemptRef = useRef(createPercyChatRequestAttempt());
+  const chatRequestAttemptRef = useRef(createWrenChatRequestAttempt());
   const { user } = useAuth();
   const { currentOrganization, loading: organizationLoading } = useOrganization();
   const userId = user?.id ?? user?.Id ?? user?.email ?? user?.Email ?? null;
   const organizationId = getCurrentOrganizationId(currentOrganization);
+  const properties = useSelector(selectProperties);
+  const propertiesOrganizationId = useSelector(selectPropertiesOrganizationId);
   const aiScopeEligible = isAICenterScopeEligible({ userId, currentOrganization, organizationLoading });
   const aiScope = useMemo(() => makeAICenterScope({ userId, organizationId }), [organizationId, userId]);
   // Synchronize during render so same-organization loading transitions close
@@ -383,19 +388,18 @@ export default function AICenter() {
   const currentScopeRef = useRef(aiRuntime);
   currentScopeRef.current = aiRuntime;
   const { data: summary, loading: summaryLoading, error: summaryError } = useOrganizationSummary();
-  const { presentation: percyReadiness } = useFeatureReadiness(FEATURE_KEYS.percy);
-  const readinessMarker = getAICenterReadinessMarker(percyReadiness);
+  const { presentation: wrenReadiness } = useFeatureReadiness(FEATURE_KEYS.wrenAi);
+  const readinessMarker = getAICenterReadinessMarker(wrenReadiness);
 
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [thinking, setThinking] = useState(false);
   const [progressText, setProgressText] = useState('Let me take a look…');
-  const [conversations, setConversations] = useState([]);
+  const { conversations, isLoading: conversationsLoading, mutate: mutateConversations } = useWrenConversations();
   const [selectedConversationId, setSelectedConversationId] = useState(null);
-  const [conversationsLoading, setConversationsLoading] = useState(true);
-  const [conversationsError, setConversationsError] = useState('');
-  const [deletingConversationId, setDeletingConversationId] = useState(null);
-  const [deleteConversationError, setDeleteConversationError] = useState('');
+  const [selectedConversationTitle, setSelectedConversationTitle] = useState(null);
+  const [activePropertyId, setActivePropertyId] = useState(null);
+  const [selectedArchived, setSelectedArchived] = useState(false);
   const [conversationLoading, setConversationLoading] = useState(false);
   const [conversationError, setConversationError] = useState('');
   const [confirmationLoading, setConfirmationLoading] = useState({});
@@ -403,7 +407,28 @@ export default function AICenter() {
   const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
   const [stateScopeGeneration, setStateScopeGeneration] = useState(null);
   const aiRuntimeReady = isAICenterRuntimeReady({ runtime: aiRuntime, stateGeneration: stateScopeGeneration });
-  const sortedConversations = useMemo(() => sortPercyConversationsMostRecentFirst(conversations), [conversations]);
+  const sortedConversations = useMemo(
+    () => sortWrenConversationsMostRecentFirst(conversations.filter((item) => !readField(item, 'isArchived', 'IsArchived'))),
+    [conversations]
+  );
+  const cachedSelection = selectedConversationId != null
+    ? conversations.find((item) => String(readField(item, 'id', 'Id')) === String(selectedConversationId))
+    : null;
+  const conversationTitle = selectedConversationTitle || readField(cachedSelection, 'title', 'Title');
+  const selectionIsArchived = Boolean(readField(cachedSelection, 'isArchived', 'IsArchived'));
+  const chatArchived = selectedArchived || selectionIsArchived;
+  const summaryProperties = asArray(readField(summary, 'properties', 'Properties'));
+  const matchesActiveProperty = (property) => String(readField(property, 'id', 'Id')) === String(activePropertyId);
+  const scopedProperties = String(propertiesOrganizationId) === String(organizationId) ? properties : [];
+  const activeProperty = activePropertyId != null
+    ? scopedProperties.find(matchesActiveProperty) ?? summaryProperties.find(matchesActiveProperty)
+    : null;
+  const propertyLabel = readField(activeProperty, 'name', 'Name') || readField(activeProperty, 'streetAddress', 'StreetAddress')
+    || readField(activeProperty, 'address', 'Address');
+
+  useEffect(() => {
+    if (selectionIsArchived) setSelectedArchived(true);
+  }, [selectionIsArchived]);
 
   useEffect(() => {
     messageEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -411,12 +436,16 @@ export default function AICenter() {
 
   const handleSelectConversation = async (id) => {
     if (!aiScopeEligible) return;
+    initialSelectionPendingRef.current = false;
     const scopeRequest = scopeGuardRef.current.capture(aiScope);
     chatRequestAttemptRef.current.contextChanged({ conversationId: id, scopeKey: aiScope.scopeKey });
     streamAbortRef.current?.abort();
     const version = ++selectionVersionRef.current;
     clearTimeout(progressTimerRef.current);
     setSelectedConversationId(id);
+    setSelectedConversationTitle(null);
+    setActivePropertyId(null);
+    setSelectedArchived(false);
     setMessages([]);
     setInput('');
     setThinking(false);
@@ -425,6 +454,10 @@ export default function AICenter() {
     try {
       const response = unwrapData(await aiFollowUpAPI.getConversation(id));
       if (selectionVersionRef.current !== version || !scopeGuardRef.current.isCurrent(scopeRequest, currentScopeRef.current)) return;
+      setSelectedConversationId(readField(response, 'id', 'Id') ?? id);
+      setSelectedConversationTitle(readField(response, 'title', 'Title') ?? null);
+      setActivePropertyId(readField(response, 'propertyId', 'PropertyId') ?? null);
+      if (readField(response, 'isArchived', 'IsArchived')) setSelectedArchived(true);
       setMessages(asArray(readField(response, 'messages', 'Messages')).map(mapMessage));
     } catch (error) {
       if (selectionVersionRef.current !== version || !scopeGuardRef.current.isCurrent(scopeRequest, currentScopeRef.current)) return;
@@ -438,8 +471,9 @@ export default function AICenter() {
 
   useEffect(() => {
     const scopeRequest = scopeGuardRef.current.beginScope(aiScope, aiScopeEligible);
-    const isCurrentScope = () => scopeGuardRef.current.isCurrent(scopeRequest, currentScopeRef.current);
-    chatRequestAttemptRef.current.contextChanged({ conversationId: null, scopeKey: aiScope.scopeKey });
+    currentScopeRef.current = scopeRequest;
+    chatRequestAttemptRef.current.reset();
+    initialSelectionPendingRef.current = aiScopeEligible && !startsNewChat && !requestedConversationId;
 
     selectionVersionRef.current += 1;
     streamAbortRef.current?.abort();
@@ -448,12 +482,10 @@ export default function AICenter() {
     setInput('');
     setThinking(false);
     setProgressText('Let me take a look…');
-    setConversations([]);
     setSelectedConversationId(null);
-    setConversationsLoading(true);
-    setConversationsError('');
-    setDeletingConversationId(null);
-    setDeleteConversationError('');
+    setSelectedConversationTitle(null);
+    setActivePropertyId(requestedPropertyId);
+    setSelectedArchived(false);
     setConversationLoading(false);
     setConversationError('');
     setConfirmationLoading({});
@@ -469,79 +501,23 @@ export default function AICenter() {
       clearTimeout(progressTimerRef.current);
     };
 
-    if (!aiScopeEligible) {
-      setConversationsLoading(false);
-      return disposeScope;
-    }
-
-    const loadConversations = async () => {
-      try {
-        const response = unwrapData(await aiFollowUpAPI.getConversations());
-        if (!isCurrentScope()) return;
-        const loaded = sortPercyConversationsMostRecentFirst(asArray(response));
-        setConversations(loaded);
-        if (loaded.length > 0) handleSelectConversation(readField(loaded[0], 'id', 'Id'));
-      } catch (error) {
-        if (isCurrentScope()) setConversationsError(errorMessage(error, 'Could not load your Percy conversations.'));
-      } finally {
-        if (isCurrentScope()) setConversationsLoading(false);
-      }
-    };
-    loadConversations();
+    if (aiScopeEligible && requestedConversationId) handleSelectConversation(requestedConversationId);
     return disposeScope;
-    // Initial durable conversation load only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aiScope.scopeKey, aiScopeEligible]);
+  }, [aiScope.scopeKey, aiScopeEligible, routeSelectionKey, startsNewChat, requestedPropertyId, requestedConversationId]);
 
-  const handleNewChat = () => {
-    if (!aiRuntimeReady) return;
-    chatRequestAttemptRef.current.contextChanged({ conversationId: null, scopeKey: aiScope.scopeKey });
-    streamAbortRef.current?.abort();
-    selectionVersionRef.current += 1;
-    clearTimeout(progressTimerRef.current);
-    setSelectedConversationId(null);
-    setMessages([]);
-    setInput('');
-    setThinking(false);
-    setConversationLoading(false);
-    setConversationError('');
-  };
-
-  const handleDeleteConversation = async (event, id) => {
-    event.stopPropagation();
-    if (!aiRuntimeReady || deletingConversationId !== null) return;
-
-    const scopeRequest = scopeGuardRef.current.capture(aiScope);
-    const remainingConversations = sortedConversations.filter((conversation) => readField(conversation, 'id', 'Id') !== id);
-    setDeletingConversationId(id);
-    setDeleteConversationError('');
-
-    try {
-      await aiFollowUpAPI.deleteConversation(id);
-      if (!scopeGuardRef.current.isCurrent(scopeRequest, currentScopeRef.current)) return;
-
-      setConversations(remainingConversations);
-      if (selectedConversationId === id) {
-        const nextConversationId = readField(remainingConversations[0], 'id', 'Id');
-        if (nextConversationId) {
-          await handleSelectConversation(nextConversationId);
-        } else {
-          handleNewChat();
-        }
-      }
-    } catch (error) {
-      if (scopeGuardRef.current.isCurrent(scopeRequest, currentScopeRef.current)) {
-        setDeleteConversationError(errorMessage(error, 'Could not delete this conversation. Please try again.'));
-      }
-    } finally {
-      if (scopeGuardRef.current.isCurrent(scopeRequest, currentScopeRef.current)) setDeletingConversationId(null);
-    }
-  };
+  useEffect(() => {
+    if (!aiRuntimeReady || !initialSelectionPendingRef.current || conversationsLoading) return;
+    initialSelectionPendingRef.current = false;
+    const latestId = readField(sortedConversations[0], 'id', 'Id');
+    if (latestId != null) handleSelectConversation(latestId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiRuntimeReady, conversationsLoading, sortedConversations]);
 
   const handleSend = async (value = input) => {
-    if (!aiRuntimeReady || !percyReadiness.canInvoke) return;
+    if (!aiRuntimeReady || !wrenReadiness.canInvoke) return;
     const prompt = value.trim();
-    if (!prompt || thinking || conversationLoading) return;
+    if (!prompt || thinking || conversationLoading || chatArchived || conversationError) return;
 
     const scopeRequest = scopeGuardRef.current.capture(aiScope);
     const version = selectionVersionRef.current;
@@ -568,6 +544,7 @@ export default function AICenter() {
     let completedResponse = null;
     try {
       await aiFollowUpAPI.streamChat(prompt, conversationId, requestAttempt.clientRequestId, {
+        propertyId: conversationId == null ? activePropertyId : null,
         signal: controller.signal,
         onEvent: (event) => {
           if (selectionVersionRef.current !== version || !scopeGuardRef.current.isCurrent(scopeRequest, currentScopeRef.current)) return;
@@ -576,7 +553,7 @@ export default function AICenter() {
             return;
           }
           if (event.type === 'content.delta') {
-            setProgressText('Percy is responding');
+            setProgressText('Wren AI is responding');
             setMessages((current) =>
               current.map((message) =>
                 message.id === assistantPlaceholderId
@@ -590,7 +567,7 @@ export default function AICenter() {
             completedResponse = event.response;
             return;
           }
-          if (event.type === 'error') throw new Error(event.message || 'Percy could not complete this request.');
+          if (event.type === 'error') throw new Error(event.message || 'Wren AI could not complete this request.');
         }
       });
 
@@ -598,13 +575,14 @@ export default function AICenter() {
         selectionVersionRef.current !== version
         || !scopeGuardRef.current.isCurrent(scopeRequest, currentScopeRef.current)
       ) return;
-      if (!completedResponse) throw new Error('Percy could not complete this request. Please try again.');
+      if (!completedResponse) throw new Error('Wren AI could not complete this request. Please try again.');
       const response = completedResponse;
       chatRequestAttemptRef.current.succeed(requestAttempt);
       const serverConversationId = readField(response, 'conversationId', 'ConversationId');
-      const title = readField(response, 'conversationTitle', 'ConversationTitle') || prompt;
+      const title = readField(response, 'conversationTitle', 'ConversationTitle') || conversationTitle || 'Untitled conversation';
       const userMessageId = readField(response, 'userMessageId', 'UserMessageId');
       setSelectedConversationId(serverConversationId);
+      setSelectedConversationTitle(title);
       setMessages((current) =>
         current.map((message) => {
           if (message.id === optimisticId) return { ...message, id: userMessageId || message.id };
@@ -612,16 +590,17 @@ export default function AICenter() {
           return message;
         })
       );
-      setConversations((current) => {
+      void mutateConversations((current = []) => {
         const existing = current.find((item) => readField(item, 'id', 'Id') === serverConversationId) || {};
         const next = {
           ...existing,
           id: serverConversationId,
+          propertyId: activePropertyId,
           title,
           updatedAt: new Date().toISOString(),
           lastMessagePreview: readField(response, 'content', 'Content') || prompt
         };
-        return sortPercyConversationsMostRecentFirst([
+        return sortWrenConversationsMostRecentFirst([
           next,
           ...current.filter((item) => readField(item, 'id', 'Id') !== serverConversationId)
         ]);
@@ -698,7 +677,7 @@ export default function AICenter() {
 
   const dataReady = !summaryLoading && !summaryError;
   const contextCounts = {
-    properties: asArray(readField(summary, 'properties', 'Properties')).length,
+    properties: summaryProperties.length,
     tenants: asArray(readField(summary, 'tenants', 'Tenants')).length
   };
 
@@ -707,217 +686,45 @@ export default function AICenter() {
   if (!aiRuntimeReady) return null;
 
   return (
-    <Box>
-      <PageBreadcrumbs items={[{ label: 'Dashboard', path: '/landlord/dashboard' }, { label: 'Percy' }]} />
-      <FeatureReadinessNotice presentation={percyReadiness} featureName="Percy" />
+    <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+      <FeatureReadinessNotice presentation={wrenReadiness} featureName="Wren AI" />
 
       <Box
         sx={{
-          height: { xs: 'calc(100dvh - 122px)', md: 'calc(100dvh - 136px)' },
-          minHeight: { xs: 620, lg: 700 },
+          flex: 1,
+          minHeight: 0,
           display: 'flex',
           overflow: 'hidden',
-          borderRadius: 3,
           border: '1px solid',
           borderColor: 'divider',
           bgcolor: 'background.paper',
           boxShadow: (theme) => `0 18px 45px ${alpha(theme.palette.text.primary, 0.07)}`
         }}
       >
-        <Box
-          sx={{
-            width: 236,
-            flexShrink: 0,
-            display: { xs: 'none', md: 'flex' },
-            flexDirection: 'column',
-            bgcolor: 'surface.nested',
-            borderRight: '1px solid',
-            borderColor: 'divider'
-          }}
-        >
-          <Box sx={{ p: 2 }}>
-            <Stack direction="row" spacing={1.1} alignItems="center" sx={{ mb: 2 }}>
-              <PercyAvatar size={34} />
-              <Box>
-                <Typography variant="subtitle1" fontWeight={850} sx={{ color: 'text.primary', lineHeight: 1.1 }}>
-                  Percy
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Property copilot
-                </Typography>
-              </Box>
-            </Stack>
-            <Button
-              fullWidth
-              variant="contained"
-              startIcon={<PlusOutlined />}
-              onClick={handleNewChat}
-              sx={{
-                justifyContent: 'flex-start',
-                color: '#fff',
-                bgcolor: 'primary.main',
-                '&:hover': { bgcolor: 'primary.dark' },
-                textTransform: 'none',
-                fontWeight: 750
-              }}
-            >
-              New conversation
-            </Button>
-          </Box>
-
-          <Box sx={{ px: 1.25, flex: 1, minHeight: 0, overflowY: 'auto' }}>
-            <Typography variant="overline" color="text.secondary" sx={{ px: 1, fontWeight: 800, letterSpacing: 0.8 }}>
-              Conversations
-            </Typography>
-            {conversationsLoading && (
-              <Stack direction="row" spacing={1} alignItems="center" sx={{ px: 1.1, py: 1.5 }}>
-                <CircularProgress size={15} />
-                <Typography variant="caption" color="text.secondary">
-                  Loading conversations…
-                </Typography>
-              </Stack>
-            )}
-            {!conversationsLoading && conversationsError && (
-              <Alert severity="error" sx={{ mt: 0.5, py: 0 }}>
-                {conversationsError}
-              </Alert>
-            )}
-            {deleteConversationError && (
-              <Alert severity="error" sx={{ mt: 0.5, py: 0 }}>
-                {deleteConversationError}
-              </Alert>
-            )}
-            {!conversationsLoading && !conversationsError && conversations.length === 0 && (
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', px: 1.1, py: 1.5 }}>
-                No saved conversations yet.
-              </Typography>
-            )}
-            <Stack spacing={0.5} sx={{ mt: 0.5 }}>
-              {sortedConversations.map((conversation) => {
-                const id = readField(conversation, 'id', 'Id');
-                const selected = id === selectedConversationId;
-                return (
-                  <Box
-                    key={id}
-                    sx={{
-                      position: 'relative',
-                      width: '100%',
-                      mt: 0,
-                      borderRadius: 1.5,
-                      bgcolor: selected ? (theme) => alpha(theme.palette.brand.forest, 0.07) : 'transparent',
-                      '&:hover': { bgcolor: (theme) => alpha(theme.palette.brand.forest, 0.05) },
-                      '&:hover .conversation-delete, &:focus-within .conversation-delete': { opacity: 1 },
-                      '@media (hover: none)': { '& .conversation-delete': { opacity: 1 } }
-                    }}
-                  >
-                    <Box
-                      component="button"
-                      type="button"
-                      onClick={() => handleSelectConversation(id)}
-                      sx={{
-                        width: '100%',
-                        border: 0,
-                        px: 1.1,
-                        pr: 4.5,
-                        py: 1,
-                        bgcolor: 'transparent',
-                        textAlign: 'left',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      <Stack direction="row" spacing={1} alignItems="flex-start">
-                        <MessageOutlined style={{ color: theme.palette.text.primary, marginTop: 3 }} />
-                        <Box sx={{ minWidth: 0 }}>
-                          <Typography variant="body2" fontWeight={selected ? 750 : 600} noWrap>
-                            {readField(conversation, 'title', 'Title') || 'Untitled conversation'}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
-                            {readField(conversation, 'lastMessagePreview', 'LastMessagePreview') || 'No messages yet'}
-                          </Typography>
-                        </Box>
-                      </Stack>
-                    </Box>
-                    <Tooltip title="Delete conversation">
-                      <IconButton
-                        className="conversation-delete"
-                        aria-label={`Delete ${readField(conversation, 'title', 'Title') || 'conversation'}`}
-                        size="small"
-                        disabled={deletingConversationId !== null}
-                        onClick={(event) => handleDeleteConversation(event, id)}
-                        sx={{
-                          position: 'absolute',
-                          right: 6,
-                          top: '50%',
-                          transform: 'translateY(-50%)',
-                          opacity: deletingConversationId === id ? 1 : 0,
-                          transition: 'opacity 120ms ease, color 120ms ease, background-color 120ms ease',
-                          color: 'text.secondary',
-                          '&:hover': { color: 'error.main', bgcolor: alpha('#d32f2f', 0.08) }
-                        }}
-                      >
-                        {deletingConversationId === id ? <CircularProgress size={15} /> : <DeleteOutlined />}
-                      </IconButton>
-                    </Tooltip>
-                  </Box>
-                );
-              })}
-            </Stack>
-          </Box>
-
-          <Box sx={{ p: 1.5 }}>
-            <Button
-              component={Link}
-              to="/landlord/ai-center/collections-history"
-              fullWidth
-              startIcon={<HistoryOutlined />}
-              sx={{ justifyContent: 'flex-start', color: 'text.secondary', textTransform: 'none' }}
-            >
-              Activity history
-            </Button>
-
-          </Box>
-        </Box>
-
         <Box sx={{ minWidth: 0, flex: 1, display: 'flex', flexDirection: 'column', bgcolor: 'background.paper' }}>
           <Stack
             direction="row"
             alignItems="center"
-            justifyContent="space-between"
+            spacing={1}
             sx={{ height: 58, flexShrink: 0, px: { xs: 1.5, sm: 2.25 }, borderBottom: '1px solid', borderColor: 'divider' }}
           >
-            <Stack direction="row" spacing={1} alignItems="center">
-              <IconButton onClick={() => setMobilePanelOpen(true)} sx={{ display: { xl: 'none' } }}>
-                <MenuOutlined />
-              </IconButton>
-              <Box>
-                <Stack direction="row" spacing={0.75} alignItems="center">
-                  <Typography variant="subtitle1" fontWeight={800} sx={{ color: 'text.primary' }}>
-                    Percy workspace
-                  </Typography>
-                  <Chip
-                    label={readinessMarker.label}
-                    color={readinessMarker.active ? 'success' : 'default'}
-                    variant="light"
-                    size="small"
-                    sx={{ height: 20, fontSize: '0.65rem', fontWeight: 800 }}
-                  />
-                </Stack>
-                <Typography variant="caption" color="text.secondary">
-                  {readinessMarker.toolDetail}
-                </Typography>
-              </Box>
-            </Stack>
-            <Tooltip title="Start a new conversation">
-              <IconButton size="small" onClick={handleNewChat}>
-                <PlusOutlined />
-              </IconButton>
-            </Tooltip>
+            <IconButton aria-label="Workspace details" onClick={() => setMobilePanelOpen(true)} sx={{ display: { xl: 'none' } }}>
+              <MenuOutlined />
+            </IconButton>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography component="h1" variant="subtitle1" fontWeight={800} color="text.primary" noWrap>
+                {activePropertyId != null ? propertyLabel || 'Property chat' : 'Wren AI workspace'}
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }} noWrap>
+                {conversationTitle || (conversationLoading ? 'Loading chat…' : 'New chat')}
+              </Typography>
+            </Box>
           </Stack>
 
-          <Box sx={{ flex: 1, overflowY: 'auto', px: { xs: 2, sm: 3, lg: 5 }, py: 3, bgcolor: 'surface.nested' }}>
+          <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto', px: { xs: 2, sm: 3, lg: 5 }, py: 3, bgcolor: 'surface.nested' }}>
             {summaryError && (
               <Alert severity="warning" sx={{ maxWidth: 760, mx: 'auto', mb: 2 }}>
-                Percy could not load all portfolio context. You can still navigate tools from the workspace.
+                Wren AI could not load all portfolio context. You can still navigate tools from the workspace.
               </Alert>
             )}
             {conversationError && (
@@ -925,9 +732,14 @@ export default function AICenter() {
                 {conversationError}
               </Alert>
             )}
+            {chatArchived && (
+              <Alert severity="info" sx={{ maxWidth: 760, mx: 'auto', mb: 2 }}>
+                This chat is archived.
+              </Alert>
+            )}
 
             {conversationLoading ? (
-              <Stack alignItems="center" justifyContent="center" spacing={1.5} sx={{ height: '100%', minHeight: 300 }}>
+              <Stack alignItems="center" justifyContent="center" spacing={1.5} sx={{ minHeight: '100%' }}>
                 <CircularProgress size={28} />
                 <Typography variant="body2" color="text.secondary">
                   Loading conversation…
@@ -936,8 +748,7 @@ export default function AICenter() {
             ) : messages.length === 0 ? (
               <Box
                 sx={{
-                  height: '100%',
-                  minHeight: 430,
+                  minHeight: '100%',
                   display: 'flex',
                   flexDirection: 'column',
                   justifyContent: 'center',
@@ -947,12 +758,47 @@ export default function AICenter() {
                   mx: 'auto'
                 }}
               >
-                <PercyAvatar size={58} elevated />
-                <Typography variant="h2" fontWeight={800} sx={{ mt: 2, color: 'text.primary', letterSpacing: -0.7 }}>
-                  What can Percy help with?
-                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', gap: 2, maxWidth: '100%', mb: 1 }}>
+                  <Box
+                    component="img"
+                    src={wrenMascot}
+                    alt=""
+                    sx={{ display: 'block', width: 'auto', height: { xs: 106, sm: 144 }, mt: 2 }}
+                  />
+                  <Typography
+                    component="h2"
+                    variant="body1"
+                    fontWeight={650}
+                    sx={{
+                      position: 'relative',
+                      textAlign: 'left',
+                      color: 'text.primary',
+                      bgcolor: 'background.paper',
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      borderRadius: 2.5,
+                      px: 1.75,
+                      py: 1.1,
+                      '&::before': {
+                        content: '""',
+                        position: 'absolute',
+                        left: -5,
+                        top: 15,
+                        width: 9,
+                        height: 9,
+                        bgcolor: 'inherit',
+                        borderLeft: '1px solid',
+                        borderBottom: '1px solid',
+                        borderColor: 'inherit',
+                        transform: 'rotate(45deg)'
+                      }
+                    }}
+                  >
+                    How can I help today?
+                  </Typography>
+                </Box>
                 <Typography variant="body1" color="text.secondary" sx={{ mt: 1, maxWidth: 560, lineHeight: 1.7 }}>
-                  Ask about live rent, leases, applications, or maintenance. Percy will show which Property Peace tools were used before
+                  Ask about live rent, leases, applications, or maintenance. Wren AI will show which Property Peace tools were used before
                   presenting the result.
                 </Typography>
 
@@ -970,7 +816,7 @@ export default function AICenter() {
                       key={starter.label}
                       component="button"
                       type="button"
-                      disabled={!aiRuntimeReady || !percyReadiness.canInvoke || thinking || conversationLoading}
+                      disabled={!aiRuntimeReady || !wrenReadiness.canInvoke || thinking || conversationLoading || chatArchived || Boolean(conversationError)}
                       onClick={() => handleSend(starter.prompt)}
                       sx={{
                         p: 1.5,
@@ -1042,7 +888,7 @@ export default function AICenter() {
               flexShrink: 0,
               px: { xs: 1.5, sm: 3, lg: 5 },
               pt: 1.5,
-              pb: 1.25,
+              pb: (theme) => `max(${theme.spacing(1.25)}, env(safe-area-inset-bottom, 0px))`,
               borderTop: '1px solid',
               borderColor: 'divider',
               bgcolor: 'background.paper'
@@ -1073,13 +919,13 @@ export default function AICenter() {
                     setInput(event.target.value);
                   }}
                   onKeyDown={handleComposerKeyDown}
-                  placeholder="Ask Percy about your properties…"
-                  disabled={!aiRuntimeReady || !percyReadiness.canInvoke || summaryLoading || conversationLoading}
+                  placeholder={activePropertyId != null ? 'Ask Wren AI about this property…' : 'Ask Wren AI about your properties…'}
+                  disabled={!aiRuntimeReady || !wrenReadiness.canInvoke || summaryLoading || conversationLoading || chatArchived || Boolean(conversationError)}
                   sx={{ py: 0.75, fontSize: '0.95rem' }}
                 />
                 <IconButton
                   onClick={() => handleSend()}
-                  disabled={!input.trim() || thinking || conversationLoading || !percyReadiness.canInvoke}
+                  disabled={!aiRuntimeReady || !input.trim() || thinking || conversationLoading || !wrenReadiness.canInvoke || chatArchived || Boolean(conversationError)}
                   sx={{
                     width: 38,
                     height: 38,
@@ -1091,9 +937,6 @@ export default function AICenter() {
                   {thinking ? <CircularProgress size={17} color="inherit" /> : <SendOutlined />}
                 </IconButton>
               </Box>
-              <Typography variant="caption" color="text.disabled" sx={{ display: 'block', textAlign: 'center', mt: 0.75 }}>
-                Percy uses organization-scoped data. Confirmations are required before consequential actions.
-              </Typography>
             </Box>
           </Box>
         </Box>
@@ -1208,79 +1051,12 @@ export default function AICenter() {
           >
             <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
               <Typography variant="h5" fontWeight={800}>
-                Percy workspace
+                Workspace details
               </Typography>
               <IconButton onClick={() => setMobilePanelOpen(false)}>
                 <CloseOutlined />
               </IconButton>
             </Stack>
-            <Button
-              fullWidth
-              variant="contained"
-              startIcon={<PlusOutlined />}
-              onClick={() => {
-                handleNewChat();
-                setMobilePanelOpen(false);
-              }}
-              sx={{ mb: 2, justifyContent: 'flex-start', textTransform: 'none', bgcolor: 'primary.main', color: '#fff', '&:hover': { bgcolor: 'primary.dark' } }}
-            >
-              New conversation
-            </Button>
-            <Typography variant="subtitle2" fontWeight={800}>
-              Conversations
-            </Typography>
-            {conversationsLoading && (
-              <Typography variant="caption" color="text.secondary">
-                Loading conversations…
-              </Typography>
-            )}
-            {!conversationsLoading && conversationsError && (
-              <Alert severity="error" sx={{ mt: 1 }}>
-                {conversationsError}
-              </Alert>
-            )}
-            {deleteConversationError && (
-              <Alert severity="error" sx={{ mt: 1 }}>
-                {deleteConversationError}
-              </Alert>
-            )}
-            {!conversationsLoading && !conversationsError && conversations.length === 0 && (
-              <Typography variant="caption" color="text.secondary">
-                No saved conversations yet.
-              </Typography>
-            )}
-            <Stack spacing={0.5} sx={{ mt: 1, mb: 2 }}>
-              {sortedConversations.map((conversation) => {
-                const id = readField(conversation, 'id', 'Id');
-                return (
-                  <Stack key={id} direction="row" alignItems="center">
-                    <Button
-                      fullWidth
-                      onClick={() => {
-                        handleSelectConversation(id);
-                        setMobilePanelOpen(false);
-                      }}
-                      startIcon={<MessageOutlined />}
-                      sx={{ justifyContent: 'flex-start', textTransform: 'none', fontWeight: id === selectedConversationId ? 800 : 500 }}
-                    >
-                      <Typography variant="body2" noWrap>
-                        {readField(conversation, 'title', 'Title') || 'Untitled conversation'}
-                      </Typography>
-                    </Button>
-                    <IconButton
-                      aria-label={`Delete ${readField(conversation, 'title', 'Title') || 'conversation'}`}
-                      size="small"
-                      disabled={deletingConversationId !== null}
-                      onClick={(event) => handleDeleteConversation(event, id)}
-                      sx={{ flexShrink: 0, color: 'text.secondary', '&:hover': { color: 'error.main' } }}
-                    >
-                      {deletingConversationId === id ? <CircularProgress size={15} /> : <DeleteOutlined />}
-                    </IconButton>
-                  </Stack>
-                );
-              })}
-            </Stack>
-            <Divider sx={{ my: 2 }} />
             <Typography variant="subtitle2" fontWeight={800}>
               Connections
             </Typography>

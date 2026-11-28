@@ -1,5 +1,5 @@
 using brownstone_hub_api.Dtos.AICopilot;
-using brownstone_hub_api.Services.PercyActions;
+using brownstone_hub_api.Services.WrenActions;
 using Microsoft.EntityFrameworkCore;
 using System.Text.RegularExpressions;
 
@@ -24,8 +24,8 @@ namespace brownstone_hub_api.Services.AICopilotService
         }
 
         private sealed record TenantContactRead(
-            PercyChatResponseDto Response,
-            List<PercySourceDto> Sources,
+            WrenChatResponseDto Response,
+            List<WrenSourceDto> Sources,
             List<string?> AllowedDisplayValues);
 
         private enum TenantContactField
@@ -82,11 +82,14 @@ namespace brownstone_hub_api.Services.AICopilotService
                     : TenantContactField.All;
 
         private async Task<TenantContactRead> ReadTenantContactsAsync(
-            long organizationId, string? requestedName, TenantContactField requestedField,
+            long organizationId, long? propertyId, string? requestedName, TenantContactField requestedField,
             CancellationToken cancellationToken)
         {
             var query = _dataContext.Tenants.AsNoTracking()
                 .Where(tenant => tenant.OrganizationId == organizationId && !tenant.IsDeleted);
+            if (propertyId.HasValue)
+                query = query.Where(tenant => tenant.Unit != null && tenant.Unit.OrganizationId == organizationId
+                    && tenant.Unit.PropertyId == propertyId);
 
             if (!string.IsNullOrWhiteSpace(requestedName))
             {
@@ -101,7 +104,7 @@ namespace brownstone_hub_api.Services.AICopilotService
                 .OrderBy(tenant => tenant.Lastname)
                 .ThenBy(tenant => tenant.Firstname)
                 .ThenBy(tenant => tenant.Id)
-                .Take(PercyDataBoundary.MaxItems + 1)
+                .Take(WrenDataBoundary.MaxItems + 1)
                 .Select(tenant => new TenantContactRow(
                     tenant.Id,
                     tenant.Firstname,
@@ -119,17 +122,18 @@ namespace brownstone_hub_api.Services.AICopilotService
                     tenant.TenantLeases.Any(link => link.Lease.OrganizationId == organizationId &&
                         link.Lease.Unit.OrganizationId == organizationId &&
                         link.Lease.Unit.Property.OrganizationId == organizationId &&
+                        (!propertyId.HasValue || link.Lease.Unit.PropertyId == propertyId) &&
                         link.Lease.IsActive && !link.Lease.IsDeleted)))
                 .ToListAsync(cancellationToken);
 
-            var visibleRows = rows.Take(PercyDataBoundary.MaxItems).ToList();
+            var visibleRows = rows.Take(WrenDataBoundary.MaxItems).ToList();
             var response = string.IsNullOrWhiteSpace(requestedName)
-                ? BuildTenantDirectoryResponse(visibleRows, rows.Count > PercyDataBoundary.MaxItems)
-                : BuildNamedTenantContactResponse(requestedName.Trim(), visibleRows, rows.Count > PercyDataBoundary.MaxItems);
+                ? BuildTenantDirectoryResponse(visibleRows, rows.Count > WrenDataBoundary.MaxItems)
+                : BuildNamedTenantContactResponse(requestedName.Trim(), visibleRows, rows.Count > WrenDataBoundary.MaxItems);
             var sourceRows = visibleRows.Count == 1 ? visibleRows : [];
             var sources = sourceRows.Count == 1
-                ? new List<PercySourceDto> { TenantContactSource(includeRecordReference: true) }
-                : new List<PercySourceDto> { TenantContactSource() };
+                ? new List<WrenSourceDto> { TenantContactSource(includeRecordReference: true) }
+                : new List<WrenSourceDto> { TenantContactSource() };
             var allowedValues = visibleRows.SelectMany(row => new[]
                 {
                     row.Name, row.Email, row.Phone, row.PropertyName, row.UnitName
@@ -141,7 +145,7 @@ namespace brownstone_hub_api.Services.AICopilotService
             return new TenantContactRead(response, sources, allowedValues);
         }
 
-        private static PercyChatResponseDto BuildTenantDirectoryResponse(
+        private static WrenChatResponseDto BuildTenantDirectoryResponse(
             IReadOnlyList<TenantContactRow> rows, bool hasMore)
         {
             var content = rows.Count == 0
@@ -149,7 +153,7 @@ namespace brownstone_hub_api.Services.AICopilotService
                 : hasMore
                     ? $"Here are the first {rows.Count} tenant contacts in this organization."
                     : $"Here {(rows.Count == 1 ? "is" : "are")} {rows.Count} tenant {(rows.Count == 1 ? "contact" : "contacts")} in this organization.";
-            return new PercyChatResponseDto
+            return new WrenChatResponseDto
             {
                 Content = content,
                 ActivityLabel = "Tenant contacts",
@@ -158,11 +162,11 @@ namespace brownstone_hub_api.Services.AICopilotService
             };
         }
 
-        private static PercyChatResponseDto BuildNamedTenantContactResponse(
+        private static WrenChatResponseDto BuildNamedTenantContactResponse(
             string requestedName, IReadOnlyList<TenantContactRow> rows, bool hasMore)
         {
             if (rows.Count == 0)
-                return new PercyChatResponseDto
+                return new WrenChatResponseDto
                 {
                     Content = $"I couldn't find a current tenant named {requestedName} in this organization.",
                     ActivityLabel = "Tenant contacts",
@@ -172,7 +176,7 @@ namespace brownstone_hub_api.Services.AICopilotService
             if (rows.Count == 1 && !hasMore)
             {
                 var row = rows[0];
-                return new PercyChatResponseDto
+                return new WrenChatResponseDto
                 {
                     Content = $"{row.Name}: {TenantContact(row.Email, row.Phone)}.",
                     ActivityLabel = "Tenant contact",
@@ -181,12 +185,12 @@ namespace brownstone_hub_api.Services.AICopilotService
                 };
             }
 
-            return new PercyChatResponseDto
+            return new WrenChatResponseDto
             {
                 Content = $"I found multiple tenants named {requestedName}: {string.Join(", ", rows.Select(row => row.Name))}. Please use a full name so I don't guess.",
                 ActivityLabel = "Tenant contacts",
                 ActivityStatus = hasMore ? $"More than {rows.Count} matching tenants" : $"{rows.Count} matching tenants",
-                Items = rows.Select(row => new PercyResultItemDto
+                Items = rows.Select(row => new WrenResultItemDto
                 {
                     Title = row.Name,
                     Detail = TenantLocationAndStatus(row)
@@ -194,7 +198,7 @@ namespace brownstone_hub_api.Services.AICopilotService
             };
         }
 
-        private static PercyResultItemDto TenantContactItem(TenantContactRow row) => new()
+        private static WrenResultItemDto TenantContactItem(TenantContactRow row) => new()
         {
             Title = row.Name,
             Detail = TenantLocationAndStatus(row),
@@ -210,7 +214,7 @@ namespace brownstone_hub_api.Services.AICopilotService
             return string.Join(" · ", parts);
         }
 
-        private static PercySourceDto TenantContactSource(bool includeRecordReference = false) => new()
+        private static WrenSourceDto TenantContactSource(bool includeRecordReference = false) => new()
         {
             Kind = TenantContactScope,
             Label = "Tenant contacts",

@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 const srcRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const mainRoutesPath = path.join(srcRoot, 'routes', 'MainRoutes.jsx');
-const percySourcesPath = path.join(srcRoot, 'utils', 'percySources.js');
+const wrenSourcesPath = path.join(srcRoot, 'utils', 'wrenSources.js');
 const sourceExtensions = new Set(['.js', '.jsx', '.mjs']);
 const legacyListPath = /^\/?landlord\/(expenses|payments|ledger|money|money-activity)$/;
 const allowedRedirectPaths = new Map([
@@ -34,9 +34,9 @@ function isPathnameCheck(line, literalIndex) {
   return /(?:location\.)?pathname\s*===\s*$/.test(prefix) || /(?:location\.)?pathname\.startsWith\(\s*$/.test(prefix);
 }
 
-function isAllowedPercySourceTranslation(filePath, line, destination) {
+function isAllowedWrenSourceTranslation(filePath, line, destination) {
   // This exact pair normalizes trusted backend data; it is not an application navigation destination.
-  return filePath === percySourcesPath && destination === '/landlord/payments' &&
+  return filePath === wrenSourcesPath && destination === '/landlord/payments' &&
     /^\s*\['\/landlord\/payments', '\/landlord\/finances\?tab=payments'\]\s*$/.test(line);
 }
 
@@ -70,7 +70,7 @@ async function findLegacyListDestinations() {
         }
         if (!legacyListPath.test(pathname)) continue;
         if (isPathnameCheck(line, match.index)) continue;
-        if (isAllowedPercySourceTranslation(filePath, line, destination)) continue;
+        if (isAllowedWrenSourceTranslation(filePath, line, destination)) continue;
         if (isAllowedCompatibilityDeclaration(filePath, lines, index, match.index, destination)) continue;
         violations.push(`${path.relative(srcRoot, filePath)}:${index + 1} ${destination}`);
       }

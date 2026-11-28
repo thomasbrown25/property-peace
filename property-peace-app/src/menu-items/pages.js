@@ -78,7 +78,7 @@ const pages = [
     children: [
       {
         id: 'ai-center',
-        title: 'Percy',
+        title: 'Wren AI',
         type: 'item',
         url: '/landlord/ai-center',
         icon: icons.RobotOutlined

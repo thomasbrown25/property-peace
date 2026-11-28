@@ -43,7 +43,7 @@ export default function CTA({ featured = false }: CTAProps) {
               className="mx-auto mt-5 max-w-3xl text-base leading-7 text-slate-300 sm:text-lg"
               style={{ fontFamily: '"Inter", sans-serif' }}
             >
-              Property Peace keeps rent, maintenance, leases, accounting, documents, and Percy insights connected from day one.
+              Property Peace keeps rent, maintenance, leases, accounting, documents, and Wren AI insights connected from day one.
             </p>
 
             <ul

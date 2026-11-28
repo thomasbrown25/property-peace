@@ -31,8 +31,8 @@ export const maintenanceWorkflowAPI = {
   acknowledge: (id, key) => post(`${ROOT}/${id}/acknowledge`, {}, key),
   changeStatus: (id, status, expectedStatus, key = newMaintenanceIdempotencyKey()) =>
     post(`${ROOT}/${id}/status`, { status, expectedStatus }, key),
-  troubleshoot: (id, body, key) => post(`${ROOT}/${id}/percy/troubleshooting`, body, key),
-  recordTroubleshootingOutcome: (id, stepId, body, key) => post(`${ROOT}/${id}/percy/troubleshooting/${stepId}/outcome`, body, key),
+  troubleshoot: (id, body, key) => post(`${ROOT}/${id}/wren-ai/troubleshooting`, body, key),
+  recordTroubleshootingOutcome: (id, stepId, body, key) => post(`${ROOT}/${id}/wren-ai/troubleshooting/${stepId}/outcome`, body, key),
   assign: (id, body, key) => post(`${ROOT}/${id}/assign`, body, key),
   submitEstimate: (id, body, key) => post(`${ROOT}/${id}/estimates`, body, key),
   approveEstimate: (id, estimateId, expectedVersion, key) => post(`${ROOT}/${id}/estimates/${estimateId}/approve`, { expectedVersion }, key),

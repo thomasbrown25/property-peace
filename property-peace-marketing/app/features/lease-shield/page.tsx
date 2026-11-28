@@ -132,8 +132,8 @@ const BENEFITS = [
   'Answers backed by official government statutes',
   'Covers evictions, deposits, notices, habitability & more',
   'All 50 US states supported',
-  'Conversational Percy Pilot — no legal jargon',
-  'Free where available; Percy Pilot access is limited',
+  'Conversational Wren AI Pilot — no legal jargon',
+  'Free where available; Wren AI Pilot access is limited',
   'Always up to date with current law',
 ];
 
@@ -152,7 +152,7 @@ const FAQS = [
   },
   {
     q: 'Is LeaseShield free to use?',
-    a: 'LeaseShield does not require a subscription. Percy Pilot access has limited availability; check your account for access.',
+    a: 'LeaseShield does not require a subscription. Wren AI Pilot access has limited availability; check your account for access.',
   },
 ];
 
@@ -189,7 +189,7 @@ export default function LeaseShieldPage() {
           <div className="text-center lg:text-left">
             <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[var(--brand-border)] bg-brand-mint px-4 py-1.5 shadow-sm">
               <FiShield className="h-3.5 w-3.5 text-brand-teal" />
-              <span className="text-sm font-semibold text-brand-teal" style={{ fontFamily: '"Inter", sans-serif' }}>Percy Pilot — limited availability</span>
+              <span className="text-sm font-semibold text-brand-teal" style={{ fontFamily: '"Inter", sans-serif' }}>Wren AI Pilot — limited availability</span>
             </div>
             <h1
               className="mb-6 text-4xl font-extrabold leading-tight text-white md:text-5xl lg:text-6xl"
@@ -202,7 +202,7 @@ export default function LeaseShieldPage() {
               className="mx-auto mb-8 max-w-2xl text-lg leading-relaxed text-white/75 md:text-xl lg:mx-0"
               style={{ fontFamily: '"Inter", sans-serif' }}
             >
-              LeaseShield is a Percy Pilot legal assistant that answers your landlord-tenant questions using only official government statutes — so you always have a defensible, sourced answer.
+              LeaseShield is a Wren AI Pilot legal assistant that answers your landlord-tenant questions using only official government statutes — so you always have a defensible, sourced answer.
             </p>
             <div className="mx-auto grid max-w-[22rem] grid-cols-2 justify-center gap-2.5 sm:flex sm:max-w-none sm:flex-row sm:justify-center sm:gap-3 lg:mx-0 lg:justify-start">
               <Link
@@ -403,7 +403,7 @@ export default function LeaseShieldPage() {
             Stop guessing. Start knowing.
           </h2>
           <p className="text-white/70 mb-8 text-lg max-w-xl mx-auto" style={{ fontFamily: '"Inter", sans-serif' }}>
-            LeaseShield is free where available. Percy Pilot access is limited; check availability in your account.
+            LeaseShield is free where available. Wren AI Pilot access is limited; check availability in your account.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link

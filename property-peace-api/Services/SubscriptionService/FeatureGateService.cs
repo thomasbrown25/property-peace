@@ -243,6 +243,7 @@ namespace brownstone_hub_api.Services.SubscriptionService
                     string.Equals(featureName, "ListingSyndicationExtended", StringComparison.OrdinalIgnoreCase) ||
                     string.Equals(featureName, "ESignature", StringComparison.OrdinalIgnoreCase) ||
                     string.Equals(featureName, "DedicatedSmsNumber", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(featureName, "WrenAI", StringComparison.OrdinalIgnoreCase) ||
                     string.Equals(featureName, "Percy", StringComparison.OrdinalIgnoreCase))
                 {
                     return isPremium;
