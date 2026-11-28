@@ -8,6 +8,7 @@ import { getRecentPropertyStorageKey, PROPERTY_VISITED_EVENT, readPropertyVisitD
 import { Link as RouterLink } from 'react-router-dom';
 import { format } from 'date-fns';
 import AppIcon from 'components/AppIcon';
+import BrandedIcon from 'components/BrandedIcon';
 import { getTableStyles } from 'themes/tableStyles';
 import OwnerHomeSidebar from './OwnerHomeSidebar';
 import OwnerRentOverview from './OwnerRentOverview';
@@ -96,8 +97,8 @@ export default function OwnerTodayHome({ reminders = [], properties = [], proper
                 return (
                   <Box component={RouterLink} to={property.href} key={property.id} style={{ '--dashboard-deal-delay': dashboardEntranceDelay(index) }} sx={{ ...dashboardSlideDownSx, bgcolor: 'background.paper', ...dashboardRowHoverSx, ...dashboardRowLinkSx, display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', xl: columns }, alignItems: 'center', gap: { xs: 1.5, xl: 2 }, px: 2, py: 1.5, borderTop: index ? '1px solid' : 0, borderColor: 'divider' }}>
                     <Stack direction="row" spacing={1.4} alignItems="center" sx={{ minWidth: 0 }}>
-                      <Box aria-hidden="true" sx={{ display: 'grid', placeItems: 'center', width: 30, height: 30, flexShrink: 0, borderRadius: 1, fontSize: 15, color: 'primary.main', bgcolor: alpha(theme.palette.primary.main, 0.08) }}>
-                        <AppIcon name={property.isSingleUnit ? 'house' : 'properties'} size={property.isSingleUnit ? 18 : undefined} />
+                      <Box aria-hidden="true" sx={{ display: 'grid', placeItems: 'center', width: 30, height: 30, flexShrink: 0 }}>
+                        <BrandedIcon name={property.isSingleUnit ? 'house' : 'properties'} size={28} />
                       </Box>
                       <Typography sx={{ minWidth: 0, fontWeight: 700, color: 'text.primary', overflowWrap: 'anywhere', lineHeight: 1.3 }}>{property.name}</Typography>
                     </Stack>

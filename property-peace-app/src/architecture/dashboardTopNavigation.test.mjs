@@ -130,7 +130,7 @@ test('properties are searchable, accessible, and scroll in the single green rail
   const sidebar = source('../layout/Dashboard/LandlordSidebar.jsx');
   for (const token of ['useFetchProperties()', 'visibleProperties = propertyRows.filter', 'sortPropertiesByLastVisit',
     'readPropertyVisitDates(user)', 'recordRecentlyViewedProperty(property.id, user)',
-    'placeholder="Search properties"', "'aria-label': 'Search properties'", '<AppIcon name="properties" />',
+    'placeholder="Search properties"', "'aria-label': 'Search properties'", '<BrandedIcon name="properties" />',
     'component="span" variant="caption"', "sx: { color: '#FFFFFF' }", 'aria-label="Add property"',
     'component="img" src={property.image}', 'No matching properties.',
     'ResizeObserver(updateOverflow)',
@@ -150,7 +150,7 @@ test('properties are searchable, accessible, and scroll in the single green rail
   assert.match(sidebar, /disabled=\{trialExpired\}/);
   assert.match(sidebar, /borderBottom: '1px solid', borderColor: 'rgba\(255, 255, 255, 0\.14\)'/);
   assert.match(sidebar, /borderTop: '1px solid rgba\(255, 255, 255, 0\.14\)'[\s\S]*?to="\/landlord\/settings"[\s\S]*?primary="Settings"/);
-  assert.match(sidebar, /<AppIcon name="settings" \/>/);
+  assert.match(sidebar, /<BrandedIcon name="settings" \/>/);
 });
 
 test('long property addresses truncate within the sidebar layout', () => {
@@ -182,15 +182,15 @@ test('the property rail expands in place with six compact icon-and-title actions
   const sidebar = source('../layout/Dashboard/LandlordSidebar.jsx');
   const actions = sidebar.match(/const propertyActions = \[([\s\S]*?)\];/)?.[1] || '';
   assert.deepEqual(Array.from(actions.matchAll(/label: '([^']+)', icon: '([^']+)'/g), ([, label, icon]) => [label, icon]), [
-    ['View property', 'house'], ['Edit property', 'edit'], ['Record payment', 'payments'],
-    ['Create lease', 'leaseAdd'], ['Create task', 'checklists'], ['Upload document', 'uploadDocument']
+    ['View property', 'house'], ['Edit property', 'edit'], ['Record payment', 'payment'],
+    ['Create lease', 'createLease'], ['Create task', 'createTask'], ['Upload document', 'uploadDocument']
   ]);
   assert.match(sidebar, /component="button"[\s\S]*?aria-expanded=\{expanded\}[\s\S]*?setExpandedPropertyId\(expanded \? null : property\.id\)/);
   const dropdown = sidebar.match(/<Collapse in=\{expanded\}[\s\S]*?<\/Collapse>/)?.[0];
   assert.ok(dropdown);
   assert.match(dropdown, /timeout=\{reducedMotion \? 0 : 240\}/);
   assert.match(dropdown, /minHeight: 36/);
-  assert.match(dropdown, /<AppIcon name=\{icon\}[\s\S]*?<Typography[^>]*>\{label\}<\/Typography>/);
+  assert.match(dropdown, /<BrandedIcon name=\{icon\}[\s\S]*?<Typography[^>]*>\{label\}<\/Typography>/);
   assert.match(sidebar, /const propertySubtitleColor = 'rgba\(255,255,255,0\.72\)'/);
   assert.match(sidebar, /secondaryTypographyProps=\{\{[^\n]*color: propertySubtitleColor/);
   assert.match(dropdown, /<Typography[^>]*color: propertySubtitleColor[^>]*>\{label\}<\/Typography>/);

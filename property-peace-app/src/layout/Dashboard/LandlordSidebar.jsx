@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import AppIcon from 'components/AppIcon';
+import BrandedIcon from 'components/BrandedIcon';
 import { Box, Button, Collapse, Drawer, IconButton, List, ListItemButton, ListItemText, listItemTextClasses, TextField, Typography, useMediaQuery } from '@mui/material';
 import Logo from 'components/logo';
 import { brand } from 'themes/brand';
@@ -29,9 +30,9 @@ const propertySubtitleColor = 'rgba(255,255,255,0.72)';
 const propertyActions = [
   { action: 'view', label: 'View property', icon: 'house' },
   { action: 'edit', label: 'Edit property', icon: 'edit' },
-  { action: 'payment', label: 'Record payment', icon: 'payments', requires: 'canRecordPayment' },
-  { action: 'lease', label: 'Create lease', icon: 'leaseAdd', requires: 'canCreateLease' },
-  { action: 'task', label: 'Create task', icon: 'checklists' },
+  { action: 'payment', label: 'Record payment', icon: 'payment', requires: 'canRecordPayment' },
+  { action: 'lease', label: 'Create lease', icon: 'createLease', requires: 'canCreateLease' },
+  { action: 'task', label: 'Create task', icon: 'createTask' },
   { action: 'upload', label: 'Upload document', icon: 'uploadDocument' }
 ];
 
@@ -122,16 +123,16 @@ export default function LandlordSidebar({ desktopOpen, desktopWidth, mobileOpen,
       {!desktopOpen && (
         <Box component="nav" aria-label="Property shortcuts"
           sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5, py: 1, color: '#FFFFFF',
-            '& .MuiIconButton-root': { width: 40, height: 40, '&:focus-visible': { outline: `2px solid ${brand.mint}` } } }}>
+            '& .MuiIconButton-root': { width: 40, height: 40, '&.Mui-disabled img': { opacity: 0.38 }, '&:focus-visible': { outline: `2px solid ${brand.mint}` } } }}>
           <IconButton component={Link} to="/landlord/properties" aria-label="Properties" title="Properties"
             aria-current={pathname === '/landlord/properties' ? 'page' : undefined} disabled={trialExpired} color="inherit">
-            <AppIcon name="properties" size={18} />
+            <BrandedIcon name="properties" />
           </IconButton>
           <IconButton component={Link} to="/landlord/properties/add" aria-label="Add property" title="Add property" disabled={trialExpired} color="inherit">
             <AppIcon name="add" size={18} />
           </IconButton>
           <IconButton component={Link} to="/landlord/settings" aria-label="Settings" title="Settings" color="inherit" sx={{ mt: 'auto' }}>
-            <AppIcon name="settings" size={18} />
+            <BrandedIcon name="settings" />
           </IconButton>
         </Box>
       )}
@@ -152,7 +153,7 @@ export default function LandlordSidebar({ desktopOpen, desktopWidth, mobileOpen,
           ))}
           <ListItemButton onClick={() => setMoreOpen((open) => !open)} aria-expanded={moreOpen}
             sx={{ mx: 1.5, borderRadius: 1.5, color: '#FFFFFF' }}>
-            <AppIcon name="more" style={{ marginRight: 12 }} /><ListItemText primary="More" primaryTypographyProps={{ fontSize: 13 }} />
+            <BrandedIcon name="more" size={20} style={{ marginRight: 12, filter: 'brightness(1.55)' }} /><ListItemText primary="More" primaryTypographyProps={{ fontSize: 13 }} />
             <AppIcon name="chevronDown" size={11} style={{ transform: moreOpen ? 'rotate(180deg)' : undefined }} />
           </ListItemButton>
           <Collapse in={moreOpen} unmountOnExit>
@@ -213,7 +214,7 @@ function PropertyNavigation({ properties, total, loading, search, searchId, onSe
         sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, color: '#FFFFFF', textDecoration: 'none',
           '&:hover': { color: '#FFFFFF', textDecoration: 'underline' },
           '&:focus-visible': { outline: '2px solid', outlineColor: brand.mint, outlineOffset: 3 } }}>
-        <AppIcon name="properties" />
+        <BrandedIcon name="properties" />
         <Typography component="h2" variant="subtitle1" sx={{ fontWeight: 700, color: 'inherit' }}>Properties</Typography>
         {total != null && <Typography component="span" variant="caption" sx={{ color: 'inherit', fontWeight: 600 }}>{total}</Typography>}
       </Box>
@@ -243,7 +244,7 @@ function PropertyNavigation({ properties, total, loading, search, searchId, onSe
         {isEmptyPortfolio && (
           <Box sx={{ mx: 1.5, my: 1, p: 2, border: '1px solid rgba(185, 228, 203, 0.24)', borderRadius: 2, bgcolor: 'rgba(185, 228, 203, 0.08)' }}>
             <Box sx={{ display: 'grid', placeItems: 'center', width: 36, height: 36, mb: 1.5, borderRadius: 1.5, color: brand.mint, bgcolor: 'rgba(185, 228, 203, 0.14)' }}>
-              <AppIcon name="properties" />
+              <BrandedIcon name="properties" size={27} />
             </Box>
             <Typography component="h3" variant="subtitle2" sx={{ color: 'inherit', fontWeight: 700 }}>No properties yet</Typography>
             <Typography variant="body2" sx={{ mt: 0.5, mb: 1.5, color: 'rgba(255, 255, 255, 0.8)' }}>
@@ -293,7 +294,7 @@ function PropertyNavigation({ properties, total, loading, search, searchId, onSe
                         onNavigate?.();
                       }}
                       sx={{ ...rowSx, m: 0, width: '100%', minHeight: 36, px: 1, py: 0.5, gap: 1.25, textAlign: 'left' }}>
-                      <AppIcon name={icon} size={15} style={{ color: brand.mint }} />
+                      <BrandedIcon name={icon} size={20} />
                       <Typography component="span" sx={{ fontSize: 13, fontWeight: 500, color: propertySubtitleColor }}>{label}</Typography>
                     </ListItemButton>;
                   })}
@@ -311,7 +312,7 @@ function PropertyNavigation({ properties, total, loading, search, searchId, onSe
       <ListItemButton component={Link} to="/landlord/settings" onClick={onNavigate}
         selected={pathname === '/landlord/settings' || pathname.startsWith('/landlord/settings/')}
         sx={{ ...rowSx, gap: 1.5, px: 2, minHeight: 44 }}>
-        <AppIcon name="settings" />
+        <BrandedIcon name="settings" />
         <ListItemText primary="Settings" primaryTypographyProps={{ fontSize: 13, fontWeight: 600, sx: { color: '#FFFFFF' } }} />
       </ListItemButton>
     </Box>

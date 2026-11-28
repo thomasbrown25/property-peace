@@ -4,14 +4,17 @@ import { readFile } from "node:fs/promises";
 
 const read = (path) => readFile(new URL(path, import.meta.url), "utf8");
 
-test("rent collection hero uses the supplied photograph and landing fade behind the content", async () => {
+test("rent collection hero layers Percy over the photograph using the homepage fade", async () => {
   const source = await read("../components/Marketing/RentCollectionFeaturePage.tsx");
   const image = await readFile(new URL("../public/images/rent-collection/hero.png", import.meta.url));
   assert.equal(image.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])), true);
   assert.match(source, /data-marketing-hero-theme="dark"/);
   assert.match(source, /url\(\/images\/rent-collection\/hero\.png\)/);
-  assert.match(source, /linear-gradient\(to_top,#061E35_0%/);
+  assert.match(source, /className="marketing-home-hero-fade absolute inset-0/);
   assert.match(source, /className="relative mx-auto max-w-6xl/);
+  assert.match(source, /src="\/images\/rent-collection\/hero-percy\.webp"/);
+  const percy = await readFile(new URL("../public/images/rent-collection/hero-percy.webp", import.meta.url));
+  assert.equal(percy.toString("ascii", 8, 12), "WEBP");
 });
 
 test("rent collection route uses the dedicated page without changing generic CTAs", async () => {
@@ -25,33 +28,40 @@ test("rent collection route uses the dedicated page without changing generic CTA
   assert.equal((source.match(/View Pricing/g) ?? []).length >= 2, true);
 });
 
-test("rent collection page contains the requested launch sections and approval gate", async () => {
+test("the tenant benefits photo uses the homepage fade with coverage for both text columns", async () => {
+  const source = await read("../components/Marketing/RentCollectionFeaturePage.tsx");
+  const section = source.split("</section>").find((part) => part.includes("Rent day should feel straightforward for tenants, too."));
+  assert.ok(section);
+  assert.match(section, /url\(\/images\/rent-collection\/tenants\.png\)/);
+  assert.match(section, /className="marketing-home-hero-fade marketing-home-hero-fade--copy-on-right\b/);
+});
+
+test("rent collection page preserves the payment setup disclosure and renders its FAQ", async () => {
   const source = await read("../components/Marketing/RentCollectionFeaturePage.tsx");
   const required = [
     "COLLECT RENT ONLINE",
-    "The smooth, secure way to collect rent.",
-    "Custom late fees",
-    "automatic AI-assisted follow-ups",
-    "secure bank connections",
-    "Set Up Rent Payments",
+    "Track rent collection",
+    "with ease.",
+    "automate tenant follow-ups with AI",
+    "Collect rent securely through Stripe once your organization completes approval and setup.",
+    "custom late-fee rules",
     "View Pricing",
     "Included with Free",
     "Secure bank connections",
     "Automatic payment tracking",
     "Make rent collection a smooth automated process for you and your tenants",
-    "Collect Rent Securely",
     "/blog/rental-property-cash-flow-template-landlords/",
     "A better tenant experience",
     "More than rent collection",
-    "Approval comes before payment setup.",
     "Get Started",
-    "Rent payment access starts off for every organization.",
   ];
   for (const claim of required) assert.equal(source.includes(claim), true, "Missing: " + claim);
   assert.equal(source.includes("Back to Features"), false);
   assert.equal(source.includes("Request Rent Payment Access"), false);
-  assert.equal((source.match(/bg-\[#263e52\]/g) ?? []).length, 3);
-  assert.match(await read("../components/Marketing/RentCollectionFaq.tsx"), /<section[^>]+bg-\[#263e52\]/);
+  assert.doesNotMatch(source, /Approval comes before payment setup\./);
+  assert.match(source, /<\/section>\s*<RentCollectionFaq live=\{live\} \/>/);
+  assert.equal((source.match(/bg-brand-forest-raised/g) ?? []).length, 2);
+  assert.match(await read("../components/Marketing/RentCollectionFaq.tsx"), /<section[^>]+bg-brand-forest\b/);
 
   const eyebrow = source.slice(source.indexOf("COLLECT RENT ONLINE") - 160, source.indexOf("COLLECT RENT ONLINE"));
   assert.equal(/border|rounded|shadow/.test(eyebrow), false);

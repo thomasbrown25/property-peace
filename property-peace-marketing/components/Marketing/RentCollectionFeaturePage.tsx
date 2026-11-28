@@ -1,17 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import {
-  FiBell,
-  FiBookOpen,
-  FiCheck,
-  FiClock,
-  FiDollarSign,
-  FiFileText,
-  FiHome,
-  FiShield,
-  FiTool,
-  FiZap,
-} from "react-icons/fi";
+import { FiCheck, FiZap } from "react-icons/fi";
 import { rentPaymentsAreLive } from "@/lib/rent-payment-launch";
 import RentCollectionFaq from "./RentCollectionFaq";
 
@@ -40,34 +29,36 @@ const tenantBenefits = [
   },
 ];
 
+const cashFlowIcon = "/images/rent-collection/workflow/cash-flow-resources.webp";
+
 const workflowItems = [
   {
-    icon: FiHome,
+    icon: "/images/rent-collection/workflow/properties-tenants.webp",
     title: "Properties and tenants",
     body: "Keep units, leases, contacts, and rent details connected.",
   },
   {
-    icon: FiDollarSign,
+    icon: "/images/rent-collection/workflow/rent-ledger.webp",
     title: "Rent ledger",
     body: "Track charges, verified payments, overdue balances, and payment history.",
   },
   {
-    icon: FiBell,
+    icon: "/images/rent-collection/workflow/follow-up-reminders.webp",
     title: "Follow-up reminders",
     body: "Schedule in-app and email reminders; SMS messaging requires activation and configuration.",
   },
   {
-    icon: FiTool,
+    icon: "/images/rent-collection/workflow/maintenance.webp",
     title: "Maintenance",
     body: "Move repair requests into an organized workflow alongside each property.",
   },
   {
-    icon: FiFileText,
+    icon: "/images/rent-collection/workflow/lease-records.webp",
     title: "Lease records",
     body: "Store lease documents, dates, and renewal information in one place.",
   },
   {
-    icon: FiBookOpen,
+    icon: cashFlowIcon,
     title: "Cash-flow resources",
     body: "Use landlord-focused templates to plan income and expenses beyond the monthly rent cycle.",
   },
@@ -85,36 +76,36 @@ export default function RentCollectionFeaturePage() {
           aria-hidden="true"
         />
         <div
-          className="absolute inset-0 bg-[linear-gradient(to_top,#061E35_0%,rgba(16,44,41,0.98)_20%,rgba(16,44,41,0.82)_58%,rgba(16,44,41,0.72)_100%)] sm:bg-[linear-gradient(to_top,#061E35_0%,rgba(16,44,41,0.98)_18%,rgba(16,44,41,0.72)_60%,rgba(16,44,41,0.62)_100%)]"
+          className="marketing-home-hero-fade absolute inset-0 after:absolute after:inset-0 after:bg-[linear-gradient(to_bottom,rgba(16,44,41,0.55),transparent_24%)]"
           aria-hidden="true"
         />
-        <div className="relative mx-auto max-w-6xl marketing-gutter pb-16 pt-32 sm:pt-36 lg:pb-24">
-          <div className="grid items-center gap-12 lg:grid-cols-[0.93fr_1.07fr]">
-            <div>
+        <div className="relative mx-auto max-w-6xl marketing-gutter pb-16 pt-32 sm:pt-36 lg:pb-20">
+          <div className="grid items-center gap-8 lg:min-h-[400px] lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-12">
+            <div className="mx-auto w-full max-w-xl text-center lg:mx-0 lg:text-left">
               <p className="mb-5 text-xs font-bold uppercase tracking-[0.2em] text-brand-mint">
                 COLLECT RENT ONLINE
               </p>
               <h1 className="max-w-3xl text-[2.55rem] font-extrabold leading-[1.06] text-white sm:text-5xl md:text-6xl">
-                The smooth, secure way to collect rent.
+                Track rent collection <span className="text-brand-mint">with ease.</span>
               </h1>
               <p className="mt-6 max-w-2xl text-lg leading-relaxed text-brand-ivory md:text-xl">
-                Custom late fees, automatic AI-assisted follow-ups, and secure bank connections help keep every rent cycle moving.
+                See who’s paid, spot overdue balances, and automate tenant follow-ups with AI. Collect rent securely through Stripe once your organization completes approval and setup.
               </p>
 
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <Link href="https://app.propertypeace.io/register" className="inline-flex min-h-14 items-center justify-center gap-2 bg-brand-teal px-7 py-3 font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-brand-teal">
+              <div className="mx-auto mt-8 grid max-w-[22rem] grid-cols-2 gap-3 sm:flex sm:max-w-none sm:justify-center lg:mx-0 lg:justify-start">
+                <Link href="https://app.propertypeace.io/register" className="inline-flex min-h-14 items-center justify-center gap-2 bg-brand-teal px-3 py-3 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-brand-teal sm:px-7 sm:text-base">
                   <FiZap className="h-4 w-4" />
                   Get Started
                 </Link>
-                <Link href="/pricing" className="inline-flex min-h-14 items-center justify-center border border-[var(--brand-border)] bg-brand-surface px-7 py-3 font-semibold text-brand-forest transition hover:border-brand-teal hover:text-brand-teal">
+                <Link href="/pricing" className="inline-flex min-h-14 items-center justify-center border border-[var(--brand-border)] bg-brand-surface px-3 py-3 text-sm font-semibold text-brand-forest transition hover:border-brand-teal hover:text-brand-teal sm:px-7 sm:text-base">
                   View Pricing
                 </Link>
               </div>
 
-              <div className="mt-6 grid gap-2 text-sm font-semibold text-brand-ivory sm:grid-cols-3">
+              <div className="mt-6 flex flex-wrap justify-center gap-x-4 gap-y-2 text-sm font-semibold text-brand-ivory lg:justify-start">
                 {trustItems.map((item) => (
                   <span key={item} className="inline-flex items-center gap-2">
-                    <FiCheck className="h-4 w-4 shrink-0 text-brand-teal" />
+                    <FiCheck className="h-4 w-4 shrink-0 text-brand-mint" />
                     {item}
                   </span>
                 ))}
@@ -122,13 +113,12 @@ export default function RentCollectionFeaturePage() {
             </div>
 
             <Image
-              src="/images/rent-collection/hero-right.png"
-              alt="Illustrated rent collection dashboard with payment progress, income, expenses, and a received payment"
-              width={1448}
-              height={1086}
-              sizes="(max-width: 1023px) 100vw, 52vw"
-              className="h-auto w-full drop-shadow-[0_22px_34px_rgba(0,0,0,0.4)]"
-              priority
+              src="/images/rent-collection/hero-percy.webp"
+              alt="Percy holds a payment tablet with a checkmark."
+              width={960}
+              height={960}
+              loading="eager"
+              className="mx-auto h-auto w-full max-w-[240px] drop-shadow-[0_18px_28px_rgba(0,0,0,0.3)] sm:max-w-[290px] lg:max-w-[400px]"
             />
           </div>
         </div>
@@ -169,10 +159,9 @@ export default function RentCollectionFeaturePage() {
           aria-hidden="true"
         />
         <div
-          className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom,#061E35_0%,rgba(16,44,41,0.82)_18%,rgba(16,44,41,0.65)_48%,rgba(16,44,41,0.78)_80%,#061E35_100%)]"
+          className="marketing-home-hero-fade marketing-home-hero-fade--copy-on-right pointer-events-none absolute inset-0 after:absolute after:inset-0 after:bg-[linear-gradient(to_bottom,var(--brand-forest),transparent_16%)] lg:after:hidden"
           aria-hidden="true"
         />
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,rgba(16,44,41,0.6),transparent_85%)]" aria-hidden="true" />
         <div className="relative mx-auto max-w-6xl">
           <div className="max-w-3xl">
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-brand-mint">A better tenant experience</p>
@@ -208,11 +197,9 @@ export default function RentCollectionFeaturePage() {
             </p>
 
             <div className="mt-9 grid gap-6 sm:grid-cols-2">
-              {workflowItems.map(({ icon: Icon, title, body }) => (
+              {workflowItems.map(({ icon, title, body }) => (
                 <article key={title} className="flex gap-4">
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center bg-brand-mint text-brand-teal">
-                    <Icon className="h-5 w-5" />
-                  </span>
+                  <Image src={icon} alt="" width={44} height={44} className="h-11 w-11 shrink-0" />
                   <div>
                     <h3 className="font-extrabold text-white">{title}</h3>
                     <p className="mt-1 text-sm leading-relaxed text-brand-ivory">{body}</p>
@@ -223,7 +210,7 @@ export default function RentCollectionFeaturePage() {
           </div>
 
           <aside className="self-center border border-white/10 bg-brand-forest-raised p-8 md:p-10">
-            <FiBookOpen className="h-9 w-9 text-brand-teal" />
+            <Image src={cashFlowIcon} alt="" width={56} height={56} className="h-14 w-14" />
             <p className="mt-6 text-xs font-bold uppercase tracking-[0.18em] text-brand-ivory">Free landlord resource</p>
             <h2 className="mt-3 text-2xl font-extrabold text-white">Rental property cash-flow template</h2>
             <p className="mt-4 leading-relaxed text-brand-ivory">
@@ -233,32 +220,6 @@ export default function RentCollectionFeaturePage() {
               Get the cash-flow template
             </Link>
           </aside>
-        </div>
-      </section>
-
-      <section className="bg-brand-forest marketing-gutter py-20">
-        <div className="mx-auto max-w-6xl text-center">
-          <FiShield className="mx-auto h-9 w-9 text-brand-teal" />
-          <h2 className="mt-5 text-3xl font-extrabold text-white md:text-4xl">Approval comes before payment setup.</h2>
-          <p className="mx-auto mt-4 max-w-3xl text-lg leading-relaxed text-brand-ivory">
-            Rent payment access starts off for every organization. An owner or manager requests access, Property Peace reviews the request, and Stripe onboarding plus connected-payee review happen separately before tenant payments can be enabled.
-          </p>
-          <div className="mx-auto mt-9 grid max-w-4xl gap-4 text-left md:grid-cols-3">
-            {[
-              [FiClock, "1. Request access", "Submit the organization request from Property Peace."],
-              [FiShield, "2. Complete review", "Wait for approval, then finish the required Stripe setup."],
-              [FiCheck, "3. Confirm readiness", "Payments unlock only after every pay and transfer gate is ready."],
-            ].map(([Icon, title, body]) => {
-              const StepIcon = Icon as typeof FiCheck;
-              return (
-                <article key={title as string} className="border border-white/10 bg-brand-forest-raised p-6">
-                  <StepIcon className="h-6 w-6 text-brand-teal" />
-                  <h3 className="mt-4 font-extrabold text-white">{title as string}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-brand-ivory">{body as string}</p>
-                </article>
-              );
-            })}
-          </div>
         </div>
       </section>
 
