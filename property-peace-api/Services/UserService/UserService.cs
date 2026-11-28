@@ -2810,6 +2810,10 @@ namespace brownstone_hub_api.Services.UserService
                 .ToListAsync();
             _dataContext.BankReconciliations.RemoveRange(bankReconciliations);
 
+            var landlordHandoffs = await _dataContext.LeaseTransitionChecklists
+                .Where(checklist => checklist.LandlordId == userId).ToListAsync();
+            _dataContext.LeaseTransitionChecklists.RemoveRange(landlordHandoffs);
+
             var landlordChecklists = await _dataContext.Checklists
                 .Where(c => c.LandlordId == userId)
                 .ToListAsync();
@@ -2820,6 +2824,9 @@ namespace brownstone_hub_api.Services.UserService
                     .Where(ci => checklistIds.Contains(ci.ChecklistId))
                     .ToListAsync();
                 _dataContext.ChecklistItems.RemoveRange(checklistItems);
+                var linkedHandoffs = await _dataContext.LeaseTransitionChecklists
+                    .Where(handoff => handoff.LandlordId != userId && handoff.ConditionReportId.HasValue && checklistIds.Contains(handoff.ConditionReportId.Value)).ToListAsync();
+                foreach (var handoff in linkedHandoffs) handoff.ConditionReportId = null;
                 _dataContext.Checklists.RemoveRange(landlordChecklists);
             }
 
@@ -3309,6 +3316,10 @@ namespace brownstone_hub_api.Services.UserService
 
         private async Task HardDeletePropertyCompletely(long propertyId)
         {
+            var handoffs = await _dataContext.LeaseTransitionChecklists
+                .Where(checklist => checklist.PropertyId == propertyId).ToListAsync();
+            _dataContext.LeaseTransitionChecklists.RemoveRange(handoffs);
+
             // Delete all units in this property
             var units = await _dataContext.Units
                 .Where(u => u.PropertyId == propertyId)

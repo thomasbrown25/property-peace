@@ -22,6 +22,8 @@ import {
   addChecklistItem,
   getChecklistProgress,
   groupChecklistRooms,
+  isConditionReport,
+  isMoveOutChecklist,
   removeCustomChecklistItem,
   withItemCondition,
 } from '../../features/checklists/checklistModel';
@@ -134,6 +136,18 @@ export default function ChecklistEditorScreen({ route }: Props) {
       Alert.alert('Inspection not saved', errorMessage(saveError, 'Please check the visit date and try again.'));
     } finally {
       endMutation('inspection');
+    }
+  };
+
+  const saveReportCompletion = async () => {
+    if (!checklist || !beginMutation('report-completion')) return;
+    const isCompleted = !checklist.isCompleted;
+    try {
+      await saveActive({ ...checklist, isCompleted, completedAt: isCompleted ? new Date().toISOString() : null });
+    } catch (saveError: any) {
+      Alert.alert('Report status not saved', errorMessage(saveError, 'Try again.'));
+    } finally {
+      endMutation('report-completion');
     }
   };
 
@@ -258,6 +272,7 @@ export default function ChecklistEditorScreen({ route }: Props) {
       <TouchableOpacity style={themed.retryButton} onPress={load}><Text style={themed.retryText}>Retry</Text></TouchableOpacity>
     </View>
   );
+  const neutralReport = isConditionReport(checklist);
 
   const renderRoom = ({ item: room }: { item: ChecklistRoom }) => {
     const expanded = expandedRooms.has(room.name);
@@ -333,7 +348,7 @@ export default function ChecklistEditorScreen({ route }: Props) {
       refreshControl={<RefreshControl refreshing={refreshing} enabled={!busy} onRefresh={() => { if (!busy) { setRefreshing(true); load(); } }} tintColor={mode === 'dark' ? colors.accent : '#0b3558'} />}
       ListHeaderComponent={(
         <View>
-          <Text style={themed.eyebrow}>{Number(checklist.checklistType) === 41 ? 'MOVE-OUT INSPECTION' : 'MOVE-IN INSPECTION'}</Text>
+          <Text style={themed.eyebrow}>{neutralReport ? 'CONDITION REPORT' : isMoveOutChecklist(checklist) ? 'MOVE-OUT INSPECTION' : 'MOVE-IN INSPECTION'}</Text>
           <Text style={themed.title}>{checklist.title}</Text>
           <Text style={themed.subtitle}>Set a condition for each item, then describe any damage or repairs that need attention.</Text>
           {!!formDraft && <View style={themed.inspectionCard}>
@@ -364,6 +379,12 @@ export default function ChecklistEditorScreen({ route }: Props) {
             <Text style={themed.progressValue}>{progress.done} of {progress.total}</Text>
             <View style={themed.flex}><Text style={themed.progressLabel}>{progress.complete ? 'Inspection complete' : `${progress.percent}% complete`}</Text><View style={themed.progressTrack}><View style={[themed.progressFill, { width: `${progress.percent}%` }]} /></View></View>
           </View>
+          {(neutralReport || !checklist.isCompleted) && (
+            <TouchableOpacity style={themed.saveDetailsButton} onPress={saveReportCompletion}
+              disabled={busy || (!checklist.isCompleted && !progress.complete)} accessibilityRole="button">
+              <Text style={themed.saveDetailsText}>{checklist.isCompleted ? 'Reopen report' : 'Complete report'}</Text>
+            </TouchableOpacity>
+          )}
           <View style={themed.addRoomCard}>
             <Text style={themed.addRoomTitle}>Add another room</Text>
             <View style={themed.addRoomRow}>

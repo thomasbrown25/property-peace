@@ -49,8 +49,9 @@ export default function ScheduleInspectionDrawer() {
       openSnackbar({ open: true, message: 'Please select a date', variant: 'alert', alert: { color: 'warning' } });
       return;
     }
+    const inspectionDate = `${format(selectedDate, 'yyyy-MM-dd')}T${selectedTime || '09:00'}`;
     handleClose();
-    navigate('/landlord/checklists');
+    navigate('/landlord/checklists?view=reports', { state: { inspectionDate, generalNotes: notes.trim() } });
   };
 
   return (
@@ -63,7 +64,7 @@ export default function ScheduleInspectionDrawer() {
       {/* Header */}
       <Box sx={{ px: 3, py: 2, borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
         <Stack direction="row" spacing={1.5} alignItems="center">
-          <Box sx={{ p: 0.75, borderRadius: 1, bgcolor: alpha(theme.palette.primary.main, 0.1), display: 'flex' }}>
+          <Box sx={{ display: 'flex' }}>
             <CalendarOutlined style={{ fontSize: 18, color: theme.palette.primary.main }} />
           </Box>
           <Typography variant="subtitle1" fontWeight={700}>Schedule Inspection</Typography>

@@ -28,7 +28,7 @@ test('tenant top bar links to tenant support immediately after Notifications at 
   assert.match(routes, /path: 'tenant\/help',\s*element: <Help \/>/);
 });
 
-test('landlord shell reserves one green property rail rather than two sidebars', () => {
+test('landlord shell reserves one property rail that uses the top bar colors', () => {
   const layout = source('../layout/Dashboard/index.jsx');
   const header = source('../layout/Dashboard/Header/index.jsx');
   const sidebar = source('../layout/Dashboard/LandlordSidebar.jsx');
@@ -36,10 +36,10 @@ test('landlord shell reserves one green property rail rather than two sidebars',
   assert.match(layout, /lg: `calc\(100% - \$\{landlordSidebarWidth\}px\)`/);
   assert.match(header, /lg: `calc\(100% - \$\{sidebarWidth\}px\)`/);
   assert.doesNotMatch(sidebar, /LANDLORD_PROPERTY_SIDEBAR_WIDTH|LANDLORD_PRIMARY_SIDEBAR_WIDTH|aria-label="Property sidebar"|\{navigation\}/);
-  assert.match(sidebar, /const sidebarBackground = brand\.forest/);
-  assert.match(source('../themes/brand.js'), /forest: '#102C29'/);
-  assert.equal((sidebar.match(/bgcolor: sidebarBackground/g) || []).length, 4);
-  assert.match(sidebar, /linear-gradient\(transparent, \$\{sidebarBackground\}\)/);
+  assert.match(header, /\.\.\.portalHeaderColors\(theme\.palette\.mode\)/);
+  assert.match(sidebar, /const surface = portalHeaderColors\(palette\.mode\)/);
+  assert.match(sidebar, /aria-label="Property navigation"\s+sx=\{\{[^\n]+\.\.\.surface/);
+  assert.match(sidebar, /linear-gradient\(transparent, \$\{surface\.bgcolor\}\)/);
   assert.match(sidebar, /<Typography component="h1" variant="h5"[\s\S]*?>\s*Wren\s*<\/Typography>/);
 });
 
@@ -72,10 +72,12 @@ test('a populated portfolio expands the desktop sidebar even after a manual coll
   assert.equal(sidebarIsOpen(true, { organizationId: 8, open: true }, 7), false);
 });
 
-test('the collapsed property rail shows the white logo as a dashboard link at the top', () => {
+test('the collapsed property rail shows a mode-appropriate dashboard logo link', () => {
   const sidebar = source('../layout/Dashboard/LandlordSidebar.jsx');
-  assert.match(sidebar, /import compactLogo from 'assets\/images\/logos\/logo-white\.png'/);
-  assert.match(sidebar, /\{!desktopOpen && \(\s*<Box[\s\S]*?<Box component=\{Link\} to="\/landlord\/dashboard"[\s\S]*?<Box component="img" src=\{compactLogo\} alt="Property Peace home"[\s\S]*?id="landlord-property-navigation"/);
+  assert.match(sidebar, /import compactLightLogo from 'assets\/images\/logos\/logo-white\.png'/);
+  assert.match(sidebar, /import compactDarkLogo from 'assets\/images\/logos\/logo-dark\.png'/);
+  assert.match(sidebar, /const compactLogo = isDark \? compactLightLogo : compactDarkLogo/);
+  assert.match(sidebar, /\{!desktopOpen && \(\s*<Box[\s\S]*?<Box\s+component=\{Link\}\s+to="\/landlord\/dashboard"[\s\S]*?<Box component="img" src=\{compactLogo\} alt="Property Peace home"[\s\S]*?id="landlord-property-navigation"/);
 });
 
 test('desktop top bar has ordered landlord links and More', () => {
@@ -108,11 +110,12 @@ test('landlord top bar uses the requested logo on the left and a search button o
   assert.match(mobileSearch, /<Search autoFocus /);
 });
 
-test('mobile landlord navigation renders primary and More menu labels in white', () => {
+test('mobile landlord navigation inherits the top bar text color for primary and More labels', () => {
   const sidebar = source('../layout/Dashboard/LandlordSidebar.jsx');
   const mobileMenu = sidebar.match(/aria-label="Landlord pages"[\s\S]*?<\/List>/)?.[0];
   assert.ok(mobileMenu);
-  assert.match(mobileMenu, /<List\b[^>]*\[`& \.\$\{listItemTextClasses\.primary\}`\]: \{ color: '#FFFFFF' \}/);
+  assert.match(sidebar, /width: 300, maxWidth: '90vw', boxSizing: 'border-box', \.\.\.surface/);
+  assert.match(mobileMenu, /<List\b[^>]*\[`& \.\$\{listItemTextClasses\.primary\}`\]: \{ color: 'inherit' \}/);
   assert.match(mobileMenu, /landlordPrimaryLinks\.map[\s\S]*?<ListItemText primary=\{label\}/);
   assert.match(mobileMenu, /<ListItemText primary="More"/);
   assert.match(mobileMenu, /landlordMoreLinks[\s\S]*?<ListItemText primary=\{label\}/);
@@ -145,13 +148,19 @@ test('properties are searchable, accessible, and scroll in the single green rail
   assert.match(sidebar, /landlordMoreLinks\.filter\(\(\{ label \}\) => label !== 'Settings'\)\.map/);
   assert.match(sidebar, /renderPropertyNavigation\('desktop'\)/);
   assert.match(sidebar, /renderPropertyNavigation\('mobile'\)/);
-  assert.match(sidebar, />\s*Wren\s*<\/Typography>[\s\S]*?aria-label="Search properties"[\s\S]*?<AppIcon name="search" \/>[\s\S]*?>\s*Properties\s*<\/Typography>[\s\S]*?aria-label="Add property"/);
-  assert.match(sidebar, /\{!loading && !isEmptyPortfolio && <Collapse in=\{searchOpen\} timeout=\{reducedMotion \? 0 : 240\} unmountOnExit/);
-  assert.match(sidebar, /onKeyDown=\{\(event\) => \{ if \(event\.key === 'Escape'\)/);
   assert.match(sidebar, /disabled=\{trialExpired\}/);
   assert.match(sidebar, /borderBottom: '1px solid', borderColor: 'rgba\(255, 255, 255, 0\.14\)'/);
-  assert.match(sidebar, /borderTop: '1px solid rgba\(255, 255, 255, 0\.14\)'[\s\S]*?to="\/landlord\/settings"[\s\S]*?primary="Settings"/);
+  assert.match(sidebar, /borderTop: '1px solid', borderColor: divider[\s\S]*?to="\/landlord\/settings"[\s\S]*?primary="Settings"/);
   assert.match(sidebar, /<BrandedIcon name="settings" \/>/);
+});
+
+test('the Properties row shows search immediately before Add property', () => {
+  const sidebar = source('../layout/Dashboard/LandlordSidebar.jsx');
+  const propertiesRow = sidebar.match(/>\s*Properties\s*<\/Typography>[\s\S]*?(?=<Collapse in=\{searchOpen\})/)?.[0];
+  assert.ok(propertiesRow, 'Expected the search field below the Properties row');
+  assert.match(propertiesRow, /<IconButton\s+ref=\{searchButtonRef\}\s+aria-label="Search properties"[\s\S]*?<AppIcon name="search" \/>\s*<\/IconButton>\s*\)\}\s*<IconButton\s+component=\{Link\}\s+to=\{addPropertyPath\}\s+aria-label="Add property"/);
+  assert.match(sidebar, /\{!loading && !isEmptyPortfolio && \(\s*<Collapse in=\{searchOpen\} timeout=\{reducedMotion \? 0 : 240\} unmountOnExit/);
+  assert.match(sidebar, /onKeyDown=\{\(event\) => \{\s*if \(event\.key === 'Escape'\) \{\s*event\.stopPropagation\(\);\s*closeSearch\(\);/);
 });
 
 test('long property addresses truncate within the sidebar layout', () => {
@@ -192,7 +201,7 @@ test('the property rail expands in place with six compact icon-and-title actions
   assert.match(dropdown, /timeout=\{reducedMotion \? 0 : 240\}/);
   assert.match(dropdown, /minHeight: 36/);
   assert.match(dropdown, /<BrandedIcon name=\{icon\}[\s\S]*?<Typography[^>]*>\{label\}<\/Typography>/);
-  assert.match(sidebar, /const propertySubtitleColor = 'rgba\(255,255,255,0\.72\)'/);
+  assert.match(sidebar, /muted: propertySubtitleColor/);
   assert.match(sidebar, /secondaryTypographyProps=\{\{[^\n]*color: propertySubtitleColor/);
   assert.match(dropdown, /<Typography[^>]*color: propertySubtitleColor[^>]*>\{label\}<\/Typography>/);
   assert.doesNotMatch(dropdown, /secondary|subtitle|description/);

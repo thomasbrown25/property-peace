@@ -413,6 +413,8 @@ namespace brownstone_hub_api.Services.AICopilotService
                         ? "Summarize the user's request as a 2–6 word conversationTitle in the user's language, such as 'Upcoming lease expirations'. Use a plain phrase and omit names, addresses, and redaction placeholders."
                         : "Leave conversationTitle empty for an existing conversation.")}}
                     For money metrics, set money to true and return value as a raw numeric string without a currency symbol or thousands separators (for example, "2500.00").
+                    When no records match the question, answer plainly in content and use empty strings for activityLabel and activityStatus and empty arrays for metrics and items. Do not create placeholder rows or cards to repeat an empty result.
+                    Include metrics and items only when they add useful detail. In a report with matching records, keep a zero metric if it helps explain the result.
                     Use at most 4 metrics and 8 items.
                     History: {{JsonSerializer.Serialize(safeHistory)}}
                     Question: {{safeInput}}

@@ -80,6 +80,16 @@ export const buildStartChecklistPayload = (input: StartChecklistInput): AddCheck
   };
 };
 
+export const buildConditionReportPayload = (home: ChecklistHome, lease?: ChecklistLease | null, now = new Date().toISOString()): AddChecklistPayload => {
+  const base = buildStartChecklistPayload({ type: MOVE_IN, home, lease, now, inspectionDate: now });
+  return {
+    ...base,
+    ChecklistType: 44,
+    CounterpartChecklistId: null,
+    Title: `${home.propertyName}${home.unitName ? ` – ${home.unitName}` : ''} – Condition Report`,
+  };
+};
+
 export const startChecklistCycle = async (
   input: StartChecklistInput,
   gateway: ChecklistGateway,

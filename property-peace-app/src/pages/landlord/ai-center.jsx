@@ -38,7 +38,7 @@ import { aiFollowUpAPI } from 'api';
 import FeatureReadinessNotice from 'components/feature-readiness/FeatureReadinessNotice';
 import useFeatureReadiness from 'hooks/useFeatureReadiness';
 import { FEATURE_KEYS } from 'utils/featureReadiness';
-import { formatWrenMetricValue } from 'utils/wrenMetricValue';
+import { formatWrenMetricValue, hasWrenDisplayValue, isZeroWrenMetricValue } from 'utils/wrenMetricValue';
 import { sortWrenConversationsMostRecentFirst } from 'utils/wrenConversations';
 import { mapWrenSource } from 'utils/wrenSources';
 import { createWrenChatRequestAttempt } from 'utils/wrenChatRequestAttempt';
@@ -92,24 +92,28 @@ const mapConfirmation = (value) => {
 const mapMessage = (value) => {
   const activityLabel = readField(value, 'activityLabel', 'ActivityLabel');
   const activityStatus = readField(value, 'activityStatus', 'ActivityStatus');
+  const metrics = asArray(readField(value, 'metrics', 'Metrics')).map((metric) => ({
+    label: readField(metric, 'label', 'Label'),
+    value: readField(metric, 'value', 'Value'),
+    money: Boolean(readField(metric, 'money', 'Money'))
+  })).filter((metric) => hasWrenDisplayValue(metric.label) && hasWrenDisplayValue(metric.value));
+  const items = asArray(readField(value, 'items', 'Items')).map((item) => ({
+    title: readField(item, 'title', 'Title'),
+    detail: readField(item, 'detail', 'Detail'),
+    value: readField(item, 'value', 'Value')
+  })).filter((item) => hasWrenDisplayValue(item.title) || hasWrenDisplayValue(item.detail));
+  const hasDetails = items.length > 0 || metrics.some((metric) => !isZeroWrenMetricValue(metric.value));
+
   return {
     id: readField(value, 'id', 'Id') || `${readField(value, 'role', 'Role')}-${Date.now()}-${Math.random()}`,
     role: String(readField(value, 'role', 'Role') || 'assistant').toLowerCase(),
     content: readField(value, 'content', 'Content') || '',
     createdAt: readField(value, 'createdAt', 'CreatedAt'),
-    tool: activityLabel && activityStatus
+    tool: hasDetails && activityLabel && activityStatus
       ? { label: activityLabel, status: activityStatus }
       : null,
-    metrics: asArray(readField(value, 'metrics', 'Metrics')).map((metric) => ({
-      label: readField(metric, 'label', 'Label'),
-      value: readField(metric, 'value', 'Value'),
-      money: Boolean(readField(metric, 'money', 'Money'))
-    })),
-    items: asArray(readField(value, 'items', 'Items')).map((item) => ({
-      title: readField(item, 'title', 'Title'),
-      detail: readField(item, 'detail', 'Detail'),
-      value: readField(item, 'value', 'Value')
-    })),
+    metrics: hasDetails ? metrics : [],
+    items,
     sources: asArray(readField(value, 'sources', 'Sources')).map(mapWrenSource),
     pendingConfirmation: mapConfirmation(readField(value, 'pendingConfirmation', 'PendingConfirmation'))
   };

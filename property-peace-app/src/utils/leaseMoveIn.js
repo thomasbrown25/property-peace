@@ -1,4 +1,5 @@
 import { getRoomProgress } from './checklistRoomProgress.mjs';
+import { formatHandoffProgress } from './leaseTransitionChecklists.mjs';
 
 const firstDefined = (...values) => values.find((value) => value !== undefined && value !== null);
 
@@ -83,7 +84,15 @@ export function sortLeaseChecklistSteps(steps) {
   ];
 }
 
-export function buildLeaseChecklistCards({ readiness, lease = {}, checklists, now = new Date() } = {}) {
+function hasCompletedHandoff(records, leaseId, phase) {
+  return Boolean(records?.some((record) => {
+    if (String(record.leaseId) !== String(leaseId) || record.phase !== phase) return false;
+    const { done, total } = formatHandoffProgress(record.items || []);
+    return total > 0 && done === total;
+  }));
+}
+
+export function buildLeaseChecklistCards({ readiness, lease = {}, checklists, transitionChecklists, now = new Date() } = {}) {
   const requested = [
     ['tenants', 'Tenants on lease'],
     ['agreement', 'Lease agreement created'],
@@ -104,7 +113,8 @@ export function buildLeaseChecklistCards({ readiness, lease = {}, checklists, no
     // Show move-out preparation five calendar days before the lease ends and afterward.
     if (daysUntilEnd <= 5) {
       const id = firstDefined(lease?.id, lease?.Id);
-      const complete = Array.isArray(checklists) && id != null && checklists.some((record) => {
+      const available = Array.isArray(transitionChecklists === undefined ? checklists : transitionChecklists);
+      const complete = transitionChecklists !== undefined ? hasCompletedHandoff(transitionChecklists, id, 'moveOut') : Array.isArray(checklists) && id != null && checklists.some((record) => {
         const recordLeaseId = firstDefined(record?.leaseId, record?.LeaseId);
         const type = firstDefined(record?.checklistType, record?.ChecklistType);
         return recordLeaseId != null && String(recordLeaseId) === String(id) &&
@@ -112,8 +122,8 @@ export function buildLeaseChecklistCards({ readiness, lease = {}, checklists, no
       });
       steps.push({
         key: 'move-out', label: 'Move-out checklist complete',
-        status: complete ? 'complete' : Array.isArray(checklists) ? 'pending' : 'unavailable',
-        detail: complete ? 'Completed checklist on file' : Array.isArray(checklists) ? 'No completed checklist on file' : 'Checklist records unavailable'
+        status: complete ? 'complete' : available ? 'pending' : 'unavailable',
+        detail: complete ? 'Completed checklist on file' : available ? 'No completed checklist on file' : 'Checklist records unavailable'
       });
     }
   }
@@ -128,7 +138,8 @@ export function buildLeaseMoveInReadiness({
   rentRecord = null,
   property = null,
   signatureStatus = null,
-  checklists
+  checklists,
+  transitionChecklists
 } = {}) {
   const currentTenants = Array.isArray(tenants) ? tenants : [];
   const agreement = firstDefined(lease?.leaseAgreement, lease?.LeaseAgreement, leaseAgreement) || {};
@@ -197,13 +208,14 @@ export function buildLeaseMoveInReadiness({
         (type === 40 || String(type).toLowerCase() === 'moveinchecklist');
     })
     : [];
-  const reportOnFile = moveInReports.some((record) => firstDefined(record?.id, record?.Id) != null);
+  const linkedReport = transitionChecklists?.find((record) => String(record.leaseId) === String(leaseId) && record.phase === 'moveIn')?.conditionReport;
+  const reportOnFile = Boolean(linkedReport) || moveInReports.some((record) => firstDefined(record?.id, record?.Id) != null);
   const conditionReportComplete = reportOnFile || Boolean(firstDefined(
     lease?.moveInReportTemplateCompletedAt,
     lease?.MoveInReportTemplateCompletedAt
   ));
-  const checklistRecordsAvailable = Array.isArray(checklists);
-  const checklistComplete = checklistRecordsAvailable && moveInReports.some(isChecklistComplete);
+  const checklistRecordsAvailable = Array.isArray(transitionChecklists === undefined ? checklists : transitionChecklists);
+  const checklistComplete = transitionChecklists === undefined ? checklistRecordsAvailable && moveInReports.some(isChecklistComplete) : hasCompletedHandoff(transitionChecklists, leaseId, 'moveIn');
 
   const steps = [
     {

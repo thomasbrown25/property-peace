@@ -17,6 +17,15 @@ const requireModels = () => {
   return { ...homeModel, ...checklistModel };
 };
 
+test('neutral reports keep the draft pending until explicitly completed', () => {
+  const { normalizeChecklist, withItemCondition } = requireModels();
+  const report = normalizeChecklist({ id: 5, checklistType: 'conditionReport', items: [{ id: 8, name: 'Floors' }] });
+  const inspected = withItemCondition(report, 8, 'Good', '2026-11-28T12:00:00Z');
+  assert.equal(inspected.isCompleted, false);
+  const reopened = withItemCondition({ ...inspected, isCompleted: true }, 8, null, '2026-11-28T12:00:00Z');
+  assert.equal(reopened.isCompleted, false);
+});
+
 test('property search matches names and full addresses without changing source order', () => {
   const { filterChecklistProperties } = requireModels();
   const properties = [

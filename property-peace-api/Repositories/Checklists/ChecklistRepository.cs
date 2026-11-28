@@ -17,7 +17,55 @@ namespace brownstone_hub_api.Repositories.Checklists
         {
             try
             {
-                if (checklist.LeaseId.HasValue)
+                var isConditionReport = checklist.ChecklistType == ETenantDocumentType.ConditionReport;
+                var requestId = isConditionReport ? checklist.RequestId?.Trim() : null;
+                if (isConditionReport)
+                {
+                    if (!organizationId.HasValue)
+                        throw new InvalidOperationException("An organization is required to create a condition report.");
+                    if (string.IsNullOrEmpty(requestId) || requestId.Length > 64)
+                        throw new InvalidOperationException("A valid request ID is required to create a condition report.");
+
+                    var property = await _context.Properties.AsNoTracking()
+                        .FirstOrDefaultAsync(candidate => candidate.Id == checklist.PropertyId &&
+                            candidate.OrganizationId == organizationId && candidate.LandlordId == landlordId && !candidate.IsDeleted)
+                        ?? throw new InvalidOperationException("The selected property is not available to this landlord.");
+
+                    if (checklist.UnitId.HasValue)
+                    {
+                        var unitMatches = await _context.Units.AsNoTracking().AnyAsync(unit =>
+                            unit.Id == checklist.UnitId.Value && unit.PropertyId == property.Id);
+                        if (!unitMatches)
+                            throw new InvalidOperationException("The selected unit does not belong to this property.");
+                    }
+
+                    if (checklist.LeaseId.HasValue)
+                    {
+                        var lease = await _context.Leases.AsNoTracking().FirstOrDefaultAsync(candidate =>
+                            candidate.Id == checklist.LeaseId.Value && !candidate.IsDeleted &&
+                            (!candidate.OrganizationId.HasValue || candidate.OrganizationId == organizationId) &&
+                            candidate.Unit.PropertyId == property.Id);
+                        if (lease == null || (checklist.UnitId.HasValue && lease.UnitId != checklist.UnitId.Value))
+                            throw new InvalidOperationException("The selected lease does not belong to this property and unit.");
+
+                        // Store the real lease unit even when the caller omitted it.
+                        checklist.UnitId ??= lease.UnitId;
+                    }
+
+                    if (!checklist.UnitId.HasValue && PropertyTypeClassification.IsMultiUnit(property.PropertyType.ToString()))
+                        throw new InvalidOperationException("A unit is required for this property.");
+
+                    var existing = await FindConditionReportRequest(checklist, landlordId, organizationId.Value, requestId);
+                    if (existing != null) return existing;
+
+                    checklist.CounterpartChecklistId = null;
+                    checklist.TenantId = null;
+                    checklist.BeforeMoveInImagesBlobNames = null;
+                    checklist.BeforeMoveInImagesUrls = null;
+                    checklist.AfterMoveOutImagesBlobNames = null;
+                    checklist.AfterMoveOutImagesUrls = null;
+                }
+                else if (checklist.LeaseId.HasValue)
                 {
                     var lease = await _context.Leases.AsNoTracking().Include(lease => lease.Unit)
                         .FirstOrDefaultAsync(lease => lease.Id == checklist.LeaseId.Value && !lease.IsDeleted &&
@@ -33,6 +81,7 @@ namespace brownstone_hub_api.Repositories.Checklists
 
                 var entity = _mapper.Map<Models.Checklist>(checklist);
                 entity.LandlordId = landlordId;
+                entity.RequestId = requestId;
                 entity.RoomNamesJson = checklist.RoomNames != null
                     ? JsonSerializer.Serialize(checklist.RoomNames)
                     : null;
@@ -87,7 +136,17 @@ namespace brownstone_hub_api.Repositories.Checklists
                 }
                 
                 await _context.Checklists.AddAsync(entity);
-                await _context.SaveChangesAsync();
+                try
+                {
+                    await _context.SaveChangesAsync();
+                }
+                catch (DbUpdateException) when (isConditionReport && requestId != null && organizationId.HasValue)
+                {
+                    _context.ChangeTracker.Clear();
+                    var existing = await FindConditionReportRequest(checklist, landlordId, organizationId.Value, requestId);
+                    if (existing != null) return existing;
+                    throw;
+                }
 
                 // Reload with related entities
                 await _context.Entry(entity).Reference(e => e.Property).LoadAsync();
@@ -112,6 +171,18 @@ namespace brownstone_hub_api.Repositories.Checklists
                 _logger.LogError(ex, "Error adding checklist for landlord {LandlordId}", landlordId);
                 throw;
             }
+        }
+
+        private async Task<LoadChecklistDto?> FindConditionReportRequest(AddChecklistDto input, long landlordId, long organizationId, string requestId)
+        {
+            var report = await _context.Checklists.AsNoTracking()
+                .Include(c => c.Property).Include(c => c.Unit).Include(c => c.Lease).Include(c => c.Tenant)
+                .Include(c => c.Items.OrderBy(i => i.SortOrder).ThenBy(i => i.Id))
+                .FirstOrDefaultAsync(c => c.OrganizationId == organizationId && c.LandlordId == landlordId && c.RequestId == requestId);
+            if (report == null) return null;
+            if (report.PropertyId != input.PropertyId || report.UnitId != input.UnitId || report.LeaseId != input.LeaseId)
+                throw new InvalidOperationException("The request ID is already in use for another condition report.");
+            return MapToDto(report);
         }
 
         public async Task<LoadChecklistDto?> GetChecklistById(long id, long? landlordId = null)
@@ -145,7 +216,7 @@ namespace brownstone_hub_api.Repositories.Checklists
                     .Include(c => c.Lease)
                     .Include(c => c.Tenant)
                     .Include(c => c.Items.OrderBy(i => i.SortOrder).ThenBy(i => i.Id))
-                    .Where(c => c.LandlordId == landlordId)
+                    .Where(c => c.LandlordId == landlordId && c.ChecklistType != ETenantDocumentType.ConditionReport)
                     .OrderByDescending(c => c.InspectionDate)
                     .ToListAsync();
 
@@ -168,7 +239,7 @@ namespace brownstone_hub_api.Repositories.Checklists
                     .Include(c => c.Lease)
                     .Include(c => c.Tenant)
                     .Include(c => c.Items.OrderBy(i => i.SortOrder).ThenBy(i => i.Id))
-                    .Where(c => c.PropertyId == propertyId)
+                    .Where(c => c.PropertyId == propertyId && c.ChecklistType != ETenantDocumentType.ConditionReport)
                     .OrderByDescending(c => c.InspectionDate)
                     .ToListAsync();
 
@@ -191,7 +262,7 @@ namespace brownstone_hub_api.Repositories.Checklists
                     .Include(c => c.Lease)
                     .Include(c => c.Tenant)
                     .Include(c => c.Items.OrderBy(i => i.SortOrder).ThenBy(i => i.Id))
-                    .Where(c => c.UnitId == unitId && (!landlordId.HasValue || c.LandlordId == landlordId.Value))
+                    .Where(c => c.UnitId == unitId && c.ChecklistType != ETenantDocumentType.ConditionReport && (!landlordId.HasValue || c.LandlordId == landlordId.Value))
                     .OrderByDescending(c => c.InspectionDate)
                     .ToListAsync();
 
@@ -220,7 +291,7 @@ namespace brownstone_hub_api.Repositories.Checklists
                     .Include(c => c.Lease)
                     .Include(c => c.Tenant)
                     .Include(c => c.Items.OrderBy(i => i.SortOrder).ThenBy(i => i.Id))
-                    .Where(c => c.LeaseId == leaseId && (!landlordId.HasValue || c.LandlordId == landlordId.Value))
+                    .Where(c => c.LeaseId == leaseId && c.ChecklistType != ETenantDocumentType.ConditionReport && (!landlordId.HasValue || c.LandlordId == landlordId.Value))
                     .OrderByDescending(c => c.InspectionDate)
                     .ToListAsync();
 
@@ -237,6 +308,9 @@ namespace brownstone_hub_api.Repositories.Checklists
         {
             try
             {
+                if (checklistType == ETenantDocumentType.ConditionReport)
+                    return [];
+
                 var checklists = await _context.Checklists
                     .Include(c => c.Property)
                     .Include(c => c.Unit)
@@ -266,7 +340,7 @@ namespace brownstone_hub_api.Repositories.Checklists
                     .Include(c => c.Lease)
                     .Include(c => c.Tenant)
                     .Include(c => c.Items.OrderBy(i => i.SortOrder).ThenBy(i => i.Id))
-                    .Where(c => c.OrganizationId == organizationId)
+                    .Where(c => c.OrganizationId == organizationId && c.ChecklistType != ETenantDocumentType.ConditionReport)
                     .OrderByDescending(c => c.InspectionDate)
                     .ToListAsync();
 
@@ -283,6 +357,9 @@ namespace brownstone_hub_api.Repositories.Checklists
         {
             try
             {
+                if (checklistType == ETenantDocumentType.ConditionReport)
+                    return [];
+
                 var checklists = await _context.Checklists
                     .Include(c => c.Property)
                     .Include(c => c.Unit)
@@ -300,6 +377,59 @@ namespace brownstone_hub_api.Repositories.Checklists
                 _logger.LogError(ex, "Error retrieving checklists for organization {OrganizationId} with type {ChecklistType}", organizationId, checklistType);
                 throw;
             }
+        }
+
+        public async Task<List<LoadChecklistDto>> GetConditionReports(long landlordId, long organizationId, long? propertyId, long? unitId, long? leaseId)
+        {
+            IQueryable<Models.Checklist> query = _context.Checklists
+                .Include(c => c.Property)
+                .Include(c => c.Unit)
+                .Include(c => c.Lease).ThenInclude(lease => lease.Unit)
+                .Include(c => c.Tenant)
+                .Include(c => c.Items.OrderBy(i => i.SortOrder).ThenBy(i => i.Id))
+                .AsNoTracking()
+                .Where(c => c.LandlordId == landlordId && c.Property.OrganizationId == organizationId && !c.Property.IsDeleted &&
+                    (c.OrganizationId == organizationId || c.OrganizationId == null) &&
+                    (c.ChecklistType == ETenantDocumentType.MoveInChecklist ||
+                     c.ChecklistType == ETenantDocumentType.MoveOutChecklist ||
+                     c.ChecklistType == ETenantDocumentType.ConditionReport));
+
+            if (propertyId.HasValue)
+                query = query.Where(c => c.PropertyId == propertyId.Value);
+            if (leaseId.HasValue)
+                query = query.Where(c => c.LeaseId == leaseId.Value);
+            if (unitId.HasValue)
+            {
+                query = query.Where(c => c.UnitId == unitId.Value ||
+                    (c.UnitId == null && c.Lease != null && c.Lease.UnitId == unitId.Value) ||
+                    (c.UnitId == null && c.LeaseId == null && _context.Units.Count(unit => unit.PropertyId == c.PropertyId) == 1 &&
+                     _context.Units.Any(unit => unit.Id == unitId.Value && unit.PropertyId == c.PropertyId)));
+            }
+
+            var reports = await query.OrderByDescending(c => c.InspectionDate).ThenByDescending(c => c.CreatedAt).ToListAsync();
+            var unresolvedPropertyIds = reports.Where(report => report.UnitId == null && report.LeaseId == null)
+                .Select(report => report.PropertyId).Distinct().ToList();
+            var candidateUnits = await _context.Units.AsNoTracking()
+                .Where(unit => unresolvedPropertyIds.Contains(unit.PropertyId)).ToListAsync();
+            var singleUnitIds = candidateUnits.GroupBy(unit => unit.PropertyId)
+                .Where(group => group.Count() == 1)
+                .ToDictionary(group => group.Key, group => group.Single());
+
+            return reports.Select(report =>
+            {
+                var dto = MapToDto(report);
+                if (!dto.UnitId.HasValue && report.Lease?.Unit != null)
+                {
+                    dto.UnitId = report.Lease.UnitId;
+                    dto.UnitName = report.Lease.Unit.Name;
+                }
+                else if (!dto.UnitId.HasValue && singleUnitIds.TryGetValue(report.PropertyId, out var unit))
+                {
+                    dto.UnitId = unit.Id;
+                    dto.UnitName = unit.Name;
+                }
+                return dto;
+            }).ToList();
         }
 
         public async Task<LoadChecklistDto> UpdateChecklist(UpdateChecklistDto checklist)
@@ -320,7 +450,7 @@ namespace brownstone_hub_api.Repositories.Checklists
             {
                 entity.IsCompleted = checklist.IsCompleted.Value;
                 entity.CompletedAt = checklist.IsCompleted.Value
-                    ? checklist.CompletedAt ?? entity.CompletedAt
+                    ? checklist.CompletedAt ?? entity.CompletedAt ?? DateTime.UtcNow
                     : null;
             }
             else if (checklist.CompletedAt.HasValue)
@@ -365,6 +495,7 @@ namespace brownstone_hub_api.Repositories.Checklists
                     : null;
             }
 
+            var clearedRecordedCondition = false;
             // Update items
             if (checklist.Items != null)
             {
@@ -390,7 +521,13 @@ namespace brownstone_hub_api.Repositories.Checklists
                             if (!string.IsNullOrEmpty(itemDto.Name)) existingItem.Name = itemDto.Name;
                             if (itemDto.Description != null) existingItem.Description = itemDto.Description;
                             if (itemDto.Category != null) existingItem.Category = itemDto.Category;
-                            if (itemDto.Condition != null) existingItem.Condition = itemDto.Condition;
+                            if (entity.ChecklistType == ETenantDocumentType.ConditionReport)
+                            {
+                                if (!string.IsNullOrWhiteSpace(existingItem.Condition) && string.IsNullOrWhiteSpace(itemDto.Condition))
+                                    clearedRecordedCondition = true;
+                                existingItem.Condition = itemDto.Condition;
+                            }
+                            else if (itemDto.Condition != null) existingItem.Condition = itemDto.Condition;
                             if (itemDto.Notes != null) existingItem.Notes = itemDto.Notes;
                             if (itemDto.HasDamage.HasValue) existingItem.HasDamage = itemDto.HasDamage.Value;
                             if (itemDto.DamageDescription != null) existingItem.DamageDescription = itemDto.DamageDescription;
@@ -427,6 +564,14 @@ namespace brownstone_hub_api.Repositories.Checklists
                         });
                     }
                 }
+            }
+
+            // Neutral reports use explicit completion, but reopening a recorded
+            // condition should never leave an apparently complete inspection.
+            if (entity.ChecklistType == ETenantDocumentType.ConditionReport && entity.IsCompleted && clearedRecordedCondition)
+            {
+                entity.IsCompleted = false;
+                entity.CompletedAt = null;
             }
 
             entity.UpdatedAt = DateTime.Now;
@@ -545,22 +690,34 @@ namespace brownstone_hub_api.Repositories.Checklists
 
         public async Task<bool> DeleteChecklist(long id)
         {
+            Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction? transaction = null;
             try
             {
+                if (_context.Database.IsRelational())
+                    transaction = await _context.Database.BeginTransactionAsync();
+
                 var entity = await _context.Checklists.FindAsync(id);
                 if (entity == null)
                 {
                     return false;
                 }
 
+                await DetachConditionReportHandoffs([id]);
                 _context.Checklists.Remove(entity);
                 await _context.SaveChangesAsync();
+                if (transaction != null)
+                    await transaction.CommitAsync();
                 return true;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error deleting checklist {ChecklistId}", id);
                 throw;
+            }
+            finally
+            {
+                if (transaction != null)
+                    await transaction.DisposeAsync();
             }
         }
 
@@ -614,6 +771,8 @@ namespace brownstone_hub_api.Repositories.Checklists
                     ? JsonSerializer.Deserialize<List<string>>(checklist.AfterMoveOutImagesUrls) 
                     : null,
                 LandlordId = checklist.LandlordId,
+                OrganizationId = checklist.OrganizationId,
+                PropertyOrganizationId = checklist.Property?.OrganizationId,
                 Items = checklist.Items.Select(i => new LoadChecklistItemDto
                 {
                     Id = i.Id,
@@ -641,14 +800,21 @@ namespace brownstone_hub_api.Repositories.Checklists
 
         public async Task<int> DeleteChecklistsByPropertyId(long propertyId)
         {
+            Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction? transaction = null;
             try
             {
+                if (_context.Database.IsRelational())
+                    transaction = await _context.Database.BeginTransactionAsync();
+
                 var checklists = await _context.Checklists
                     .Where(c => c.PropertyId == propertyId)
                     .ToListAsync();
                 
+                await DetachConditionReportHandoffs(checklists.Select(checklist => checklist.Id));
                 _context.Checklists.RemoveRange(checklists);
                 await _context.SaveChangesAsync();
+                if (transaction != null)
+                    await transaction.CommitAsync();
                 
                 return checklists.Count;
             }
@@ -657,6 +823,24 @@ namespace brownstone_hub_api.Repositories.Checklists
                 _logger.LogError(ex, "Error deleting checklists for property {PropertyId}", propertyId);
                 throw;
             }
+            finally
+            {
+                if (transaction != null)
+                    await transaction.DisposeAsync();
+            }
+        }
+
+        private async Task DetachConditionReportHandoffs(IEnumerable<long> checklistIds)
+        {
+            var ids = checklistIds.Distinct().ToList();
+            if (ids.Count == 0)
+                return;
+
+            var handoffs = await _context.LeaseTransitionChecklists
+                .Where(handoff => handoff.ConditionReportId.HasValue && ids.Contains(handoff.ConditionReportId.Value))
+                .ToListAsync();
+            foreach (var handoff in handoffs)
+                handoff.ConditionReportId = null;
         }
     }
 }

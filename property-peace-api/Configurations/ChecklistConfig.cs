@@ -24,6 +24,9 @@ namespace brownstone_hub_api.Configurations
             builder.Property(c => c.RoomNamesJson)
                 .HasColumnType("nvarchar(max)");
 
+            builder.Property(c => c.RequestId)
+                .HasMaxLength(64);
+
             builder.Property(c => c.TenantSignature)
                 .HasMaxLength(2000); // Base64 signature or reference
 
@@ -78,6 +81,9 @@ namespace brownstone_hub_api.Configurations
             builder.HasIndex(c => new { c.PropertyId, c.ChecklistType });
             builder.HasIndex(c => c.InspectionDate);
             builder.HasIndex(c => c.OrganizationId);
+            builder.HasIndex(c => new { c.OrganizationId, c.LandlordId, c.RequestId })
+                .IsUnique()
+                .HasFilter("[RequestId] IS NOT NULL");
         }
     }
 }

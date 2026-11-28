@@ -1,4 +1,5 @@
 using brownstone_hub_api.Enums;
+using System.Text.Json.Serialization;
 
 namespace brownstone_hub_api.Dtos.Checklist
 {
@@ -47,6 +48,8 @@ namespace brownstone_hub_api.Dtos.Checklist
         
         // Relationships
         public long LandlordId { get; set; }
+        [JsonIgnore] public long? OrganizationId { get; set; }
+        [JsonIgnore] public long? PropertyOrganizationId { get; set; }
         
         // Items
         public List<LoadChecklistItemDto> Items { get; set; } = [];

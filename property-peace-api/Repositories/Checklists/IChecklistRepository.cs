@@ -15,6 +15,7 @@ namespace brownstone_hub_api.Repositories.Checklists
         Task<List<LoadChecklistDto>> GetChecklistsByType(long landlordId, ETenantDocumentType checklistType);
         Task<List<LoadChecklistDto>> GetChecklistsByOrganizationId(long organizationId);
         Task<List<LoadChecklistDto>> GetChecklistsByTypeAndOrganizationId(long organizationId, ETenantDocumentType checklistType);
+        Task<List<LoadChecklistDto>> GetConditionReports(long landlordId, long organizationId, long? propertyId, long? unitId, long? leaseId);
         Task<LoadChecklistDto> UpdateChecklist(UpdateChecklistDto checklist);
         Task<LoadChecklistDto> UpdateChecklistItemPhoto(long checklistId, long itemId, string blobName, string blobUrl);
         Task<LoadChecklistDto> DeleteChecklistItemPhoto(long checklistId, long itemId, string blobName);

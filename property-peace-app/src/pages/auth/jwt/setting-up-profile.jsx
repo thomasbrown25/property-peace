@@ -20,6 +20,8 @@ import { trackOpenAiRegistration } from 'utils/openAiAds';
 
 // ================================|| JWT - SETTING UP PROFILE ||================================ //
 
+import { getSignupDestination } from 'utils/leaseTransitionChecklists.mjs';
+
 export default function SettingUpProfile({ hideWrapper = false, redirectOnly = false }) {
   const { register, user, isLoggedIn, updateUser } = useAuth();
   const [error, setError] = useState(null);
@@ -31,7 +33,7 @@ export default function SettingUpProfile({ hideWrapper = false, redirectOnly = f
   useEffect(() => {
     if (redirectOnly) {
       const t = setTimeout(() => {
-        window.location.replace('/landlord/dashboard?welcome=signup');
+        window.location.replace(getSignupDestination());
       }, 800);
       return () => clearTimeout(t);
     }
@@ -158,7 +160,7 @@ export default function SettingUpProfile({ hideWrapper = false, redirectOnly = f
             });
 
             setTimeout(() => {
-              window.location.replace('/landlord/dashboard?welcome=signup');
+              window.location.replace(getSignupDestination());
             }, 1500);
           } else {
             throw new Error(response.data?.message || 'Failed to update account information');
@@ -207,7 +209,7 @@ export default function SettingUpProfile({ hideWrapper = false, redirectOnly = f
         });
 
         setTimeout(() => {
-          window.location.replace('/landlord/dashboard?welcome=signup');
+          window.location.replace(getSignupDestination());
         }, 1500);
       }
     } catch (err) {

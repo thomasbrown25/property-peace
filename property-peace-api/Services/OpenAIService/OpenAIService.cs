@@ -2,7 +2,7 @@ using brownstone_hub_api.Config;
 using Microsoft.Extensions.Options;
 using System.Text.Json;
 using System.Net.Http.Json;
-using System.Text;
+using System.Net.Http.Headers;
 
 namespace brownstone_hub_api.Services.OpenAIService
 {
@@ -11,26 +11,26 @@ namespace brownstone_hub_api.Services.OpenAIService
         private readonly OpenAISettings _settings;
         private readonly ILogger<OpenAIService> _logger;
         private readonly HttpClient _httpClient;
+        private readonly Uri _completionEndpoint;
 
         public OpenAIService(IOptions<OpenAISettings> settings, ILogger<OpenAIService> logger, IHttpClientFactory httpClientFactory)
         {
             _settings = settings.Value;
             _logger = logger;
             _httpClient = httpClientFactory.CreateClient();
+            var (endpoint, usesAzure) = GetCompletionEndpoint(_settings);
+            _completionEndpoint = endpoint;
             
             if (!string.IsNullOrEmpty(_settings.ApiKey))
             {
                 // Azure OpenAI uses "api-key" header, OpenAI direct API uses "Authorization: Bearer"
-                if (!string.IsNullOrEmpty(_settings.Endpoint))
+                if (usesAzure)
                 {
-                    // Azure OpenAI Service
                     _httpClient.DefaultRequestHeaders.Add("api-key", _settings.ApiKey);
-                    _httpClient.BaseAddress = new Uri(_settings.Endpoint);
                 }
                 else
                 {
-                    // OpenAI direct API
-                    _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_settings.ApiKey}");
+                    _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _settings.ApiKey);
                 }
             }
             else
@@ -48,23 +48,8 @@ namespace brownstone_hub_api.Services.OpenAIService
                     return ServiceResponse<string>.CreateError("OpenAI not configured", "OpenAI API key is not configured. Please configure it in appsettings.json.");
                 }
 
-                // Determine endpoint and model name
-                var endpoint = GetEndpoint();
-                var modelName = _settings.Model;
-                
-                var requestBody = new
-                {
-                    model = modelName,
-                    messages = new[]
-                    {
-                        new { role = "system", content = "You are a helpful assistant that formats lease policy text professionally." },
-                        new { role = "user", content = prompt }
-                    },
-                    max_tokens = maxTokens,
-                    temperature = 0.7
-                };
-
-                var response = await _httpClient.PostAsJsonAsync(endpoint, requestBody);
+                var requestBody = CreateChatRequest("You are a helpful assistant that formats lease policy text professionally.", prompt, maxTokens);
+                var response = await _httpClient.PostAsJsonAsync(_completionEndpoint, requestBody);
                 
                 if (!response.IsSuccessStatusCode)
                 {
@@ -113,28 +98,11 @@ namespace brownstone_hub_api.Services.OpenAIService
                     return ServiceResponse<T>.CreateError("OpenAI not configured", "OpenAI API key is not configured.");
                 }
 
-                // Add JSON format instruction to prompt
-                var systemPrompt = "You are a helpful assistant that returns only valid JSON responses. Do not include markdown code blocks or any additional text.";
-                var jsonPrompt = $"{systemPrompt}\n\n{prompt}\n\nPlease respond with valid JSON only.";
+                const string systemPrompt = "You are a helpful assistant that returns only valid JSON responses. Do not include markdown code blocks or any additional text.";
+                var requestBody = CreateChatRequest(systemPrompt, prompt + "\n\nPlease respond with valid JSON only.", maxTokens);
+                requestBody["response_format"] = new { type = "json_object" };
 
-                // Determine endpoint and model name
-                var endpoint = GetEndpoint();
-                var modelName = _settings.Model;
-                
-                var requestBody = new
-                {
-                    model = modelName,
-                    messages = new[]
-                    {
-                        new { role = "system", content = systemPrompt },
-                        new { role = "user", content = prompt + "\n\nPlease respond with valid JSON only." }
-                    },
-                    max_tokens = maxTokens,
-                    temperature = 0.7,
-                    response_format = new { type = "json_object" }
-                };
-
-                var response = await _httpClient.PostAsJsonAsync(endpoint, requestBody);
+                var response = await _httpClient.PostAsJsonAsync(_completionEndpoint, requestBody);
                 
                 if (!response.IsSuccessStatusCode)
                 {
@@ -262,18 +230,52 @@ namespace brownstone_hub_api.Services.OpenAIService
             public string? content { get; set; }
         }
 
-        private string GetEndpoint()
+        private Dictionary<string, object> CreateChatRequest(string systemPrompt, string prompt, int maxTokens)
         {
-            // Azure OpenAI Service
-            if (!string.IsNullOrEmpty(_settings.Endpoint))
+            var request = new Dictionary<string, object>
             {
-                var baseUrl = _settings.Endpoint.TrimEnd('/');
-                var apiVersion = _settings.ApiVersion ?? "2024-02-15-preview";
-                return $"{baseUrl}/openai/deployments/{_settings.Model}/chat/completions?api-version={apiVersion}";
+                ["model"] = _settings.Model,
+                ["messages"] = new[]
+                {
+                    new { role = "system", content = systemPrompt },
+                    new { role = "user", content = prompt }
+                }
+            };
+
+            if (_settings.Model.Equals(OpenAISettings.LunaModel, StringComparison.OrdinalIgnoreCase) ||
+                _settings.Model.StartsWith(OpenAISettings.LunaModel + "-", StringComparison.OrdinalIgnoreCase))
+            {
+                request["max_completion_tokens"] = maxTokens;
+                // Keep the planner's small completion budget available for its JSON output.
+                request["reasoning_effort"] = "none";
             }
-            
-            // OpenAI direct API
-            return "https://api.openai.com/v1/chat/completions";
+            else
+            {
+                request["max_tokens"] = maxTokens;
+                request["temperature"] = 0.7;
+            }
+
+            return request;
+        }
+
+        private static (Uri Endpoint, bool UsesAzure) GetCompletionEndpoint(OpenAISettings settings)
+        {
+            var configuredEndpoint = string.IsNullOrWhiteSpace(settings.Endpoint) ? null : new Uri(settings.Endpoint.Trim(), UriKind.Absolute);
+            if (configuredEndpoint is null || configuredEndpoint.Host.Equals("api.openai.com", StringComparison.OrdinalIgnoreCase))
+                return (new Uri("https://api.openai.com/v1/chat/completions"), false);
+
+            var endpoint = configuredEndpoint.AbsoluteUri.TrimEnd('/');
+            if (endpoint.EndsWith("/openai/v1/chat/completions", StringComparison.OrdinalIgnoreCase))
+                return (configuredEndpoint, true);
+            if (endpoint.EndsWith("/openai/v1", StringComparison.OrdinalIgnoreCase))
+                return (new Uri($"{endpoint}/chat/completions"), true);
+
+            var version = settings.ApiVersion?.Trim();
+            if (string.IsNullOrEmpty(version) || version.Equals("v1", StringComparison.OrdinalIgnoreCase))
+                return (new Uri($"{endpoint}/openai/v1/chat/completions"), true);
+
+            var deployment = Uri.EscapeDataString(settings.Model);
+            return (new Uri($"{endpoint}/openai/deployments/{deployment}/chat/completions?api-version={Uri.EscapeDataString(version)}"), true);
         }
     }
 }

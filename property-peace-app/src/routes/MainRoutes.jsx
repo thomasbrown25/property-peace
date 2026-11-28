@@ -79,6 +79,7 @@ const MaintenancePage = Loadable(lazy(() => import('pages/landlord/maintenance')
 const MaintenanceAddWorkflow = Loadable(lazy(() => import('pages/landlord/maintenance-add-workflow')));
 const ChecklistPage = Loadable(lazy(() => import('pages/landlord/checklist')));
 const ChecklistsPage = Loadable(lazy(() => import('pages/landlord/checklists')));
+const LeaseTransitionChecklistsPage = Loadable(lazy(() => import('pages/landlord/lease-transition-checklists')));
 const UnitChecklistsPage = Loadable(lazy(() => import('pages/landlord/unit-checklists')));
 const PropertyChecklistsPage = Loadable(lazy(() => import('pages/landlord/inspection-detail')));
 const CustomizeMoveInReportPage = Loadable(lazy(() => import('pages/landlord/customize-move-in-report')));
@@ -193,7 +194,11 @@ function TenantLegacyChatRedirect() {
 }
 
 function LegacyInspectionRedirect() {
-  return <Navigate to="/landlord/checklists" replace />;
+  const { propertyId, unitId } = useParams();
+  const search = new URLSearchParams({ view: 'reports' });
+  if (propertyId) search.set('propertyId', propertyId);
+  if (unitId) search.set('unitId', unitId);
+  return <Navigate to={`/landlord/checklists?${search}`} replace />;
 }
 
 function DashboardEntry() {
@@ -854,17 +859,21 @@ const MainRoutes = {
           path: 'landlord/checklists',
           element: (
             <SubscriptionPausedGuard>
-              <ChecklistsPage />
+              <LeaseTransitionChecklistsPage />
             </SubscriptionPausedGuard>
           )
         },
         {
+          path: 'landlord/checklists/handoff/:transitionId',
+          element: <SubscriptionPausedGuard><LeaseTransitionChecklistsPage /></SubscriptionPausedGuard>
+        },
+        {
           path: 'landlord/checklists/property/:propertyId',
-          element: <Navigate to="/landlord/checklists" replace />
+          element: <LegacyInspectionRedirect />
         },
         {
           path: 'landlord/checklists/property/:propertyId/unit/:unitId',
-          element: <Navigate to="/landlord/checklists" replace />
+          element: <LegacyInspectionRedirect />
         },
         {
           path: 'landlord/checklists/property/:propertyId/checklist/:checklistId',

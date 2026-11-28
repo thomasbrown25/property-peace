@@ -30,6 +30,7 @@ namespace brownstone_hub_api.Enums
         MoveOutChecklist = 41,      // Move-out inspection checklist
         MoveInPhotos = 42,          // Move-in condition photos
         MoveOutPhotos = 43,         // Move-out condition photos
+        ConditionReport = 44,       // Neutral room-by-room condition report
         
         // Financial Documents
         BankStatement = 50,        // Bank statements

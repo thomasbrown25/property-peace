@@ -400,6 +400,8 @@ namespace brownstone_hub_api.Data
         public DbSet<ScreeningIncidentEvent> ScreeningIncidentEvents => Set<ScreeningIncidentEvent>();
         public DbSet<Checklist> Checklists => Set<Checklist>();
         public DbSet<ChecklistItem> ChecklistItems => Set<ChecklistItem>();
+        public DbSet<LeaseTransitionChecklist> LeaseTransitionChecklists => Set<LeaseTransitionChecklist>();
+        public DbSet<LeaseTransitionChecklistItem> LeaseTransitionChecklistItems => Set<LeaseTransitionChecklistItem>();
         public DbSet<OrganizationChecklistItem> OrganizationChecklistItems => Set<OrganizationChecklistItem>();
         public DbSet<OrganizationMoveInReportTemplate> OrganizationMoveInReportTemplates => Set<OrganizationMoveInReportTemplate>();
         public DbSet<OrganizationReportSpace> OrganizationReportSpaces => Set<OrganizationReportSpace>();

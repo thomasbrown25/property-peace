@@ -53,7 +53,8 @@ test('progress is first within the main checklist card before room items', () =>
   assert.ok(card.indexOf('<LinearProgress') < card.indexOf('{/* Column body */}'));
 });
 
-test('checklist type is the detail heading and property name is a subtitle beneath it', () => {
-  assert.match(source, /<Typography variant="h5"[\s\S]*?\{activeType \? \(activeType === MOVE_IN \? 'Move-in Checklist' : 'Move-out Checklist'\) : displayPropertyName\}[\s\S]*?<\/Typography>/);
+test('condition report type is the detail heading and property name is a subtitle beneath it', () => {
+  assert.match(source, /const reportTitle = activeType === CONDITION_REPORT \? 'Condition report'/);
+  assert.match(source, /<Typography variant="h5"[\s\S]*?\{activeType \? reportTitle : displayPropertyName\}[\s\S]*?<\/Typography>/);
   assert.match(source, /<Typography variant="body2" color="text.secondary"[\s\S]*?\{displayPropertyName\}[\s\S]*?<\/Typography>/);
 });

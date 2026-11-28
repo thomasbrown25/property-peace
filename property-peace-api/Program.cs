@@ -655,6 +655,7 @@ services.AddScoped<IApplicationPdfService, ApplicationPdfService>();
 services.AddScoped<IBackgroundCheckService, BackgroundCheckService>();
 services.AddFailClosedTenantScreening(configuration);
 services.AddScoped<IChecklistService, ChecklistService>();
+services.AddScoped<brownstone_hub_api.Services.LeaseTransitionChecklistService.ILeaseTransitionChecklistService, brownstone_hub_api.Services.LeaseTransitionChecklistService.LeaseTransitionChecklistService>();
 services.AddScoped<IOrganizationChecklistItemService, OrganizationChecklistItemService>();
 services.AddScoped<IMoveInReportTemplateService, MoveInReportTemplateService>();
 services.AddScoped<IConversationService, ConversationService>();

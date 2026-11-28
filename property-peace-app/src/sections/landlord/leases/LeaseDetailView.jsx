@@ -26,7 +26,6 @@ import LeaseActivityRow from './LeaseActivityRow';
 import LeaseChargesTab from './LeaseChargesTab';
 import { recordTabsSx } from 'sections/landlord/property/recordTabsStyle';
 import { buildLeaseChecklistCards, sortLeaseChecklistSteps } from 'utils/leaseMoveIn';
-import { findLinkedChecklist } from 'utils/checklistLeaseOptions.mjs';
 import { leaseHeaderPhoto, needsLeaseSignatures } from './leaseHeader.mjs';
 import { cardDealAnimationSx } from 'utils/cardDealAnimation';
 
@@ -55,6 +54,7 @@ function LeaseMoveInCard({
   readiness,
   lease,
   checklists,
+  transitionChecklists,
   hasAgreement,
   eSignatureReadiness,
   onAssignTenants,
@@ -66,14 +66,15 @@ function LeaseMoveInCard({
 }) {
   const theme = useTheme();
   if (!readiness) return null;
-  const checklist = buildLeaseChecklistCards({ readiness, lease, checklists });
+  const checklist = buildLeaseChecklistCards({ readiness, lease, checklists, transitionChecklists });
+  const hasHandoff = (phase) => transitionChecklists?.some((record) => String(record.leaseId) === String(lease?.id ?? lease?.Id) && record.phase === phase);
 
   const actions = {
     tenants: { label: 'Assign tenants', onClick: onAssignTenants },
     agreement: { label: hasAgreement ? 'View agreement' : 'Build agreement', onClick: hasAgreement ? onViewAgreement : onBuildAgreement },
     signatures: { label: 'Open signatures', onClick: onOpenSignature, disabled: !eSignatureReadiness?.canInvoke },
-    checklist: { label: !Array.isArray(checklists) || findLinkedChecklist(checklists, lease?.id ?? lease?.Id, 'move-in') ? 'View checklist' : 'Create checklist', onClick: () => onViewChecklists('move-in') },
-    'move-out': { label: !Array.isArray(checklists) || findLinkedChecklist(checklists, lease?.id ?? lease?.Id, 'move-out') ? 'View checklist' : 'Create checklist', onClick: () => onViewChecklists('move-out') }
+    checklist: { label: hasHandoff('moveIn') ? 'View checklist' : 'Start checklist', onClick: () => onViewChecklists('move-in') },
+    'move-out': { label: hasHandoff('moveOut') ? 'View checklist' : 'Start checklist', onClick: () => onViewChecklists('move-out') }
   };
 
   return (
@@ -315,7 +316,7 @@ export default function LeaseDetailView({
   lease, tenants, property, payments, deposits, rentRecord,
   paymentsLoading = true, paymentsError, onRetryPayments,
   propertyDisplay, unitDisplay, isDraftLease, isNotStarted, leaseId,
-  dashboardSummary, user, leaseDocuments, leaseAgreement, moveInReadiness, leaseChecklists, eSignatureReadiness,
+  dashboardSummary, user, leaseDocuments, leaseAgreement, moveInReadiness, leaseChecklists, transitionChecklists, eSignatureReadiness,
   handleEndLeaseClick, handleReopenLeaseClick,
   onRecordPayment, onViewAgreement, onUploadDocument, onEditTerms,
   onAddTenant, onOpenSignature,
@@ -794,6 +795,7 @@ export default function LeaseDetailView({
             readiness={moveInReadiness}
             lease={lease}
             checklists={leaseChecklists}
+            transitionChecklists={transitionChecklists}
             hasAgreement={hasLeaseAgreementDocument}
             eSignatureReadiness={eSignatureReadiness}
             onAssignTenants={onAddTenant}

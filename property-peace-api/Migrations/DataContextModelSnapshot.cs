@@ -306,7 +306,7 @@ namespace brownstone_hub_api.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Admins");
+                    b.ToTable("Admins", (string)null);
                 });
 
             modelBuilder.Entity("brownstone_hub_api.Models.AdminSettings", b =>
@@ -347,7 +347,7 @@ namespace brownstone_hub_api.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("AdminSettings");
+                    b.ToTable("AdminSettings", (string)null);
                 });
 
             modelBuilder.Entity("brownstone_hub_api.Models.Amenity", b =>
@@ -373,7 +373,7 @@ namespace brownstone_hub_api.Migrations
 
                     b.HasIndex("UnitId");
 
-                    b.ToTable("Amenities");
+                    b.ToTable("Amenities", (string)null);
                 });
 
             modelBuilder.Entity("brownstone_hub_api.Models.Announcement", b =>
@@ -862,6 +862,10 @@ namespace brownstone_hub_api.Migrations
                     b.Property<long>("PropertyId")
                         .HasColumnType("bigint");
 
+                    b.Property<string>("RequestId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
                     b.Property<string>("RoomNamesJson")
                         .HasColumnType("nvarchar(max)");
 
@@ -905,6 +909,10 @@ namespace brownstone_hub_api.Migrations
                     b.HasIndex("UnitId");
 
                     b.HasIndex("PropertyId", "ChecklistType");
+
+                    b.HasIndex("OrganizationId", "LandlordId", "RequestId")
+                        .IsUnique()
+                        .HasFilter("[RequestId] IS NOT NULL");
 
                     b.ToTable("Checklists", "checklist");
                 });
@@ -2067,7 +2075,7 @@ namespace brownstone_hub_api.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("EmailVerifications");
+                    b.ToTable("EmailVerifications", (string)null);
                 });
 
             modelBuilder.Entity("brownstone_hub_api.Models.Expense", b =>
@@ -2183,6 +2191,7 @@ namespace brownstone_hub_api.Migrations
                         .HasColumnType("bigint");
 
                     b.Property<DateTime?>("UpdatedAt")
+                        .IsConcurrencyToken()
                         .HasColumnType("datetime2");
 
                     b.Property<string>("Vendor")
@@ -2357,7 +2366,7 @@ namespace brownstone_hub_api.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("Feedback");
+                    b.ToTable("Feedback", (string)null);
                 });
 
             modelBuilder.Entity("brownstone_hub_api.Models.File", b =>
@@ -2790,7 +2799,7 @@ namespace brownstone_hub_api.Migrations
 
                     b.HasIndex("UnitId");
 
-                    b.ToTable("IncludedUtilities");
+                    b.ToTable("IncludedUtilities", (string)null);
                 });
 
             modelBuilder.Entity("brownstone_hub_api.Models.JobRunHistory", b =>
@@ -2937,7 +2946,7 @@ namespace brownstone_hub_api.Migrations
 
                     b.HasIndex("PropertyId");
 
-                    b.ToTable("LandlordTasks");
+                    b.ToTable("LandlordTasks", (string)null);
                 });
 
             modelBuilder.Entity("brownstone_hub_api.Models.Lead", b =>
@@ -4553,6 +4562,116 @@ namespace brownstone_hub_api.Migrations
                     b.ToTable("LeaseTemplateSections", "lease_builder");
                 });
 
+            modelBuilder.Entity("brownstone_hub_api.Models.LeaseTransitionChecklist", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long?>("ConditionReportId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long>("LandlordId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("LeaseId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("OrganizationId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("Phase")
+                        .HasColumnType("int");
+
+                    b.Property<long>("PropertyId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("RequestId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<long?>("UnitId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .IsConcurrencyToken()
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConditionReportId")
+                        .IsUnique()
+                        .HasFilter("[ConditionReportId] IS NOT NULL");
+
+                    b.HasIndex("LandlordId");
+
+                    b.HasIndex("LeaseId");
+
+                    b.HasIndex("PropertyId");
+
+                    b.HasIndex("UnitId");
+
+                    b.HasIndex("OrganizationId", "RequestId")
+                        .IsUnique();
+
+                    b.HasIndex("OrganizationId", "LeaseId", "Phase")
+                        .IsUnique()
+                        .HasFilter("[LeaseId] IS NOT NULL");
+
+                    b.ToTable("LeaseTransitionChecklists", "checklist");
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.LeaseTransitionChecklistItem", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<bool>("AllowNotApplicable")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<string>("Label")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<long>("LeaseTransitionChecklistId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("NotApplicableReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LeaseTransitionChecklistId", "Key")
+                        .IsUnique();
+
+                    b.ToTable("LeaseTransitionChecklistItems", "checklist");
+                });
+
             modelBuilder.Entity("brownstone_hub_api.Models.LeaseVariable", b =>
                 {
                     b.Property<long>("Id")
@@ -4891,7 +5010,7 @@ namespace brownstone_hub_api.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("LoggingDataExchange");
+                    b.ToTable("LoggingDataExchange", (string)null);
                 });
 
             modelBuilder.Entity("brownstone_hub_api.Models.LoggingException", b =>
@@ -4928,7 +5047,7 @@ namespace brownstone_hub_api.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("LoggingException");
+                    b.ToTable("LoggingException", (string)null);
                 });
 
             modelBuilder.Entity("brownstone_hub_api.Models.LoggingTrace", b =>
@@ -4947,7 +5066,7 @@ namespace brownstone_hub_api.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("LoggingTrace");
+                    b.ToTable("LoggingTrace", (string)null);
                 });
 
             modelBuilder.Entity("brownstone_hub_api.Models.MaintenanceActivityEvent", b =>
@@ -5166,7 +5285,7 @@ namespace brownstone_hub_api.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("MaintenanceCategories");
+                    b.ToTable("MaintenanceCategories", (string)null);
                 });
 
             modelBuilder.Entity("brownstone_hub_api.Models.MaintenanceCommandReceipt", b =>
@@ -5446,7 +5565,7 @@ namespace brownstone_hub_api.Migrations
 
                     b.HasIndex("RefId");
 
-                    b.ToTable("MaintenanceImages");
+                    b.ToTable("MaintenanceImages", (string)null);
                 });
 
             modelBuilder.Entity("brownstone_hub_api.Models.MaintenancePreferredWindow", b =>
@@ -6227,7 +6346,7 @@ namespace brownstone_hub_api.Migrations
 
                     b.HasIndex("UserId", "ExpiresAt");
 
-                    b.ToTable("MfaChallenges");
+                    b.ToTable("MfaChallenges", (string)null);
                 });
 
             modelBuilder.Entity("brownstone_hub_api.Models.MfaEnrollment", b =>
@@ -6271,7 +6390,7 @@ namespace brownstone_hub_api.Migrations
                     b.HasIndex("UserId", "Method")
                         .IsUnique();
 
-                    b.ToTable("MfaEnrollments");
+                    b.ToTable("MfaEnrollments", (string)null);
                 });
 
             modelBuilder.Entity("brownstone_hub_api.Models.Notification", b =>
@@ -6961,7 +7080,7 @@ namespace brownstone_hub_api.Migrations
 
                     b.HasIndex("ExpiresAt");
 
-                    b.ToTable("PasskeyCeremonies");
+                    b.ToTable("PasskeyCeremonies", (string)null);
                 });
 
             modelBuilder.Entity("brownstone_hub_api.Models.PasskeyCredential", b =>
@@ -7024,7 +7143,7 @@ namespace brownstone_hub_api.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("PasskeyCredentials");
+                    b.ToTable("PasskeyCredentials", (string)null);
                 });
 
             modelBuilder.Entity("brownstone_hub_api.Models.PasswordResetToken", b =>
@@ -7810,7 +7929,7 @@ namespace brownstone_hub_api.Migrations
 
                     b.HasIndex("RefId");
 
-                    b.ToTable("PropertyImages");
+                    b.ToTable("PropertyImages", (string)null);
                 });
 
             modelBuilder.Entity("brownstone_hub_api.Models.QuickReply", b =>
@@ -8330,7 +8449,7 @@ namespace brownstone_hub_api.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Roles");
+                    b.ToTable("Roles", (string)null);
                 });
 
             modelBuilder.Entity("brownstone_hub_api.Models.ScreeningAdverseAction", b =>
@@ -11213,7 +11332,34 @@ namespace brownstone_hub_api.Migrations
 
                     b.HasIndex("UploadedByUserId", "CreatedAt");
 
-                    b.ToTable("StorageObjects");
+                    b.ToTable("StorageObjects", (string)null);
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.StripeConnectOAuthReplay", b =>
+                {
+                    b.Property<string>("CodeHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateTime>("ConsumedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("StateNonceHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.HasKey("CodeHash");
+
+                    b.HasIndex("ExpiresAt");
+
+                    b.HasIndex("StateNonceHash")
+                        .IsUnique();
+
+                    b.ToTable("StripeConnectOAuthReplays", "financial");
                 });
 
             modelBuilder.Entity("brownstone_hub_api.Models.StripeConnectPreparation", b =>
@@ -11289,33 +11435,6 @@ namespace brownstone_hub_api.Migrations
                         .IsUnique();
 
                     b.ToTable("StripeConnectPreparationProperties", "financial");
-                });
-
-            modelBuilder.Entity("brownstone_hub_api.Models.StripeConnectOAuthReplay", b =>
-                {
-                    b.Property<string>("CodeHash")
-                        .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)");
-
-                    b.Property<DateTime>("ConsumedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime>("ExpiresAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("StateNonceHash")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)");
-
-                    b.HasKey("CodeHash");
-
-                    b.HasIndex("ExpiresAt");
-
-                    b.HasIndex("StateNonceHash")
-                        .IsUnique();
-
-                    b.ToTable("StripeConnectOAuthReplays", "financial");
                 });
 
             modelBuilder.Entity("brownstone_hub_api.Models.StripeConnectedPayeeReview", b =>
@@ -11506,7 +11625,7 @@ namespace brownstone_hub_api.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("StripePaymentMethods");
+                    b.ToTable("StripePaymentMethods", (string)null);
                 });
 
             modelBuilder.Entity("brownstone_hub_api.Models.StripeRentCustomer", b =>
@@ -11789,7 +11908,7 @@ namespace brownstone_hub_api.Migrations
                     b.HasIndex("StripeEventId")
                         .IsUnique();
 
-                    b.ToTable("StripeWebhookEvents");
+                    b.ToTable("StripeWebhookEvents", (string)null);
                 });
 
             modelBuilder.Entity("brownstone_hub_api.Models.Subscription", b =>
@@ -13227,7 +13346,7 @@ namespace brownstone_hub_api.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("UserSettings");
+                    b.ToTable("UserSettings", (string)null);
                 });
 
             modelBuilder.Entity("brownstone_hub_api.Models.UtilityServiceResponsibility", b =>
@@ -14588,6 +14707,65 @@ namespace brownstone_hub_api.Migrations
                         .IsRequired();
 
                     b.Navigation("LeaseTemplate");
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.LeaseTransitionChecklist", b =>
+                {
+                    b.HasOne("brownstone_hub_api.Models.Checklist", "ConditionReport")
+                        .WithMany()
+                        .HasForeignKey("ConditionReportId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("brownstone_hub_api.Models.User", "Landlord")
+                        .WithMany()
+                        .HasForeignKey("LandlordId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.Lease", "Lease")
+                        .WithMany()
+                        .HasForeignKey("LeaseId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("brownstone_hub_api.Models.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.Property", "Property")
+                        .WithMany()
+                        .HasForeignKey("PropertyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.Unit", "Unit")
+                        .WithMany()
+                        .HasForeignKey("UnitId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("ConditionReport");
+
+                    b.Navigation("Landlord");
+
+                    b.Navigation("Lease");
+
+                    b.Navigation("Organization");
+
+                    b.Navigation("Property");
+
+                    b.Navigation("Unit");
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.LeaseTransitionChecklistItem", b =>
+                {
+                    b.HasOne("brownstone_hub_api.Models.LeaseTransitionChecklist", "Checklist")
+                        .WithMany("Items")
+                        .HasForeignKey("LeaseTransitionChecklistId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Checklist");
                 });
 
             modelBuilder.Entity("brownstone_hub_api.Models.LeaseVariable", b =>
@@ -16913,6 +17091,11 @@ namespace brownstone_hub_api.Migrations
                     b.Navigation("Policies");
 
                     b.Navigation("Sections");
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.LeaseTransitionChecklist", b =>
+                {
+                    b.Navigation("Items");
                 });
 
             modelBuilder.Entity("brownstone_hub_api.Models.Listing", b =>

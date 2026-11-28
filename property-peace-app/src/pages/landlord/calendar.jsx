@@ -590,14 +590,14 @@ function EventDetailsDrawer({ event, onClose, onEditTask, onDeleteTask, onNaviga
     : `/landlord/checklists/property/${checklistPropertyId}`;
   const categoryLabel = event?.category === 'RentPayment'
     ? 'Rent & payment'
-    : event?.category === 'Inspection' ? 'Checklist' : event?.category;
+    : event?.category === 'Inspection' ? 'Condition report' : event?.category;
   const destination = event?.category === 'RentPayment'
     ? (event.leaseId ? `/landlord/leases/${event.leaseId}/payment-history` : '/landlord/finances?tab=payments')
     : event?.source === 'recurring-expense' ? '/landlord/finances?tab=expenses'
     : event?.category === 'Maintenance' && event.maintenanceId ? `/landlord/maintenance/${event.maintenanceId}`
     : event?.category === 'Lease' && event.leaseId ? `/landlord/leases/${event.leaseId}`
     : event?.source === 'inspection' && checklistPropertyId
-      ? (checklistId ? `${checklistBase}/checklist/${checklistId}` : '/landlord/checklists')
+      ? (checklistId ? `${checklistBase}/checklist/${checklistId}` : checklistBase)
     : null;
   return (
     <ThemeAdaptiveDrawer

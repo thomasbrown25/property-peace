@@ -3,7 +3,7 @@ import { useDrawer } from 'contexts/DrawerContext';
 import { isDetachedSingleUnitType } from 'utils/propertyType';
 import { rentalMode } from 'utils/rentalMode';
 
-export default function PropertyActions({ property, onlinePaymentAction, onEdit, onViewLeases, onUploadDocument, onDelete }) {
+export default function PropertyActions({ property, onlinePaymentAction, onEdit, onViewLeases, onViewChecklists, onUploadDocument, onDelete }) {
   const drawer = useDrawer();
   const propertyId = property?.id ?? property?.Id;
   const units = property?.units ?? property?.Units ?? [];
@@ -30,6 +30,13 @@ export default function PropertyActions({ property, onlinePaymentAction, onEdit,
       icon: 'leases',
       onSelect: onViewLeases
     },
+    ...(onViewChecklists ? [{
+      label: 'Checklists and condition reports',
+      description: 'Open move-in, move-out, and inspection records for this property.',
+      icon: 'checklists',
+      plainIcon: true,
+      onSelect: onViewChecklists
+    }] : []),
     {
       label: 'Record a payment',
       description: 'Log a payment for a long-term rental.',

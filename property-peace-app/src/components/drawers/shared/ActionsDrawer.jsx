@@ -80,7 +80,7 @@ export default function ActionsDrawer({ id, title, triggerLabel, actions, iconOn
         </Stack>
         <Divider />
         <List sx={{ flex: 1, overflowY: 'auto', p: 1.5 }}>
-          {actions.map(({ label, description, icon, disabled, destructive, selected, current, working, onSelect, href }) => (
+          {actions.map(({ label, description, icon, disabled, destructive, selected, current, working, onSelect, href, plainIcon }) => (
             <Fragment key={label}>
               {destructive && <Divider component="li" sx={{ my: 1 }} />}
               <ListItem disablePadding>
@@ -100,7 +100,7 @@ export default function ActionsDrawer({ id, title, triggerLabel, actions, iconOn
                     component="span"
                     sx={{
                       display: 'grid', placeItems: 'center', width: 36, height: 36, flexShrink: 0,
-                      borderRadius: 1, bgcolor: 'action.selected', color: destructive ? 'error.main' : 'inherit', fontSize: 18
+                      borderRadius: 1, bgcolor: plainIcon ? 'transparent' : 'action.selected', color: destructive ? 'error.main' : plainIcon ? 'primary.main' : 'inherit', fontSize: 18
                     }}
                   >
                     {working ? <CircularProgress size={16} color="inherit" /> : <AppIcon name={icon} />}

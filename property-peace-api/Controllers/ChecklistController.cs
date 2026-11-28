@@ -16,6 +16,19 @@ namespace brownstone_hub_api.Controllers
         IMoveInReportTemplateService moveInReportTemplateService,
         ILeaseService leaseService) : ControllerBase
     {
+        [HttpGet("/api/condition-reports")]
+        public async Task<IActionResult> GetConditionReports([FromQuery] long? propertyId, [FromQuery] long? unitId, [FromQuery] long? leaseId)
+        {
+            var response = await _checklistService.GetConditionReports(propertyId, unitId, leaseId);
+            return response.Success ? Ok(response) : StatusCode(response.StatusCode, new { response.Message, response.Errors });
+        }
+
+        [HttpPost("/api/condition-reports")]
+        public async Task<IActionResult> AddConditionReport([FromBody] AddChecklistDto checklist)
+        {
+            var response = await _checklistService.AddConditionReport(checklist);
+            return response.Success ? StatusCode(201, response) : StatusCode(response.StatusCode, new { response.Message, response.Errors });
+        }
         private readonly IChecklistService _checklistService = checklistService;
         private readonly IOrganizationChecklistItemService _organizationChecklistItemService = organizationChecklistItemService;
         private readonly IMoveInReportTemplateService _moveInReportTemplateService = moveInReportTemplateService;

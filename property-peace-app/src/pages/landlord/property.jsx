@@ -2610,6 +2610,7 @@ export default function Property() {
             onlinePaymentAction={onlinePaymentAction}
             onEdit={drawer.openPropertyEditDrawer}
             onViewLeases={() => handleTabChange('leases')}
+            onViewChecklists={() => navigate(`/landlord/checklists?propertyId=${propertyId}`)}
             onUploadDocument={openDocumentUpload}
             onDelete={() => setDeletePropertyModalOpen(true)}
           />

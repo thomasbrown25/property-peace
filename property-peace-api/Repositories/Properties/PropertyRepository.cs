@@ -395,6 +395,7 @@ namespace brownstone_hub_api.Repositories.Properties
 
                 // Hard delete: actually remove the property from the database
                 await RemoveConnectPreparationPropertyAsync(propertyId, CancellationToken.None);
+                await RemoveTransitionChecklistsAsync(propertyId, CancellationToken.None);
                 _context.Properties.Remove(property);
                 await _context.SaveChangesAsync();
 
@@ -415,9 +416,17 @@ namespace brownstone_hub_api.Repositories.Properties
                 cancellationToken) ?? throw new KeyNotFoundException($"Property with ID {propertyId} not found");
             var propertyDto = _mapper.Map<LoadPropertyDto>(property);
             await RemoveConnectPreparationPropertyAsync(propertyId, cancellationToken);
+            await RemoveTransitionChecklistsAsync(propertyId, cancellationToken);
             _context.Properties.Remove(property);
             await _context.SaveChangesAsync(cancellationToken);
             return propertyDto;
+        }
+
+        private async Task RemoveTransitionChecklistsAsync(long propertyId, CancellationToken cancellationToken)
+        {
+            var checklists = await _context.LeaseTransitionChecklists
+                .Where(checklist => checklist.PropertyId == propertyId).ToListAsync(cancellationToken);
+            _context.LeaseTransitionChecklists.RemoveRange(checklists);
         }
 
         private async Task RemoveConnectPreparationPropertyAsync(long propertyId, CancellationToken cancellationToken)

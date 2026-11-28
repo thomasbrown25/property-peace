@@ -2,8 +2,6 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import test from 'node:test';
-import { findLinkedChecklist } from '../utils/checklistLeaseOptions.mjs';
-import { buildChecklistWorkspacePath } from '../utils/checklistPortfolio.js';
 
 const require = createRequire(import.meta.url);
 const { parseSync, traverse } = require('@babel/core');
@@ -28,8 +26,8 @@ async function click(response, type = 'move-in', propertyId = 6) {
   const notices = [];
   const requested = [];
   const action = compile(handler, {
-    leaseId: '12', propertyId, findLinkedChecklist, buildChecklistWorkspacePath, URLSearchParams,
-    getChecklistsByLease: async (id) => { requested.push(id); if (response instanceof Error) throw response; return response; },
+    leaseId: '12', propertyId, lease: { unitId: 7 }, URLSearchParams,
+    listTransitionChecklists: async ({ leaseId }) => { requested.push(leaseId); if (response instanceof Error) throw response; return response; },
     navigate: (...args) => calls.push(args), openSnackbar: (notice) => notices.push(notice)
   });
   await action(type);
@@ -37,43 +35,36 @@ async function click(response, type = 'move-in', propertyId = 6) {
   return { calls, notices };
 }
 
-test('card opens the exact lease/type checklist for numeric and serialized enum values', async () => {
-  for (const checklistType of [40, '40', 'MoveInChecklist', 'Move-inChecklist']) {
-    const { calls, notices } = await click({ success: true, data: [
-      { id: 1, leaseId: 13, checklistType: 40, propertyId: 6 },
-      { id: 2, leaseId: 12, checklistType: 41, propertyId: 6 },
-      { id: 3, leaseId: 12, checklistType, propertyId: 6, unitId: 7 }
-    ] });
-    assert.deepEqual(calls, [['/landlord/checklists/property/6/unit/7/checklist/3']]);
-    assert.deepEqual(notices, []);
-  }
-});
-
-test('Pascal-case records and property-scoped checklist routes remain supported', async () => {
-  const { calls } = await click({ success: true, data: [{ Id: 3, LeaseId: 12, ChecklistType: 'MoveInChecklist', PropertyId: 6 }] });
-  assert.deepEqual(calls, [['/landlord/checklists/property/6/checklist/3']]);
+test('card opens the handoff for the exact lease and phase', async () => {
+  const { calls, notices } = await click([
+    { id: 1, leaseId: 13, phase: 'moveIn' },
+    { id: 2, leaseId: 12, phase: 'moveOut' },
+    { id: 3, leaseId: 12, phase: 'moveIn' }
+  ]);
+  assert.deepEqual(calls, [['/landlord/checklists/handoff/3']]);
+  assert.deepEqual(notices, []);
 });
 
 test('missing checklist opens lease-linked creation with saved property context', async () => {
-  const { calls } = await click({ success: true, data: [{ id: 9, leaseId: 13, checklistType: 40 }] });
-  assert.deepEqual(calls, [['/landlord/leases/12/checklists/move-in/new?propertyId=6', { state: { propertyId: 6 } }]]);
+  const { calls } = await click([{ id: 9, leaseId: 13, phase: 'moveIn' }]);
+  assert.deepEqual(calls, [['/landlord/checklists?propertyId=6&leaseId=12&phase=moveIn&unitId=7']]);
 });
 
 test('move-out opens its own checklist, not the move-in checklist', async () => {
-  const { calls } = await click({ success: true, data: [
-    { id: 3, leaseId: 12, checklistType: 40, propertyId: 6 },
-    { id: 4, leaseId: 12, checklistType: 'MoveOutChecklist', propertyId: 6 }
-  ] }, 'move-out');
-  assert.deepEqual(calls, [['/landlord/checklists/property/6/checklist/4']]);
+  const { calls } = await click([
+    { id: 3, leaseId: 12, phase: 'moveIn' },
+    { id: 4, leaseId: 12, phase: 'moveOut' }
+  ], 'move-out');
+  assert.deepEqual(calls, [['/landlord/checklists/handoff/4']]);
 });
 
 test('failed or incomplete lookup never treats unknown checklist state as no checklist', async () => {
-  for (const response of [{ success: false }, { success: true, data: null }, new Error('Offline')]) {
+  for (const response of [null, new Error('Offline')]) {
     const { calls, notices } = await click(response);
     assert.deepEqual(calls, []);
     assert.equal(notices[0].alert.color, 'error');
   }
-  assert.deepEqual((await click({ success: true, data: [] }, 'move-in', null)).calls, []);
+  assert.deepEqual((await click([], 'move-in', null)).calls, []);
 });
 
 test('lease-linked creation skips property, unit, and inspection type selectors; portfolio creation retains them', () => {

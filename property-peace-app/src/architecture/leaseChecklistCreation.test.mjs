@@ -12,15 +12,16 @@ test('lease checklist card opens a lease-scoped creation route only when no matc
   assert.ok(openChecklist, 'Lease detail should receive a checklist navigation handler');
   const [lookup, creation] = openChecklist.split('const params = new URLSearchParams');
   assert.ok(creation, 'Checklist creation should pass lease property context');
-  assert.match(lookup, /await getChecklistsByLease\(leaseId\)/);
-  assert.match(lookup, /if \(!response\?\.success \|\| !Array\.isArray\(response\.data\)\) throw/);
-  assert.match(lookup, /findLinkedChecklist\(response\.data, leaseId, type\)/);
-  assert.match(lookup, /if \(existing\) \{\s*navigate\(buildChecklistWorkspacePath\(\{[\s\S]*?\}\)\);\s*return;\s*\}/);
-  assert.match(creation, /navigate\(`\/landlord\/leases\/\$\{leaseId\}\/checklists\/\$\{type\}\/new\?\$\{params\}`/);
+  assert.match(lookup, /await listTransitionChecklists\(\{ leaseId \}\)/);
+  assert.match(lookup, /if \(!Array\.isArray\(records\)\) throw/);
+  assert.match(lookup, /String\(record\.leaseId\) === String\(leaseId\) && record\.phase === phase/);
+  assert.match(lookup, /if \(existing\) \{\s*navigate\(`\/landlord\/checklists\/handoff\/\$\{existing\.id\}`\);\s*return;\s*\}/);
+  assert.match(creation, /navigate\(`\/landlord\/checklists\?\$\{params\}`/);
   assert.match(detail, /onClick=\{cardAction\}/);
   assert.match(detail, /onViewChecklists\('move-in'\)/);
   assert.match(detail, /onViewChecklists\('move-out'\)/);
   assert.match(routes, /path: 'landlord\/leases\/:leaseId\/checklists\/:createType\/new'/);
+  assert.match(routes, /path: 'landlord\/checklists\/handoff\/:transitionId'/);
 });
 
 test('standalone creation reuses the drawer fields and validates the lease context without breadcrumbs', () => {
